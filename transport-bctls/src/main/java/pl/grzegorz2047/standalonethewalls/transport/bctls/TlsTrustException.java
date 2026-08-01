@@ -11,9 +11,9 @@ public final class TlsTrustException extends CertificateException {
     private static final long serialVersionUID = 1L;
 
     private final ServerTrustDecision.Status status;
-    private final ServerReference reference;
-    private final ServerId presentedServerId;
-    private final ServerFingerprint fingerprint;
+    private final String referenceValue;
+    private final String presentedServerIdValue;
+    private final String fingerprintValue;
 
     TlsTrustException(
             ServerTrustDecision.Status status,
@@ -28,9 +28,9 @@ public final class TlsTrustException extends CertificateException {
                         + ", fingerprint="
                         + fingerprint.value());
         this.status = status;
-        this.reference = reference;
-        this.presentedServerId = presentedServerId;
-        this.fingerprint = fingerprint;
+        this.referenceValue = reference.value();
+        this.presentedServerIdValue = presentedServerId.value();
+        this.fingerprintValue = fingerprint.value();
     }
 
     public ServerTrustDecision.Status status() {
@@ -38,14 +38,14 @@ public final class TlsTrustException extends CertificateException {
     }
 
     public ServerReference reference() {
-        return reference;
+        return new ServerReference(referenceValue);
     }
 
     public ServerId presentedServerId() {
-        return presentedServerId;
+        return new ServerId(presentedServerIdValue);
     }
 
     public ServerFingerprint fingerprint() {
-        return fingerprint;
+        return new ServerFingerprint(fingerprintValue);
     }
 }
