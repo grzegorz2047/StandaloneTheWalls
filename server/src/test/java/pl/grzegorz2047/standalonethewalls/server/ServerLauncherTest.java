@@ -2,6 +2,7 @@ package pl.grzegorz2047.standalonethewalls.server;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
@@ -11,7 +12,7 @@ class ServerLauncherTest {
     @TempDir Path temporaryDirectory;
 
     @Test
-    void validatesConfigurationWithoutStartingTheRuntime() throws Exception {
+    void validatesConfigurationWithoutStartingTheRuntime() throws IOException {
         Path configuration = temporaryDirectory.resolve("server.properties");
         Files.writeString(configuration, "server.name=Validation Arena\nserver.tick-rate=20\n");
 
