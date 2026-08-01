@@ -11,7 +11,8 @@ class ClientLanguageTest {
     void parsesSupportedCodesAndFallsBackToEnglishForOtherSystemLocales() {
         assertEquals(ClientLanguage.ENGLISH, ClientLanguage.parse("EN"));
         assertEquals(ClientLanguage.POLISH, ClientLanguage.parse("pl"));
-        assertEquals(ClientLanguage.POLISH, ClientLanguage.fromLocale(Locale.forLanguageTag("pl-PL")));
+        assertEquals(
+                ClientLanguage.POLISH, ClientLanguage.fromLocale(Locale.forLanguageTag("pl-PL")));
         assertEquals(ClientLanguage.ENGLISH, ClientLanguage.fromLocale(Locale.GERMAN));
         assertThrows(IllegalArgumentException.class, () -> ClientLanguage.parse("de"));
     }

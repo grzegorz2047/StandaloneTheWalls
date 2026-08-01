@@ -9,14 +9,15 @@ import java.util.MissingResourceException;
 import org.junit.jupiter.api.Test;
 
 class ClientMessagesTest {
-    private static final List<String> START_SCREEN_KEYS = List.of(
-            "app.title",
-            "app.subtitle",
-            "menu.play",
-            "menu.settings",
-            "menu.exit",
-            "menu.unavailable",
-            "menu.help");
+    private static final List<String> START_SCREEN_KEYS =
+            List.of(
+                    "app.title",
+                    "app.subtitle",
+                    "menu.play",
+                    "menu.settings",
+                    "menu.exit",
+                    "menu.unavailable",
+                    "menu.help");
 
     @Test
     void loadsEnglishAndPolishStartScreenText() {
@@ -37,7 +38,9 @@ class ClientMessagesTest {
             ClientMessages messages = ClientMessages.forLanguage(language);
             for (String key : START_SCREEN_KEYS) {
                 assertTrue(
-                        messages.text(key).codePoints().allMatch(codePoint -> codePoint >= 32 && codePoint <= 126));
+                        messages.text(key)
+                                .codePoints()
+                                .allMatch(codePoint -> codePoint >= 32 && codePoint <= 126));
             }
         }
     }

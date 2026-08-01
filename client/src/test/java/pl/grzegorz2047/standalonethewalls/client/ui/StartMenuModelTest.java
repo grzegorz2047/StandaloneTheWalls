@@ -10,21 +10,22 @@ import pl.grzegorz2047.standalonethewalls.client.i18n.ClientMessages;
 class StartMenuModelTest {
     @Test
     void exposesAllThreeActionsInStableOrderAndLocalizedLabels() {
-        StartMenuModel menu = StartMenuModel.create(
-                ClientMessages.forLanguage(ClientLanguage.POLISH));
+        StartMenuModel menu =
+                StartMenuModel.create(ClientMessages.forLanguage(ClientLanguage.POLISH));
 
         assertEquals(
                 List.of(StartMenuAction.PLAY, StartMenuAction.SETTINGS, StartMenuAction.EXIT),
                 menu.entries().stream().map(StartMenuEntry::action).toList());
-        assertEquals(List.of("Graj", "Ustawienia", "Koniec"),
+        assertEquals(
+                List.of("Graj", "Ustawienia", "Koniec"),
                 menu.entries().stream().map(StartMenuEntry::label).toList());
         assertEquals(StartMenuAction.PLAY, menu.selectedEntry().action());
     }
 
     @Test
     void wrapsSelectionInBothDirectionsWithoutMutatingTheOriginal() {
-        StartMenuModel original = StartMenuModel.create(
-                ClientMessages.forLanguage(ClientLanguage.ENGLISH));
+        StartMenuModel original =
+                StartMenuModel.create(ClientMessages.forLanguage(ClientLanguage.ENGLISH));
 
         StartMenuModel previous = original.move(-1);
         StartMenuModel next = original.move(1);

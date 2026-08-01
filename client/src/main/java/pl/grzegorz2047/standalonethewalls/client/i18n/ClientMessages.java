@@ -18,9 +18,11 @@ public final class ClientMessages {
     private ClientMessages(ClientLanguage language) {
         this.language = Objects.requireNonNull(language, "language");
         primary = ResourceBundle.getBundle(BASE_NAME, language.locale(), CONTROL);
-        fallback = language == ClientLanguage.ENGLISH
-                ? primary
-                : ResourceBundle.getBundle(BASE_NAME, ClientLanguage.ENGLISH.locale(), CONTROL);
+        fallback =
+                language == ClientLanguage.ENGLISH
+                        ? primary
+                        : ResourceBundle.getBundle(
+                                BASE_NAME, ClientLanguage.ENGLISH.locale(), CONTROL);
     }
 
     public static ClientMessages forLanguage(ClientLanguage language) {
@@ -39,8 +41,7 @@ public final class ClientMessages {
         } else if (fallback.containsKey(key)) {
             pattern = fallback.getString(key);
         } else {
-            throw new MissingResourceException(
-                    "missing client localization key", BASE_NAME, key);
+            throw new MissingResourceException("missing client localization key", BASE_NAME, key);
         }
         return new MessageFormat(pattern, language.locale()).format(arguments);
     }

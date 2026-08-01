@@ -19,9 +19,10 @@ public record StartMenuModel(List<StartMenuEntry> entries, int selectedIndex) {
 
     public static StartMenuModel create(ClientMessages messages) {
         Objects.requireNonNull(messages, "messages");
-        List<StartMenuEntry> entries = Arrays.stream(StartMenuAction.values())
-                .map(action -> new StartMenuEntry(action, messages.text(action.labelKey())))
-                .toList();
+        List<StartMenuEntry> entries =
+                Arrays.stream(StartMenuAction.values())
+                        .map(action -> new StartMenuEntry(action, messages.text(action.labelKey())))
+                        .toList();
         return new StartMenuModel(entries, 0);
     }
 
