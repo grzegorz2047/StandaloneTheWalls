@@ -56,8 +56,7 @@ class IdentityAuthenticatorTest {
     }
 
     @Test
-    void rejectsTamperedHandlePlayerIdPublicKeySignatureAndVersion()
-            throws IdentityException {
+    void rejectsTamperedHandlePlayerIdPublicKeySignatureAndVersion() throws IdentityException {
         PlayerIdentity identity = PlayerIdentity.generate(new SecureRandom());
         PlayerIdentity other = PlayerIdentity.generate(new SecureRandom());
         IdentityChallenge challenge = challenge("server.eu-1", SESSION, nonce(1));
