@@ -1,0 +1,6 @@
+# Sunderfront dedicated server configuration
+server.name=Sunderfront Server
+server.tick-rate=20
+server.reliable-port=27420
+server.realtime-port=27421
+server.maximum-players=40
