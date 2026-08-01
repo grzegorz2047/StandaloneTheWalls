@@ -11,8 +11,9 @@ public final class IdentityChallengeService {
         this.ledger = Objects.requireNonNull(ledger, "ledger");
     }
 
-    public IdentityChallenge issue(String serverId, UUID sessionId) {
-        return ledger.issue(serverId, sessionId);
+    public IdentityChallenge issue(
+            ServerId serverId, UUID sessionId, SecureChannelBinding channelBinding) {
+        return ledger.issue(serverId, sessionId, channelBinding);
     }
 
     public IdentityVerification verify(UUID sessionId, IdentityProof proof) {

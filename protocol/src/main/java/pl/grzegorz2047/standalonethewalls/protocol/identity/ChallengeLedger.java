@@ -34,8 +34,11 @@ public final class ChallengeLedger {
         this.maximumOutstanding = maximumOutstanding;
     }
 
-    public synchronized IdentityChallenge issue(String serverId, UUID sessionId) {
+    public synchronized IdentityChallenge issue(
+            ServerId serverId, UUID sessionId, SecureChannelBinding channelBinding) {
+        Objects.requireNonNull(serverId, "serverId");
         Objects.requireNonNull(sessionId, "sessionId");
+        Objects.requireNonNull(channelBinding, "channelBinding");
         Instant now = clock.instant();
         removeExpired(now);
         if (!challenges.containsKey(sessionId) && challenges.size() >= maximumOutstanding) {
@@ -44,7 +47,8 @@ public final class ChallengeLedger {
         byte[] nonce = new byte[IdentityChallenge.NONCE_BYTES];
         random.nextBytes(nonce);
         IdentityChallenge challenge =
-                new IdentityChallenge(serverId, sessionId, nonce, now.plus(lifetime));
+                new IdentityChallenge(
+                        serverId, sessionId, nonce, channelBinding, now.plus(lifetime));
         challenges.put(sessionId, challenge);
         return challenge;
     }

@@ -3,32 +3,34 @@ package pl.grzegorz2047.standalonethewalls.protocol.identity;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.regex.Pattern;
 
-/** One server-issued, session-bound, time-limited authentication challenge. */
+/** One server-issued, channel-bound, session-bound, time-limited authentication challenge. */
 public final class IdentityChallenge {
     public static final int NONCE_BYTES = 32;
-    private static final Pattern SERVER_ID = Pattern.compile("[a-z0-9._:-]{3,128}");
 
-    private final String serverId;
+    private final ServerId serverId;
     private final UUID sessionId;
     private final byte[] nonce;
+    private final SecureChannelBinding channelBinding;
     private final Instant expiresAt;
 
-    public IdentityChallenge(String serverId, UUID sessionId, byte[] nonce, Instant expiresAt) {
+    public IdentityChallenge(
+            ServerId serverId,
+            UUID sessionId,
+            byte[] nonce,
+            SecureChannelBinding channelBinding,
+            Instant expiresAt) {
         this.serverId = Objects.requireNonNull(serverId, "serverId");
         this.sessionId = Objects.requireNonNull(sessionId, "sessionId");
         this.nonce = Objects.requireNonNull(nonce, "nonce").clone();
+        this.channelBinding = Objects.requireNonNull(channelBinding, "channelBinding");
         this.expiresAt = Objects.requireNonNull(expiresAt, "expiresAt");
-        if (!SERVER_ID.matcher(serverId).matches()) {
-            throw new IllegalArgumentException("invalid serverId");
-        }
         if (nonce.length != NONCE_BYTES) {
             throw new IllegalArgumentException("nonce must contain exactly 32 bytes");
         }
     }
 
-    public String serverId() {
+    public ServerId serverId() {
         return serverId;
     }
 
@@ -38,6 +40,10 @@ public final class IdentityChallenge {
 
     public byte[] nonce() {
         return nonce.clone();
+    }
+
+    public SecureChannelBinding channelBinding() {
+        return channelBinding;
     }
 
     public Instant expiresAt() {
@@ -54,6 +60,8 @@ public final class IdentityChallenge {
                 + serverId
                 + ", sessionId="
                 + sessionId
+                + ", channelBindingBytes="
+                + SecureChannelBinding.BYTES
                 + ", expiresAt="
                 + expiresAt
                 + ']';
