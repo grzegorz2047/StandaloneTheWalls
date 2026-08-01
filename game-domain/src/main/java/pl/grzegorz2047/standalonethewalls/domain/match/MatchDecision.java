@@ -6,9 +6,7 @@ import java.util.Optional;
 
 /** Result of applying one command to one immutable match state. */
 public record MatchDecision(
-        MatchState state,
-        List<MatchEvent> events,
-        Optional<MatchRejection> rejection) {
+        MatchState state, List<MatchEvent> events, Optional<MatchRejection> rejection) {
 
     public MatchDecision {
         Objects.requireNonNull(state, "state");

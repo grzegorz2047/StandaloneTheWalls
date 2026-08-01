@@ -15,8 +15,9 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class PlayerIdentityTest {
-    private static final byte[] PUBLIC_KEY_VECTOR = Base64.getDecoder().decode(
-            "MCowBQYDK2VwAyEAoBGdJyYRGPquhsJXoEoTOOticDHR4bM2z/5DScGCHPU=");
+    private static final byte[] PUBLIC_KEY_VECTOR =
+            Base64.getDecoder()
+                    .decode("MCowBQYDK2VwAyEAoBGdJyYRGPquhsJXoEoTOOticDHR4bM2z/5DScGCHPU=");
 
     @Test
     void derivesAStablePlayerIdAndFingerprintFromCanonicalPublicKeyBytes() throws Exception {
@@ -60,9 +61,10 @@ class PlayerIdentityTest {
         MemoryStore store = new MemoryStore();
         store.keyPair = new KeyPair(first.getPublic(), second.getPrivate());
 
-        IdentityException exception = assertThrows(
-                IdentityException.class,
-                () -> PlayerIdentity.loadOrCreate(store, new SecureRandom()));
+        IdentityException exception =
+                assertThrows(
+                        IdentityException.class,
+                        () -> PlayerIdentity.loadOrCreate(store, new SecureRandom()));
 
         assertEquals(IdentityException.Code.INVALID_KEY_PAIR, exception.code());
     }

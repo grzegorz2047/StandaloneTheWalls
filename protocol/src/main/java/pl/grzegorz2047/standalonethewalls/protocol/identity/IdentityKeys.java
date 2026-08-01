@@ -16,8 +16,9 @@ final class IdentityKeys {
     static PublicKey decodePublicKey(byte[] encoded) throws IdentityException {
         Objects.requireNonNull(encoded, "encoded");
         try {
-            PublicKey key = KeyFactory.getInstance("Ed25519")
-                    .generatePublic(new X509EncodedKeySpec(encoded));
+            PublicKey key =
+                    KeyFactory.getInstance("Ed25519")
+                            .generatePublic(new X509EncodedKeySpec(encoded));
             if (!Arrays.equals(encoded, key.getEncoded())) {
                 throw new IdentityException(
                         IdentityException.Code.INVALID_PUBLIC_KEY,

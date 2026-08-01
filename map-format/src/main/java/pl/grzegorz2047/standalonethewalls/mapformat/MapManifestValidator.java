@@ -24,17 +24,19 @@ public final class MapManifestValidator {
     private static final Pattern SPDX_ID = Pattern.compile("[A-Za-z0-9][A-Za-z0-9.+-]{0,63}");
     private static final Pattern SHA_256 = Pattern.compile("[0-9a-f]{64}");
     private static final Pattern SAFE_PATH = Pattern.compile("[a-z0-9._/-]{1,200}");
-    private static final Pattern SEMVER = Pattern.compile(
-            "(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)"
-                    + "(?:-((?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)"
-                    + "(?:\\.(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*))?"
-                    + "(?:\\+([0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*))?");
-    private static final Set<String> REQUIRED_FILES = Set.of(
-            "scene.glb",
-            "collision.glb",
-            "gameplay.json",
-            "thumbnail.webp",
-            "licenses.json");
+    private static final Pattern SEMVER =
+            Pattern.compile(
+                    "(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)"
+                            + "(?:-((?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)"
+                            + "(?:\\.(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*))?"
+                            + "(?:\\+([0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*))?");
+    private static final Set<String> REQUIRED_FILES =
+            Set.of(
+                    "scene.glb",
+                    "collision.glb",
+                    "gameplay.json",
+                    "thumbnail.webp",
+                    "licenses.json");
 
     private MapManifestValidator() {
         throw new AssertionError("No instances");
@@ -59,20 +61,21 @@ public final class MapManifestValidator {
             return MapManifestValidation.invalid(issues);
         }
 
-        return MapManifestValidation.valid(new MapManifest(
-                SUPPORTED_SCHEMA_VERSION,
-                id,
-                name,
-                author,
-                version,
-                playerLimits.minimumPlayers(),
-                playerLimits.maximumPlayers(),
-                playerLimits.teamCount(),
-                playerLimits.playersPerTeam(),
-                protocol,
-                license,
-                files,
-                limits));
+        return MapManifestValidation.valid(
+                new MapManifest(
+                        SUPPORTED_SCHEMA_VERSION,
+                        id,
+                        name,
+                        author,
+                        version,
+                        playerLimits.minimumPlayers(),
+                        playerLimits.maximumPlayers(),
+                        playerLimits.teamCount(),
+                        playerLimits.playersPerTeam(),
+                        protocol,
+                        license,
+                        files,
+                        limits));
     }
 
     private static void validateSchema(Integer schemaVersion, List<MapValidationIssue> issues) {
@@ -114,7 +117,11 @@ public final class MapManifestValidator {
             return "";
         }
         if (!value.equals(value.strip())) {
-            issue(issues, path, MapValidationIssue.Code.FORMAT, "leading/trailing whitespace is forbidden");
+            issue(
+                    issues,
+                    path,
+                    MapValidationIssue.Code.FORMAT,
+                    "leading/trailing whitespace is forbidden");
         }
         int codePoints = value.codePointCount(0, value.length());
         if (codePoints < minimumLength || codePoints > maximumLength) {
@@ -122,16 +129,23 @@ public final class MapManifestValidator {
                     issues,
                     path,
                     MapValidationIssue.Code.RANGE,
-                    "length must be between " + minimumLength + " and " + maximumLength + " code points");
+                    "length must be between "
+                            + minimumLength
+                            + " and "
+                            + maximumLength
+                            + " code points");
         }
         if (value.codePoints().anyMatch(MapManifestValidator::isForbiddenTextCodePoint)) {
-            issue(issues, path, MapValidationIssue.Code.FORMAT, "control and bidi override characters are forbidden");
+            issue(
+                    issues,
+                    path,
+                    MapValidationIssue.Code.FORMAT,
+                    "control and bidi override characters are forbidden");
         }
         return value;
     }
 
-    private static SemanticVersion validateVersion(
-            String value, List<MapValidationIssue> issues) {
+    private static SemanticVersion validateVersion(String value, List<MapValidationIssue> issues) {
         if (value == null) {
             issue(issues, "$.version", MapValidationIssue.Code.REQUIRED, "field is required");
             return new SemanticVersion(0, 0, 0, "", "");
@@ -164,10 +178,15 @@ public final class MapManifestValidator {
 
     private static PlayerLimits validatePlayers(
             MapManifestDraft draft, List<MapValidationIssue> issues) {
-        int minimum = requireInteger(draft.minimumPlayers(), "$.minimumPlayers", 2, MAXIMUM_PLAYERS, issues);
-        int maximum = requireInteger(draft.maximumPlayers(), "$.maximumPlayers", 2, MAXIMUM_PLAYERS, issues);
+        int minimum =
+                requireInteger(
+                        draft.minimumPlayers(), "$.minimumPlayers", 2, MAXIMUM_PLAYERS, issues);
+        int maximum =
+                requireInteger(
+                        draft.maximumPlayers(), "$.maximumPlayers", 2, MAXIMUM_PLAYERS, issues);
         int teamCount = requireInteger(draft.teamCount(), "$.teamCount", 2, 4, issues);
-        int playersPerTeam = requireInteger(draft.playersPerTeam(), "$.playersPerTeam", 1, 20, issues);
+        int playersPerTeam =
+                requireInteger(draft.playersPerTeam(), "$.playersPerTeam", 1, 20, issues);
 
         if (draft.teamCount() != null && teamCount != 2 && teamCount != 4) {
             issue(
@@ -176,9 +195,7 @@ public final class MapManifestValidator {
                     MapValidationIssue.Code.UNSUPPORTED,
                     "schema v1 supports exactly 2 or 4 teams");
         }
-        if (draft.minimumPlayers() != null
-                && draft.maximumPlayers() != null
-                && minimum > maximum) {
+        if (draft.minimumPlayers() != null && draft.maximumPlayers() != null && minimum > maximum) {
             issue(
                     issues,
                     "$.minimumPlayers",
@@ -195,9 +212,7 @@ public final class MapManifestValidator {
                     MapValidationIssue.Code.CONFLICT,
                     "maximumPlayers exceeds teamCount * playersPerTeam");
         }
-        if (draft.minimumPlayers() != null
-                && draft.teamCount() != null
-                && minimum < teamCount) {
+        if (draft.minimumPlayers() != null && draft.teamCount() != null && minimum < teamCount) {
             issue(
                     issues,
                     "$.minimumPlayers",
@@ -209,10 +224,20 @@ public final class MapManifestValidator {
 
     private static ProtocolRequirement validateProtocol(
             MapManifestDraft draft, List<MapValidationIssue> issues) {
-        int major = requireInteger(
-                draft.requiredProtocolMajor(), "$.requiredProtocol.major", 0, 0xFFFF, issues);
-        int minor = requireInteger(
-                draft.requiredProtocolMinor(), "$.requiredProtocol.minor", 0, 0xFFFF, issues);
+        int major =
+                requireInteger(
+                        draft.requiredProtocolMajor(),
+                        "$.requiredProtocol.major",
+                        0,
+                        0xFFFF,
+                        issues);
+        int minor =
+                requireInteger(
+                        draft.requiredProtocolMinor(),
+                        "$.requiredProtocol.minor",
+                        0,
+                        0xFFFF,
+                        issues);
         return new ProtocolRequirement(major, minor);
     }
 
@@ -262,7 +287,9 @@ public final class MapManifestValidator {
                 issue(
                         issues,
                         issuePath,
-                        hash == null ? MapValidationIssue.Code.REQUIRED : MapValidationIssue.Code.FORMAT,
+                        hash == null
+                                ? MapValidationIssue.Code.REQUIRED
+                                : MapValidationIssue.Code.FORMAT,
                         "hash must be 64 lowercase hexadecimal characters");
                 continue;
             }
@@ -287,26 +314,35 @@ public final class MapManifestValidator {
             issue(issues, "$.limits", MapValidationIssue.Code.REQUIRED, "field is required");
             return new MapLimits(1, 1, 1, 1, 1, 1);
         }
-        long archive = requireLong(
-                draft.archiveBytes(), "$.limits.archiveBytes", 1, MAXIMUM_ARCHIVE_BYTES, issues);
-        long uncompressed = requireLong(
-                draft.uncompressedBytes(),
-                "$.limits.uncompressedBytes",
-                1,
-                MAXIMUM_UNCOMPRESSED_BYTES,
-                issues);
-        int fileCount = requireInteger(
-                draft.fileCount(), "$.limits.fileCount", 1, MAXIMUM_FILES, issues);
-        int sceneNodes = requireInteger(
-                draft.sceneNodes(), "$.limits.sceneNodes", 1, MAXIMUM_SCENE_NODES, issues);
-        int triangles = requireInteger(
-                draft.triangles(), "$.limits.triangles", 1, MAXIMUM_TRIANGLES, issues);
-        int textureDimension = requireInteger(
-                draft.textureDimension(),
-                "$.limits.textureDimension",
-                64,
-                MAXIMUM_TEXTURE_DIMENSION,
-                issues);
+        long archive =
+                requireLong(
+                        draft.archiveBytes(),
+                        "$.limits.archiveBytes",
+                        1,
+                        MAXIMUM_ARCHIVE_BYTES,
+                        issues);
+        long uncompressed =
+                requireLong(
+                        draft.uncompressedBytes(),
+                        "$.limits.uncompressedBytes",
+                        1,
+                        MAXIMUM_UNCOMPRESSED_BYTES,
+                        issues);
+        int fileCount =
+                requireInteger(draft.fileCount(), "$.limits.fileCount", 1, MAXIMUM_FILES, issues);
+        int sceneNodes =
+                requireInteger(
+                        draft.sceneNodes(), "$.limits.sceneNodes", 1, MAXIMUM_SCENE_NODES, issues);
+        int triangles =
+                requireInteger(
+                        draft.triangles(), "$.limits.triangles", 1, MAXIMUM_TRIANGLES, issues);
+        int textureDimension =
+                requireInteger(
+                        draft.textureDimension(),
+                        "$.limits.textureDimension",
+                        64,
+                        MAXIMUM_TEXTURE_DIMENSION,
+                        issues);
 
         if (draft.archiveBytes() != null
                 && draft.uncompressedBytes() != null
@@ -345,11 +381,7 @@ public final class MapManifestValidator {
     }
 
     private static int requireInteger(
-            Integer value,
-            String path,
-            int minimum,
-            int maximum,
-            List<MapValidationIssue> issues) {
+            Integer value, String path, int minimum, int maximum, List<MapValidationIssue> issues) {
         if (value == null) {
             issue(issues, path, MapValidationIssue.Code.REQUIRED, "field is required");
             return minimum;
@@ -366,11 +398,7 @@ public final class MapManifestValidator {
     }
 
     private static long requireLong(
-            Long value,
-            String path,
-            long minimum,
-            long maximum,
-            List<MapValidationIssue> issues) {
+            Long value, String path, long minimum, long maximum, List<MapValidationIssue> issues) {
         if (value == null) {
             issue(issues, path, MapValidationIssue.Code.REQUIRED, "field is required");
             return minimum;

@@ -14,12 +14,13 @@ public record SemanticVersion(int major, int minor, int patch, String prerelease
 
     @Override
     public String toString() {
-        StringBuilder value = new StringBuilder()
-                .append(major)
-                .append('.')
-                .append(minor)
-                .append('.')
-                .append(patch);
+        StringBuilder value =
+                new StringBuilder()
+                        .append(major)
+                        .append('.')
+                        .append(minor)
+                        .append('.')
+                        .append(patch);
         if (!prerelease.isEmpty()) {
             value.append('-').append(prerelease);
         }

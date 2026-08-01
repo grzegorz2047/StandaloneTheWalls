@@ -23,14 +23,12 @@ class MatchConfigurationTest {
                 .isThrownBy(() -> new MatchConfiguration(0, 1, 1, 1, 1, 1, 1, 1, 1));
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> new MatchConfiguration(1, 0, 1, 1, 1, 1, 1, 1, 1));
-        assertThatIllegalArgumentException()
-                .isThrownBy(() -> MatchConfiguration.defaults(0));
+        assertThatIllegalArgumentException().isThrownBy(() -> MatchConfiguration.defaults(0));
     }
 
     @Test
     void onlyTimedPhasesHaveConfiguredDurations() {
-        MatchConfiguration configuration =
-                new MatchConfiguration(2, 2, 3, 4, 5, 6, 7, 8, 9);
+        MatchConfiguration configuration = new MatchConfiguration(2, 2, 3, 4, 5, 6, 7, 8, 9);
 
         assertThat(configuration.durationFor(MatchPhase.BOOT)).isZero();
         assertThat(configuration.durationFor(MatchPhase.LOADING_MAP)).isZero();

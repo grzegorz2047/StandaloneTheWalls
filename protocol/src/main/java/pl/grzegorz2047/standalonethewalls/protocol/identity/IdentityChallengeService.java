@@ -20,12 +20,12 @@ public final class IdentityChallengeService {
         Objects.requireNonNull(proof, "proof");
         ChallengeConsumption consumption = ledger.consume(sessionId);
         return switch (consumption.status()) {
-            case MISSING -> IdentityVerification.rejected(
-                    IdentityVerification.Status.MISSING_CHALLENGE);
-            case EXPIRED -> IdentityVerification.rejected(
-                    IdentityVerification.Status.EXPIRED_CHALLENGE);
-            case AVAILABLE -> IdentityAuthenticator.verify(
-                    consumption.challenge().orElseThrow(), proof);
+            case MISSING ->
+                    IdentityVerification.rejected(IdentityVerification.Status.MISSING_CHALLENGE);
+            case EXPIRED ->
+                    IdentityVerification.rejected(IdentityVerification.Status.EXPIRED_CHALLENGE);
+            case AVAILABLE ->
+                    IdentityAuthenticator.verify(consumption.challenge().orElseThrow(), proof);
         };
     }
 

@@ -11,12 +11,13 @@ import java.util.Set;
 
 /** Strict properties loader. Unknown keys and malformed numbers fail closed. */
 public final class ServerConfigurationLoader {
-    private static final Set<String> ALLOWED_KEYS = Set.of(
-            "server.name",
-            "server.tick-rate",
-            "server.reliable-port",
-            "server.realtime-port",
-            "server.maximum-players");
+    private static final Set<String> ALLOWED_KEYS =
+            Set.of(
+                    "server.name",
+                    "server.tick-rate",
+                    "server.reliable-port",
+                    "server.realtime-port",
+                    "server.maximum-players");
 
     private ServerConfigurationLoader() {
         throw new AssertionError("No instances");

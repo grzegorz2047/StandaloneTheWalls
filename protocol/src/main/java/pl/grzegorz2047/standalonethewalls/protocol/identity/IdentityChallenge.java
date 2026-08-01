@@ -50,9 +50,12 @@ public final class IdentityChallenge {
 
     @Override
     public String toString() {
-        return "IdentityChallenge[serverId=" + serverId
-                + ", sessionId=" + sessionId
-                + ", expiresAt=" + expiresAt
+        return "IdentityChallenge[serverId="
+                + serverId
+                + ", sessionId="
+                + sessionId
+                + ", expiresAt="
+                + expiresAt
                 + ']';
     }
 }

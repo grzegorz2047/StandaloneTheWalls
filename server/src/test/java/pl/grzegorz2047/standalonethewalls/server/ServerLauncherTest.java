@@ -8,8 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class ServerLauncherTest {
-    @TempDir
-    Path temporaryDirectory;
+    @TempDir Path temporaryDirectory;
 
     @Test
     void validatesConfigurationWithoutStartingTheRuntime() throws Exception {
@@ -18,16 +17,14 @@ class ServerLauncherTest {
 
         assertEquals(
                 ServerLauncher.EXIT_OK,
-                ServerLauncher.run(new String[] {
-                    "--config", configuration.toString(), "--validate-config"
-                }));
+                ServerLauncher.run(
+                        new String[] {"--config", configuration.toString(), "--validate-config"}));
     }
 
     @Test
     void runsABoundedHeadlessSmokeAndRejectsBadArguments() {
         assertEquals(
-                ServerLauncher.EXIT_OK,
-                ServerLauncher.run(new String[] {"--run-for-ticks", "3"}));
+                ServerLauncher.EXIT_OK, ServerLauncher.run(new String[] {"--run-for-ticks", "3"}));
         assertEquals(
                 ServerLauncher.EXIT_USAGE_OR_CONFIGURATION,
                 ServerLauncher.run(new String[] {"--run-for-ticks", "0"}));

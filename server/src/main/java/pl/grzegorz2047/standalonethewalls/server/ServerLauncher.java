@@ -30,9 +30,10 @@ public final class ServerLauncher {
         Objects.requireNonNull(arguments, "arguments");
         try {
             LaunchOptions options = LaunchOptions.parse(arguments);
-            ServerConfiguration configuration = options.configurationPath() == null
-                    ? ServerConfiguration.defaults()
-                    : ServerConfigurationLoader.load(options.configurationPath());
+            ServerConfiguration configuration =
+                    options.configurationPath() == null
+                            ? ServerConfiguration.defaults()
+                            : ServerConfigurationLoader.load(options.configurationPath());
             if (options.validateOnly()) {
                 LOGGER.info(
                         "Configuration valid for server '{}' ({} Hz, max {} players).",
@@ -55,22 +56,25 @@ public final class ServerLauncher {
     private static int runServer(ServerConfiguration configuration, Long runForTicks)
             throws InterruptedException {
         AtomicLong executedTicks = new AtomicLong();
-        FixedTickLoop loop = new FixedTickLoop(
-                configuration.tickRate(),
-                FixedTickLoop.DEFAULT_MAXIMUM_CATCH_UP_TICKS,
-                System::nanoTime,
-                new SystemNanoSleeper(),
-                skipped -> LOGGER.warn("Simulation skipped {} overdue ticks.", skipped));
-        ServerRuntime runtime = new ServerRuntime(loop, tickNumber -> {
-            long count = executedTicks.incrementAndGet();
-            if (runForTicks != null && count >= runForTicks) {
-                loop.requestStop();
-            }
-        });
+        FixedTickLoop loop =
+                new FixedTickLoop(
+                        configuration.tickRate(),
+                        FixedTickLoop.DEFAULT_MAXIMUM_CATCH_UP_TICKS,
+                        System::nanoTime,
+                        new SystemNanoSleeper(),
+                        skipped -> LOGGER.warn("Simulation skipped {} overdue ticks.", skipped));
+        ServerRuntime runtime =
+                new ServerRuntime(
+                        loop,
+                        tickNumber -> {
+                            long count = executedTicks.incrementAndGet();
+                            if (runForTicks != null && count >= runForTicks) {
+                                loop.requestStop();
+                            }
+                        });
 
-        Thread shutdownHook = Thread.ofPlatform()
-                .name("sunderfront-shutdown")
-                .unstarted(runtime::close);
+        Thread shutdownHook =
+                Thread.ofPlatform().name("sunderfront-shutdown").unstarted(runtime::close);
         boolean hookInstalled = false;
         try {
             if (runForTicks == null) {
@@ -99,7 +103,9 @@ public final class ServerLauncher {
                 return EXIT_RUNTIME_FAILURE;
             }
             if (runtime.failure().isPresent()) {
-                LOGGER.error("Server runtime stopped after an internal failure.", runtime.failure().orElseThrow());
+                LOGGER.error(
+                        "Server runtime stopped after an internal failure.",
+                        runtime.failure().orElseThrow());
                 return EXIT_RUNTIME_FAILURE;
             }
             LOGGER.info("Server stopped cleanly after {} ticks.", executedTicks.get());
@@ -130,19 +136,22 @@ public final class ServerLauncher {
                 switch (argument) {
                     case "--config" -> {
                         if (configuration != null) {
-                            throw new IllegalArgumentException("--config may be supplied only once");
+                            throw new IllegalArgumentException(
+                                    "--config may be supplied only once");
                         }
                         configuration = Path.of(requireValue(arguments, ++index, "--config"));
                     }
                     case "--validate-config" -> {
                         if (validate) {
-                            throw new IllegalArgumentException("--validate-config may be supplied only once");
+                            throw new IllegalArgumentException(
+                                    "--validate-config may be supplied only once");
                         }
                         validate = true;
                     }
                     case "--run-for-ticks" -> {
                         if (ticks != null) {
-                            throw new IllegalArgumentException("--run-for-ticks may be supplied only once");
+                            throw new IllegalArgumentException(
+                                    "--run-for-ticks may be supplied only once");
                         }
                         String raw = requireValue(arguments, ++index, "--run-for-ticks");
                         try {

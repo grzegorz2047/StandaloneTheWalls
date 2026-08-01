@@ -20,7 +20,8 @@ public final class MatchLifecycle {
             case MatchCommand.UpdatePlayerCount update ->
                     updatePlayerCount(configuration, state, update.connectedPlayers());
             case MatchCommand.Tick ignored -> tick(configuration, state);
-            case MatchCommand.FinishMatch finish -> finishMatch(configuration, state, finish.result());
+            case MatchCommand.FinishMatch finish ->
+                    finishMatch(configuration, state, finish.result());
         };
     }
 
@@ -48,12 +49,13 @@ public final class MatchLifecycle {
                             "connectedPlayers cannot be negative"));
         }
 
-        MatchState updated = new MatchState(
-                state.phase(),
-                state.ticksRemaining(),
-                connectedPlayers,
-                state.roundNumber(),
-                state.result());
+        MatchState updated =
+                new MatchState(
+                        state.phase(),
+                        state.ticksRemaining(),
+                        connectedPlayers,
+                        state.roundNumber(),
+                        state.result());
 
         if (state.phase() == MatchPhase.WAITING_FOR_PLAYERS
                 && connectedPlayers >= configuration.minimumPlayers()) {
@@ -66,12 +68,13 @@ public final class MatchLifecycle {
 
         if (state.phase() == MatchPhase.START_COUNTDOWN
                 && connectedPlayers < configuration.minimumPlayers()) {
-            MatchState waiting = new MatchState(
-                    MatchPhase.WAITING_FOR_PLAYERS,
-                    0L,
-                    connectedPlayers,
-                    state.roundNumber(),
-                    MatchResult.NONE);
+            MatchState waiting =
+                    new MatchState(
+                            MatchPhase.WAITING_FOR_PLAYERS,
+                            0L,
+                            connectedPlayers,
+                            state.roundNumber(),
+                            MatchResult.NONE);
             return MatchDecision.accepted(
                     waiting,
                     new MatchEvent.CountdownCancelled(
@@ -91,20 +94,28 @@ public final class MatchLifecycle {
         }
 
         if (state.ticksRemaining() > 1L) {
-            return MatchDecision.accepted(new MatchState(
-                    state.phase(),
-                    state.ticksRemaining() - 1L,
-                    state.connectedPlayers(),
-                    state.roundNumber(),
-                    state.result()));
+            return MatchDecision.accepted(
+                    new MatchState(
+                            state.phase(),
+                            state.ticksRemaining() - 1L,
+                            state.connectedPlayers(),
+                            state.roundNumber(),
+                            state.result()));
         }
 
         return switch (state.phase()) {
-            case START_COUNTDOWN -> enterTimed(configuration, state, MatchPhase.PREPARATION, MatchResult.NONE);
-            case PREPARATION -> enterTimed(configuration, state, MatchPhase.WALLS_OPENING, MatchResult.NONE);
-            case WALLS_OPENING -> enterTimed(configuration, state, MatchPhase.OPEN_COMBAT, MatchResult.NONE);
+            case START_COUNTDOWN ->
+                    enterTimed(configuration, state, MatchPhase.PREPARATION, MatchResult.NONE);
+            case PREPARATION ->
+                    enterTimed(configuration, state, MatchPhase.WALLS_OPENING, MatchResult.NONE);
+            case WALLS_OPENING ->
+                    enterTimed(configuration, state, MatchPhase.OPEN_COMBAT, MatchResult.NONE);
             case OPEN_COMBAT ->
-                    enterTimed(configuration, state, MatchPhase.DEATHMATCH_TRANSITION, MatchResult.NONE);
+                    enterTimed(
+                            configuration,
+                            state,
+                            MatchPhase.DEATHMATCH_TRANSITION,
+                            MatchResult.NONE);
             case DEATHMATCH_TRANSITION ->
                     enterTimed(configuration, state, MatchPhase.DEATHMATCH, MatchResult.NONE);
             case DEATHMATCH -> finishMatch(configuration, state, MatchResult.TECHNICAL_DRAW);
@@ -124,33 +135,37 @@ public final class MatchLifecycle {
                             MatchRejection.Code.INVALID_RESULT,
                             "finish result must be WINNER_DECLARED or TECHNICAL_DRAW"));
         }
-        boolean finishable = state.phase() == MatchPhase.OPEN_COMBAT
-                || state.phase() == MatchPhase.DEATHMATCH_TRANSITION
-                || state.phase() == MatchPhase.DEATHMATCH;
+        boolean finishable =
+                state.phase() == MatchPhase.OPEN_COMBAT
+                        || state.phase() == MatchPhase.DEATHMATCH_TRANSITION
+                        || state.phase() == MatchPhase.DEATHMATCH;
         if (!finishable) {
             return invalidPhase(state, "match cannot finish from " + state.phase());
         }
 
-        MatchState results = new MatchState(
-                MatchPhase.RESULTS,
-                configuration.resultsTicks(),
-                state.connectedPlayers(),
-                state.roundNumber(),
-                result);
+        MatchState results =
+                new MatchState(
+                        MatchPhase.RESULTS,
+                        configuration.resultsTicks(),
+                        state.connectedPlayers(),
+                        state.roundNumber(),
+                        result);
         return MatchDecision.accepted(
                 results,
                 new MatchEvent.MatchFinished(result, state.roundNumber()),
-                new MatchEvent.PhaseChanged(state.phase(), MatchPhase.RESULTS, state.roundNumber()));
+                new MatchEvent.PhaseChanged(
+                        state.phase(), MatchPhase.RESULTS, state.roundNumber()));
     }
 
     private static MatchDecision resetRound(MatchState state) {
         long nextRound = Math.addExact(state.roundNumber(), 1L);
-        MatchState waiting = new MatchState(
-                MatchPhase.WAITING_FOR_PLAYERS,
-                0L,
-                state.connectedPlayers(),
-                nextRound,
-                MatchResult.NONE);
+        MatchState waiting =
+                new MatchState(
+                        MatchPhase.WAITING_FOR_PLAYERS,
+                        0L,
+                        state.connectedPlayers(),
+                        nextRound,
+                        MatchResult.NONE);
         return MatchDecision.accepted(
                 waiting,
                 new MatchEvent.RoundReset(state.roundNumber(), nextRound),
@@ -168,15 +183,11 @@ public final class MatchLifecycle {
 
     private static MatchDecision transition(
             MatchState state, MatchPhase nextPhase, long ticks, MatchResult result) {
-        MatchState next = new MatchState(
-                nextPhase,
-                ticks,
-                state.connectedPlayers(),
-                state.roundNumber(),
-                result);
+        MatchState next =
+                new MatchState(
+                        nextPhase, ticks, state.connectedPlayers(), state.roundNumber(), result);
         return MatchDecision.accepted(
-                next,
-                new MatchEvent.PhaseChanged(state.phase(), nextPhase, state.roundNumber()));
+                next, new MatchEvent.PhaseChanged(state.phase(), nextPhase, state.roundNumber()));
     }
 
     private static MatchDecision invalidPhase(MatchState state, String detail) {

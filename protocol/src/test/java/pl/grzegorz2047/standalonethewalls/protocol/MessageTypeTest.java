@@ -15,7 +15,8 @@ class MessageTypeTest {
             assertThat(type.wireId()).isPositive();
             assertThat(ids.add(type.wireId())).isTrue();
             assertThat(MessageType.fromWireId(type.wireId())).contains(type);
-            assertThat(type.maximumPayloadBytes()).isBetween(0, ProtocolCodec.MAXIMUM_PAYLOAD_BYTES);
+            assertThat(type.maximumPayloadBytes())
+                    .isBetween(0, ProtocolCodec.MAXIMUM_PAYLOAD_BYTES);
         }
         assertThat(MessageType.fromWireId(0xFFFF)).isEmpty();
     }

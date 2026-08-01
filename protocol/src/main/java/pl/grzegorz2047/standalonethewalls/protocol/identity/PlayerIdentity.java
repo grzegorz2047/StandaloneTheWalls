@@ -53,8 +53,8 @@ public final class PlayerIdentity {
         }
     }
 
-    public static PlayerIdentity loadOrCreate(
-            PlayerIdentityStore store, SecureRandom random) throws IdentityException {
+    public static PlayerIdentity loadOrCreate(PlayerIdentityStore store, SecureRandom random)
+            throws IdentityException {
         Objects.requireNonNull(store, "store");
         Objects.requireNonNull(random, "random");
         var loaded = store.load();

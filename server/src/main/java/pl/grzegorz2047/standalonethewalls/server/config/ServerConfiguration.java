@@ -4,11 +4,7 @@ import java.util.Objects;
 
 /** Immutable, validated configuration for the first headless server runtime. */
 public record ServerConfiguration(
-        String name,
-        int tickRate,
-        int reliablePort,
-        int realtimePort,
-        int maximumPlayers) {
+        String name, int tickRate, int reliablePort, int realtimePort, int maximumPlayers) {
     public static final int MINIMUM_TICK_RATE = 10;
     public static final int MAXIMUM_TICK_RATE = 60;
     public static final int MAXIMUM_SUPPORTED_PLAYERS = 40;

@@ -26,8 +26,11 @@ class MapManifestValidatorTest {
 
     @Test
     void reportsMissingFieldsWithStablePathsInsteadOfThrowing() {
-        MapManifestValidation validation = MapManifestValidator.validate(new MapManifestDraft(
-                null, null, null, null, null, null, null, null, null, null, null, null, null, null));
+        MapManifestValidation validation =
+                MapManifestValidator.validate(
+                        new MapManifestDraft(
+                                null, null, null, null, null, null, null, null, null, null, null,
+                                null, null, null));
 
         assertThat(validation.isValid()).isFalse();
         assertThat(validation.issues())
@@ -57,14 +60,16 @@ class MapManifestValidatorTest {
         MapManifestValidation validation = MapManifestValidator.validate(invalid);
 
         assertThat(validation.issues())
-                .anySatisfy(issue -> {
-                    assertThat(issue.path()).isEqualTo("$.teamCount");
-                    assertThat(issue.code()).isEqualTo(MapValidationIssue.Code.UNSUPPORTED);
-                })
-                .anySatisfy(issue -> {
-                    assertThat(issue.path()).isEqualTo("$.maximumPlayers");
-                    assertThat(issue.code()).isEqualTo(MapValidationIssue.Code.CONFLICT);
-                });
+                .anySatisfy(
+                        issue -> {
+                            assertThat(issue.path()).isEqualTo("$.teamCount");
+                            assertThat(issue.code()).isEqualTo(MapValidationIssue.Code.UNSUPPORTED);
+                        })
+                .anySatisfy(
+                        issue -> {
+                            assertThat(issue.path()).isEqualTo("$.maximumPlayers");
+                            assertThat(issue.code()).isEqualTo(MapValidationIssue.Code.CONFLICT);
+                        });
     }
 
     @Test
@@ -81,32 +86,36 @@ class MapManifestValidatorTest {
         MapManifestValidation validation = MapManifestValidator.validate(invalid);
 
         assertThat(validation.issues())
-                .anySatisfy(issue -> {
-                    assertThat(issue.path()).isEqualTo("$.files[../scene.glb]");
-                    assertThat(issue.code()).isEqualTo(MapValidationIssue.Code.UNSAFE_PATH);
-                })
-                .anySatisfy(issue -> {
-                    assertThat(issue.path()).isEqualTo("$.files[collision.glb]");
-                    assertThat(issue.code()).isEqualTo(MapValidationIssue.Code.FORMAT);
-                })
-                .anySatisfy(issue -> {
-                    assertThat(issue.path()).isEqualTo("$.files[scene.glb]");
-                    assertThat(issue.code()).isEqualTo(MapValidationIssue.Code.REQUIRED);
-                });
+                .anySatisfy(
+                        issue -> {
+                            assertThat(issue.path()).isEqualTo("$.files[../scene.glb]");
+                            assertThat(issue.code()).isEqualTo(MapValidationIssue.Code.UNSAFE_PATH);
+                        })
+                .anySatisfy(
+                        issue -> {
+                            assertThat(issue.path()).isEqualTo("$.files[collision.glb]");
+                            assertThat(issue.code()).isEqualTo(MapValidationIssue.Code.FORMAT);
+                        })
+                .anySatisfy(
+                        issue -> {
+                            assertThat(issue.path()).isEqualTo("$.files[scene.glb]");
+                            assertThat(issue.code()).isEqualTo(MapValidationIssue.Code.REQUIRED);
+                        });
     }
 
     @Test
     void rejectsZipBombShapedBudgetsAndNonPowerOfTwoTextures() {
         MapManifestDraft base = validDraft();
-        MapManifestDraft invalid = withLimits(
-                base,
-                new MapLimitsDraft(
-                        MapManifestValidator.MAXIMUM_ARCHIVE_BYTES + 1,
-                        100L,
-                        1,
-                        MapManifestValidator.MAXIMUM_SCENE_NODES + 1,
-                        MapManifestValidator.MAXIMUM_TRIANGLES + 1,
-                        3000));
+        MapManifestDraft invalid =
+                withLimits(
+                        base,
+                        new MapLimitsDraft(
+                                MapManifestValidator.MAXIMUM_ARCHIVE_BYTES + 1,
+                                100L,
+                                1,
+                                MapManifestValidator.MAXIMUM_SCENE_NODES + 1,
+                                MapManifestValidator.MAXIMUM_TRIANGLES + 1,
+                                3000));
 
         MapManifestValidation validation = MapManifestValidator.validate(invalid);
 
@@ -124,21 +133,22 @@ class MapManifestValidatorTest {
     @Test
     void requiresCanonicalSemanticVersionAndPortableText() {
         MapManifestDraft base = validDraft();
-        MapManifestDraft invalid = new MapManifestDraft(
-                base.schemaVersion(),
-                "Uppercase ID",
-                " name ",
-                "author\u202Ehidden",
-                "01.2.3",
-                base.minimumPlayers(),
-                base.maximumPlayers(),
-                base.teamCount(),
-                base.playersPerTeam(),
-                base.requiredProtocolMajor(),
-                base.requiredProtocolMinor(),
-                "not a license expression",
-                base.files(),
-                base.limits());
+        MapManifestDraft invalid =
+                new MapManifestDraft(
+                        base.schemaVersion(),
+                        "Uppercase ID",
+                        " name ",
+                        "author\u202Ehidden",
+                        "01.2.3",
+                        base.minimumPlayers(),
+                        base.maximumPlayers(),
+                        base.teamCount(),
+                        base.playersPerTeam(),
+                        base.requiredProtocolMajor(),
+                        base.requiredProtocolMinor(),
+                        "not a license expression",
+                        base.files(),
+                        base.limits());
 
         MapManifestValidation validation = MapManifestValidator.validate(invalid);
 
@@ -175,12 +185,7 @@ class MapManifestValidatorTest {
                 "CC0-1.0",
                 validFiles(),
                 new MapLimitsDraft(
-                        50L * 1024L * 1024L,
-                        120L * 1024L * 1024L,
-                        32,
-                        20_000,
-                        500_000,
-                        2048));
+                        50L * 1024L * 1024L, 120L * 1024L * 1024L, 32, 20_000, 500_000, 2048));
     }
 
     private static LinkedHashMap<String, String> validFiles() {
