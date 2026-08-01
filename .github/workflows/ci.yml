@@ -5,7 +5,7 @@ on:
   push:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build-and-test:
@@ -21,63 +21,11 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - name: Set up Gradle 9.6.1
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "9.6.1"
 
-      - name: Build and test
-        run: gradle --no-daemon check
-
-      - name: Generate pinned Gradle wrapper artifact
-        run: >-
-          gradle --no-daemon wrapper
-          --gradle-version 9.6.1
-          --distribution-type bin
-          --gradle-distribution-sha256-sum 9c0f7faeeb306cb14e4279a3e084ca6b596894089a0638e68a07c945a32c9e14
-
-      - name: Verify official Gradle wrapper JAR
-        run: echo "497c8c2a7e5031f6aa847f88104aa80a93532ec32ee17bdb8d1d2f67a194a9c7  gradle/wrapper/gradle-wrapper.jar" | sha256sum --check --strict
-
-      - name: Upload verified wrapper for repository bootstrap
-        uses: actions/upload-artifact@v4
-        with:
-          name: verified-gradle-wrapper
-          path: |
-            gradlew
-            gradlew.bat
-            gradle/wrapper/gradle-wrapper.jar
-            gradle/wrapper/gradle-wrapper.properties
-          if-no-files-found: error
-          retention-days: 1
-
-      - name: Commit verified wrapper to foundation branch
-        if: >-
-          github.event_name == 'pull_request' &&
-          github.event.pull_request.number == 27 &&
-          github.event.pull_request.head.repo.full_name == github.repository &&
-          github.event.pull_request.head.ref == 'agent/issue-20-foundation'
-        env:
-          HEAD_REF: ${{ github.event.pull_request.head.ref }}
-        run: |
-          bootstrap_dir="$(mktemp -d)"
-          mkdir -p "${bootstrap_dir}/gradle/wrapper"
-          cp gradlew gradlew.bat "${bootstrap_dir}/"
-          cp gradle/wrapper/gradle-wrapper.jar gradle/wrapper/gradle-wrapper.properties "${bootstrap_dir}/gradle/wrapper/"
-
-          git fetch origin "${HEAD_REF}"
-          git checkout -B "${HEAD_REF}" "origin/${HEAD_REF}"
-          mkdir -p gradle/wrapper
-          cp "${bootstrap_dir}/gradlew" "${bootstrap_dir}/gradlew.bat" ./
-          cp "${bootstrap_dir}/gradle/wrapper/gradle-wrapper.jar" "${bootstrap_dir}/gradle/wrapper/gradle-wrapper.properties" gradle/wrapper/
-          chmod +x gradlew
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add gradlew gradlew.bat gradle/wrapper/gradle-wrapper.jar gradle/wrapper/gradle-wrapper.properties
-          if git diff --cached --quiet; then
-            exit 0
-          fi
-          git diff --cached --check
-          git commit -m "Add verified Gradle wrapper"
-          git push origin "HEAD:${HEAD_REF}"
+      - name: Build and test through repository wrapper
+        run: ./gradlew --no-daemon check
