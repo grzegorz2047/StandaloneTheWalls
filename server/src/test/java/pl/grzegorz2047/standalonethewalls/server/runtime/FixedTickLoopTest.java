@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 
 class FixedTickLoopTest {
     @Test
-    void schedulesDeterministicTicksWithoutUsingWallClockTime() throws Exception {
+    void schedulesDeterministicTicksWithoutUsingWallClockTime() throws InterruptedException {
         MutableNanoClock clock = new MutableNanoClock(100L);
         FixedTickLoop loop = new FixedTickLoop(20, 5, clock, clock::advance, skipped -> {});
         List<Long> tickTimes = new ArrayList<>();
@@ -29,7 +29,7 @@ class FixedTickLoopTest {
     }
 
     @Test
-    void boundsCatchUpAndReportsDroppedSchedulingDebt() throws Exception {
+    void boundsCatchUpAndReportsDroppedSchedulingDebt() throws InterruptedException {
         MutableNanoClock clock = new MutableNanoClock(0L);
         AtomicLong skipped = new AtomicLong();
         FixedTickLoop loop = new FixedTickLoop(20, 3, clock, clock::advance, skipped::addAndGet);
@@ -51,7 +51,7 @@ class FixedTickLoopTest {
     }
 
     @Test
-    void rejectsConcurrentRunAndUnsafeConfiguration() throws Exception {
+    void rejectsConcurrentRunAndUnsafeConfiguration() throws InterruptedException {
         MutableNanoClock clock = new MutableNanoClock(0L);
         FixedTickLoop[] holder = new FixedTickLoop[1];
         holder[0] =
