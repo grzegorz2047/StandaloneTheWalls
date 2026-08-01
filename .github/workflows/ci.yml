@@ -23,11 +23,10 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - name: Validate Gradle wrapper
-        uses: gradle/actions/wrapper-validation@v4
-
-      - name: Set up Gradle
+      - name: Set up Gradle 9.6.1
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.6.1"
 
       - name: Build and test
-        run: ./gradlew --no-daemon check
+        run: gradle --no-daemon check
