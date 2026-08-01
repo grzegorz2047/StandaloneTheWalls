@@ -2,7 +2,8 @@
 
 This module contains the first headless process lifecycle and fixed-step scheduler.
 It does not yet open sockets, load a map, accept players, or claim production
-capacity.
+capacity. This implementation is the bounded runtime slice tracked by issue #25;
+network and gameplay integration remain separate work.
 
 ## Configuration
 
