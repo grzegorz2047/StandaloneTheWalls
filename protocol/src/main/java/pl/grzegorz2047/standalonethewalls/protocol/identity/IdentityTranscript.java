@@ -7,10 +7,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import pl.grzegorz2047.standalonethewalls.protocol.ProtocolVersion;
 
-/** Canonical, unambiguous bytes signed by the client for authentication v1. */
+/** Canonical, unambiguous bytes signed by the client for channel-bound authentication v2. */
 public final class IdentityTranscript {
     private static final byte[] DOMAIN =
-            "SUNDERFRONT-CLIENT-AUTH-V1".getBytes(StandardCharsets.US_ASCII);
+            "SUNDERFRONT-CLIENT-AUTH-V2".getBytes(StandardCharsets.US_ASCII);
     private static final int MAXIMUM_FIELD_BYTES = 1024;
 
     private IdentityTranscript() {
@@ -30,15 +30,18 @@ public final class IdentityTranscript {
         Objects.requireNonNull(publicKey, "publicKey");
 
         try {
-            ByteArrayOutputStream bytes = new ByteArrayOutputStream(256);
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream(320);
             DataOutputStream output = new DataOutputStream(bytes);
             writeField(output, DOMAIN);
             output.writeShort(version.major());
             output.writeShort(version.minor());
-            writeField(output, challenge.serverId().getBytes(StandardCharsets.US_ASCII));
+            writeField(
+                    output,
+                    challenge.serverId().value().getBytes(StandardCharsets.US_ASCII));
             output.writeLong(challenge.sessionId().getMostSignificantBits());
             output.writeLong(challenge.sessionId().getLeastSignificantBits());
             writeField(output, challenge.nonce());
+            writeField(output, challenge.channelBinding().bytes());
             writeField(output, handle.value().getBytes(StandardCharsets.US_ASCII));
             writeField(output, playerId.value().getBytes(StandardCharsets.US_ASCII));
             writeField(output, publicKey);
