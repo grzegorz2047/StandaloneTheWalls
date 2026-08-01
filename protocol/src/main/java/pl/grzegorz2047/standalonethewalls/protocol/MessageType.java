@@ -8,7 +8,10 @@ public enum MessageType {
     SERVER_HELLO(2, 4 * 1024, Channel.RELIABLE),
     PING(3, 64, Channel.BOTH),
     PONG(4, 64, Channel.BOTH),
-    DISCONNECT(5, 2 * 1024, Channel.RELIABLE);
+    DISCONNECT(5, 2 * 1024, Channel.RELIABLE),
+    IDENTITY_CHALLENGE(6, 2 * 1024, Channel.RELIABLE),
+    IDENTITY_PROOF(7, 4 * 1024, Channel.RELIABLE),
+    IDENTITY_RESULT(8, 1024, Channel.RELIABLE);
 
     private final int wireId;
     private final int maximumPayloadBytes;
@@ -39,6 +42,9 @@ public enum MessageType {
             case 3 -> Optional.of(PING);
             case 4 -> Optional.of(PONG);
             case 5 -> Optional.of(DISCONNECT);
+            case 6 -> Optional.of(IDENTITY_CHALLENGE);
+            case 7 -> Optional.of(IDENTITY_PROOF);
+            case 8 -> Optional.of(IDENTITY_RESULT);
             default -> Optional.empty();
         };
     }
