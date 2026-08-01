@@ -32,8 +32,7 @@ class PlayerIdentityTest {
     }
 
     @Test
-    void generatesAnApplicationIdentityWithoutExposingKeyBytesInText()
-            throws IdentityException {
+    void generatesAnApplicationIdentityWithoutExposingKeyBytesInText() throws IdentityException {
         PlayerIdentity identity = PlayerIdentity.generate(new SecureRandom());
         String publicKeyBase64 = Base64.getEncoder().encodeToString(identity.publicKeyEncoded());
 
@@ -44,8 +43,7 @@ class PlayerIdentityTest {
     }
 
     @Test
-    void loadOrCreatePersistsOnceAndReturnsTheSameCryptographicIdentity()
-            throws IdentityException {
+    void loadOrCreatePersistsOnceAndReturnsTheSameCryptographicIdentity() throws IdentityException {
         MemoryStore store = new MemoryStore();
 
         PlayerIdentity first = PlayerIdentity.loadOrCreate(store, new SecureRandom());
@@ -58,8 +56,7 @@ class PlayerIdentityTest {
     }
 
     @Test
-    void rejectsMismatchedPublicAndPrivateKeysLoadedFromStorage()
-            throws NoSuchAlgorithmException {
+    void rejectsMismatchedPublicAndPrivateKeysLoadedFromStorage() throws NoSuchAlgorithmException {
         KeyPairGenerator generator = KeyPairGenerator.getInstance("Ed25519");
         KeyPair first = generator.generateKeyPair();
         KeyPair second = generator.generateKeyPair();
