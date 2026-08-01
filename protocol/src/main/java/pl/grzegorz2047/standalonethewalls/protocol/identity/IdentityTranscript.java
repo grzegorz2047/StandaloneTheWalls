@@ -35,9 +35,7 @@ public final class IdentityTranscript {
             writeField(output, DOMAIN);
             output.writeShort(version.major());
             output.writeShort(version.minor());
-            writeField(
-                    output,
-                    challenge.serverId().value().getBytes(StandardCharsets.US_ASCII));
+            writeField(output, challenge.serverId().value().getBytes(StandardCharsets.US_ASCII));
             output.writeLong(challenge.sessionId().getMostSignificantBits());
             output.writeLong(challenge.sessionId().getLeastSignificantBits());
             writeField(output, challenge.nonce());

@@ -28,8 +28,7 @@ public final class ServerTrustService {
         }
         if (existing.isEmpty()) {
             return new ServerTrustDecision(
-                    ServerTrustDecision.Status.FIRST_USE_REQUIRES_CONFIRMATION,
-                    Optional.empty());
+                    ServerTrustDecision.Status.FIRST_USE_REQUIRES_CONFIRMATION, Optional.empty());
         }
         return new ServerTrustDecision(
                 existing.orElseThrow().serverId().equals(presented)
@@ -53,11 +52,9 @@ public final class ServerTrustService {
                     "server reference is not awaiting first-use confirmation");
         }
         ServerTrustRecord record =
-                new ServerTrustRecord(
-                        reference, presented, ServerTrustRecord.Source.TOFU, reason);
+                new ServerTrustRecord(reference, presented, ServerTrustRecord.Source.TOFU, reason);
         if (!store.saveIfAbsent(record)) {
-            throw new IllegalStateException(
-                    "server trust changed during first-use confirmation");
+            throw new IllegalStateException("server trust changed during first-use confirmation");
         }
         return record;
     }
@@ -74,8 +71,7 @@ public final class ServerTrustService {
                         ServerTrustRecord.Source.EXPLICIT_REPLACEMENT,
                         reason);
         if (!store.replace(expectedCurrent, replacementRecord)) {
-            throw new IllegalStateException(
-                    "server trust changed before explicit replacement");
+            throw new IllegalStateException("server trust changed before explicit replacement");
         }
         return replacementRecord;
     }

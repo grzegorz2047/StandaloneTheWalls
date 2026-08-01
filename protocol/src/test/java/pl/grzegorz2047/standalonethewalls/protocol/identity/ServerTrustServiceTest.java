@@ -1,7 +1,6 @@
 package pl.grzegorz2047.standalonethewalls.protocol.identity;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -11,8 +10,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class ServerTrustServiceTest {
-    private static final ServerReference REFERENCE =
-            new ServerReference("example.org:27420");
+    private static final ServerReference REFERENCE = new ServerReference("example.org:27420");
     private static final ServerId FIRST = new ServerId("sfs1_" + "a".repeat(52));
     private static final ServerId SECOND = new ServerId("sfs1_" + "b".repeat(52));
 
@@ -25,8 +23,7 @@ class ServerTrustServiceTest {
         ServerTrustDecision inspection = service.inspect(REFERENCE, FIRST, Optional.empty());
 
         assertEquals(
-                ServerTrustDecision.Status.FIRST_USE_REQUIRES_CONFIRMATION,
-                inspection.status());
+                ServerTrustDecision.Status.FIRST_USE_REQUIRES_CONFIRMATION, inspection.status());
         assertTrue(store.records.isEmpty());
 
         ServerTrustRecord record =
@@ -52,8 +49,7 @@ class ServerTrustServiceTest {
     }
 
     @Test
-    void expectedPinTakesPrecedenceAndCannotBeStoredAsTofu()
-            throws ServerTrustStoreException {
+    void expectedPinTakesPrecedenceAndCannotBeStoredAsTofu() throws ServerTrustStoreException {
         MemoryStore store = new MemoryStore();
         ServerTrustService service = new ServerTrustService(store);
 
@@ -75,8 +71,7 @@ class ServerTrustServiceTest {
         MemoryStore store = new MemoryStore();
         ServerTrustService service = new ServerTrustService(store);
         ServerTrustRecord original =
-                service.confirmFirstUse(
-                        REFERENCE, FIRST, Optional.empty(), "initial confirmation");
+                service.confirmFirstUse(REFERENCE, FIRST, Optional.empty(), "initial confirmation");
 
         ServerTrustRecord replacement =
                 service.replace(original, SECOND, "administrator approved planned rotation");

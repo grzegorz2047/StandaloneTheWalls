@@ -12,8 +12,7 @@ import org.junit.jupiter.api.Test;
 
 class SecureChannelBindingTest {
     private static final ServerId SERVER_ID = new ServerId("sfs1_" + "a".repeat(52));
-    private static final UUID SESSION_ID =
-            UUID.fromString("11111111-2222-3333-4444-555555555555");
+    private static final UUID SESSION_ID = UUID.fromString("11111111-2222-3333-4444-555555555555");
 
     @Test
     void requiresExactlyThirtyTwoBytesAndCopiesAtBothBoundaries() {

@@ -13,13 +13,10 @@ class ServerIdentityTest {
                     .decode("MCowBQYDK2VwAyEAoBGdJyYRGPquhsJXoEoTOOticDHR4bM2z/5DScGCHPU=");
 
     @Test
-    void derivesStableServerIdAndFingerprintFromCanonicalPublicKeyBytes()
-            throws IdentityException {
+    void derivesStableServerIdAndFingerprintFromCanonicalPublicKeyBytes() throws IdentityException {
         ServerId serverId = ServerId.fromPublicKey(PUBLIC_KEY_VECTOR);
 
-        assertEquals(
-                "sfs1_ne2243wbcs3fox5evlg23khripu53paxtss2ckqxnycbtqgks7ua",
-                serverId.value());
+        assertEquals("sfs1_ne2243wbcs3fox5evlg23khripu53paxtss2ckqxnycbtqgks7ua", serverId.value());
         assertEquals(
                 "6935-ae6e-c114-b657-5fa4",
                 ServerFingerprint.fromPublicKey(PUBLIC_KEY_VECTOR).value());

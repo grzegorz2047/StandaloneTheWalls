@@ -22,8 +22,7 @@ public final class SecureChannelBinding {
 
     @Override
     public boolean equals(Object other) {
-        return other instanceof SecureChannelBinding binding
-                && Arrays.equals(value, binding.value);
+        return other instanceof SecureChannelBinding binding && Arrays.equals(value, binding.value);
     }
 
     @Override

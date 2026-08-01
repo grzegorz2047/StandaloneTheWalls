@@ -133,16 +133,9 @@ class IdentityAuthenticatorTest {
     }
 
     private static IdentityChallenge challenge(
-            ServerId serverId,
-            UUID sessionId,
-            byte[] nonce,
-            SecureChannelBinding channelBinding) {
+            ServerId serverId, UUID sessionId, byte[] nonce, SecureChannelBinding channelBinding) {
         return new IdentityChallenge(
-                serverId,
-                sessionId,
-                nonce,
-                channelBinding,
-                Instant.parse("2026-08-01T17:01:00Z"));
+                serverId, sessionId, nonce, channelBinding, Instant.parse("2026-08-01T17:01:00Z"));
     }
 
     private static byte[] nonce(int seed) {
