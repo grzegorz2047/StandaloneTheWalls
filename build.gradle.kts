@@ -178,6 +178,7 @@ val engineFreeModules = listOf(
     "map-format",
     "server",
     "bot-client",
+    "transport-bctls",
 )
 val engineFreeSourceDirectories =
     engineFreeModules.map { module -> layout.projectDirectory.dir("$module/src") }

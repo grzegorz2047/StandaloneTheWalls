@@ -24,6 +24,7 @@ opening a graphics device.
 | `client` | jMonkeyEngine rendering, input, prediction, interpolation, identity profile and UI | core modules, jMonkeyEngine |
 | `map-studio` | jMonkeyEngine-based authoring UI | `shared`, `map-format`, jMonkeyEngine |
 | `bot-client` | Headless integration and load-test behavior | core modules, SLF4J |
+| `transport-bctls` | TLS 1.3, server pinning and RFC 9266 channel binding | `protocol`, Bouncy Castle |
 
 Core modules must never import `com.jme3`, LWJGL, desktop UI toolkits, concrete
 socket libraries, SQLite, GitHub SDKs, HTTP clients, or server persistence
@@ -79,6 +80,14 @@ may initially author claims, but servers consume a deterministic, signed and
 cached snapshot through a provider interface. A future HTTPS endpoint or local
 mirror can replace GitHub without changing the claim or handshake formats. See
 [IDENTITY.md](IDENTITY.md) and epic #28.
+
+## Secure transport adapters
+
+Concrete networking libraries live outside the core modules. The first reliable adapter is
+`transport-bctls`, which enforces TLS 1.3, ALPN `sunderfront/1`, explicit server
+pinning/TOFU, and the RFC 9266 `tls-exporter` binding required by player identity.
+Protocol framing, runtime socket ownership, realtime DTLS/UDP and reconnect remain separate
+adapters and work items. See ADR 0005 and issue #34.
 
 ## Fixed-tick simulation
 

@@ -100,7 +100,8 @@ public final class PinnedServerTrustManager extends X509ExtendedTrustManager {
         }
     }
 
-    private static void requireServerUsage(X509Certificate certificate) throws CertificateException {
+    private static void requireServerUsage(X509Certificate certificate)
+            throws CertificateException {
         boolean[] keyUsage = certificate.getKeyUsage();
         if (keyUsage != null && (keyUsage.length == 0 || !keyUsage[0])) {
             throw new CertificateException(

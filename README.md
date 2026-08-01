@@ -51,6 +51,7 @@ official wrapper JAR checksum, and pins the Gradle distribution checksum in
 - `server` - headless authoritative dedicated server
 - `map-studio` - map authoring application
 - `bot-client` - headless integration and load-test client
+- `transport-bctls` - pure-Java BCJSSE TLS 1.3 reliable-transport adapter
 
 Read [ARCHITECTURE.md](ARCHITECTURE.md) before changing module boundaries.
 

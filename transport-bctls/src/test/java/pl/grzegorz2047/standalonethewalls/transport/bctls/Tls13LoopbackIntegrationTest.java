@@ -54,13 +54,13 @@ class Tls13LoopbackIntegrationTest {
         ServerId serverId = ServerId.fromPublicKey(material.keyPair().getPublic().getEncoded());
         trustService.confirmFirstUse(REFERENCE, serverId, Optional.empty(), "loopback test");
 
-        SSLContext serverContext = contexts.create(material.keyManagers(), null, new SecureRandom());
+        SSLContext serverContext =
+                contexts.create(material.keyManagers(), null, new SecureRandom());
         SSLContext clientContext =
                 contexts.create(
                         null,
                         new TrustManager[] {
-                            new PinnedServerTrustManager(
-                                    trustService, REFERENCE, Optional.empty())
+                            new PinnedServerTrustManager(trustService, REFERENCE, Optional.empty())
                         },
                         new SecureRandom());
 
@@ -111,13 +111,13 @@ class Tls13LoopbackIntegrationTest {
                 Optional.empty(),
                 "loopback test");
 
-        SSLContext serverContext = contexts.create(attacker.keyManagers(), null, new SecureRandom());
+        SSLContext serverContext =
+                contexts.create(attacker.keyManagers(), null, new SecureRandom());
         SSLContext clientContext =
                 contexts.create(
                         null,
                         new TrustManager[] {
-                            new PinnedServerTrustManager(
-                                    trustService, REFERENCE, Optional.empty())
+                            new PinnedServerTrustManager(trustService, REFERENCE, Optional.empty())
                         },
                         new SecureRandom());
 
@@ -127,7 +127,8 @@ class Tls13LoopbackIntegrationTest {
                 Tls13Policy.configureClient(
                         client, Tls13Policy.ServerAuthentication.PINNED_IDENTITY);
                 client.setSoTimeout((int) TIMEOUT.toMillis());
-                assertThatThrownBy(client::startHandshake).isInstanceOf(SSLHandshakeException.class);
+                assertThatThrownBy(client::startHandshake)
+                        .isInstanceOf(SSLHandshakeException.class);
             }
             assertExpectedServerHandshakeFailure(observation);
         }
