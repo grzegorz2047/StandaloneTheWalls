@@ -16,13 +16,17 @@ import org.junit.jupiter.api.Test;
 import pl.grzegorz2047.standalonethewalls.protocol.ProtocolVersion;
 
 class ChallengeLedgerTest {
+    private static final ServerId SERVER_ID = new ServerId("sfs1_" + "a".repeat(52));
+    private static final SecureChannelBinding CHANNEL_BINDING =
+            new SecureChannelBinding(new byte[SecureChannelBinding.BYTES]);
+
     @Test
     void consumesAChallengeBeforeVerificationAndRejectsReplay() throws IdentityException {
         MutableClock clock = new MutableClock(Instant.parse("2026-08-01T17:00:00Z"));
         IdentityChallengeService service = service(clock, 4);
         UUID session = UUID.fromString("11111111-2222-3333-4444-555555555555");
         PlayerIdentity identity = PlayerIdentity.generate(new SecureRandom());
-        IdentityChallenge challenge = service.issue("server.eu-1", session);
+        IdentityChallenge challenge = service.issue(SERVER_ID, session, CHANNEL_BINDING);
         IdentityProof proof =
                 IdentityProof.create(
                         identity,
@@ -43,7 +47,7 @@ class ChallengeLedgerTest {
         IdentityChallengeService service = service(clock, 4);
         UUID session = UUID.fromString("11111111-2222-3333-4444-555555555555");
         PlayerIdentity identity = PlayerIdentity.generate(new SecureRandom());
-        IdentityChallenge challenge = service.issue("server.eu-1", session);
+        IdentityChallenge challenge = service.issue(SERVER_ID, session, CHANNEL_BINDING);
         IdentityProof proof =
                 IdentityProof.create(
                         identity,
@@ -74,7 +78,7 @@ class ChallengeLedgerTest {
         IdentityChallengeService service = service(clock, 4);
         UUID session = UUID.fromString("11111111-2222-3333-4444-555555555555");
         PlayerIdentity identity = PlayerIdentity.generate(new SecureRandom());
-        IdentityChallenge challenge = service.issue("server.eu-1", session);
+        IdentityChallenge challenge = service.issue(SERVER_ID, session, CHANNEL_BINDING);
         IdentityProof proof =
                 IdentityProof.create(
                         identity,
@@ -95,8 +99,8 @@ class ChallengeLedgerTest {
         IdentityChallengeService service = service(clock, 1);
         UUID session = UUID.fromString("11111111-2222-3333-4444-555555555555");
 
-        IdentityChallenge first = service.issue("server.eu-1", session);
-        IdentityChallenge replacement = service.issue("server.eu-1", session);
+        IdentityChallenge first = service.issue(SERVER_ID, session, CHANNEL_BINDING);
+        IdentityChallenge replacement = service.issue(SERVER_ID, session, CHANNEL_BINDING);
 
         assertNotEquals(first.nonce()[0], replacement.nonce()[0]);
         assertEquals(1, service.outstandingCount());
@@ -104,8 +108,9 @@ class ChallengeLedgerTest {
                 IllegalStateException.class,
                 () ->
                         service.issue(
-                                "server.eu-1",
-                                UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")));
+                                SERVER_ID,
+                                UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
+                                CHANNEL_BINDING));
     }
 
     @Test

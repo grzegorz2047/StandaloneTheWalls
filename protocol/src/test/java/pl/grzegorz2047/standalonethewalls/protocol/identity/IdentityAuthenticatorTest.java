@@ -13,12 +13,14 @@ import pl.grzegorz2047.standalonethewalls.protocol.ProtocolVersion;
 class IdentityAuthenticatorTest {
     private static final UUID SESSION = UUID.fromString("11111111-2222-3333-4444-555555555555");
     private static final CanonicalHandle HANDLE = new CanonicalHandle("grzegorz2047");
+    private static final ServerId SERVER_ID = new ServerId("sfs1_" + "a".repeat(52));
+    private static final ServerId OTHER_SERVER_ID = new ServerId("sfs1_" + "b".repeat(52));
 
     @Test
-    void acceptsAProofBoundToTheExactServerSessionNonceHandleAndPlayerId()
+    void acceptsAProofBoundToTheExactServerChannelSessionNonceHandleAndPlayerId()
             throws IdentityException {
         PlayerIdentity identity = PlayerIdentity.generate(new SecureRandom());
-        IdentityChallenge challenge = challenge("server.eu-1", SESSION, nonce(1));
+        IdentityChallenge challenge = challenge(SERVER_ID, SESSION, nonce(1), binding(1));
         IdentityProof proof =
                 IdentityProof.create(identity, ProtocolVersion.CURRENT, challenge, HANDLE);
 
@@ -30,28 +32,36 @@ class IdentityAuthenticatorTest {
     }
 
     @Test
-    void rejectsAProofRelayedToAnotherServerSessionOrNonce() throws IdentityException {
+    void rejectsAProofRelayedToAnotherServerChannelSessionOrNonce() throws IdentityException {
         PlayerIdentity identity = PlayerIdentity.generate(new SecureRandom());
-        IdentityChallenge original = challenge("server.eu-1", SESSION, nonce(1));
+        IdentityChallenge original = challenge(SERVER_ID, SESSION, nonce(1), binding(1));
         IdentityProof proof =
                 IdentityProof.create(identity, ProtocolVersion.CURRENT, original, HANDLE);
 
         assertEquals(
                 IdentityVerification.Status.INVALID_SIGNATURE,
-                IdentityAuthenticator.verify(challenge("server.eu-2", SESSION, nonce(1)), proof)
+                IdentityAuthenticator.verify(
+                                challenge(OTHER_SERVER_ID, SESSION, nonce(1), binding(1)), proof)
                         .status());
         assertEquals(
                 IdentityVerification.Status.INVALID_SIGNATURE,
                 IdentityAuthenticator.verify(
                                 challenge(
-                                        "server.eu-1",
+                                        SERVER_ID,
                                         UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
-                                        nonce(1)),
+                                        nonce(1),
+                                        binding(1)),
                                 proof)
                         .status());
         assertEquals(
                 IdentityVerification.Status.INVALID_SIGNATURE,
-                IdentityAuthenticator.verify(challenge("server.eu-1", SESSION, nonce(2)), proof)
+                IdentityAuthenticator.verify(
+                                challenge(SERVER_ID, SESSION, nonce(2), binding(1)), proof)
+                        .status());
+        assertEquals(
+                IdentityVerification.Status.INVALID_SIGNATURE,
+                IdentityAuthenticator.verify(
+                                challenge(SERVER_ID, SESSION, nonce(1), binding(2)), proof)
                         .status());
     }
 
@@ -59,7 +69,7 @@ class IdentityAuthenticatorTest {
     void rejectsTamperedHandlePlayerIdPublicKeySignatureAndVersion() throws IdentityException {
         PlayerIdentity identity = PlayerIdentity.generate(new SecureRandom());
         PlayerIdentity other = PlayerIdentity.generate(new SecureRandom());
-        IdentityChallenge challenge = challenge("server.eu-1", SESSION, nonce(1));
+        IdentityChallenge challenge = challenge(SERVER_ID, SESSION, nonce(1), binding(1));
         IdentityProof proof =
                 IdentityProof.create(identity, ProtocolVersion.CURRENT, challenge, HANDLE);
 
@@ -122,14 +132,28 @@ class IdentityAuthenticatorTest {
         assertEquals(IdentityVerification.Status.UNSUPPORTED_VERSION, unsupportedResult.status());
     }
 
-    private static IdentityChallenge challenge(String serverId, UUID sessionId, byte[] nonce) {
+    private static IdentityChallenge challenge(
+            ServerId serverId,
+            UUID sessionId,
+            byte[] nonce,
+            SecureChannelBinding channelBinding) {
         return new IdentityChallenge(
-                serverId, sessionId, nonce, Instant.parse("2026-08-01T17:01:00Z"));
+                serverId,
+                sessionId,
+                nonce,
+                channelBinding,
+                Instant.parse("2026-08-01T17:01:00Z"));
     }
 
     private static byte[] nonce(int seed) {
         byte[] value = new byte[IdentityChallenge.NONCE_BYTES];
         value[0] = (byte) seed;
         return value;
+    }
+
+    private static SecureChannelBinding binding(int seed) {
+        byte[] value = new byte[SecureChannelBinding.BYTES];
+        value[0] = (byte) seed;
+        return new SecureChannelBinding(value);
     }
 }
