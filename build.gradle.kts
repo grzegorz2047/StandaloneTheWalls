@@ -1,5 +1,6 @@
 import org.gradle.api.GradleException
 import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.testing.Test
 import org.gradle.jvm.toolchain.JavaLanguageVersion
@@ -10,6 +11,11 @@ plugins {
 
 group = "pl.grzegorz2047.standalonethewalls"
 version = "0.1.0-SNAPSHOT"
+
+val junitBomDependency = libs.junit.bom
+val junitJupiterDependency = libs.junit.jupiter
+val assertjDependency = libs.assertj.core
+val junitLauncherDependency = libs.junit.platform.launcher
 
 allprojects {
     repositories {
@@ -31,10 +37,10 @@ subprojects {
     }
 
     dependencies {
-        add("testImplementation", platform(libs.junit.bom))
-        add("testImplementation", libs.junit.jupiter)
-        add("testImplementation", libs.assertj.core)
-        add("testRuntimeOnly", libs.junit.platform.launcher)
+        add("testImplementation", platform(junitBomDependency))
+        add("testImplementation", junitJupiterDependency)
+        add("testImplementation", assertjDependency)
+        add("testRuntimeOnly", junitLauncherDependency)
     }
 
     tasks.withType<JavaCompile>().configureEach {
@@ -59,23 +65,24 @@ val engineFreeModules = listOf(
     "server",
     "bot-client",
 )
+val engineFreeSourceDirectories =
+    engineFreeModules.map { module -> layout.projectDirectory.dir("$module/src") }
 
-val verifyArchitecture by tasks.registering {
+val verifyArchitecture = tasks.register("verifyArchitecture") {
     group = "verification"
     description = "Fails when renderer dependencies leak into engine-free modules."
-    inputs.files(engineFreeModules.map { file("$it/src") })
+    inputs.files(engineFreeSourceDirectories)
+        .withPathSensitivity(PathSensitivity.RELATIVE)
 
     doLast {
-        engineFreeModules.forEach { module ->
-            fileTree("$module/src") {
-                include("**/*.java", "**/*.kt")
-            }.forEach { sourceFile ->
-                val source = sourceFile.readText()
-                if ("com.jme3" in source || "org.lwjgl" in source) {
-                    throw GradleException(
-                        "Renderer dependency found in engine-free module $module: ${sourceFile.relativeTo(rootDir)}"
-                    )
-                }
+        inputs.files.asFileTree.matching {
+            include("**/*.java", "**/*.kt")
+        }.files.forEach { sourceFile ->
+            val source = sourceFile.readText()
+            if ("com.jme3" in source || "org.lwjgl" in source) {
+                throw GradleException(
+                    "Renderer dependency found in engine-free source: ${sourceFile.invariantSeparatorsPath}"
+                )
             }
         }
     }
