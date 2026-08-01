@@ -6,6 +6,10 @@ GitHub-hosted runners and do not require secrets or paid services. The gate cove
 all current modules, including the deterministic domain, protocol, map validator,
 identity code, and fixed-tick dedicated-server runtime.
 
+The initial adoption formatted the complete existing Java source tree with the
+same checked-in Spotless configuration. Future changes must arrive formatted;
+CI never applies or commits formatting on behalf of a pull request.
+
 ## Local commands
 
 Run the complete gate:
