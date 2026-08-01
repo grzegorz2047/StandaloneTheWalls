@@ -12,7 +12,7 @@ import pl.grzegorz2047.standalonethewalls.protocol.ProtocolVersion;
 
 class IdentityTranscriptTest {
     @Test
-    void isDeterministicAndUnambiguousAcrossEveryBoundField() throws Exception {
+    void isDeterministicAndUnambiguousAcrossEveryBoundField() throws IdentityException {
         PlayerIdentity identity = PlayerIdentity.generate(new SecureRandom());
         CanonicalHandle handle = new CanonicalHandle("player_one");
         IdentityChallenge challenge =
