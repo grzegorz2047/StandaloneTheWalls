@@ -2,17 +2,19 @@ package pl.grzegorz2047.standalonethewalls.transport.bctls;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.net.Socket;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
-import java.security.KeyStore;
+import java.security.Principal;
+import java.security.PrivateKey;
 import java.security.Provider;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.Date;
 import javax.net.ssl.KeyManager;
-import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.X509ExtendedKeyManager;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.BasicConstraints;
 import org.bouncycastle.asn1.x509.ExtendedKeyUsage;
@@ -28,8 +30,6 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 
 record TestCertificateMaterial(
         KeyPair keyPair, java.security.cert.X509Certificate certificate, KeyManager[] keyManagers) {
-    private static final String PASSWORD = "sunderfront-test";
-
     TestCertificateMaterial {
         keyManagers = keyManagers.clone();
     }
@@ -69,22 +69,68 @@ record TestCertificateMaterial(
                 new JcaX509CertificateConverter().setProvider(provider).getCertificate(holder);
         certificate.verify(keyPair.getPublic(), provider);
 
-        char[] password = PASSWORD.toCharArray();
-        try {
-            KeyStore keyStore = KeyStore.getInstance("PKCS12");
-            keyStore.load(null, password);
-            keyStore.setKeyEntry(
-                    "server",
-                    keyPair.getPrivate(),
-                    password,
-                    new java.security.cert.Certificate[] {certificate});
-            KeyManagerFactory keyManagerFactory =
-                    KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-            keyManagerFactory.init(keyStore, password);
-            return new TestCertificateMaterial(
-                    keyPair, certificate, keyManagerFactory.getKeyManagers());
-        } finally {
-            Arrays.fill(password, '\0');
+        KeyManager keyManager = new TestServerKeyManager(keyPair.getPrivate(), certificate);
+        return new TestCertificateMaterial(
+                keyPair, certificate, new KeyManager[] {keyManager});
+    }
+
+    private static final class TestServerKeyManager extends X509ExtendedKeyManager {
+        private static final String ALIAS = "server";
+        private final PrivateKey privateKey;
+        private final java.security.cert.X509Certificate[] certificateChain;
+
+        private TestServerKeyManager(
+                PrivateKey privateKey, java.security.cert.X509Certificate certificate) {
+            this.privateKey = privateKey;
+            this.certificateChain = new java.security.cert.X509Certificate[] {certificate};
+        }
+
+        @Override
+        public String[] getClientAliases(String keyType, Principal[] issuers) {
+            return null;
+        }
+
+        @Override
+        public String chooseClientAlias(String[] keyTypes, Principal[] issuers, Socket socket) {
+            return null;
+        }
+
+        @Override
+        public String[] getServerAliases(String keyType, Principal[] issuers) {
+            return supports(keyType) ? new String[] {ALIAS} : null;
+        }
+
+        @Override
+        public String chooseServerAlias(String keyType, Principal[] issuers, Socket socket) {
+            return supports(keyType) ? ALIAS : null;
+        }
+
+        @Override
+        public java.security.cert.X509Certificate[] getCertificateChain(String alias) {
+            return ALIAS.equals(alias) ? certificateChain.clone() : null;
+        }
+
+        @Override
+        public PrivateKey getPrivateKey(String alias) {
+            return ALIAS.equals(alias) ? privateKey : null;
+        }
+
+        @Override
+        public String chooseEngineClientAlias(
+                String[] keyTypes, Principal[] issuers, SSLEngine engine) {
+            return null;
+        }
+
+        @Override
+        public String chooseEngineServerAlias(
+                String keyType, Principal[] issuers, SSLEngine engine) {
+            return supports(keyType) ? ALIAS : null;
+        }
+
+        private static boolean supports(String keyType) {
+            return "Ed25519".equalsIgnoreCase(keyType)
+                    || "EdDSA".equalsIgnoreCase(keyType)
+                    || "EdEC".equalsIgnoreCase(keyType);
         }
     }
 }
