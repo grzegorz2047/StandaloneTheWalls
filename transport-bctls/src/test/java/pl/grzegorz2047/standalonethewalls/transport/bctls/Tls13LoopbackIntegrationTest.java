@@ -98,8 +98,7 @@ class Tls13LoopbackIntegrationTest {
                     IOException,
                     IdentityException,
                     ServerTrustStoreException,
-                    TlsTransportException,
-                    InterruptedException {
+                    TlsTransportException {
         BouncyCastleTlsContexts contexts = new BouncyCastleTlsContexts();
         TestCertificateMaterial trusted = TestCertificateMaterial.create(CRYPTO_PROVIDER, 1L);
         TestCertificateMaterial attacker = TestCertificateMaterial.create(CRYPTO_PROVIDER, 2L);
@@ -205,11 +204,16 @@ class Tls13LoopbackIntegrationTest {
         }
 
         @Override
-        public void close() throws IOException, InterruptedException {
+        public void close() throws IOException {
             serverSocket.close();
             executor.shutdownNow();
-            if (!executor.awaitTermination(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)) {
-                throw new IllegalStateException("loopback TLS executor did not terminate");
+            try {
+                if (!executor.awaitTermination(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)) {
+                    throw new IOException("loopback TLS executor did not terminate");
+                }
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                throw new IOException("interrupted while stopping loopback TLS executor", exception);
             }
         }
     }
