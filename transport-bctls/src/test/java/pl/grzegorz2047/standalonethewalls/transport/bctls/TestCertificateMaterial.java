@@ -70,8 +70,7 @@ record TestCertificateMaterial(
         certificate.verify(keyPair.getPublic(), provider);
 
         KeyManager keyManager = new TestServerKeyManager(keyPair.getPrivate(), certificate);
-        return new TestCertificateMaterial(
-                keyPair, certificate, new KeyManager[] {keyManager});
+        return new TestCertificateMaterial(keyPair, certificate, new KeyManager[] {keyManager});
     }
 
     private static final class TestServerKeyManager extends X509ExtendedKeyManager {
