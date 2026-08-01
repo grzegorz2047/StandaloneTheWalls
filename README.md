@@ -1,13 +1,33 @@
-# Standalone The Walls
+# Sunderfront
 
-A standalone multiplayer 3D game inspired by the rules of the original
-`grzegorz2047/TheWalls` Minecraft plugin. The new project does not copy Bukkit,
-Minecraft code, assets, UI, or pay-to-win systems.
+**Sunderfront** is the working product name for a standalone multiplayer 3D game
+inspired by the rules of the original `grzegorz2047/TheWalls` Minecraft plugin.
+The repository keeps its historical `StandaloneTheWalls` name for now, but the
+product does not copy Bukkit, Minecraft code, assets, UI, branding, or
+pay-to-win systems.
+
+The name is provisional until a formal trademark and release-name review is
+completed.
 
 ## Status
 
 Foundation work is in progress. The repository does **not** yet contain a
-playable game, production network stack, or finished map.
+playable game, production network stack, finished map, or proven 40-player
+capacity.
+
+## Product principles
+
+- authoritative dedicated servers and deterministic renderer-independent rules;
+- LAN play without Internet access and direct Internet connections;
+- user-created, data-only maps that cannot execute code;
+- local-first player identity with optional globally reserved handles;
+- no mandatory central account, paid backend, subscription, or pay-to-win system;
+- measurable support for integrated graphics instead of vague hardware claims;
+- large asset packs kept outside normal Git history and pinned by cryptographic
+  hashes.
+
+Read [IDENTITY.md](IDENTITY.md), [PERFORMANCE.md](PERFORMANCE.md), and
+[ASSET_PIPELINE.md](ASSET_PIPELINE.md) for the accepted product decisions.
 
 ## Technology baseline
 
