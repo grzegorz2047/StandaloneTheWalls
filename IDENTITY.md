@@ -226,3 +226,16 @@ controls treated only as optional abuse mitigation.
 - Error responses are semantic and bounded; they do not disclose private data or
   whether unrelated player identities exist beyond what is necessary to explain
   a handle conflict.
+
+## Standards references
+
+- Ed25519 definition and test vectors: RFC 8032,
+  <https://www.rfc-editor.org/rfc/rfc8032>.
+- Canonical JSON for signed claims: RFC 8785,
+  <https://www.rfc-editor.org/rfc/rfc8785>.
+- Java 21 standard cryptographic algorithm names, including Ed25519:
+  <https://docs.oracle.com/en/java/javase/21/docs/specs/security/standard-names.html>.
+- Unicode normalization guidance: Unicode Standard Annex #15,
+  <https://www.unicode.org/reports/tr15/>.
+- Unicode identifier spoofing and confusable detection: Unicode Technical
+  Standard #39, <https://www.unicode.org/reports/tr39/>.
