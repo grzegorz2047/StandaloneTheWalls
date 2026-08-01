@@ -2,7 +2,9 @@
 
 Every pull request must pass the repository-owned Gradle Wrapper on Linux. Pushes
 to `main` additionally run the same gate on Windows. The checks use only
-GitHub-hosted runners and do not require secrets or paid services.
+GitHub-hosted runners and do not require secrets or paid services. The gate covers
+all current modules, including the deterministic domain, protocol, map validator,
+identity code, and fixed-tick dedicated-server runtime.
 
 ## Local commands
 
