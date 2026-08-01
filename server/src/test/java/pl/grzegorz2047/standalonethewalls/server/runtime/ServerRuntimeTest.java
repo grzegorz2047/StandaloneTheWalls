@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 
 class ServerRuntimeTest {
     @Test
-    void terminatesItsOnlyThreadAfterARequestedTickBudget() throws Exception {
+    void terminatesItsOnlyThreadAfterARequestedTickBudget() throws InterruptedException {
         AdvancingClock clock = new AdvancingClock();
         FixedTickLoop loop = new FixedTickLoop(20, 5, clock, clock::advance, skipped -> {});
         AtomicLong ticks = new AtomicLong();
@@ -32,7 +32,7 @@ class ServerRuntimeTest {
     }
 
     @Test
-    void capturesHandlerFailureAndCannotBeStartedTwice() throws Exception {
+    void capturesHandlerFailureAndCannotBeStartedTwice() throws InterruptedException {
         AdvancingClock clock = new AdvancingClock();
         FixedTickLoop loop = new FixedTickLoop(20, 5, clock, clock::advance, skipped -> {});
         ServerRuntime runtime =
