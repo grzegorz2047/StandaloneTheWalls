@@ -4,7 +4,8 @@ This module contains the first real jMonkeyEngine client process and start scree
 It is not yet a playable game and does not connect to a server.
 
 The client code is covered by the repository-wide Java 21, Spotless, SpotBugs,
-JaCoCo, dependency-locking, and SHA-256 verification gates.
+JaCoCo, dependency-locking, and SHA-256 verification gates. The initial client
+source migration was formatted once with the same checked-in Spotless policy.
 
 ## Start screen
 
