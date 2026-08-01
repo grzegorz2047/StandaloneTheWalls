@@ -1,6 +1,7 @@
 name: Bootstrap Gradle Wrapper
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - agent/issue-20-foundation
