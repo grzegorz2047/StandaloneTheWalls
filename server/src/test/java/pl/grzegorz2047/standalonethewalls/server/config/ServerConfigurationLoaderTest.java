@@ -3,12 +3,13 @@ package pl.grzegorz2047.standalonethewalls.server.config;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.io.IOException;
 import java.io.StringReader;
 import org.junit.jupiter.api.Test;
 
 class ServerConfigurationLoaderTest {
     @Test
-    void loadsOverridesAndKeepsUnspecifiedDefaults() throws Exception {
+    void loadsOverridesAndKeepsUnspecifiedDefaults() throws IOException {
         ServerConfiguration configuration =
                 ServerConfigurationLoader.load(
                         new StringReader(
