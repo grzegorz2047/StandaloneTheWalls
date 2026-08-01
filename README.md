@@ -12,10 +12,12 @@ playable game, production network stack, or finished map.
 ## Technology baseline
 
 - Java 21 LTS
-- Gradle 9.6.1 Wrapper with a pinned distribution checksum
-- Kotlin DSL
+- Gradle 9.6.1 with Kotlin DSL
 - jMonkeyEngine 3.9.0-stable in presentation modules only
 - JUnit 5 and AssertJ
+
+The official Gradle Wrapper with a pinned distribution checksum remains part of
+issue #20 and must be present before the foundation PR leaves draft status.
 
 ## Modules
 
@@ -30,16 +32,13 @@ playable game, production network stack, or finished map.
 
 Read [ARCHITECTURE.md](ARCHITECTURE.md) before changing module boundaries.
 
-## Build
+## Build during the foundation draft
+
+Install Gradle 9.6.1 and run:
 
 ```bash
-./gradlew check
+gradle check
 ```
 
-On Windows:
-
-```powershell
-.\gradlew.bat check
-```
-
-The first run downloads the pinned Gradle distribution and project dependencies.
+Once issue #20 is complete, the documented command will be `./gradlew check`
+(or `.\gradlew.bat check` on Windows) using the repository-owned wrapper.
