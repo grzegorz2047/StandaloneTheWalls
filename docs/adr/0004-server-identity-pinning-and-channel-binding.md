@@ -86,6 +86,23 @@ Changing the server identity, session, nonce, channel binding, handle, player ID
 or key invalidates the signature. A proof from one secure channel cannot
 authenticate another channel even when every other field is unchanged.
 
+Public transcript vector:
+
+```text
+protocol = 1.0
+server public key = MCowBQYDK2VwAyEAoBGdJyYRGPquhsJXoEoTOOticDHR4bM2z/5DScGCHPU=
+session = 11111111-2222-3333-4444-555555555555
+nonce = 00 repeated 32 times
+channel binding = 11 repeated 32 times
+handle = player_one
+player public key = the same public vector above
+encoded transcript bytes = 305
+sha256(transcript) = 94c807fe5905df9b316dbbd8d15bfb8c3297770c4fefc1e65be33edbca483e7b
+```
+
+The vector pins field ordering, length prefixes, identifier derivation, domain
+separation, and inclusion of the binding without publishing any private key.
+
 ### TOFU and expected pins
 
 `ServerReference` is a bounded canonical reference chosen by an adapter, such as
