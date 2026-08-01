@@ -14,7 +14,7 @@ class ProtocolCodecTest {
     private static final UUID SESSION_ID = UUID.fromString("00000000-0000-0000-0000-000000000123");
 
     @Test
-    void roundTripsAnEnvelopeWithoutExposingMutablePayloadState() throws Exception {
+    void roundTripsAnEnvelopeWithoutExposingMutablePayloadState() throws ProtocolException {
         byte[] source = {1, 2, 3};
         ProtocolEnvelope original = envelope(MessageType.CLIENT_HELLO, 7L, source);
         source[0] = 99;
