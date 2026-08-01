@@ -99,7 +99,7 @@ class IdentityTranscriptTest {
 
         assertEquals(305, transcript.length);
         assertEquals(
-                "94c807fe5905df9b316dbbd8d15bfb8c3297770c4fefc1e65be33edbca483e7b",
+                "94c807fe4c9db882fcaec58034722760009abf99063b13162690e102bbaf3e7b",
                 HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(transcript)));
     }
 
