@@ -11,6 +11,11 @@ plugins {
 group = "pl.grzegorz2047.standalonethewalls"
 version = "0.1.0-SNAPSHOT"
 
+val junitBomDependency = libs.junit.bom
+val junitJupiterDependency = libs.junit.jupiter
+val assertjDependency = libs.assertj.core
+val junitLauncherDependency = libs.junit.platform.launcher
+
 allprojects {
     repositories {
         mavenCentral()
@@ -31,10 +36,10 @@ subprojects {
     }
 
     dependencies {
-        add("testImplementation", platform(libs.junit.bom))
-        add("testImplementation", libs.junit.jupiter)
-        add("testImplementation", libs.assertj.core)
-        add("testRuntimeOnly", libs.junit.platform.launcher)
+        add("testImplementation", platform(junitBomDependency))
+        add("testImplementation", junitJupiterDependency)
+        add("testImplementation", assertjDependency)
+        add("testRuntimeOnly", junitLauncherDependency)
     }
 
     tasks.withType<JavaCompile>().configureEach {
@@ -60,7 +65,7 @@ val engineFreeModules = listOf(
     "bot-client",
 )
 
-val verifyArchitecture by tasks.registering {
+val verifyArchitecture = tasks.register("verifyArchitecture") {
     group = "verification"
     description = "Fails when renderer dependencies leak into engine-free modules."
     inputs.files(engineFreeModules.map { file("$it/src") })
