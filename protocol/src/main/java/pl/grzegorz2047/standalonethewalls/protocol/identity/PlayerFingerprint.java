@@ -19,9 +19,11 @@ public record PlayerFingerprint(String value) {
 
     public static PlayerFingerprint fromPublicKey(byte[] subjectPublicKeyInfo)
             throws IdentityException {
-        byte[] canonical = IdentityKeys.decodePublicKey(
-                        Objects.requireNonNull(subjectPublicKeyInfo, "subjectPublicKeyInfo"))
-                .getEncoded();
+        byte[] canonical =
+                IdentityKeys.decodePublicKey(
+                                Objects.requireNonNull(
+                                        subjectPublicKeyInfo, "subjectPublicKeyInfo"))
+                        .getEncoded();
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256").digest(canonical);
             String hex = HexFormat.of().formatHex(digest, 0, 10);

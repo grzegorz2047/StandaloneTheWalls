@@ -11,11 +11,10 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class ProtocolCodecTest {
-    private static final UUID SESSION_ID =
-            UUID.fromString("00000000-0000-0000-0000-000000000123");
+    private static final UUID SESSION_ID = UUID.fromString("00000000-0000-0000-0000-000000000123");
 
     @Test
-    void roundTripsAnEnvelopeWithoutExposingMutablePayloadState() throws Exception {
+    void roundTripsAnEnvelopeWithoutExposingMutablePayloadState() throws ProtocolException {
         byte[] source = {1, 2, 3};
         ProtocolEnvelope original = envelope(MessageType.CLIENT_HELLO, 7L, source);
         source[0] = 99;
@@ -31,10 +30,13 @@ class ProtocolCodecTest {
 
     @Test
     void rejectsUnknownVersionsTypesFlagsAndNegativeSequences() {
-        assertDecodeCode(mutateShort(validBytes(), 4, 2), ProtocolException.Code.UNSUPPORTED_VERSION);
-        assertDecodeCode(mutateShort(validBytes(), 8, 999), ProtocolException.Code.UNKNOWN_MESSAGE_TYPE);
+        assertDecodeCode(
+                mutateShort(validBytes(), 4, 2), ProtocolException.Code.UNSUPPORTED_VERSION);
+        assertDecodeCode(
+                mutateShort(validBytes(), 8, 999), ProtocolException.Code.UNKNOWN_MESSAGE_TYPE);
         assertDecodeCode(mutateShort(validBytes(), 10, 1), ProtocolException.Code.INVALID_FLAGS);
-        assertDecodeCode(mutateLong(validBytes(), 28, -1L), ProtocolException.Code.INVALID_SEQUENCE);
+        assertDecodeCode(
+                mutateLong(validBytes(), 28, -1L), ProtocolException.Code.INVALID_SEQUENCE);
     }
 
     @Test
@@ -62,10 +64,12 @@ class ProtocolCodecTest {
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> envelope(MessageType.PING, -1L, new byte[0]));
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> envelope(
-                        MessageType.PING,
-                        0L,
-                        new byte[MessageType.PING.maximumPayloadBytes() + 1]));
+                .isThrownBy(
+                        () ->
+                                envelope(
+                                        MessageType.PING,
+                                        0L,
+                                        new byte[MessageType.PING.maximumPayloadBytes() + 1]));
     }
 
     @Test

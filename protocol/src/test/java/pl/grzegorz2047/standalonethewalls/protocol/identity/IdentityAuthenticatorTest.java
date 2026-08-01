@@ -11,15 +11,16 @@ import org.junit.jupiter.api.Test;
 import pl.grzegorz2047.standalonethewalls.protocol.ProtocolVersion;
 
 class IdentityAuthenticatorTest {
-    private static final UUID SESSION =
-            UUID.fromString("11111111-2222-3333-4444-555555555555");
+    private static final UUID SESSION = UUID.fromString("11111111-2222-3333-4444-555555555555");
     private static final CanonicalHandle HANDLE = new CanonicalHandle("grzegorz2047");
 
     @Test
-    void acceptsAProofBoundToTheExactServerSessionNonceHandleAndPlayerId() throws Exception {
+    void acceptsAProofBoundToTheExactServerSessionNonceHandleAndPlayerId()
+            throws IdentityException {
         PlayerIdentity identity = PlayerIdentity.generate(new SecureRandom());
         IdentityChallenge challenge = challenge("server.eu-1", SESSION, nonce(1));
-        IdentityProof proof = IdentityProof.create(identity, ProtocolVersion.CURRENT, challenge, HANDLE);
+        IdentityProof proof =
+                IdentityProof.create(identity, ProtocolVersion.CURRENT, challenge, HANDLE);
 
         IdentityVerification verification = IdentityAuthenticator.verify(challenge, proof);
 
@@ -29,15 +30,15 @@ class IdentityAuthenticatorTest {
     }
 
     @Test
-    void rejectsAProofRelayedToAnotherServerSessionOrNonce() throws Exception {
+    void rejectsAProofRelayedToAnotherServerSessionOrNonce() throws IdentityException {
         PlayerIdentity identity = PlayerIdentity.generate(new SecureRandom());
         IdentityChallenge original = challenge("server.eu-1", SESSION, nonce(1));
-        IdentityProof proof = IdentityProof.create(identity, ProtocolVersion.CURRENT, original, HANDLE);
+        IdentityProof proof =
+                IdentityProof.create(identity, ProtocolVersion.CURRENT, original, HANDLE);
 
         assertEquals(
                 IdentityVerification.Status.INVALID_SIGNATURE,
-                IdentityAuthenticator.verify(
-                                challenge("server.eu-2", SESSION, nonce(1)), proof)
+                IdentityAuthenticator.verify(challenge("server.eu-2", SESSION, nonce(1)), proof)
                         .status());
         assertEquals(
                 IdentityVerification.Status.INVALID_SIGNATURE,
@@ -55,45 +56,68 @@ class IdentityAuthenticatorTest {
     }
 
     @Test
-    void rejectsTamperedHandlePlayerIdPublicKeySignatureAndVersion() throws Exception {
+    void rejectsTamperedHandlePlayerIdPublicKeySignatureAndVersion() throws IdentityException {
         PlayerIdentity identity = PlayerIdentity.generate(new SecureRandom());
         PlayerIdentity other = PlayerIdentity.generate(new SecureRandom());
         IdentityChallenge challenge = challenge("server.eu-1", SESSION, nonce(1));
-        IdentityProof proof = IdentityProof.create(identity, ProtocolVersion.CURRENT, challenge, HANDLE);
+        IdentityProof proof =
+                IdentityProof.create(identity, ProtocolVersion.CURRENT, challenge, HANDLE);
 
-        IdentityProof changedHandle = new IdentityProof(
-                proof.protocolVersion(),
-                new CanonicalHandle("another_player"),
-                proof.playerId(),
-                proof.publicKey(),
-                proof.signature());
+        IdentityProof changedHandle =
+                new IdentityProof(
+                        proof.protocolVersion(),
+                        new CanonicalHandle("another_player"),
+                        proof.playerId(),
+                        proof.publicKey(),
+                        proof.signature());
         assertEquals(
                 IdentityVerification.Status.INVALID_SIGNATURE,
                 IdentityAuthenticator.verify(challenge, changedHandle).status());
 
-        IdentityProof changedId = new IdentityProof(
-                proof.protocolVersion(), HANDLE, other.playerId(), proof.publicKey(), proof.signature());
+        IdentityProof changedId =
+                new IdentityProof(
+                        proof.protocolVersion(),
+                        HANDLE,
+                        other.playerId(),
+                        proof.publicKey(),
+                        proof.signature());
         assertEquals(
                 IdentityVerification.Status.PLAYER_ID_MISMATCH,
                 IdentityAuthenticator.verify(challenge, changedId).status());
 
-        IdentityProof badKey = new IdentityProof(
-                proof.protocolVersion(), HANDLE, proof.playerId(), new byte[] {1, 2, 3}, proof.signature());
+        IdentityProof badKey =
+                new IdentityProof(
+                        proof.protocolVersion(),
+                        HANDLE,
+                        proof.playerId(),
+                        new byte[] {1, 2, 3},
+                        proof.signature());
         assertEquals(
                 IdentityVerification.Status.INVALID_PUBLIC_KEY,
                 IdentityAuthenticator.verify(challenge, badKey).status());
 
         byte[] signature = proof.signature();
         signature[0] ^= 1;
-        IdentityProof badSignature = new IdentityProof(
-                proof.protocolVersion(), HANDLE, proof.playerId(), proof.publicKey(), signature);
+        IdentityProof badSignature =
+                new IdentityProof(
+                        proof.protocolVersion(),
+                        HANDLE,
+                        proof.playerId(),
+                        proof.publicKey(),
+                        signature);
         assertEquals(
                 IdentityVerification.Status.INVALID_SIGNATURE,
                 IdentityAuthenticator.verify(challenge, badSignature).status());
 
-        IdentityProof unsupported = new IdentityProof(
-                new ProtocolVersion(1, 1), HANDLE, proof.playerId(), proof.publicKey(), proof.signature());
-        IdentityVerification unsupportedResult = IdentityAuthenticator.verify(challenge, unsupported);
+        IdentityProof unsupported =
+                new IdentityProof(
+                        new ProtocolVersion(1, 1),
+                        HANDLE,
+                        proof.playerId(),
+                        proof.publicKey(),
+                        proof.signature());
+        IdentityVerification unsupportedResult =
+                IdentityAuthenticator.verify(challenge, unsupported);
         assertFalse(unsupportedResult.isAccepted());
         assertEquals(IdentityVerification.Status.UNSUPPORTED_VERSION, unsupportedResult.status());
     }

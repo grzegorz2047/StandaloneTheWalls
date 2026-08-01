@@ -39,15 +39,12 @@ public final class IdentityProof {
             throws IdentityException {
         Objects.requireNonNull(identity, "identity");
         byte[] publicKey = identity.publicKeyEncoded();
-        byte[] transcript = IdentityTranscript.encode(
-                version, challenge, handle, identity.playerId(), publicKey);
+        byte[] transcript =
+                IdentityTranscript.encode(
+                        version, challenge, handle, identity.playerId(), publicKey);
         try {
             return new IdentityProof(
-                    version,
-                    handle,
-                    identity.playerId(),
-                    publicKey,
-                    identity.sign(transcript));
+                    version, handle, identity.playerId(), publicKey, identity.sign(transcript));
         } finally {
             Arrays.fill(transcript, (byte) 0);
         }
@@ -75,11 +72,16 @@ public final class IdentityProof {
 
     @Override
     public String toString() {
-        return "IdentityProof[protocolVersion=" + protocolVersion
-                + ", handle=" + handle
-                + ", playerId=" + playerId
-                + ", publicKeyBytes=" + publicKey.length
-                + ", signatureBytes=" + signature.length
+        return "IdentityProof[protocolVersion="
+                + protocolVersion
+                + ", handle="
+                + handle
+                + ", playerId="
+                + playerId
+                + ", publicKeyBytes="
+                + publicKey.length
+                + ", signatureBytes="
+                + signature.length
                 + ']';
     }
 }

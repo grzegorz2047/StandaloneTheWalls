@@ -58,16 +58,14 @@ class MatchLifecycleTest {
                 .containsExactly(
                         new MatchEvent.CountdownCancelled(1, 2),
                         new MatchEvent.PhaseChanged(
-                                MatchPhase.START_COUNTDOWN,
-                                MatchPhase.WAITING_FOR_PLAYERS,
-                                1L));
+                                MatchPhase.START_COUNTDOWN, MatchPhase.WAITING_FOR_PLAYERS, 1L));
     }
 
     @Test
     void finishesOpenCombatEarlyWithAnExplicitResult() {
         MatchState state = enterPhase(MatchPhase.OPEN_COMBAT);
-        MatchDecision decision = accepted(
-                state, new MatchCommand.FinishMatch(MatchResult.WINNER_DECLARED));
+        MatchDecision decision =
+                accepted(state, new MatchCommand.FinishMatch(MatchResult.WINNER_DECLARED));
 
         assertThat(decision.state().phase()).isEqualTo(MatchPhase.RESULTS);
         assertThat(decision.state().result()).isEqualTo(MatchResult.WINNER_DECLARED);
@@ -82,8 +80,8 @@ class MatchLifecycleTest {
     @Test
     void rejectsCommandsFromInvalidPhasesWithoutChangingState() {
         MatchState initial = MatchState.initial();
-        MatchDecision decision = MatchLifecycle.apply(
-                FAST, initial, new MatchCommand.CompleteMapLoad());
+        MatchDecision decision =
+                MatchLifecycle.apply(FAST, initial, new MatchCommand.CompleteMapLoad());
 
         assertThat(decision.accepted()).isFalse();
         assertThat(decision.state()).isEqualTo(initial);
@@ -95,11 +93,11 @@ class MatchLifecycleTest {
     @Test
     void rejectsNegativePlayerCountsAndEmptyFinishResults() {
         MatchState waiting = waitingState();
-        MatchDecision negative = MatchLifecycle.apply(
-                FAST, waiting, new MatchCommand.UpdatePlayerCount(-1));
+        MatchDecision negative =
+                MatchLifecycle.apply(FAST, waiting, new MatchCommand.UpdatePlayerCount(-1));
         MatchState combat = enterPhase(MatchPhase.OPEN_COMBAT);
-        MatchDecision noResult = MatchLifecycle.apply(
-                FAST, combat, new MatchCommand.FinishMatch(MatchResult.NONE));
+        MatchDecision noResult =
+                MatchLifecycle.apply(FAST, combat, new MatchCommand.FinishMatch(MatchResult.NONE));
 
         assertThat(negative.rejection().orElseThrow().code())
                 .isEqualTo(MatchRejection.Code.INVALID_PLAYER_COUNT);
@@ -129,9 +127,7 @@ class MatchLifecycleTest {
     }
 
     private static MatchState enterPhase(MatchPhase target) {
-        MatchState state = accepted(
-                        waitingState(), new MatchCommand.UpdatePlayerCount(2))
-                .state();
+        MatchState state = accepted(waitingState(), new MatchCommand.UpdatePlayerCount(2)).state();
         int guard = 100;
         while (state.phase() != target && guard-- > 0) {
             state = accepted(state, new MatchCommand.Tick()).state();

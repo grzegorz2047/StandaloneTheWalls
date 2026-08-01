@@ -3,16 +3,19 @@ package pl.grzegorz2047.standalonethewalls.server.config;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.io.IOException;
 import java.io.StringReader;
 import org.junit.jupiter.api.Test;
 
 class ServerConfigurationLoaderTest {
     @Test
-    void loadsOverridesAndKeepsUnspecifiedDefaults() throws Exception {
-        ServerConfiguration configuration = ServerConfigurationLoader.load(new StringReader(
-                "server.name=Private Arena\n"
-                        + "server.tick-rate=30\n"
-                        + "server.maximum-players=16\n"));
+    void loadsOverridesAndKeepsUnspecifiedDefaults() throws IOException {
+        ServerConfiguration configuration =
+                ServerConfigurationLoader.load(
+                        new StringReader(
+                                "server.name=Private Arena\n"
+                                        + "server.tick-rate=30\n"
+                                        + "server.maximum-players=16\n"));
 
         assertEquals("Private Arena", configuration.name());
         assertEquals(30, configuration.tickRate());
@@ -30,7 +33,9 @@ class ServerConfigurationLoaderTest {
                 () -> ServerConfigurationLoader.load(new StringReader("server.tick-rate=fast\n")));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> ServerConfigurationLoader.load(new StringReader(
-                        "server.reliable-port=27420\nserver.realtime-port=27420\n")));
+                () ->
+                        ServerConfigurationLoader.load(
+                                new StringReader(
+                                        "server.reliable-port=27420\nserver.realtime-port=27420\n")));
     }
 }

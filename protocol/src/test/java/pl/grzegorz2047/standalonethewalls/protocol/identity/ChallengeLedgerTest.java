@@ -17,14 +17,18 @@ import pl.grzegorz2047.standalonethewalls.protocol.ProtocolVersion;
 
 class ChallengeLedgerTest {
     @Test
-    void consumesAChallengeBeforeVerificationAndRejectsReplay() throws Exception {
+    void consumesAChallengeBeforeVerificationAndRejectsReplay() throws IdentityException {
         MutableClock clock = new MutableClock(Instant.parse("2026-08-01T17:00:00Z"));
         IdentityChallengeService service = service(clock, 4);
         UUID session = UUID.fromString("11111111-2222-3333-4444-555555555555");
         PlayerIdentity identity = PlayerIdentity.generate(new SecureRandom());
         IdentityChallenge challenge = service.issue("server.eu-1", session);
-        IdentityProof proof = IdentityProof.create(
-                identity, ProtocolVersion.CURRENT, challenge, new CanonicalHandle("player_one"));
+        IdentityProof proof =
+                IdentityProof.create(
+                        identity,
+                        ProtocolVersion.CURRENT,
+                        challenge,
+                        new CanonicalHandle("player_one"));
 
         assertTrue(service.verify(session, proof).isAccepted());
         assertEquals(
@@ -34,18 +38,27 @@ class ChallengeLedgerTest {
     }
 
     @Test
-    void failedSignatureStillConsumesTheChallenge() throws Exception {
+    void failedSignatureStillConsumesTheChallenge() throws IdentityException {
         MutableClock clock = new MutableClock(Instant.parse("2026-08-01T17:00:00Z"));
         IdentityChallengeService service = service(clock, 4);
         UUID session = UUID.fromString("11111111-2222-3333-4444-555555555555");
         PlayerIdentity identity = PlayerIdentity.generate(new SecureRandom());
         IdentityChallenge challenge = service.issue("server.eu-1", session);
-        IdentityProof proof = IdentityProof.create(
-                identity, ProtocolVersion.CURRENT, challenge, new CanonicalHandle("player_one"));
+        IdentityProof proof =
+                IdentityProof.create(
+                        identity,
+                        ProtocolVersion.CURRENT,
+                        challenge,
+                        new CanonicalHandle("player_one"));
         byte[] signature = proof.signature();
         signature[0] ^= 1;
-        IdentityProof badProof = new IdentityProof(
-                proof.protocolVersion(), proof.handle(), proof.playerId(), proof.publicKey(), signature);
+        IdentityProof badProof =
+                new IdentityProof(
+                        proof.protocolVersion(),
+                        proof.handle(),
+                        proof.playerId(),
+                        proof.publicKey(),
+                        signature);
 
         assertEquals(
                 IdentityVerification.Status.INVALID_SIGNATURE,
@@ -56,14 +69,18 @@ class ChallengeLedgerTest {
     }
 
     @Test
-    void expiresChallengesAtTheExactDeadline() throws Exception {
+    void expiresChallengesAtTheExactDeadline() throws IdentityException {
         MutableClock clock = new MutableClock(Instant.parse("2026-08-01T17:00:00Z"));
         IdentityChallengeService service = service(clock, 4);
         UUID session = UUID.fromString("11111111-2222-3333-4444-555555555555");
         PlayerIdentity identity = PlayerIdentity.generate(new SecureRandom());
         IdentityChallenge challenge = service.issue("server.eu-1", session);
-        IdentityProof proof = IdentityProof.create(
-                identity, ProtocolVersion.CURRENT, challenge, new CanonicalHandle("player_one"));
+        IdentityProof proof =
+                IdentityProof.create(
+                        identity,
+                        ProtocolVersion.CURRENT,
+                        challenge,
+                        new CanonicalHandle("player_one"));
 
         clock.advance(Duration.ofSeconds(30));
 
@@ -85,9 +102,10 @@ class ChallengeLedgerTest {
         assertEquals(1, service.outstandingCount());
         assertThrows(
                 IllegalStateException.class,
-                () -> service.issue(
-                        "server.eu-1",
-                        UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")));
+                () ->
+                        service.issue(
+                                "server.eu-1",
+                                UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")));
     }
 
     @Test
@@ -107,8 +125,12 @@ class ChallengeLedgerTest {
     }
 
     private static IdentityChallengeService service(MutableClock clock, int maximumOutstanding) {
-        return new IdentityChallengeService(new ChallengeLedger(
-                clock, new DeterministicRandom(), Duration.ofSeconds(30), maximumOutstanding));
+        return new IdentityChallengeService(
+                new ChallengeLedger(
+                        clock,
+                        new DeterministicRandom(),
+                        Duration.ofSeconds(30),
+                        maximumOutstanding));
     }
 
     private static final class DeterministicRandom extends SecureRandom {

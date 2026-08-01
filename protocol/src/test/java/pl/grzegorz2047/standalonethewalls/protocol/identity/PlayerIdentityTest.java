@@ -9,17 +9,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class PlayerIdentityTest {
-    private static final byte[] PUBLIC_KEY_VECTOR = Base64.getDecoder().decode(
-            "MCowBQYDK2VwAyEAoBGdJyYRGPquhsJXoEoTOOticDHR4bM2z/5DScGCHPU=");
+    private static final byte[] PUBLIC_KEY_VECTOR =
+            Base64.getDecoder()
+                    .decode("MCowBQYDK2VwAyEAoBGdJyYRGPquhsJXoEoTOOticDHR4bM2z/5DScGCHPU=");
 
     @Test
-    void derivesAStablePlayerIdAndFingerprintFromCanonicalPublicKeyBytes() throws Exception {
+    void derivesAStablePlayerIdAndFingerprintFromCanonicalPublicKeyBytes()
+            throws IdentityException {
         assertEquals(
                 "sf1_ne2243wbcs3fox5evlg23khripu53paxtss2ckqxnycbtqgks7ua",
                 PlayerId.fromPublicKey(PUBLIC_KEY_VECTOR).value());
@@ -29,7 +32,7 @@ class PlayerIdentityTest {
     }
 
     @Test
-    void generatesAnApplicationIdentityWithoutExposingKeyBytesInText() throws Exception {
+    void generatesAnApplicationIdentityWithoutExposingKeyBytesInText() throws IdentityException {
         PlayerIdentity identity = PlayerIdentity.generate(new SecureRandom());
         String publicKeyBase64 = Base64.getEncoder().encodeToString(identity.publicKeyEncoded());
 
@@ -40,7 +43,7 @@ class PlayerIdentityTest {
     }
 
     @Test
-    void loadOrCreatePersistsOnceAndReturnsTheSameCryptographicIdentity() throws Exception {
+    void loadOrCreatePersistsOnceAndReturnsTheSameCryptographicIdentity() throws IdentityException {
         MemoryStore store = new MemoryStore();
 
         PlayerIdentity first = PlayerIdentity.loadOrCreate(store, new SecureRandom());
@@ -53,22 +56,23 @@ class PlayerIdentityTest {
     }
 
     @Test
-    void rejectsMismatchedPublicAndPrivateKeysLoadedFromStorage() throws Exception {
+    void rejectsMismatchedPublicAndPrivateKeysLoadedFromStorage() throws NoSuchAlgorithmException {
         KeyPairGenerator generator = KeyPairGenerator.getInstance("Ed25519");
         KeyPair first = generator.generateKeyPair();
         KeyPair second = generator.generateKeyPair();
         MemoryStore store = new MemoryStore();
         store.keyPair = new KeyPair(first.getPublic(), second.getPrivate());
 
-        IdentityException exception = assertThrows(
-                IdentityException.class,
-                () -> PlayerIdentity.loadOrCreate(store, new SecureRandom()));
+        IdentityException exception =
+                assertThrows(
+                        IdentityException.class,
+                        () -> PlayerIdentity.loadOrCreate(store, new SecureRandom()));
 
         assertEquals(IdentityException.Code.INVALID_KEY_PAIR, exception.code());
     }
 
     @Test
-    void separateGeneratedKeysProduceSeparatePlayerIds() throws Exception {
+    void separateGeneratedKeysProduceSeparatePlayerIds() throws IdentityException {
         PlayerIdentity first = PlayerIdentity.generate(new SecureRandom());
         PlayerIdentity second = PlayerIdentity.generate(new SecureRandom());
 

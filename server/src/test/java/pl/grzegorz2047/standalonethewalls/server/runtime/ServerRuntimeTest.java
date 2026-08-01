@@ -10,15 +10,18 @@ import org.junit.jupiter.api.Test;
 
 class ServerRuntimeTest {
     @Test
-    void terminatesItsOnlyThreadAfterARequestedTickBudget() throws Exception {
+    void terminatesItsOnlyThreadAfterARequestedTickBudget() throws InterruptedException {
         AdvancingClock clock = new AdvancingClock();
         FixedTickLoop loop = new FixedTickLoop(20, 5, clock, clock::advance, skipped -> {});
         AtomicLong ticks = new AtomicLong();
-        ServerRuntime runtime = new ServerRuntime(loop, tick -> {
-            if (ticks.incrementAndGet() == 5L) {
-                loop.requestStop();
-            }
-        });
+        ServerRuntime runtime =
+                new ServerRuntime(
+                        loop,
+                        tick -> {
+                            if (ticks.incrementAndGet() == 5L) {
+                                loop.requestStop();
+                            }
+                        });
 
         runtime.start();
 
@@ -29,12 +32,15 @@ class ServerRuntimeTest {
     }
 
     @Test
-    void capturesHandlerFailureAndCannotBeStartedTwice() throws Exception {
+    void capturesHandlerFailureAndCannotBeStartedTwice() throws InterruptedException {
         AdvancingClock clock = new AdvancingClock();
         FixedTickLoop loop = new FixedTickLoop(20, 5, clock, clock::advance, skipped -> {});
-        ServerRuntime runtime = new ServerRuntime(loop, tick -> {
-            throw new IllegalStateException("boom");
-        });
+        ServerRuntime runtime =
+                new ServerRuntime(
+                        loop,
+                        tick -> {
+                            throw new IllegalStateException("boom");
+                        });
 
         runtime.start();
 
@@ -47,7 +53,8 @@ class ServerRuntimeTest {
     @Test
     void zeroTimeoutNeverBlocks() {
         AdvancingClock clock = new AdvancingClock();
-        FixedTickLoop loop = new FixedTickLoop(20, 5, clock, nanos -> Thread.sleep(1_000L), skipped -> {});
+        FixedTickLoop loop =
+                new FixedTickLoop(20, 5, clock, nanos -> Thread.sleep(1_000L), skipped -> {});
         ServerRuntime runtime = new ServerRuntime(loop, tick -> {});
         runtime.start();
         try {

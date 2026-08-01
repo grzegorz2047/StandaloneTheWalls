@@ -21,10 +21,11 @@ public final class ServerRuntime implements AutoCloseable {
         if (simulationThread != null) {
             throw new IllegalStateException("server runtime can be started only once");
         }
-        simulationThread = Thread.ofPlatform()
-                .name("sunderfront-simulation")
-                .daemon(false)
-                .unstarted(this::runLoop);
+        simulationThread =
+                Thread.ofPlatform()
+                        .name("sunderfront-simulation")
+                        .daemon(false)
+                        .unstarted(this::runLoop);
         simulationThread.start();
     }
 

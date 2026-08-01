@@ -77,11 +77,16 @@ public final class ProtocolEnvelope {
 
     @Override
     public String toString() {
-        return "ProtocolEnvelope[version=" + version
-                + ", messageType=" + messageType
-                + ", sessionId=" + sessionId
-                + ", sequence=" + sequence
-                + ", payloadBytes=" + payload.length
+        return "ProtocolEnvelope[version="
+                + version
+                + ", messageType="
+                + messageType
+                + ", sessionId="
+                + sessionId
+                + ", sequence="
+                + sequence
+                + ", payloadBytes="
+                + payload.length
                 + ']';
     }
 }

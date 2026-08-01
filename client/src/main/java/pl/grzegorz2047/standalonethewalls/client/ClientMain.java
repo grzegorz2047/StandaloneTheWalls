@@ -13,6 +13,8 @@ public final class ClientMain {
     }
 
     public static void main(String[] args) {
-        LOGGER.info("{} client module initialized; no playable client is claimed yet.", BuildInfo.PRODUCT_NAME);
+        LOGGER.info(
+                "{} client module initialized; no playable client is claimed yet.",
+                BuildInfo.PRODUCT_NAME);
     }
 }

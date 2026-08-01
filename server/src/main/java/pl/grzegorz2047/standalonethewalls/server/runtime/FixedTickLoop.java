@@ -69,8 +69,10 @@ public final class FixedTickLoop {
                         && catchUpTicks == maximumCatchUpTicks
                         && now >= nextDeadline) {
                     long skippedTicks = ((now - nextDeadline) / tickPeriodNanos) + 1L;
-                    nextDeadline = Math.addExact(
-                            nextDeadline, Math.multiplyExact(skippedTicks, tickPeriodNanos));
+                    nextDeadline =
+                            Math.addExact(
+                                    nextDeadline,
+                                    Math.multiplyExact(skippedTicks, tickPeriodNanos));
                     overrunListener.onSkippedTicks(skippedTicks);
                 }
             }

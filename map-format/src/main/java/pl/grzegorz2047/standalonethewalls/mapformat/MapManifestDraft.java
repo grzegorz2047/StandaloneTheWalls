@@ -27,8 +27,6 @@ public record MapManifestDraft(
         MapLimitsDraft limits) {
 
     public MapManifestDraft {
-        files = files == null
-                ? null
-                : Collections.unmodifiableMap(new LinkedHashMap<>(files));
+        files = files == null ? null : Collections.unmodifiableMap(new LinkedHashMap<>(files));
     }
 }

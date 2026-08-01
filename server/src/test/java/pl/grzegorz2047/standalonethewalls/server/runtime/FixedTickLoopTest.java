@@ -11,53 +11,60 @@ import org.junit.jupiter.api.Test;
 
 class FixedTickLoopTest {
     @Test
-    void schedulesDeterministicTicksWithoutUsingWallClockTime() throws Exception {
+    void schedulesDeterministicTicksWithoutUsingWallClockTime() throws InterruptedException {
         MutableNanoClock clock = new MutableNanoClock(100L);
         FixedTickLoop loop = new FixedTickLoop(20, 5, clock, clock::advance, skipped -> {});
         List<Long> tickTimes = new ArrayList<>();
 
-        loop.run(tick -> {
-            tickTimes.add(clock.nanoTime());
-            if (tick == 3L) {
-                loop.requestStop();
-            }
-        });
+        loop.run(
+                tick -> {
+                    tickTimes.add(clock.nanoTime());
+                    if (tick == 3L) {
+                        loop.requestStop();
+                    }
+                });
 
         assertEquals(List.of(100L, 50_000_100L, 100_000_100L, 150_000_100L), tickTimes);
         assertFalse(loop.isRunning());
     }
 
     @Test
-    void boundsCatchUpAndReportsDroppedSchedulingDebt() throws Exception {
+    void boundsCatchUpAndReportsDroppedSchedulingDebt() throws InterruptedException {
         MutableNanoClock clock = new MutableNanoClock(0L);
         AtomicLong skipped = new AtomicLong();
         FixedTickLoop loop = new FixedTickLoop(20, 3, clock, clock::advance, skipped::addAndGet);
         AtomicLong executed = new AtomicLong();
 
-        loop.run(tick -> {
-            long count = executed.incrementAndGet();
-            if (count == 1L) {
-                clock.advance(500_000_000L);
-            }
-            if (count == 4L) {
-                loop.requestStop();
-            }
-        });
+        loop.run(
+                tick -> {
+                    long count = executed.incrementAndGet();
+                    if (count == 1L) {
+                        clock.advance(500_000_000L);
+                    }
+                    if (count == 4L) {
+                        loop.requestStop();
+                    }
+                });
 
         assertEquals(4L, executed.get());
         assertEquals(8L, skipped.get());
     }
 
     @Test
-    void rejectsConcurrentRunAndUnsafeConfiguration() throws Exception {
+    void rejectsConcurrentRunAndUnsafeConfiguration() throws InterruptedException {
         MutableNanoClock clock = new MutableNanoClock(0L);
         FixedTickLoop[] holder = new FixedTickLoop[1];
-        holder[0] = new FixedTickLoop(20, 5, clock, nanos -> {
-            assertThrows(
-                    IllegalStateException.class,
-                    () -> holder[0].run(tick -> {}));
-            holder[0].requestStop();
-        }, skipped -> {});
+        holder[0] =
+                new FixedTickLoop(
+                        20,
+                        5,
+                        clock,
+                        nanos -> {
+                            assertThrows(
+                                    IllegalStateException.class, () -> holder[0].run(tick -> {}));
+                            holder[0].requestStop();
+                        },
+                        skipped -> {});
         FixedTickLoop loop = holder[0];
 
         loop.run(tick -> {});

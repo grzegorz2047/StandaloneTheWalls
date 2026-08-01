@@ -17,7 +17,8 @@ public record MapLimits(
                 || triangles < 1
                 || textureDimension < 1
                 || (textureDimension & (textureDimension - 1)) != 0) {
-            throw new IllegalArgumentException("validated limits must be positive and internally consistent");
+            throw new IllegalArgumentException(
+                    "validated limits must be positive and internally consistent");
         }
     }
 }

@@ -22,8 +22,11 @@ public final class ChallengeLedger {
         this.clock = Objects.requireNonNull(clock, "clock");
         this.random = Objects.requireNonNull(random, "random");
         this.lifetime = Objects.requireNonNull(lifetime, "lifetime");
-        if (lifetime.isZero() || lifetime.isNegative() || lifetime.compareTo(Duration.ofMinutes(5)) > 0) {
-            throw new IllegalArgumentException("challenge lifetime must be between 1 ns and 5 minutes");
+        if (lifetime.isZero()
+                || lifetime.isNegative()
+                || lifetime.compareTo(Duration.ofMinutes(5)) > 0) {
+            throw new IllegalArgumentException(
+                    "challenge lifetime must be between 1 ns and 5 minutes");
         }
         if (maximumOutstanding < 1 || maximumOutstanding > 100_000) {
             throw new IllegalArgumentException("maximumOutstanding is outside the safe range");

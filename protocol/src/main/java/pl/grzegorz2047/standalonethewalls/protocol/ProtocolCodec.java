@@ -19,7 +19,8 @@ public final class ProtocolCodec {
     public static byte[] encode(ProtocolEnvelope envelope) {
         Objects.requireNonNull(envelope, "envelope");
         byte[] payload = envelope.payload();
-        ByteBuffer buffer = ByteBuffer.allocate(HEADER_BYTES + payload.length).order(ByteOrder.BIG_ENDIAN);
+        ByteBuffer buffer =
+                ByteBuffer.allocate(HEADER_BYTES + payload.length).order(ByteOrder.BIG_ENDIAN);
         buffer.putInt(MAGIC);
         putUnsignedShort(buffer, envelope.version().major());
         putUnsignedShort(buffer, envelope.version().minor());
@@ -42,10 +43,12 @@ public final class ProtocolCodec {
 
         ByteBuffer buffer = ByteBuffer.wrap(encoded).order(ByteOrder.BIG_ENDIAN);
         if (buffer.getInt() != MAGIC) {
-            throw new ProtocolException(ProtocolException.Code.INVALID_MAGIC, "invalid protocol magic");
+            throw new ProtocolException(
+                    ProtocolException.Code.INVALID_MAGIC, "invalid protocol magic");
         }
 
-        ProtocolVersion version = new ProtocolVersion(readUnsignedShort(buffer), readUnsignedShort(buffer));
+        ProtocolVersion version =
+                new ProtocolVersion(readUnsignedShort(buffer), readUnsignedShort(buffer));
         if (!version.isSupported()) {
             throw new ProtocolException(
                     ProtocolException.Code.UNSUPPORTED_VERSION,
@@ -53,24 +56,25 @@ public final class ProtocolCodec {
         }
 
         int typeId = readUnsignedShort(buffer);
-        MessageType messageType = MessageType.fromWireId(typeId)
-                .orElseThrow(() -> new ProtocolException(
-                        ProtocolException.Code.UNKNOWN_MESSAGE_TYPE,
-                        "unknown message type " + typeId));
+        MessageType messageType =
+                MessageType.fromWireId(typeId)
+                        .orElseThrow(
+                                () ->
+                                        new ProtocolException(
+                                                ProtocolException.Code.UNKNOWN_MESSAGE_TYPE,
+                                                "unknown message type " + typeId));
 
         int flags = readUnsignedShort(buffer);
         if (flags != SUPPORTED_FLAGS) {
             throw new ProtocolException(
-                    ProtocolException.Code.INVALID_FLAGS,
-                    "unsupported envelope flags");
+                    ProtocolException.Code.INVALID_FLAGS, "unsupported envelope flags");
         }
 
         UUID sessionId = new UUID(buffer.getLong(), buffer.getLong());
         long sequence = buffer.getLong();
         if (sequence < 0L) {
             throw new ProtocolException(
-                    ProtocolException.Code.INVALID_SEQUENCE,
-                    "sequence cannot be negative");
+                    ProtocolException.Code.INVALID_SEQUENCE, "sequence cannot be negative");
         }
 
         int payloadLength = buffer.getInt();
