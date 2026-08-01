@@ -17,7 +17,7 @@ import pl.grzegorz2047.standalonethewalls.protocol.ProtocolVersion;
 
 class ChallengeLedgerTest {
     @Test
-    void consumesAChallengeBeforeVerificationAndRejectsReplay() throws Exception {
+    void consumesAChallengeBeforeVerificationAndRejectsReplay() throws IdentityException {
         MutableClock clock = new MutableClock(Instant.parse("2026-08-01T17:00:00Z"));
         IdentityChallengeService service = service(clock, 4);
         UUID session = UUID.fromString("11111111-2222-3333-4444-555555555555");
@@ -38,7 +38,7 @@ class ChallengeLedgerTest {
     }
 
     @Test
-    void failedSignatureStillConsumesTheChallenge() throws Exception {
+    void failedSignatureStillConsumesTheChallenge() throws IdentityException {
         MutableClock clock = new MutableClock(Instant.parse("2026-08-01T17:00:00Z"));
         IdentityChallengeService service = service(clock, 4);
         UUID session = UUID.fromString("11111111-2222-3333-4444-555555555555");
@@ -69,7 +69,7 @@ class ChallengeLedgerTest {
     }
 
     @Test
-    void expiresChallengesAtTheExactDeadline() throws Exception {
+    void expiresChallengesAtTheExactDeadline() throws IdentityException {
         MutableClock clock = new MutableClock(Instant.parse("2026-08-01T17:00:00Z"));
         IdentityChallengeService service = service(clock, 4);
         UUID session = UUID.fromString("11111111-2222-3333-4444-555555555555");
