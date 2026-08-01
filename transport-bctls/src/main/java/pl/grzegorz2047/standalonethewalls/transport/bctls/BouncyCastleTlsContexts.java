@@ -12,15 +12,10 @@ import org.bouncycastle.jsse.provider.BouncyCastleJsseProvider;
 
 /** Creates isolated BCJSSE contexts without mutating the process-wide provider list. */
 public final class BouncyCastleTlsContexts {
-    private final Provider cryptoProvider;
     private final Provider jsseProvider;
 
     public BouncyCastleTlsContexts() {
-        this(new BouncyCastleProvider());
-    }
-
-    BouncyCastleTlsContexts(Provider cryptoProvider) {
-        this.cryptoProvider = Objects.requireNonNull(cryptoProvider, "cryptoProvider");
+        Provider cryptoProvider = new BouncyCastleProvider();
         this.jsseProvider = new BouncyCastleJsseProvider(cryptoProvider);
     }
 
@@ -38,13 +33,5 @@ public final class BouncyCastleTlsContexts {
                     "unable to initialize the BCJSSE TLS context",
                     exception);
         }
-    }
-
-    Provider cryptoProvider() {
-        return cryptoProvider;
-    }
-
-    Provider jsseProvider() {
-        return jsseProvider;
     }
 }
