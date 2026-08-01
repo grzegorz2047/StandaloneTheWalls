@@ -13,6 +13,8 @@ public final class MapStudioMain {
     }
 
     public static void main(String[] args) {
-        LOGGER.info("{} Map Studio module initialized; editing features are not implemented yet.", BuildInfo.PRODUCT_NAME);
+        LOGGER.info(
+                "{} Map Studio module initialized; editing features are not implemented yet.",
+                BuildInfo.PRODUCT_NAME);
     }
 }

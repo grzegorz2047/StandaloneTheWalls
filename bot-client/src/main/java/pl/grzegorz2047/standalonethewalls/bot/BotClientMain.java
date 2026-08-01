@@ -13,6 +13,8 @@ public final class BotClientMain {
     }
 
     public static void main(String[] args) {
-        LOGGER.info("{} bot client module initialized; bot scenarios are not implemented yet.", BuildInfo.PRODUCT_NAME);
+        LOGGER.info(
+                "{} bot client module initialized; bot scenarios are not implemented yet.",
+                BuildInfo.PRODUCT_NAME);
     }
 }

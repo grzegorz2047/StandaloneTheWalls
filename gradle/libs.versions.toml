@@ -1,9 +1,13 @@
 [versions]
 assertj = "3.27.3"
+google-java-format = "1.35.0"
+jacoco = "0.8.15"
 jme = "3.9.0-stable"
 junit = "5.13.4"
 logback = "1.5.18"
 slf4j = "2.0.17"
+spotbugs-plugin = "6.5.9"
+spotless = "8.9.0"
 
 [libraries]
 assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
@@ -15,3 +19,7 @@ junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+
+[plugins]
+spotbugs = { id = "com.github.spotbugs", version.ref = "spotbugs-plugin" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
