@@ -15,7 +15,8 @@ class IdentityAuthenticatorTest {
     private static final CanonicalHandle HANDLE = new CanonicalHandle("grzegorz2047");
 
     @Test
-    void acceptsAProofBoundToTheExactServerSessionNonceHandleAndPlayerId() throws Exception {
+    void acceptsAProofBoundToTheExactServerSessionNonceHandleAndPlayerId()
+            throws IdentityException {
         PlayerIdentity identity = PlayerIdentity.generate(new SecureRandom());
         IdentityChallenge challenge = challenge("server.eu-1", SESSION, nonce(1));
         IdentityProof proof =
@@ -29,7 +30,7 @@ class IdentityAuthenticatorTest {
     }
 
     @Test
-    void rejectsAProofRelayedToAnotherServerSessionOrNonce() throws Exception {
+    void rejectsAProofRelayedToAnotherServerSessionOrNonce() throws IdentityException {
         PlayerIdentity identity = PlayerIdentity.generate(new SecureRandom());
         IdentityChallenge original = challenge("server.eu-1", SESSION, nonce(1));
         IdentityProof proof =
@@ -55,7 +56,8 @@ class IdentityAuthenticatorTest {
     }
 
     @Test
-    void rejectsTamperedHandlePlayerIdPublicKeySignatureAndVersion() throws Exception {
+    void rejectsTamperedHandlePlayerIdPublicKeySignatureAndVersion()
+            throws IdentityException {
         PlayerIdentity identity = PlayerIdentity.generate(new SecureRandom());
         PlayerIdentity other = PlayerIdentity.generate(new SecureRandom());
         IdentityChallenge challenge = challenge("server.eu-1", SESSION, nonce(1));
