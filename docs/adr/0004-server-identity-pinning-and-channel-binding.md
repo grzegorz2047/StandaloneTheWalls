@@ -97,7 +97,7 @@ channel binding = 11 repeated 32 times
 handle = player_one
 player public key = the same public vector above
 encoded transcript bytes = 305
-sha256(transcript) = 94c807fe5905df9b316dbbd8d15bfb8c3297770c4fefc1e65be33edbca483e7b
+sha256(transcript) = 94c807fe4c9db882fcaec58034722760009abf99063b13162690e102bbaf3e7b
 ```
 
 The vector pins field ordering, length prefixes, identifier derivation, domain
