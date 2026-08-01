@@ -3,6 +3,9 @@
 This module contains the first real jMonkeyEngine client process and start screen.
 It is not yet a playable game and does not connect to a server.
 
+The client code is covered by the repository-wide Java 21, Spotless, SpotBugs,
+JaCoCo, dependency-locking, and SHA-256 verification gates.
+
 ## Start screen
 
 The display client opens at 1280x720 with VSync enabled and a resizable window.
