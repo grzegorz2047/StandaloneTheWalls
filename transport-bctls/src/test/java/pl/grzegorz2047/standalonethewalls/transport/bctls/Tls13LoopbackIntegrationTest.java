@@ -213,7 +213,8 @@ class Tls13LoopbackIntegrationTest {
                 }
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
-                throw new IOException("interrupted while stopping loopback TLS executor", exception);
+                throw new IOException(
+                        "interrupted while stopping loopback TLS executor", exception);
             }
         }
     }
