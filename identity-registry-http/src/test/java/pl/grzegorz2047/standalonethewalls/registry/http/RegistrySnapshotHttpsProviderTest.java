@@ -245,6 +245,7 @@ class RegistrySnapshotHttpsProviderTest {
         private final Deque<HttpResponse<InputStream>> responses;
         private final List<RequestedResource> requests = new ArrayList<>();
 
+        @SafeVarargs
         private ScriptedClient(HttpResponse<InputStream>... responses) {
             this.responses = new ArrayDeque<>(Arrays.asList(responses));
         }
