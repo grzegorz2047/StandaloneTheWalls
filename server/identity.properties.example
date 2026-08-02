@@ -1,0 +1,13 @@
+# Local identity process configuration
+# Relative paths are resolved from this file's directory.
+identity.sqlite-path=data/identity.sqlite
+identity.registry-bundle-path=data/registry.sfrb
+identity.authorization-mode=LOCAL_TOFU
+identity.trust-roots-path=registry-trust-roots.hex
+
+# Optional bounded registry policy overrides. Remove these lines to use exact defaults.
+identity.registry.minimum-sequence=0
+identity.registry.maximum-age-seconds=2592000
+identity.registry.maximum-future-skew-seconds=300
+identity.registry.maximum-json-bytes=8388608
+identity.registry.maximum-entries=100000
