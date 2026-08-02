@@ -181,6 +181,52 @@ SHA-256 digest, entry count, and stable semantic result codes. They never contai
 canonical JSON, signature bytes, provider exception text, private keys, IP
 addresses, credentials, or sockets.
 
+## One-shot local identity administration
+
+Issue #71 exposes the typed commands to the local operator without starting the
+simulation scheduler. Supply all launcher options first, then the terminal
+`--identity-command` marker and exactly one command:
+
+```bash
+./gradlew :server:run --args="--identity-config /path/to/identity.properties --identity-command identity list handles"
+```
+
+A mutation with a multi-word audit reason must deliver that reason as one token.
+Shell and Gradle argument quoting are caller responsibilities:
+
+```bash
+./gradlew :server:run --args="--identity-config /path/to/identity.properties --identity-command identity reserve player_one ${PLAYER_ID} \"Manual local review\""
+```
+
+Command mode requires `--identity-config` and cannot be combined with
+`--validate-config` or `--run-for-ticks`. Every argument after
+`--identity-command` is passed to the strict identity parser without further
+launcher interpretation. The process opens one local runtime, executes one command,
+prints deterministic UTF-8 lines to stdout, and exits without constructing the tick
+loop or installing a shutdown hook.
+
+The local adapter uses the administrator ID `local-cli` with all four local
+capabilities. This grant relies on operating-system access to the process,
+configuration, and SQLite database; it is not suitable for a remote transport.
+Future RCON, HTTP, or GUI adapters must authenticate and authorize their own
+principals.
+
+The first output line is always `response=<stable-code>`. Additional lines contain
+explicit fields rather than domain-object `toString()` output. Public player IDs,
+handles, ban metadata, and local audit reasons may be printed. Paths, trust roots,
+signatures, canonical registry JSON, provider exception text, credentials,
+addresses, and sockets are never printed.
+
+Exit codes are:
+
+- `0` for reads and applied or idempotent successful operations;
+- `2` for launcher, configuration, or typed-command parsing errors;
+- `3` for permission denial, rejected domain mutations, provider failure, or
+  snapshot rejection.
+
+Because each invocation reopens the configured runtime, successful bindings and
+player bans are visible to later one-shot commands through the shared SQLite file.
+
 ## Smoke mode
 
 A bounded headless run is available for CI and packaging checks:
