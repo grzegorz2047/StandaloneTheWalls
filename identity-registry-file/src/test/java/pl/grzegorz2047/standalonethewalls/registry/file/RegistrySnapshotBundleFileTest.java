@@ -42,7 +42,8 @@ class RegistrySnapshotBundleFileTest {
     @TempDir Path temporaryDirectory;
 
     @Test
-    void verifiedArtifactRoundTripsWithoutChangingDetachedBytes() throws Exception {
+    void verifiedArtifactRoundTripsWithoutChangingDetachedBytes()
+            throws IOException, RegistrySnapshotProviderException {
         Fixture fixture = fixture(11L);
         RegistrySnapshotBundleFile bundle =
                 new RegistrySnapshotBundleFile(temporaryDirectory.resolve("registry-v1.sfrb"));
@@ -58,7 +59,8 @@ class RegistrySnapshotBundleFileTest {
     }
 
     @Test
-    void newerVerifiedArtifactAtomicallyReplacesThePreviousBundle() throws Exception {
+    void newerVerifiedArtifactAtomicallyReplacesThePreviousBundle()
+            throws IOException, RegistrySnapshotProviderException {
         Fixture first = fixture(12L);
         Fixture second = fixture(13L);
         RegistrySnapshotBundleFile bundle =
@@ -75,7 +77,8 @@ class RegistrySnapshotBundleFileTest {
     }
 
     @Test
-    void mismatchedArtifactIsRejectedBeforeReplacingThePreviousBundle() throws Exception {
+    void mismatchedArtifactIsRejectedBeforeReplacingThePreviousBundle()
+            throws IOException, RegistrySnapshotProviderException {
         Fixture fixture = fixture(14L);
         RegistrySnapshotBundleFile bundle =
                 new RegistrySnapshotBundleFile(temporaryDirectory.resolve("registry-v1.sfrb"));
@@ -96,7 +99,8 @@ class RegistrySnapshotBundleFileTest {
     }
 
     @Test
-    void readerRejectsCorruptHeadersTruncationAndTrailingData() throws Exception {
+    void readerRejectsCorruptHeadersTruncationAndTrailingData()
+            throws IOException, RegistrySnapshotProviderException {
         Fixture fixture = fixture(15L);
         Path source = temporaryDirectory.resolve("registry-v1.sfrb");
         RegistrySnapshotBundleFile bundle = new RegistrySnapshotBundleFile(source);
@@ -115,7 +119,8 @@ class RegistrySnapshotBundleFileTest {
     }
 
     @Test
-    void readerRejectsDirectoriesAndSymbolicLinksWhenSupported() throws Exception {
+    void readerRejectsDirectoriesAndSymbolicLinksWhenSupported()
+            throws RegistrySnapshotProviderException {
         RegistrySnapshotBundleFile directoryProvider =
                 new RegistrySnapshotBundleFile(temporaryDirectory);
         assertThatThrownBy(directoryProvider::load)
@@ -139,7 +144,7 @@ class RegistrySnapshotBundleFileTest {
     }
 
     @Test
-    void configuredFileLimitIsEnforcedBeforeAllocationOrWrite() throws Exception {
+    void configuredFileLimitIsEnforcedBeforeAllocationOrWrite() {
         Fixture fixture = fixture(17L);
         RegistrySnapshotBundleFile constrained =
                 new RegistrySnapshotBundleFile(temporaryDirectory.resolve("small.sfrb"), 1);
@@ -170,37 +175,43 @@ class RegistrySnapshotBundleFileTest {
         return changed;
     }
 
-    private static Fixture fixture(long sequence)
-            throws GeneralSecurityException, IdentityException, RegistrySnapshotException {
-        KeyPairGenerator rootGenerator = KeyPairGenerator.getInstance("Ed25519");
-        KeyPair root = rootGenerator.generateKeyPair();
-        PlayerIdentity player = PlayerIdentity.generate(new SecureRandom());
-        RegistrySnapshotEntry entry =
-                RegistrySnapshotEntry.create(
-                        new CanonicalHandle("player_one"),
-                        player.playerId(),
-                        player.publicKeyEncoded(),
-                        RegistryEntryStatus.ACTIVE);
-        RegistrySnapshotPayload payload =
-                new RegistrySnapshotPayload(
-                        sequence,
-                        NOW,
-                        RegistryRootId.fromPublicKey(root.getPublic().getEncoded()),
-                        List.of(entry));
-        byte[] canonicalJson = RegistrySnapshotJsonCodec.encode(payload);
-        byte[] digest = MessageDigest.getInstance("SHA-256").digest(canonicalJson);
-        Signature signer = Signature.getInstance("Ed25519");
-        signer.initSign(root.getPrivate());
-        signer.update(canonicalJson);
-        RegistrySnapshotArtifact artifact =
-                new RegistrySnapshotArtifact(canonicalJson, digest, signer.sign());
-        VerifiedRegistrySnapshot verified =
-                new RegistrySnapshotVerifier(Clock.fixed(NOW, ZoneOffset.UTC))
-                        .verify(
-                                artifact,
-                                RegistryTrustBundle.of(List.of(root.getPublic().getEncoded())),
-                                RegistrySnapshotPolicy.DEFAULT);
-        return new Fixture(artifact, verified);
+    private static Fixture fixture(long sequence) {
+        try {
+            KeyPairGenerator rootGenerator = KeyPairGenerator.getInstance("Ed25519");
+            KeyPair root = rootGenerator.generateKeyPair();
+            PlayerIdentity player = PlayerIdentity.generate(new SecureRandom());
+            RegistrySnapshotEntry entry =
+                    RegistrySnapshotEntry.create(
+                            new CanonicalHandle("player_one"),
+                            player.playerId(),
+                            player.publicKeyEncoded(),
+                            RegistryEntryStatus.ACTIVE);
+            RegistrySnapshotPayload payload =
+                    new RegistrySnapshotPayload(
+                            sequence,
+                            NOW,
+                            RegistryRootId.fromPublicKey(root.getPublic().getEncoded()),
+                            List.of(entry));
+            byte[] canonicalJson = RegistrySnapshotJsonCodec.encode(payload);
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(canonicalJson);
+            Signature signer = Signature.getInstance("Ed25519");
+            signer.initSign(root.getPrivate());
+            signer.update(canonicalJson);
+            RegistrySnapshotArtifact artifact =
+                    new RegistrySnapshotArtifact(canonicalJson, digest, signer.sign());
+            VerifiedRegistrySnapshot verified =
+                    new RegistrySnapshotVerifier(Clock.fixed(NOW, ZoneOffset.UTC))
+                            .verify(
+                                    artifact,
+                                    RegistryTrustBundle.of(
+                                            List.of(root.getPublic().getEncoded())),
+                                    RegistrySnapshotPolicy.DEFAULT);
+            return new Fixture(artifact, verified);
+        } catch (GeneralSecurityException
+                | IdentityException
+                | RegistrySnapshotException exception) {
+            throw new AssertionError("could not build a signed registry fixture", exception);
+        }
     }
 
     private record Fixture(RegistrySnapshotArtifact artifact, VerifiedRegistrySnapshot verified) {}
