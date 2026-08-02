@@ -1,3 +1,4 @@
+import com.github.spotbugs.snom.SpotBugsTask
 import java.io.File
 
 plugins {
@@ -65,6 +66,10 @@ val verifyAssetSourcePolicy = tasks.register("verifyAssetSourcePolicy") {
             )
         }
     }
+}
+
+tasks.withType<SpotBugsTask>().configureEach {
+    excludeFilter.set(layout.projectDirectory.file("config/spotbugs-exclude.xml"))
 }
 
 tasks.named("check") {
