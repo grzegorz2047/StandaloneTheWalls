@@ -1,3 +1,5 @@
+import java.io.File
+
 plugins {
     `java-library`
 }
@@ -51,7 +53,7 @@ val verifyAssetSourcePolicy = tasks.register("verifyAssetSourcePolicy") {
                         .toPath()
                         .relativize(file.toPath())
                         .toString()
-                        .replace(java.io.File.separatorChar, '/')
+                        .replace(File.separatorChar, '/')
                 val fixture = relative.startsWith(fixturePrefix)
                 val extension = file.extension.lowercase()
                 if (extension in prohibitedAssetExtensions && !fixture) {
