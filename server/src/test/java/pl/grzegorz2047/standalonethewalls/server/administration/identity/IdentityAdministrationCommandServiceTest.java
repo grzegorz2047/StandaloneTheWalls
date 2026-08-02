@@ -34,11 +34,7 @@ class IdentityAdministrationCommandServiceTest {
             new LocalHandleAdministrationReason("Confirmed local abuse");
     private static final RegistrySnapshotSummary SNAPSHOT =
             new RegistrySnapshotSummary(
-                    7L,
-                    NOW,
-                    new RegistryRootId("sfr1_" + "a".repeat(52)),
-                    "0".repeat(64),
-                    1);
+                    7L, NOW, new RegistryRootId("sfr1_" + "a".repeat(52)), "0".repeat(64), 1);
 
     @Test
     void permissionDenialHappensBeforeAnyMutationOrAudit() {
