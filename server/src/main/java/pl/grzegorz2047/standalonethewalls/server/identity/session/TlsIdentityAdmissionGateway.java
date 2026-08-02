@@ -182,11 +182,6 @@ public final class TlsIdentityAdmissionGateway
             }
         }
         try {
-            authorizedSessions.close();
-        } catch (RuntimeException exception) {
-            failures.add(exception);
-        }
-        try {
             if (!executor.awaitTermination(shutdownTimeout.toNanos(), TimeUnit.NANOSECONDS)) {
                 failures.add(
                         new IllegalStateException("identity admission executor did not terminate"));
@@ -196,6 +191,11 @@ public final class TlsIdentityAdmissionGateway
             failures.add(
                     new IllegalStateException(
                             "interrupted while closing identity admission gateway", exception));
+        }
+        try {
+            authorizedSessions.close();
+        } catch (RuntimeException exception) {
+            failures.add(exception);
         }
         state.set(State.CLOSED);
         if (!failures.isEmpty()) {
