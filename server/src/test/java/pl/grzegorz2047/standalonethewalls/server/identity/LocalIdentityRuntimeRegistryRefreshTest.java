@@ -67,7 +67,8 @@ class LocalIdentityRuntimeRegistryRefreshTest {
                         CLOCK,
                         ignored -> {
                             providerConstructions.incrementAndGet();
-                            throw new AssertionError("LOCAL_BUNDLE cannot construct HTTPS provider");
+                            throw new AssertionError(
+                                    "LOCAL_BUNDLE cannot construct HTTPS provider");
                         });
 
         RegistryRefreshScheduler scheduler =
@@ -100,7 +101,8 @@ class LocalIdentityRuntimeRegistryRefreshTest {
                         ignored ->
                                 () -> {
                                     providerCalls.incrementAndGet();
-                                    throw new RegistrySnapshotProviderException("unexpected network");
+                                    throw new RegistrySnapshotProviderException(
+                                            "unexpected network");
                                 });
 
         RegistryRefreshScheduler scheduler =
@@ -118,8 +120,7 @@ class LocalIdentityRuntimeRegistryRefreshTest {
     }
 
     @Test
-    void automaticActivationUnchangedAndOfflineRestartUseLastKnownGoodBundle()
-            throws Exception {
+    void automaticActivationUnchangedAndOfflineRestartUseLastKnownGoodBundle() throws Exception {
         KeyPair root = root();
         RegistrySnapshotArtifact artifact = artifact(root, 7L, NOW);
         AtomicInteger remoteCalls = new AtomicInteger();
@@ -387,8 +388,7 @@ class LocalIdentityRuntimeRegistryRefreshTest {
     private static RegistrySnapshotArtifact invalidSignature(RegistrySnapshotArtifact artifact) {
         byte[] signature = artifact.signature();
         signature[0] ^= 1;
-        return new RegistrySnapshotArtifact(
-                artifact.canonicalJson(), artifact.digest(), signature);
+        return new RegistrySnapshotArtifact(artifact.canonicalJson(), artifact.digest(), signature);
     }
 
     private static void await(CountDownLatch latch) throws RegistrySnapshotProviderException {
