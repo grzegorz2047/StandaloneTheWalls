@@ -24,10 +24,7 @@ public final class IdentityExchangeException extends Exception {
     }
 
     private IdentityExchangeException(
-            Code code,
-            String message,
-            Throwable cause,
-            IdentityResultStatus resultStatus) {
+            Code code, String message, Throwable cause, IdentityResultStatus resultStatus) {
         super(message, cause);
         this.code = Objects.requireNonNull(code, "code");
         this.resultStatus = resultStatus;
