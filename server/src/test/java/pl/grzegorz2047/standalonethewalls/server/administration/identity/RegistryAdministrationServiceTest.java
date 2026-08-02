@@ -122,18 +122,18 @@ class RegistryAdministrationServiceTest {
     void rollbackAndEquivocationAreReportedWithoutReplacingLastKnownGood() throws Exception {
         KeyPair root = root();
         RegistrySnapshotArtifact activeArtifact = artifact(root, 12L, NOW);
+        RegistrySnapshotArtifact rollbackArtifact = artifact(root, 11L, NOW.minusSeconds(1));
+        RegistrySnapshotArtifact equivocationArtifact = artifact(root, 12L, NOW.minusSeconds(1));
         AtomicRegistrySnapshotStore store = new AtomicRegistrySnapshotStore();
         RegistrySnapshotService snapshots = snapshots(root, store);
         snapshots.refresh(() -> activeArtifact);
         VerifiedRegistrySnapshot active = store.active().orElseThrow();
 
         RegistryAdministrationResult rollback =
-                new RegistryAdministrationService(
-                                snapshots, () -> artifact(root, 11L, NOW.minusSeconds(1)))
+                new RegistryAdministrationService(snapshots, () -> rollbackArtifact)
                         .reloadRegistry();
         RegistryAdministrationResult equivocation =
-                new RegistryAdministrationService(
-                                snapshots, () -> artifact(root, 12L, NOW.minusSeconds(1)))
+                new RegistryAdministrationService(snapshots, () -> equivocationArtifact)
                         .reloadRegistry();
 
         assertThat(rollback.rejectionCode()).contains(RegistrySnapshotException.Code.ROLLBACK);
