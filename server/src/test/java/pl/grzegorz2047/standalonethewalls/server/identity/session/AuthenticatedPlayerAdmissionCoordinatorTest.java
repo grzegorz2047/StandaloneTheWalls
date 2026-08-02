@@ -1,4 +1,4 @@
-package pl.grzegorz2047.standalethewalls.server.identity.session;
+package pl.grzegorz2047.standalonethewalls.server.identity.session;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -77,7 +77,10 @@ class AuthenticatedPlayerAdmissionCoordinatorTest {
 
         assertThat(queue.size()).isZero();
         assertThat(queue.reservedSlotCount()).isZero();
-        assertThat(queue.tryReserve()).isPresent();
+        try (AuthorizedPlayerSessionQueue.Reservation available =
+                queue.tryReserve().orElseThrow()) {
+            assertThat(available).isNotNull();
+        }
         queue.close();
         assertThat(rejectedTransport.closeCount()).isZero();
     }
@@ -125,7 +128,10 @@ class AuthenticatedPlayerAdmissionCoordinatorTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("test policy failure");
         assertThat(queue.reservedSlotCount()).isZero();
-        assertThat(queue.tryReserve()).isPresent();
+        try (AuthorizedPlayerSessionQueue.Reservation available =
+                queue.tryReserve().orElseThrow()) {
+            assertThat(available).isNotNull();
+        }
         queue.close();
     }
 
