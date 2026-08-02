@@ -56,6 +56,18 @@ class PlayerIdentityTest {
     }
 
     @Test
+    void concurrentFirstUseConflictLoadsTheIdentityThatWonPersistence()
+            throws IdentityException, NoSuchAlgorithmException {
+        KeyPair winner = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
+        FirstUseConflictStore store = new FirstUseConflictStore(winner);
+
+        PlayerIdentity identity = PlayerIdentity.loadOrCreate(store, new SecureRandom());
+
+        assertEquals(PlayerId.fromPublicKey(winner.getPublic().getEncoded()), identity.playerId());
+        assertArrayEquals(winner.getPublic().getEncoded(), identity.publicKeyEncoded());
+    }
+
+    @Test
     void rejectsMismatchedPublicAndPrivateKeysLoadedFromStorage() throws NoSuchAlgorithmException {
         KeyPairGenerator generator = KeyPairGenerator.getInstance("Ed25519");
         KeyPair first = generator.generateKeyPair();
@@ -92,6 +104,31 @@ class PlayerIdentityTest {
         public void save(KeyPair value) {
             keyPair = value;
             saveCount++;
+        }
+    }
+
+    private static final class FirstUseConflictStore implements PlayerIdentityStore {
+        private final KeyPair winner;
+        private boolean initialLoad = true;
+
+        private FirstUseConflictStore(KeyPair winner) {
+            this.winner = winner;
+        }
+
+        @Override
+        public Optional<KeyPair> load() {
+            if (initialLoad) {
+                initialLoad = false;
+                return Optional.empty();
+            }
+            return Optional.of(winner);
+        }
+
+        @Override
+        public void save(KeyPair value) throws IdentityException {
+            throw new IdentityException(
+                    IdentityException.Code.KEY_STORE_CONFLICT,
+                    "another process created the player identity first");
         }
     }
 }
