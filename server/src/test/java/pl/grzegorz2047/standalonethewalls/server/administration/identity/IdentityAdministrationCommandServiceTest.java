@@ -21,6 +21,7 @@ import pl.grzegorz2047.standalonethewalls.identity.policy.LocalPlayerBanAdminist
 import pl.grzegorz2047.standalonethewalls.identity.policy.LocalPlayerBanAuditAction;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.CanonicalHandle;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
+import pl.grzegorz2047.standalonethewalls.registry.RegistryRootId;
 
 class IdentityAdministrationCommandServiceTest {
     private static final Instant NOW = Instant.parse("2026-08-02T11:00:00Z");
@@ -31,6 +32,13 @@ class IdentityAdministrationCommandServiceTest {
             new LocalIdentityAdministratorId("console");
     private static final LocalHandleAdministrationReason REASON =
             new LocalHandleAdministrationReason("Confirmed local abuse");
+    private static final RegistrySnapshotSummary SNAPSHOT =
+            new RegistrySnapshotSummary(
+                    7L,
+                    NOW,
+                    new RegistryRootId("sfr1_" + "a".repeat(52)),
+                    "0".repeat(64),
+                    1);
 
     @Test
     void permissionDenialHappensBeforeAnyMutationOrAudit() {
@@ -59,6 +67,51 @@ class IdentityAdministrationCommandServiceTest {
         assertThat(fixture.handleStore().auditEvents()).isEmpty();
         assertThat(fixture.banStore().bans()).isEmpty();
         assertThat(fixture.banStore().banAuditEvents()).isEmpty();
+    }
+
+    @Test
+    void registryPermissionIsCheckedBeforeTheProviderBoundary() {
+        Fixture fixture = fixture();
+
+        assertThat(
+                        fixture.service()
+                                .execute(
+                                        new IdentityAdministrationCommand.VerifySnapshot(),
+                                        principal()))
+                .isEqualTo(
+                        new IdentityAdministrationResponse.PermissionDenied(
+                                IdentityAdministrationPermission.MANAGE_REGISTRY));
+        assertThat(
+                        fixture.service()
+                                .execute(
+                                        new IdentityAdministrationCommand.ReloadRegistry(),
+                                        principal()))
+                .isEqualTo(
+                        new IdentityAdministrationResponse.PermissionDenied(
+                                IdentityAdministrationPermission.MANAGE_REGISTRY));
+        assertThat(fixture.registry().verifyCalls()).isZero();
+        assertThat(fixture.registry().reloadCalls()).isZero();
+
+        IdentityAdministrationPrincipal registryAdministrator =
+                principal(IdentityAdministrationPermission.MANAGE_REGISTRY);
+        assertThat(
+                        fixture.service()
+                                .execute(
+                                        new IdentityAdministrationCommand.VerifySnapshot(),
+                                        registryAdministrator))
+                .isEqualTo(
+                        new IdentityAdministrationResponse.RegistryOperation(
+                                RegistryAdministrationResult.verified(SNAPSHOT)));
+        assertThat(
+                        fixture.service()
+                                .execute(
+                                        new IdentityAdministrationCommand.ReloadRegistry(),
+                                        registryAdministrator))
+                .isEqualTo(
+                        new IdentityAdministrationResponse.RegistryOperation(
+                                RegistryAdministrationResult.activated(SNAPSHOT)));
+        assertThat(fixture.registry().verifyCalls()).isOne();
+        assertThat(fixture.registry().reloadCalls()).isOne();
     }
 
     @Test
@@ -186,13 +239,16 @@ class IdentityAdministrationCommandServiceTest {
     private static Fixture fixture() {
         InMemoryLocalHandleBindingStore handleStore = new InMemoryLocalHandleBindingStore();
         InMemoryLocalPlayerBanStore banStore = new InMemoryLocalPlayerBanStore();
+        CountingRegistryOperations registry = new CountingRegistryOperations();
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         return new Fixture(
                 handleStore,
                 banStore,
+                registry,
                 new IdentityAdministrationCommandService(
                         new LocalHandleAdministrationService(handleStore, clock),
-                        new LocalPlayerBanAdministrationService(banStore, clock)));
+                        new LocalPlayerBanAdministrationService(banStore, clock),
+                        registry));
     }
 
     private static IdentityAdministrationPrincipal principal(
@@ -200,8 +256,35 @@ class IdentityAdministrationCommandServiceTest {
         return new IdentityAdministrationPrincipal(ADMINISTRATOR, Set.of(permissions));
     }
 
+    private static final class CountingRegistryOperations
+            implements RegistryAdministrationOperations {
+        private int verifyCalls;
+        private int reloadCalls;
+
+        @Override
+        public RegistryAdministrationResult verifySnapshot() {
+            verifyCalls++;
+            return RegistryAdministrationResult.verified(SNAPSHOT);
+        }
+
+        @Override
+        public RegistryAdministrationResult reloadRegistry() {
+            reloadCalls++;
+            return RegistryAdministrationResult.activated(SNAPSHOT);
+        }
+
+        int verifyCalls() {
+            return verifyCalls;
+        }
+
+        int reloadCalls() {
+            return reloadCalls;
+        }
+    }
+
     private record Fixture(
             InMemoryLocalHandleBindingStore handleStore,
             InMemoryLocalPlayerBanStore banStore,
+            CountingRegistryOperations registry,
             IdentityAdministrationCommandService service) {}
 }
