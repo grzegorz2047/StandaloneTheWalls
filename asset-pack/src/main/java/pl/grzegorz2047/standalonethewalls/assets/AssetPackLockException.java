@@ -2,6 +2,8 @@ package pl.grzegorz2047.standalonethewalls.assets;
 
 /** Bounded failure raised while parsing or validating an asset lock or manifest. */
 public final class AssetPackLockException extends Exception {
+    private static final long serialVersionUID = 1L;
+
     public AssetPackLockException(String message) {
         super(message);
     }
