@@ -26,7 +26,8 @@ class AssetPackSynchronizerTest {
     @TempDir Path temporaryDirectory;
 
     @Test
-    void synchronizesTwiceAndRestartsOfflineFromTheSameVerifiedTree() throws Exception {
+    void synchronizesTwiceAndRestartsOfflineFromTheSameVerifiedTree()
+            throws IOException, AssetPackSyncException {
         PackFixture fixture =
                 createPack(
                         "1.0.0",
@@ -52,13 +53,15 @@ class AssetPackSynchronizerTest {
                 new AssetPackSynchronizer(
                         cache,
                         ignored -> {
-                            throw new IOException("network must not be used for offline resolution");
+                            throw new IOException(
+                                    "network must not be used for offline resolution");
                         });
         assertThat(offline.resolveOffline(fixture.reference())).isEqualTo(first);
     }
 
     @Test
-    void failedReplacementPreservesLastKnownGoodAndStaleLocksAreExplicit() throws Exception {
+    void failedReplacementPreservesLastKnownGoodAndStaleLocksAreExplicit()
+            throws IOException, AssetPackSyncException {
         PackFixture first = createPack("1.0.0", Map.of("data/value.txt", bytes("one")), "CC0-1.0");
         PackFixture second = createPack("1.1.0", Map.of("data/value.txt", bytes("two")), "CC0-1.0");
         Path cache = temporaryDirectory.resolve("cache");
@@ -71,7 +74,9 @@ class AssetPackSynchronizerTest {
         AssetPackSyncException failure =
                 catchThrowableOfType(
                         AssetPackSyncException.class,
-                        () -> synchronizer(cache, Map.of(wrongHash.url(), second.archive())).sync(wrongHash));
+                        () ->
+                                synchronizer(cache, Map.of(wrongHash.url(), second.archive()))
+                                        .sync(wrongHash));
 
         assertThat(failure.code()).isEqualTo(AssetPackSyncException.Code.ARCHIVE_HASH_MISMATCH);
         assertThat(firstSync.resolveOffline(first.reference())).isEqualTo(firstTree);
@@ -88,23 +93,32 @@ class AssetPackSynchronizerTest {
     }
 
     @Test
-    void rejectsTruncationOversizeAndProviderFailure() throws Exception {
-        PackFixture fixture = createPack("1.0.0", Map.of("data/value.txt", bytes("value")), "CC0-1.0");
+    void rejectsTruncationOversizeAndProviderFailure() throws IOException {
+        PackFixture fixture =
+                createPack("1.0.0", Map.of("data/value.txt", bytes("value")), "CC0-1.0");
         Path cache = temporaryDirectory.resolve("cache");
 
         AssetPackReference truncated =
                 referenceWith(
-                        fixture.reference(), fixture.reference().size() + 1L, fixture.reference().sha256());
+                        fixture.reference(),
+                        fixture.reference().size() + 1L,
+                        fixture.reference().sha256());
         assertCode(
                 AssetPackSyncException.Code.ARCHIVE_TRUNCATED,
-                () -> synchronizer(cache, Map.of(truncated.url(), fixture.archive())).sync(truncated));
+                () ->
+                        synchronizer(cache, Map.of(truncated.url(), fixture.archive()))
+                                .sync(truncated));
 
         AssetPackReference oversized =
                 referenceWith(
-                        fixture.reference(), fixture.reference().size() - 1L, fixture.reference().sha256());
+                        fixture.reference(),
+                        fixture.reference().size() - 1L,
+                        fixture.reference().sha256());
         assertCode(
                 AssetPackSyncException.Code.ARCHIVE_OVERSIZED,
-                () -> synchronizer(cache, Map.of(oversized.url(), fixture.archive())).sync(oversized));
+                () ->
+                        synchronizer(cache, Map.of(oversized.url(), fixture.archive()))
+                                .sync(oversized));
 
         AssetPackSynchronizer failedProvider =
                 new AssetPackSynchronizer(
@@ -118,7 +132,7 @@ class AssetPackSynchronizerTest {
     }
 
     @Test
-    void rejectsTraversalAbsoluteSymlinkAndCompressionBombEntries() throws Exception {
+    void rejectsTraversalAbsoluteSymlinkAndCompressionBombEntries() throws IOException {
         assertArchiveInvalid(createRawPack("1.0.0", Map.of("../escape.txt", bytes("escape"))));
         assertArchiveInvalid(createRawPack("1.0.1", Map.of("/absolute.txt", bytes("escape"))));
 
@@ -133,29 +147,27 @@ class AssetPackSynchronizerTest {
                 new AssetPackSynchronizer(
                         temporaryDirectory.resolve("bomb-cache"),
                         new FileAssetPackProvider(Map.of(bomb.reference().url(), bomb.archive())),
-                        new AssetPackSynchronizer.ArchiveLimits(
-                                100, 64 * 1024, 128 * 1024, 2));
+                        new AssetPackSynchronizer.ArchiveLimits(100, 64 * 1024, 128 * 1024, 2));
         assertCode(
-                AssetPackSyncException.Code.ARCHIVE_INVALID,
-                () -> strict.sync(bomb.reference()));
+                AssetPackSyncException.Code.ARCHIVE_INVALID, () -> strict.sync(bomb.reference()));
     }
 
     @Test
-    void rejectsMissingOrphanAndForbiddenLicenseManifestContent() throws Exception {
+    void rejectsMissingOrphanAndForbiddenLicenseManifestContent() throws IOException {
         AssetPackManifest missingManifest =
                 new AssetPackManifest(
                         "core",
                         "1.0.0",
                         "CC0-1.0",
-                        List.of(new AssetPackFile("data/missing.txt", 7L, sha256(bytes("missing")))));
+                        List.of(
+                                new AssetPackFile(
+                                        "data/missing.txt", 7L, sha256(bytes("missing")))));
         PackFixture missing =
-                createPackWithManifest("1.0.0", Map.of(), AssetPackManifestCodec.encode(missingManifest));
+                createPackWithManifest(
+                        "1.0.0", Map.of(), AssetPackManifestCodec.encode(missingManifest));
         assertManifestInvalid(missing);
 
-        assertThatThrownBy(
-                        () ->
-                                new AssetPackManifest(
-                                        "core", "1.0.1", "CC0-1.0", List.of()))
+        assertThatThrownBy(() -> new AssetPackManifest("core", "1.0.1", "CC0-1.0", List.of()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("file count");
 
@@ -168,9 +180,7 @@ class AssetPackSynchronizerTest {
         PackFixture orphan =
                 createPackWithManifest(
                         "1.0.1",
-                        Map.of(
-                                "data/listed.txt", listed,
-                                "data/orphan.txt", bytes("orphan")),
+                        Map.of("data/listed.txt", listed, "data/orphan.txt", bytes("orphan")),
                         orphanBytes);
         assertManifestInvalid(orphan);
 
@@ -186,8 +196,9 @@ class AssetPackSynchronizerTest {
     }
 
     @Test
-    void detectsTamperingDuringOfflineRestart() throws Exception {
-        PackFixture fixture = createPack("1.0.0", Map.of("data/value.txt", bytes("value")), "CC0-1.0");
+    void detectsTamperingDuringOfflineRestart() throws IOException, AssetPackSyncException {
+        PackFixture fixture =
+                createPack("1.0.0", Map.of("data/value.txt", bytes("value")), "CC0-1.0");
         Path cache = temporaryDirectory.resolve("cache");
         AssetPackSynchronizer synchronizer =
                 synchronizer(cache, Map.of(fixture.reference().url(), fixture.archive()));
@@ -199,22 +210,24 @@ class AssetPackSynchronizerTest {
                 () -> synchronizer.resolveOffline(fixture.reference()));
     }
 
-    private void assertArchiveInvalid(PackFixture fixture) throws Exception {
+    private void assertArchiveInvalid(PackFixture fixture) {
         assertCode(
                 AssetPackSyncException.Code.ARCHIVE_INVALID,
                 () ->
                         synchronizer(
-                                        temporaryDirectory.resolve("invalid-" + fixture.reference().version()),
+                                        temporaryDirectory.resolve(
+                                                "invalid-" + fixture.reference().version()),
                                         Map.of(fixture.reference().url(), fixture.archive()))
                                 .sync(fixture.reference()));
     }
 
-    private void assertManifestInvalid(PackFixture fixture) throws Exception {
+    private void assertManifestInvalid(PackFixture fixture) {
         assertCode(
                 AssetPackSyncException.Code.MANIFEST_INVALID,
                 () ->
                         synchronizer(
-                                        temporaryDirectory.resolve("manifest-" + fixture.reference().version()),
+                                        temporaryDirectory.resolve(
+                                                "manifest-" + fixture.reference().version()),
                                         Map.of(fixture.reference().url(), fixture.archive()))
                                 .sync(fixture.reference()));
     }
@@ -231,7 +244,7 @@ class AssetPackSynchronizerTest {
     }
 
     private PackFixture createPack(String version, Map<String, byte[]> files, String license)
-            throws Exception {
+            throws IOException {
         List<AssetPackFile> entries = new ArrayList<>();
         files.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
@@ -246,7 +259,8 @@ class AssetPackSynchronizerTest {
         return createPackWithManifest(version, files, AssetPackManifestCodec.encode(manifest));
     }
 
-    private PackFixture createRawPack(String version, Map<String, byte[]> files) throws Exception {
+    private PackFixture createRawPack(String version, Map<String, byte[]> files)
+            throws IOException {
         AssetPackManifest manifest =
                 new AssetPackManifest(
                         "core",
@@ -257,8 +271,9 @@ class AssetPackSynchronizerTest {
     }
 
     private PackFixture createPackWithManifest(
-            String version, Map<String, byte[]> files, byte[] manifestBytes) throws Exception {
-        Path archive = temporaryDirectory.resolve("pack-" + version + '-' + System.nanoTime() + ".zip");
+            String version, Map<String, byte[]> files, byte[] manifestBytes) throws IOException {
+        Path archive =
+                temporaryDirectory.resolve("pack-" + version + '-' + System.nanoTime() + ".zip");
         Map<String, byte[]> allEntries = new LinkedHashMap<>();
         allEntries.put("manifest.json", manifestBytes);
         files.entrySet().stream()
@@ -381,7 +396,7 @@ class AssetPackSynchronizerTest {
 
     @FunctionalInterface
     private interface ThrowingOperation {
-        void run() throws Exception;
+        void run() throws AssetPackSyncException;
     }
 
     private static final class ZipWriteException extends RuntimeException {

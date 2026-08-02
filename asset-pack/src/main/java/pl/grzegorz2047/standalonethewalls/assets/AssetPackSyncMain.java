@@ -43,7 +43,8 @@ public final class AssetPackSyncMain {
                         "asset synchronization failed with code " + exception.code(), exception);
             }
         }
-        LOGGER.info(() -> "Asset synchronization completed for " + lock.packs().size() + " pack(s)");
+        LOGGER.info(
+                () -> "Asset synchronization completed for " + lock.packs().size() + " pack(s)");
     }
 
     private static AssetPackLock readLock(Path path) {

@@ -38,8 +38,7 @@ public final class FileAssetPackProvider implements AssetPackProvider {
         if (path == null) {
             throw new IOException("no local fixture is mapped for the locked asset URI");
         }
-        if (Files.isSymbolicLink(path)
-                || !Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) {
+        if (Files.isSymbolicLink(path) || !Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) {
             throw new IOException("asset fixture must be a regular non-symbolic-link file");
         }
         return Files.newInputStream(path);

@@ -28,7 +28,8 @@ public record AssetPackReference(
         id = requireId(id);
         version = requireVersion(version);
         if (formatVersion < 1 || formatVersion > 1_000) {
-            throw new IllegalArgumentException("asset pack format version is outside the safe range");
+            throw new IllegalArgumentException(
+                    "asset pack format version is outside the safe range");
         }
         url = requireHttpsUrl(url);
         if (size < 1L || size > MAXIMUM_ARCHIVE_BYTES) {
@@ -50,13 +51,15 @@ public record AssetPackReference(
     static String requireVersion(String value) {
         String version = require(value, "version");
         if (version.length() > 32 || !VERSION_PATTERN.matcher(version).matches()) {
-            throw new IllegalArgumentException("asset pack version must be canonical MAJOR.MINOR.PATCH");
+            throw new IllegalArgumentException(
+                    "asset pack version must be canonical MAJOR.MINOR.PATCH");
         }
         for (String component : version.split("\\.")) {
             try {
                 Integer.parseUnsignedInt(component);
             } catch (NumberFormatException exception) {
-                throw new IllegalArgumentException("asset pack version component is out of range", exception);
+                throw new IllegalArgumentException(
+                        "asset pack version component is out of range", exception);
             }
         }
         return version;
@@ -74,7 +77,8 @@ public record AssetPackReference(
                 || uri.getRawPath().isEmpty()
                 || !uri.normalize().equals(uri)
                 || !uri.toASCIIString().equals(uri.toString())) {
-            throw new IllegalArgumentException("asset pack URL must be a canonical absolute HTTPS URI");
+            throw new IllegalArgumentException(
+                    "asset pack URL must be a canonical absolute HTTPS URI");
         }
         String[] segments = uri.getPath().toLowerCase(Locale.ROOT).split("/", -1);
         for (String segment : segments) {
@@ -82,7 +86,8 @@ public record AssetPackReference(
                     || segment.equals("current")
                     || segment.equals("nightly")
                     || segment.equals("snapshot")) {
-                throw new IllegalArgumentException("asset pack URL contains a mutable path segment");
+                throw new IllegalArgumentException(
+                        "asset pack URL contains a mutable path segment");
             }
         }
         return uri;

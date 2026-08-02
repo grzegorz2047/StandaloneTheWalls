@@ -1,6 +1,5 @@
 package pl.grzegorz2047.standalonethewalls.assets;
 
-import java.io.ByteArrayInputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -22,13 +21,11 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -51,8 +48,7 @@ public final class AssetPackSynchronizer {
         this(cacheRoot, provider, ArchiveLimits.DEFAULT);
     }
 
-    public AssetPackSynchronizer(
-            Path cacheRoot, AssetPackProvider provider, ArchiveLimits limits) {
+    public AssetPackSynchronizer(Path cacheRoot, AssetPackProvider provider, ArchiveLimits limits) {
         Path root = Objects.requireNonNull(cacheRoot, "cacheRoot").toAbsolutePath().normalize();
         if (root.getFileName() == null || root.getParent() == null) {
             throw new IllegalArgumentException("asset cache root must identify a directory");
@@ -203,7 +199,8 @@ public final class AssetPackSynchronizer {
                 }
                 CentralEntry metadata = centralDirectory.entries().get(entry.getName());
                 if (metadata == null) {
-                    throw invalidArchive("asset archive central directory disagrees with ZIP entries");
+                    throw invalidArchive(
+                            "asset archive central directory disagrees with ZIP entries");
                 }
                 if (metadata.symbolicLink() || metadata.specialFile()) {
                     throw invalidArchive("asset archive contains a symbolic link or special file");
@@ -211,7 +208,8 @@ public final class AssetPackSynchronizer {
                 if (metadata.encrypted()) {
                     throw invalidArchive("asset archive contains an encrypted entry");
                 }
-                if (entry.getMethod() != ZipEntry.STORED && entry.getMethod() != ZipEntry.DEFLATED) {
+                if (entry.getMethod() != ZipEntry.STORED
+                        && entry.getMethod() != ZipEntry.DEFLATED) {
                     throw invalidArchive("asset archive uses an unsupported compression method");
                 }
                 if (entry.getMethod() != metadata.method()
@@ -327,8 +325,7 @@ public final class AssetPackSynchronizer {
 
     private void verifyCommittedTarget(AssetPackReference reference, Path target)
             throws AssetPackSyncException {
-        if (Files.isSymbolicLink(target)
-                || !Files.isDirectory(target, LinkOption.NOFOLLOW_LINKS)) {
+        if (Files.isSymbolicLink(target) || !Files.isDirectory(target, LinkOption.NOFOLLOW_LINKS)) {
             throw new AssetPackSyncException(
                     AssetPackSyncException.Code.CACHE_CONFLICT,
                     "asset cache target is missing or is not a regular directory");
@@ -336,7 +333,9 @@ public final class AssetPackSynchronizer {
         Path marker = target.resolve(COMPLETE_MARKER);
         byte[] actual;
         try {
-            actual = readBoundedRegularFile(marker, MAXIMUM_POINTER_BYTES, "asset completion marker");
+            actual =
+                    readBoundedRegularFile(
+                            marker, MAXIMUM_POINTER_BYTES, "asset completion marker");
         } catch (IOException | IllegalArgumentException exception) {
             throw new AssetPackSyncException(
                     AssetPackSyncException.Code.CACHE_CONFLICT,
@@ -458,8 +457,8 @@ public final class AssetPackSynchronizer {
                         }
 
                         @Override
-                        public FileVisitResult visitFile(
-                                Path file, BasicFileAttributes attributes) throws IOException {
+                        public FileVisitResult visitFile(Path file, BasicFileAttributes attributes)
+                                throws IOException {
                             if (attributes.isSymbolicLink() || !attributes.isRegularFile()) {
                                 throw new IOException("asset tree contains a special file");
                             }
@@ -468,9 +467,11 @@ public final class AssetPackSynchronizer {
                                             .toString()
                                             .replace(file.getFileSystem().getSeparator(), "/");
                             try {
-                                AssetPackReference.requireRelativePath(relative, "cached asset path");
+                                AssetPackReference.requireRelativePath(
+                                        relative, "cached asset path");
                             } catch (IllegalArgumentException exception) {
-                                throw new IOException("asset tree contains an unsafe path", exception);
+                                throw new IOException(
+                                        "asset tree contains an unsafe path", exception);
                             }
                             if (!relative.equals(manifestPath)
                                     && files.putIfAbsent(relative, file) != null) {
@@ -493,7 +494,8 @@ public final class AssetPackSynchronizer {
         Path temporary = null;
         try {
             prepareDirectory(activeDirectory);
-            temporary = Files.createTempFile(activeDirectory, reference.id() + '-', ".pointer.part");
+            temporary =
+                    Files.createTempFile(activeDirectory, reference.id() + '-', ".pointer.part");
             Files.write(
                     temporary,
                     activePointerContent(reference),
@@ -573,8 +575,7 @@ public final class AssetPackSynchronizer {
 
     private static byte[] readBoundedRegularFile(Path path, int maximumBytes, String label)
             throws IOException {
-        if (Files.isSymbolicLink(path)
-                || !Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) {
+        if (Files.isSymbolicLink(path) || !Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) {
             throw new IllegalArgumentException(label + " must be a regular non-symbolic-link file");
         }
         byte[] bytes;
@@ -642,15 +643,15 @@ public final class AssetPackSynchronizer {
                     root,
                     new SimpleFileVisitor<>() {
                         @Override
-                        public FileVisitResult visitFile(
-                                Path file, BasicFileAttributes attributes) throws IOException {
+                        public FileVisitResult visitFile(Path file, BasicFileAttributes attributes)
+                                throws IOException {
                             Files.deleteIfExists(file);
                             return FileVisitResult.CONTINUE;
                         }
 
                         @Override
-                        public FileVisitResult postVisitDirectory(Path directory, IOException failure)
-                                throws IOException {
+                        public FileVisitResult postVisitDirectory(
+                                Path directory, IOException failure) throws IOException {
                             if (failure != null) {
                                 throw failure;
                             }
@@ -728,7 +729,8 @@ public final class AssetPackSynchronizer {
                 }
                 int commentLength = unsignedShort(tail, eocdIndex + 20);
                 if (eocdIndex + EOCD_MINIMUM_BYTES + commentLength != tail.length) {
-                    throw invalidArchive("asset archive has trailing bytes after the ZIP end record");
+                    throw invalidArchive(
+                            "asset archive has trailing bytes after the ZIP end record");
                 }
                 if (unsignedShort(tail, eocdIndex + 4) != 0
                         || unsignedShort(tail, eocdIndex + 6) != 0) {

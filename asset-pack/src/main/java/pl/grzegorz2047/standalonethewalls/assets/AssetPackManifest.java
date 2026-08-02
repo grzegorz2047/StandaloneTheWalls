@@ -10,8 +10,7 @@ public record AssetPackManifest(
         String packId, String version, String license, List<AssetPackFile> files) {
     public static final int MAXIMUM_FILES = 10_000;
     public static final long MAXIMUM_TOTAL_BYTES = 2L * 1024L * 1024L * 1024L;
-    private static final Set<String> ALLOWED_LICENSES =
-            Set.of("CC0-1.0", "CC-BY-4.0", "OFL-1.1");
+    private static final Set<String> ALLOWED_LICENSES = Set.of("CC0-1.0", "CC-BY-4.0", "OFL-1.1");
 
     public AssetPackManifest {
         packId = AssetPackReference.requireId(packId);
@@ -22,7 +21,8 @@ public record AssetPackManifest(
         }
         files = List.copyOf(Objects.requireNonNull(files, "files"));
         if (files.isEmpty() || files.size() > MAXIMUM_FILES) {
-            throw new IllegalArgumentException("asset manifest file count is outside the safe range");
+            throw new IllegalArgumentException(
+                    "asset manifest file count is outside the safe range");
         }
         Set<String> paths = new HashSet<>();
         String previous = null;
@@ -39,10 +39,12 @@ public record AssetPackManifest(
             try {
                 total = Math.addExact(total, current.size());
             } catch (ArithmeticException exception) {
-                throw new IllegalArgumentException("asset manifest total size overflowed", exception);
+                throw new IllegalArgumentException(
+                        "asset manifest total size overflowed", exception);
             }
             if (total > MAXIMUM_TOTAL_BYTES) {
-                throw new IllegalArgumentException("asset manifest total size exceeds the safe range");
+                throw new IllegalArgumentException(
+                        "asset manifest total size exceeds the safe range");
             }
         }
     }

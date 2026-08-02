@@ -39,17 +39,23 @@ class AssetPackLockCodecTest {
                         StandardCharsets.UTF_8);
 
         assertThatThrownBy(
-                        () -> AssetPackLockCodec.decode((" " + canonical).getBytes(StandardCharsets.UTF_8)))
+                        () ->
+                                AssetPackLockCodec.decode(
+                                        (" " + canonical).getBytes(StandardCharsets.UTF_8)))
                 .isInstanceOf(AssetPackLockException.class);
         assertThatThrownBy(
                         () ->
                                 AssetPackLockCodec.decode(
                                         canonical
-                                                .replace("\"schema\":1", "\"unknown\":1,\"schema\":1")
+                                                .replace(
+                                                        "\"schema\":1",
+                                                        "\"unknown\":1,\"schema\":1")
                                                 .getBytes(StandardCharsets.UTF_8)))
                 .isInstanceOf(AssetPackLockException.class);
         assertThatThrownBy(
-                        () -> AssetPackLockCodec.decode((canonical + "\n").getBytes(StandardCharsets.UTF_8)))
+                        () ->
+                                AssetPackLockCodec.decode(
+                                        (canonical + "\n").getBytes(StandardCharsets.UTF_8)))
                 .isInstanceOf(AssetPackLockException.class);
         assertThatThrownBy(
                         () ->
@@ -68,7 +74,8 @@ class AssetPackLockCodecTest {
                                         "core",
                                         "1.0.0",
                                         1,
-                                        URI.create("https://assets.example.invalid/latest/core.zip"),
+                                        URI.create(
+                                                "https://assets.example.invalid/latest/core.zip"),
                                         1,
                                         ARCHIVE_DIGEST,
                                         "manifest.json",
@@ -114,11 +121,7 @@ class AssetPackLockCodecTest {
                 version,
                 1,
                 URI.create(
-                        "https://assets.example.invalid/releases/"
-                                + id
-                                + '-'
-                                + version
-                                + ".zip"),
+                        "https://assets.example.invalid/releases/" + id + '-' + version + ".zip"),
                 4096,
                 ARCHIVE_DIGEST,
                 "manifest.json",

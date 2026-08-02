@@ -46,7 +46,8 @@ public final class AssetPackLockCodec {
         output.append("],\"schema\":").append(value.schema()).append('}');
         byte[] encoded = output.toString().getBytes(StandardCharsets.UTF_8);
         if (encoded.length > MAXIMUM_LOCK_BYTES) {
-            throw new IllegalArgumentException("canonical asset lock exceeds the maximum byte size");
+            throw new IllegalArgumentException(
+                    "canonical asset lock exceeds the maximum byte size");
         }
         return encoded;
     }
@@ -54,7 +55,8 @@ public final class AssetPackLockCodec {
     public static AssetPackLock decode(byte[] encoded) throws AssetPackLockException {
         byte[] bytes = Objects.requireNonNull(encoded, "encoded").clone();
         if (bytes.length == 0 || bytes.length > MAXIMUM_LOCK_BYTES) {
-            throw new AssetPackLockException("asset lock is empty or exceeds the maximum byte size");
+            throw new AssetPackLockException(
+                    "asset lock is empty or exceeds the maximum byte size");
         }
         String text = decodeUtf8(bytes);
         Cursor cursor = new Cursor(text);
@@ -130,7 +132,8 @@ public final class AssetPackLockCodec {
                             .decode(ByteBuffer.wrap(encoded))
                             .toString();
             if (text.codePoints().anyMatch(codePoint -> codePoint < 0x20 || codePoint > 0x7e)) {
-                throw new AssetPackLockException("asset lock must contain canonical printable ASCII");
+                throw new AssetPackLockException(
+                        "asset lock must contain canonical printable ASCII");
             }
             return text;
         } catch (CharacterCodingException exception) {
@@ -140,8 +143,14 @@ public final class AssetPackLockCodec {
 
     private static void appendString(StringBuilder output, String value) {
         if (value.codePoints()
-                .anyMatch(codePoint -> codePoint < 0x20 || codePoint > 0x7e || codePoint == '"' || codePoint == '\\')) {
-            throw new IllegalArgumentException("asset lock string cannot be represented canonically");
+                .anyMatch(
+                        codePoint ->
+                                codePoint < 0x20
+                                        || codePoint > 0x7e
+                                        || codePoint == '"'
+                                        || codePoint == '\\')) {
+            throw new IllegalArgumentException(
+                    "asset lock string cannot be represented canonically");
         }
         output.append('"').append(value).append('"');
     }
@@ -220,7 +229,8 @@ public final class AssetPackLockCodec {
             try {
                 return Long.parseLong(text.substring(start, offset));
             } catch (NumberFormatException exception) {
-                throw new AssetPackLockException("asset lock integer is outside the safe range", exception);
+                throw new AssetPackLockException(
+                        "asset lock integer is outside the safe range", exception);
             }
         }
 

@@ -41,7 +41,8 @@ public final class AssetPackManifestCodec {
         output.append('}');
         byte[] encoded = output.toString().getBytes(StandardCharsets.UTF_8);
         if (encoded.length > MAXIMUM_MANIFEST_BYTES) {
-            throw new IllegalArgumentException("canonical asset manifest exceeds the maximum byte size");
+            throw new IllegalArgumentException(
+                    "canonical asset manifest exceeds the maximum byte size");
         }
         return encoded;
     }
