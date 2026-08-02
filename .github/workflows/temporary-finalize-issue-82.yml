@@ -1,0 +1,72 @@
+name: Temporary finalize issue 82
+
+on:
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.head_ref == 'agent/issue-82-asset-lock-cache'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Narrow test exceptions and format
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("asset-pack/src/test/java/pl/grzegorz2047/standalonethewalls/assets/AssetPackSynchronizerTest.java")
+          text = path.read_text()
+          replacements = {
+              "void synchronizesTwiceAndRestartsOfflineFromTheSameVerifiedTree() throws Exception {":
+                  "void synchronizesTwiceAndRestartsOfflineFromTheSameVerifiedTree()\n            throws IOException, AssetPackSyncException {",
+              "void failedReplacementPreservesLastKnownGoodAndStaleLocksAreExplicit() throws Exception {":
+                  "void failedReplacementPreservesLastKnownGoodAndStaleLocksAreExplicit()\n            throws IOException, AssetPackSyncException {",
+              "void rejectsTruncationOversizeAndProviderFailure() throws Exception {":
+                  "void rejectsTruncationOversizeAndProviderFailure() throws IOException {",
+              "void rejectsTraversalAbsoluteSymlinkAndCompressionBombEntries() throws Exception {":
+                  "void rejectsTraversalAbsoluteSymlinkAndCompressionBombEntries() throws IOException {",
+              "void rejectsMissingOrphanAndForbiddenLicenseManifestContent() throws Exception {":
+                  "void rejectsMissingOrphanAndForbiddenLicenseManifestContent() throws IOException {",
+              "void detectsTamperingDuringOfflineRestart() throws Exception {":
+                  "void detectsTamperingDuringOfflineRestart()\n            throws IOException, AssetPackSyncException {",
+              "private void assertArchiveInvalid(PackFixture fixture) throws Exception {":
+                  "private void assertArchiveInvalid(PackFixture fixture) {",
+              "private void assertManifestInvalid(PackFixture fixture) throws Exception {":
+                  "private void assertManifestInvalid(PackFixture fixture) {",
+              "private PackFixture createPack(String version, Map<String, byte[]> files, String license)\n            throws Exception {":
+                  "private PackFixture createPack(String version, Map<String, byte[]> files, String license)\n            throws IOException {",
+              "private PackFixture createRawPack(String version, Map<String, byte[]> files) throws Exception {":
+                  "private PackFixture createRawPack(String version, Map<String, byte[]> files)\n            throws IOException {",
+              "String version, Map<String, byte[]> files, byte[] manifestBytes) throws Exception {":
+                  "String version, Map<String, byte[]> files, byte[] manifestBytes) throws IOException {",
+              "void run() throws Exception;": "void run() throws AssetPackSyncException;",
+          }
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f"missing expected source fragment: {old}")
+              text = text.replace(old, new, 1)
+          path.write_text(text)
+          PY
+          ./gradlew --no-daemon spotlessApply
+          ./gradlew --no-daemon :asset-pack:syncAssets
+      - name: Commit finalization
+        run: |
+          if git diff --quiet -- asset-pack settings.gradle.kts; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add asset-pack settings.gradle.kts
+          git commit -m "Finalize asset tests and formatting"
+          git push origin HEAD:${{ github.head_ref }}
