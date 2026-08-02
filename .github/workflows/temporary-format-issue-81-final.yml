@@ -1,0 +1,32 @@
+name: Temporary final format issue 81
+
+on:
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.head_ref == 'agent/issue-81-production-tls-listener'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew --no-daemon spotlessApply
+      - run: |
+          if git diff --quiet -- server/src transport-bctls/src; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add server/src transport-bctls/src
+          git commit -m "Format final TLS test fixes"
+          git push origin HEAD:${{ github.head_ref }}
