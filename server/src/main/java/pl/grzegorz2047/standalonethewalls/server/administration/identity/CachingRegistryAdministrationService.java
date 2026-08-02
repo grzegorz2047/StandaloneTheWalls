@@ -30,7 +30,7 @@ public final class CachingRegistryAdministrationService
     }
 
     @Override
-    public RegistryAdministrationResult verifySnapshot() {
+    public synchronized RegistryAdministrationResult verifySnapshot() {
         try {
             return RegistryAdministrationResult.verified(
                     RegistrySnapshotSummary.from(snapshots.verify(provider)));
@@ -42,7 +42,7 @@ public final class CachingRegistryAdministrationService
     }
 
     @Override
-    public RegistryAdministrationResult reloadRegistry() {
+    public synchronized RegistryAdministrationResult reloadRegistry() {
         try {
             RegistryActivationResult activation = refresh.refresh(provider);
             VerifiedRegistrySnapshot active =
@@ -59,6 +59,23 @@ public final class CachingRegistryAdministrationService
             return RegistryAdministrationResult.providerFailure();
         } catch (RegistrySnapshotException exception) {
             return RegistryAdministrationResult.snapshotRejected(exception.code());
+        }
+    }
+
+    public synchronized AutomaticRegistryRefreshResult refreshAutomatically() {
+        try {
+            return switch (refresh.refreshClassified(provider)) {
+                case ACTIVATED -> AutomaticRegistryRefreshResult.ACTIVATED;
+                case UNCHANGED -> AutomaticRegistryRefreshResult.UNCHANGED;
+                case PROVIDER_FAILURE -> AutomaticRegistryRefreshResult.PROVIDER_FAILURE;
+                case CACHE_FAILURE -> AutomaticRegistryRefreshResult.CACHE_FAILURE;
+            };
+        } catch (RegistrySnapshotException exception) {
+            return switch (exception.code()) {
+                case ROLLBACK -> AutomaticRegistryRefreshResult.ROLLBACK_REJECTED;
+                case EQUIVOCATION -> AutomaticRegistryRefreshResult.EQUIVOCATION_REJECTED;
+                default -> AutomaticRegistryRefreshResult.SNAPSHOT_REJECTED;
+            };
         }
     }
 }
