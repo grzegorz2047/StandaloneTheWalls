@@ -1,0 +1,247 @@
+name: Issue 76 capacity ordering fix
+
+on:
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.head_ref == 'agent/issue-76-tls-identity-admission'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out issue branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Reserve capacity before identity policy mutation
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          gateway = Path('server/src/main/java/pl/grzegorz2047/standalonethewalls/server/identity/session/TlsIdentityAdmissionGateway.java')
+          text = gateway.read_text(encoding='utf-8')
+          start_marker = '            BctlsAuthenticatedPlayerSession session =\n'
+          end_marker = '        } catch (IOException | TlsSessionBootstrapException exception) {'
+          start = text.index(start_marker)
+          end = text.index(end_marker, start)
+          replacement = '''            BctlsAuthenticatedPlayerSession session =
+                  new BctlsAuthenticatedPlayerSession(authenticated);
+          Optional<AuthorizedPlayerSessionQueue.Reservation> reservationAttempt =
+                  authorizedSessions.tryReserve();
+          if (reservationAttempt.isEmpty()) {
+              PlayerSessionAdmissionStatus status =
+                      authorizedSessions.isClosed() || state.get() != State.OPEN
+                              ? PlayerSessionAdmissionStatus.SERVER_SHUTTING_DOWN
+                              : PlayerSessionAdmissionStatus.SERVER_CAPACITY_EXCEEDED;
+              sendAdmissionResult(session, status);
+              publish(TlsIdentityAdmissionEvent.admission(status));
+              return;
+          }
+
+          try (AuthorizedPlayerSessionQueue.Reservation reservation =
+                  reservationAttempt.orElseThrow()) {
+              if (state.get() != State.OPEN) {
+                  sendAdmissionResult(session, PlayerSessionAdmissionStatus.SERVER_SHUTTING_DOWN);
+                  publish(
+                          TlsIdentityAdmissionEvent.admission(
+                                  PlayerSessionAdmissionStatus.SERVER_SHUTTING_DOWN));
+                  return;
+              }
+              AuthenticatedPlayerAdmissionResult admission = admissionService.evaluate(session);
+              if (admission instanceof AuthenticatedPlayerAdmissionResult.Rejected rejected) {
+                  sendAdmissionResult(session, rejected.status());
+                  publish(TlsIdentityAdmissionEvent.admission(rejected.status()));
+                  return;
+              }
+
+              AuthenticatedPlayerAdmissionResult.Accepted accepted =
+                      (AuthenticatedPlayerAdmissionResult.Accepted) admission;
+              sendAdmissionResult(session, accepted.status());
+              if (!reservation.commit(accepted.session())) {
+                  throw new IllegalStateException(
+                          "reserved authorized player session could not be committed");
+              }
+              transferred = true;
+              publish(TlsIdentityAdmissionEvent.admission(accepted.status()));
+          }
+'''
+          gateway.write_text(text[:start] + replacement + text[end:], encoding='utf-8')
+
+          test_path = Path('server/src/test/java/pl/grzegorz2047/standalonethewalls/server/identity/session/TlsIdentityAdmissionGatewayIntegrationTest.java')
+          test = test_path.read_text(encoding='utf-8')
+          method_start = test.index('    @Test\n    void fullPreLobbyQueueRejectsWithoutBlockingAndShutdownClosesQueuedLease()')
+          method_end = test.index('    private Setup setup(', method_start)
+          method = '''    @Test
+    void fullPreLobbyQueueRejectsWithoutBindingAndShutdownClosesQueuedLease() throws Exception {
+        LocalIdentityRuntime runtime =
+                openRuntime("capacity", HandleAuthorizationMode.LOCAL_TOFU, List.of());
+        CanonicalHandle capacityHandle = new CanonicalHandle("player_two");
+        PlayerIdentity capacityRejected = PlayerIdentity.generate(new SecureRandom());
+        PlayerIdentity replacement = PlayerIdentity.generate(new SecureRandom());
+
+        Setup setup = setup(runtime, 1, 705L);
+        ClientAdmission first = null;
+        ClientAdmission second = null;
+        ClientAdmission third = null;
+        AuthorizedPlayerSession firstServer = null;
+        try {
+            first =
+                    connectAndAuthenticate(
+                            setup,
+                            PlayerIdentity.generate(new SecureRandom()),
+                            new CanonicalHandle("player_one"));
+            assertThat(first.status())
+                    .isEqualTo(PlayerSessionAdmissionStatus.LOCAL_FIRST_USE_ACCEPTED);
+            waitUntil(() -> setup.gateway().authorizedSessions().size() == 1);
+
+            second = connectAndAuthenticate(setup, capacityRejected, capacityHandle);
+            assertThat(second.status())
+                    .isEqualTo(PlayerSessionAdmissionStatus.SERVER_CAPACITY_EXCEEDED);
+            close(second.client());
+            second = null;
+            waitUntil(() -> setup.listener().activeConnectionCount() == 1);
+
+            firstServer = takeAuthorized(setup.gateway());
+            close(first.client());
+            first = null;
+            close(firstServer);
+            firstServer = null;
+            waitUntil(() -> setup.listener().activeConnectionCount() == 0);
+
+            third = connectAndAuthenticate(setup, replacement, capacityHandle);
+            assertThat(third.status())
+                    .isEqualTo(PlayerSessionAdmissionStatus.LOCAL_FIRST_USE_ACCEPTED);
+            waitUntil(() -> setup.gateway().authorizedSessions().size() == 1);
+
+            setup.gateway().close();
+            waitUntil(() -> setup.listener().activeConnectionCount() == 0);
+            assertThat(setup.gateway().authorizedSessions().isClosed()).isTrue();
+            assertThat(setup.gateway().authorizedSessions().size()).isZero();
+        } finally {
+            closeNullable(firstServer);
+            closeNullable(third);
+            closeNullable(second);
+            closeNullable(first);
+            setup.close();
+        }
+    }
+
+'''
+          test = test[:method_start] + method + test[method_end:]
+          helper_marker = '''    private static void closeNullable(ClientAdmission admission) {
+'''
+          helper_index = test.index(helper_marker)
+          helper = '''    private static void closeNullable(AuthorizedPlayerSession session) {
+        if (session == null) {
+            return;
+        }
+        try {
+            close(session);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException | TimeoutException ignored) {
+            // Cleanup must preserve the primary test failure.
+        }
+    }
+
+'''
+          test_path.write_text(test[:helper_index] + helper + test[helper_index:], encoding='utf-8')
+
+          adr = Path('docs/adr/0028-authenticated-session-admission-and-pre-lobby-handoff.md')
+          adr_text = adr.read_text(encoding='utf-8')
+          adr_text = adr_text.replace(
+              '''4. call the one process-owned `LocalIdentityRuntime.admit(handle, playerId)`;
+5. map the semantic result to a stable post-authentication wire status;
+6. for an accepted policy result, reserve one slot in the bounded pre-lobby queue;
+7. send exactly one `SESSION_ADMISSION_RESULT` message;
+8. commit the accepted `AuthorizedPlayerSession` into the reserved slot;
+9. transfer ownership to the future lobby only when the lobby polls or drains the
+   queue.
+''',
+              '''4. reserve one slot in the bounded pre-lobby queue;
+5. call the one process-owned `LocalIdentityRuntime.admit(handle, playerId)`;
+6. map the semantic result to a stable post-authentication wire status;
+7. send exactly one `SESSION_ADMISSION_RESULT` message;
+8. commit an accepted `AuthorizedPlayerSession` into the reserved slot, or cancel
+   the reservation for every rejection;
+9. transfer ownership to the future lobby only when the lobby polls or drains the
+   queue.
+''')
+          adr_text = adr_text.replace(
+              '''The queue has a configured positive capacity no greater than 10,000. Admission
+reserves a slot before telling the client that it was accepted. A reservation
+counts against capacity and can be committed or cancelled exactly once. Therefore
+two concurrent successful policy evaluations cannot both receive acceptance for
+one remaining slot.
+''',
+              '''The queue has a configured positive capacity no greater than 10,000. Admission
+reserves a slot after cryptographic proof but before the SQLite-backed identity
+policy. A reservation is capacity ownership, not lobby admission, and is cancelled
+for every policy rejection. This order prevents a capacity-rejected `LOCAL_TOFU`
+attempt from creating a binding. A reservation counts against capacity and can be
+committed or cancelled exactly once. Therefore two concurrent attempts cannot both
+receive acceptance for one remaining slot.
+''')
+          adr.write_text(adr_text, encoding='utf-8')
+
+          guide = Path('server/IDENTITY_ADMISSION.md')
+          guide_text = guide.read_text(encoding='utf-8')
+          guide_text = guide_text.replace(
+              '''4. `TlsIdentityAdmissionGateway` calls the existing
+   `LocalIdentityRuntime.admit(canonicalHandle, playerId)`.
+5. The runtime checks the stable player-ID ban before evaluating the selected
+   `LOCAL_TOFU`, `GLOBAL_ONLY`, or `HYBRID` handle policy.
+6. The gateway reserves bounded pre-lobby queue capacity.
+7. The server sends one `SESSION_ADMISSION_RESULT`.
+8. An accepted `AuthorizedPlayerSession` is committed to the reserved queue slot.
+9. A future lobby poll or drain transfers ownership from the queue.
+''',
+              '''4. `TlsIdentityAdmissionGateway` reserves bounded pre-lobby queue capacity.
+5. The gateway calls the existing
+   `LocalIdentityRuntime.admit(canonicalHandle, playerId)`.
+6. The runtime checks the stable player-ID ban before evaluating the selected
+   `LOCAL_TOFU`, `GLOBAL_ONLY`, or `HYBRID` handle policy.
+7. The server sends one `SESSION_ADMISSION_RESULT`.
+8. An accepted `AuthorizedPlayerSession` is committed to the reserved queue slot;
+   every rejection cancels the reservation.
+9. A future lobby poll or drain transfers ownership from the queue.
+''')
+          guide_text = guide_text.replace(
+              '''Admission reserves a slot before sending an accepted status. A reservation counts
+toward capacity and can be committed or cancelled exactly once. A full queue
+returns `SERVER_CAPACITY_EXCEEDED`; it never blocks a transport worker waiting for
+the simulation or lobby.
+''',
+              '''Admission reserves a slot after Identity Proof but before the SQLite-backed policy.
+The reservation represents capacity only and is cancelled for every policy
+rejection. This prevents a full queue from creating a `LOCAL_TOFU` binding for a
+session that cannot be handed off. A reservation counts toward capacity and can be
+committed or cancelled exactly once. A full queue returns
+`SERVER_CAPACITY_EXCEEDED`; it never blocks a transport worker waiting for the
+simulation or lobby.
+''')
+          guide.write_text(guide_text, encoding='utf-8')
+          PY
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Apply repository format
+        run: ./gradlew --no-daemon spotlessApply
+
+      - name: Commit fix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add server/src/main/java/pl/grzegorz2047/standalonethewalls/server/identity/session/TlsIdentityAdmissionGateway.java server/src/test/java/pl/grzegorz2047/standalonethewalls/server/identity/session/TlsIdentityAdmissionGatewayIntegrationTest.java docs/adr/0028-authenticated-session-admission-and-pre-lobby-handoff.md server/IDENTITY_ADMISSION.md
+          git commit -m "Reserve session capacity before identity mutation"
+          git push origin HEAD:${{ github.head_ref }}
