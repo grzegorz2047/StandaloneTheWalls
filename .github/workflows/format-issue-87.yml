@@ -1,0 +1,43 @@
+name: Format issue 87
+
+on:
+  push:
+    branches:
+      - agent/issue-87-client-identity-trust-store
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: agent/issue-87-client-identity-trust-store
+          fetch-depth: 0
+
+      - name: Set up Java 21
+        uses: actions/setup-java@d7793b545071e98d581d3bf084a51c3213318a07
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Apply repository formatter
+        run: ./gradlew --no-daemon spotlessApply
+
+      - name: Commit formatted sources and remove this workflow
+        shell: bash
+        run: |
+          git rm .github/workflows/format-issue-87.yml
+          git add client/src/main/java/pl/grzegorz2047/standalonethewalls/client/identity
+          git add client/src/test/java/pl/grzegorz2047/standalonethewalls/client/identity
+          git add protocol/src/main/java/pl/grzegorz2047/standalonethewalls/protocol/identity
+          git add protocol/src/test/java/pl/grzegorz2047/standalonethewalls/protocol/identity
+          git diff --cached --quiet && exit 1
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git commit -m 'style: apply repository formatter for client identity storage'
+          git push origin HEAD:agent/issue-87-client-identity-trust-store
