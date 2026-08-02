@@ -345,9 +345,7 @@ public final class RegistryRefreshScheduler implements AutoCloseable {
                 }
                 long remainingMillis = TimeUnit.NANOSECONDS.toMillis(remainingNanos);
                 int remainingNanoseconds =
-                        (int)
-                                (remainingNanos
-                                        - TimeUnit.MILLISECONDS.toNanos(remainingMillis));
+                        (int) (remainingNanos - TimeUnit.MILLISECONDS.toNanos(remainingMillis));
                 workerThread.join(remainingMillis, remainingNanoseconds);
             }
         }
