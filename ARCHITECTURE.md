@@ -21,6 +21,7 @@ opening a graphics device.
 | `protocol` | Versioned messages and transport interfaces | `shared` |
 | `map-format` | `.twmap` schemas, validation and safe package rules | `shared` |
 | `identity-registry` | Offline verification and monotonic activation of signed global-handle snapshots | `protocol`, bounded JSON/JCS libraries |
+| `identity-registry-file` | Bounded local bundle provider and atomic verified snapshot cache | `identity-registry` |
 | `server` | Authoritative simulation, identity policies, adapters, administration and persistence | core modules, SLF4J |
 | `client` | jMonkeyEngine rendering, input, prediction, interpolation, identity profile and UI | core modules, jMonkeyEngine |
 | `map-studio` | jMonkeyEngine-based authoring UI | `shared`, `map-format`, jMonkeyEngine |
@@ -41,6 +42,8 @@ shared
   +-- protocol
   |       ^
   |       +-- identity-registry
+  |                    ^
+  |                    +-- identity-registry-file
   +-- map-format
           ^
           |
@@ -109,10 +112,23 @@ digest is equivocation. Every load, parsing, digest, signature, policy or
 activation failure leaves the previous valid snapshot untouched. See ADR 0011
 and issue #57.
 
-This module establishes trustworthy offline registry state, not player
-authorization. Claim authoring, source/cache adapters, persistence, root
-transition ceremonies, confusable policy and the `LOCAL_TOFU`, `GLOBAL_ONLY` and
-`HYBRID` decisions remain separate layers.
+`identity-registry-file` is a separate filesystem adapter. Bundle v1 is one
+regular `SFRB` file containing a fixed versioned header, exact detached digest,
+exact detached signature and exact canonical JSON. It rejects symbolic links,
+non-regular files, impossible lengths, truncation, trailing data and unknown
+versions before returning an untrusted artifact. A valid file is still fully
+reverified by `RegistrySnapshotVerifier` on every process start.
+
+The cache writer accepts only an artifact matching a concrete
+`VerifiedRegistrySnapshot`, forces a same-directory temporary file to storage and
+requires atomic replacement. It never falls back to a non-atomic move, so a
+failed write cannot silently replace the last known artifact with torn bytes.
+See ADR 0012 and issue #59.
+
+These modules establish trustworthy offline registry state, not player
+authorization. Claim authoring, network source adapters, refresh scheduling,
+root transition ceremonies, confusable policy and the `LOCAL_TOFU`,
+`GLOBAL_ONLY` and `HYBRID` decisions remain separate layers.
 
 ## Secure transport adapters
 
@@ -221,7 +237,7 @@ and issue #33.
 
 - Authorization of verified identities through `LOCAL_TOFU`, `GLOBAL_ONLY` or `HYBRID`.
 - Registry claim authoring, confusable policy and signed release publication.
-- Registry file/HTTPS/GitHub Release providers, disk cache and persistence.
+- Registry HTTP/GitHub Release providers, refresh scheduling and retry policy.
 - Registry-root transition signatures and emergency trust-bundle operations.
 - Integration of authenticated commands with the fixed-tick command queue.
 - Client connection ownership, DNS resolution and reconnect policy.
