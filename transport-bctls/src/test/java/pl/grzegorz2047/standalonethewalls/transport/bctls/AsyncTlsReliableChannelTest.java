@@ -178,8 +178,7 @@ class AsyncTlsReliableChannelTest {
         private final CountDownLatch sendRelease = new CountDownLatch(1);
         private final CountDownLatch receiveStarted = new CountDownLatch(1);
         private final CountDownLatch receiveRelease = new CountDownLatch(1);
-        private final AtomicReference<byte[]> capturedPayload =
-                new AtomicReference<>(new byte[0]);
+        private final AtomicReference<byte[]> capturedPayload = new AtomicReference<>(new byte[0]);
 
         private volatile boolean sendBlocked;
         private volatile boolean receiveBlocked;
