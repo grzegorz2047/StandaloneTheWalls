@@ -69,4 +69,4 @@ joins the executor, and suppresses any result that arrives after shutdown takes
 ownership. Provider, verification, activation, or cache failure retains the active
 last-known-good snapshot and the prior valid local bundle.
 
-See ADR 0028 for the complete decision and failure classification.
+See ADR 0029 for the complete decision and failure classification.
