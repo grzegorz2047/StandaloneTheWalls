@@ -316,7 +316,9 @@ class IdentityExchangeIntegrationTest {
                                                         failures.add(unwrap(failure));
                                                     }
                                                 });
-                            } catch (Exception exception) {
+                            } catch (IOException
+                                    | TlsSessionBootstrapException
+                                    | RuntimeException exception) {
                                 failures.add(exception);
                             }
                         },
