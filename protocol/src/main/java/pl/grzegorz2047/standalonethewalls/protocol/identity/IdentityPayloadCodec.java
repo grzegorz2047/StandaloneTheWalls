@@ -134,12 +134,10 @@ public final class IdentityPayloadCodec {
                         publicKey,
                         signature);
             } catch (IllegalArgumentException exception) {
-                IdentityPayloadException.Code code =
-                        signature.length == SIGNATURE_BYTES
-                                ? IdentityPayloadException.Code.INVALID_TEXT
-                                : IdentityPayloadException.Code.INVALID_SIGNATURE;
                 throw new IdentityPayloadException(
-                        code, "identity proof contains an invalid canonical value", exception);
+                        IdentityPayloadException.Code.INVALID_TEXT,
+                        "identity proof contains an invalid canonical value",
+                        exception);
             }
         } catch (EOFException exception) {
             throw truncated(exception);
@@ -260,7 +258,8 @@ public final class IdentityPayloadCodec {
         return value;
     }
 
-    private static void requireEnd(DataInputStream input) throws IdentityPayloadException {
+    private static void requireEnd(DataInputStream input)
+            throws IOException, IdentityPayloadException {
         if (input.available() != 0) {
             throw new IdentityPayloadException(
                     IdentityPayloadException.Code.TRAILING_BYTES,
