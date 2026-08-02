@@ -27,6 +27,7 @@ import pl.grzegorz2047.standalonethewalls.server.config.ServerConfigurationLoade
 import pl.grzegorz2047.standalonethewalls.server.config.identity.LocalIdentityProcessConfiguration;
 import pl.grzegorz2047.standalonethewalls.server.config.identity.LocalIdentityProcessConfigurationLoader;
 import pl.grzegorz2047.standalonethewalls.server.identity.LocalIdentityRuntime;
+import pl.grzegorz2047.standalonethewalls.server.identity.RegistryRefreshScheduler;
 import pl.grzegorz2047.standalonethewalls.server.runtime.FixedTickLoop;
 import pl.grzegorz2047.standalonethewalls.server.runtime.ServerRuntime;
 import pl.grzegorz2047.standalonethewalls.server.runtime.SystemNanoSleeper;
@@ -173,9 +174,15 @@ public final class ServerLauncher {
                                 loop.requestStop();
                             }
                         });
+        RegistryRefreshScheduler registryRefreshScheduler =
+                identityRuntime == null
+                        ? RegistryRefreshScheduler.disabled()
+                        : identityRuntime.startAutomaticRegistryRefresh();
 
         Thread shutdownHook =
-                Thread.ofPlatform().name("sunderfront-shutdown").unstarted(runtime::close);
+                Thread.ofPlatform()
+                        .name("sunderfront-shutdown")
+                        .unstarted(() -> closeRuntime(runtime, registryRefreshScheduler));
         boolean hookInstalled = false;
         try {
             if (runForTicks == null) {
@@ -213,10 +220,19 @@ public final class ServerLauncher {
             LOGGER.info("Server stopped cleanly after {} ticks.", executedTicks.get());
             return EXIT_OK;
         } finally {
-            runtime.close();
+            closeRuntime(runtime, registryRefreshScheduler);
             if (hookInstalled) {
                 removeShutdownHookIfPossible(shutdownHook);
             }
+        }
+    }
+
+    private static void closeRuntime(
+            ServerRuntime runtime, RegistryRefreshScheduler registryRefreshScheduler) {
+        try {
+            registryRefreshScheduler.close();
+        } finally {
+            runtime.close();
         }
     }
 
