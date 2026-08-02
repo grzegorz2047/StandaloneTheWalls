@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.Objects;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -70,9 +71,7 @@ class ServerLauncherIdentityTest {
         Files.writeString(
                 configuration,
                 configuration(
-                        sqlite.getFileName().toString(),
-                        "invalid-trust.sfrb",
-                        "invalid-trust-roots.hex"),
+                        fileName(sqlite), "invalid-trust.sfrb", "invalid-trust-roots.hex"),
                 StandardCharsets.UTF_8);
 
         assertThat(
@@ -136,12 +135,13 @@ class ServerLauncherIdentityTest {
                 roots, HexFormat.of().formatHex(publicKey) + '\n', StandardCharsets.UTF_8);
         Files.writeString(
                 configuration,
-                configuration(
-                        sqlite.getFileName().toString(),
-                        bundle.getFileName().toString(),
-                        roots.getFileName().toString()),
+                configuration(fileName(sqlite), fileName(bundle), fileName(roots)),
                 StandardCharsets.UTF_8);
         return new ProcessFiles(configuration, sqlite, bundle);
+    }
+
+    private static String fileName(Path path) {
+        return Objects.requireNonNull(path.getFileName(), "path file name").toString();
     }
 
     private static String configuration(String sqlite, String bundle, String roots) {
