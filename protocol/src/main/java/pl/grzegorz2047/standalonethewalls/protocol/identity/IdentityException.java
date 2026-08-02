@@ -26,6 +26,10 @@ public final class IdentityException extends Exception {
         INVALID_PUBLIC_KEY,
         INVALID_KEY_PAIR,
         SIGNING_FAILED,
-        VERIFICATION_FAILED
+        VERIFICATION_FAILED,
+        KEY_STORE_READ_FAILED,
+        KEY_STORE_WRITE_FAILED,
+        KEY_STORE_INVALID,
+        KEY_STORE_CONFLICT
     }
 }
