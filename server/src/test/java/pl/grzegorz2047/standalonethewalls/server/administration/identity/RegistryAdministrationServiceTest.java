@@ -142,7 +142,8 @@ class RegistryAdministrationServiceTest {
         assertThat(store.active()).containsSame(active);
     }
 
-    private static Fixture fixture(KeyPair root, RegistrySnapshotProvider provider) throws Exception {
+    private static Fixture fixture(KeyPair root, RegistrySnapshotProvider provider)
+            throws Exception {
         AtomicRegistrySnapshotStore store = new AtomicRegistrySnapshotStore();
         RegistrySnapshotService snapshots = snapshots(root, store);
         return new Fixture(store, new RegistryAdministrationService(snapshots, provider));
