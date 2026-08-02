@@ -1,5 +1,6 @@
 package pl.grzegorz2047.standalonethewalls.client.identity;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -75,7 +76,7 @@ class FilePlayerIdentityStoreTest {
             throws IdentityException, IOException, NoSuchAlgorithmException {
         Path path = temporaryDirectory.resolve("mismatch/player-identity.sfki");
         FilePlayerIdentityStore store = new FilePlayerIdentityStore(path);
-        PlayerIdentity original = PlayerIdentity.loadOrCreate(store, new SecureRandom());
+        PlayerIdentity.loadOrCreate(store, new SecureRandom());
         byte[] content = Files.readAllBytes(path);
         int privateLength = ByteBuffer.wrap(content, 8, Integer.BYTES).getInt();
         int publicLength = ByteBuffer.wrap(content, 12, Integer.BYTES).getInt();
@@ -89,11 +90,12 @@ class FilePlayerIdentityStoreTest {
                 16 + privateLength,
                 replacementPublic.length);
         Files.write(path, content);
+        byte[] corrupted = Files.readAllBytes(path);
 
         IdentityException exception = assertThrows(IdentityException.class, store::load);
 
         assertEquals(IdentityException.Code.KEY_STORE_INVALID, exception.code());
-        assertEquals(original.playerId(), original.playerId());
+        assertArrayEquals(corrupted, Files.readAllBytes(path));
     }
 
     @Test
@@ -101,9 +103,9 @@ class FilePlayerIdentityStoreTest {
             throws IdentityException, IOException {
         Path path = temporaryDirectory.resolve("trailing/player-identity.sfki");
         FilePlayerIdentityStore store = new FilePlayerIdentityStore(path);
-        PlayerIdentity original = PlayerIdentity.loadOrCreate(store, new SecureRandom());
-        long validSize = Files.size(path);
+        PlayerIdentity.loadOrCreate(store, new SecureRandom());
         Files.write(path, new byte[] {1}, StandardOpenOption.APPEND);
+        byte[] corrupted = Files.readAllBytes(path);
 
         IdentityException exception =
                 assertThrows(
@@ -111,8 +113,7 @@ class FilePlayerIdentityStoreTest {
                         () -> PlayerIdentity.loadOrCreate(store, new SecureRandom()));
 
         assertEquals(IdentityException.Code.KEY_STORE_INVALID, exception.code());
-        assertEquals(validSize + 1L, Files.size(path));
-        assertEquals(original.playerId(), original.playerId());
+        assertArrayEquals(corrupted, Files.readAllBytes(path));
     }
 
     @Test
