@@ -33,7 +33,11 @@ class RegistryAdministrationServiceTest {
     private static final Instant NOW = Instant.parse("2026-08-02T12:00:00Z");
 
     @Test
-    void verifyReturnsSafeSummaryWithoutActivatingTheSnapshot() throws Exception {
+    void verifyReturnsSafeSummaryWithoutActivatingTheSnapshot()
+            throws NoSuchAlgorithmException,
+                    RegistrySnapshotException,
+                    InvalidKeyException,
+                    SignatureException {
         KeyPair root = root();
         RegistrySnapshotArtifact artifact = artifact(root, 7L, NOW);
         Fixture fixture = fixture(root, () -> artifact);
@@ -53,7 +57,11 @@ class RegistryAdministrationServiceTest {
     }
 
     @Test
-    void reloadActivatesThenReportsIdenticalArtifactAsUnchanged() throws Exception {
+    void reloadActivatesThenReportsIdenticalArtifactAsUnchanged()
+            throws NoSuchAlgorithmException,
+                    RegistrySnapshotException,
+                    InvalidKeyException,
+                    SignatureException {
         KeyPair root = root();
         RegistrySnapshotArtifact artifact = artifact(root, 8L, NOW);
         AtomicInteger providerCalls = new AtomicInteger();
@@ -76,7 +84,12 @@ class RegistryAdministrationServiceTest {
     }
 
     @Test
-    void providerFailureDoesNotExposeItsMessageOrReplaceTheActiveSnapshot() throws Exception {
+    void providerFailureDoesNotExposeItsMessageOrReplaceTheActiveSnapshot()
+            throws NoSuchAlgorithmException,
+                    RegistrySnapshotException,
+                    InvalidKeyException,
+                    SignatureException,
+                    RegistrySnapshotProviderException {
         KeyPair root = root();
         RegistrySnapshotArtifact activeArtifact = artifact(root, 9L, NOW);
         AtomicRegistrySnapshotStore store = new AtomicRegistrySnapshotStore();
@@ -98,7 +111,12 @@ class RegistryAdministrationServiceTest {
     }
 
     @Test
-    void invalidSignatureIsRejectedWithoutReplacingTheActiveSnapshot() throws Exception {
+    void invalidSignatureIsRejectedWithoutReplacingTheActiveSnapshot()
+            throws NoSuchAlgorithmException,
+                    RegistrySnapshotException,
+                    InvalidKeyException,
+                    SignatureException,
+                    RegistrySnapshotProviderException {
         KeyPair root = root();
         RegistrySnapshotArtifact activeArtifact = artifact(root, 10L, NOW.minusSeconds(1));
         RegistrySnapshotArtifact candidate = artifact(root, 11L, NOW);
@@ -122,7 +140,12 @@ class RegistryAdministrationServiceTest {
     }
 
     @Test
-    void rollbackAndEquivocationAreReportedWithoutReplacingLastKnownGood() throws Exception {
+    void rollbackAndEquivocationAreReportedWithoutReplacingLastKnownGood()
+            throws NoSuchAlgorithmException,
+                    RegistrySnapshotException,
+                    InvalidKeyException,
+                    SignatureException,
+                    RegistrySnapshotProviderException {
         KeyPair root = root();
         RegistrySnapshotArtifact activeArtifact = artifact(root, 12L, NOW);
         RegistrySnapshotArtifact rollbackArtifact = artifact(root, 11L, NOW.minusSeconds(1));
