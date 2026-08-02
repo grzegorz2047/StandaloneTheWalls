@@ -6,10 +6,13 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.security.GeneralSecurityException;
 import java.security.Provider;
 import java.security.SecureRandom;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -17,15 +20,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLServerSocket;
-import javax.net.ssl.SSLSocket;
-import javax.net.ssl.TrustManager;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.junit.jupiter.api.Test;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.IdentityException;
-import pl.grzegorz2047.standalonethewalls.protocol.identity.SecureChannelBinding;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerId;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerReference;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerTrustDecision;
@@ -48,47 +46,38 @@ class Tls13LoopbackIntegrationTest {
                     InterruptedException,
                     ExecutionException,
                     TimeoutException {
-        BouncyCastleTlsContexts contexts = new BouncyCastleTlsContexts();
         TestCertificateMaterial material = TestCertificateMaterial.create(CRYPTO_PROVIDER, 1L);
+        Tls13ServerCredentials serverCredentials =
+                Tls13ServerCredentials.create(
+                        material.keyPair().getPrivate(), List.of(material.certificate()));
         InMemoryServerTrustStore store = new InMemoryServerTrustStore();
         ServerTrustService trustService = new ServerTrustService(store);
-        ServerId serverId = ServerId.fromPublicKey(material.keyPair().getPublic().getEncoded());
+        ServerId serverId = serverCredentials.serverId();
         trustService.confirmFirstUse(REFERENCE, serverId, Optional.empty(), "loopback test");
+        PinnedServerTrustManager trustManager =
+                new PinnedServerTrustManager(trustService, REFERENCE, Optional.empty());
 
-        SSLContext serverContext =
-                contexts.create(material.keyManagers(), null, new SecureRandom());
-        SSLContext clientContext =
-                contexts.create(
-                        null,
-                        new TrustManager[] {
-                            new PinnedServerTrustManager(trustService, REFERENCE, Optional.empty())
-                        },
-                        new SecureRandom());
-
-        try (LoopbackServer server = new LoopbackServer(serverContext)) {
+        try (LoopbackServer server = new LoopbackServer(serverCredentials)) {
             Future<ServerObservation> observation = server.acceptOne();
-            try (SSLSocket client = server.connect(clientContext)) {
-                Tls13Policy.configureClient(
-                        client, Tls13Policy.ServerAuthentication.PINNED_IDENTITY);
-                client.setSoTimeout((int) TIMEOUT.toMillis());
-                SecureChannelBinding clientBinding = Tls13Handshake.establish(client, TIMEOUT);
-                Tls13SessionSecurity clientSecurity =
-                        Tls13SessionInspector.inspectClient(client, clientBinding);
-                client.getOutputStream().write(0x5A);
-                client.getOutputStream().flush();
-                assertThat(client.getInputStream().read()).isEqualTo(0xA5);
+            try (Tls13Connection client =
+                    Tls13ClientConnector.connect(
+                            server.connectSocket(), trustManager, new SecureRandom())) {
+                client.outputStream().write(0x5A);
+                client.outputStream().flush();
+                assertThat(client.inputStream().read()).isEqualTo(0xA5);
 
-                ServerObservation serverSecurity =
+                ServerObservation serverObservation =
                         observation.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
-                assertThat(clientSecurity.serverId()).isEqualTo(serverId);
-                assertThat(clientSecurity.channelBinding())
-                        .isEqualTo(serverSecurity.channelBinding());
-                assertThat(clientSecurity.cipherSuite()).isEqualTo(serverSecurity.cipherSuite());
-                assertThat(clientSecurity.applicationProtocol())
-                        .isEqualTo(Tls13Policy.APPLICATION_PROTOCOL);
-                assertThat(serverSecurity.applicationProtocol())
-                        .isEqualTo(Tls13Policy.APPLICATION_PROTOCOL);
-                assertThat(serverSecurity.receivedByte()).isEqualTo(0x5A);
+                assertThat(client.security().serverId()).isEqualTo(serverId);
+                assertThat(client.security().channelBinding())
+                        .isEqualTo(serverObservation.security().channelBinding());
+                assertThat(client.security().cipherSuite())
+                        .isEqualTo(serverObservation.security().cipherSuite());
+                assertThat(client.security().applicationProtocol())
+                        .isEqualTo(Tls13ProtocolPolicy.APPLICATION_PROTOCOL);
+                assertThat(serverObservation.security().applicationProtocol())
+                        .isEqualTo(Tls13ProtocolPolicy.APPLICATION_PROTOCOL);
+                assertThat(serverObservation.receivedByte()).isEqualTo(0x5A);
             }
         }
     }
@@ -101,61 +90,76 @@ class Tls13LoopbackIntegrationTest {
                     IdentityException,
                     ServerTrustStoreException,
                     TlsTransportException {
-        BouncyCastleTlsContexts contexts = new BouncyCastleTlsContexts();
         TestCertificateMaterial trusted = TestCertificateMaterial.create(CRYPTO_PROVIDER, 1L);
         TestCertificateMaterial attacker = TestCertificateMaterial.create(CRYPTO_PROVIDER, 2L);
+        Tls13ServerCredentials attackerCredentials =
+                Tls13ServerCredentials.create(
+                        attacker.keyPair().getPrivate(), List.of(attacker.certificate()));
         InMemoryServerTrustStore store = new InMemoryServerTrustStore();
         ServerTrustService trustService = new ServerTrustService(store);
+        ServerId trustedId = ServerId.fromPublicKey(trusted.keyPair().getPublic().getEncoded());
         trustService.confirmFirstUse(
-                REFERENCE,
-                ServerId.fromPublicKey(trusted.keyPair().getPublic().getEncoded()),
-                Optional.empty(),
-                "loopback test");
+                REFERENCE, trustedId, Optional.empty(), "loopback test");
+        PinnedServerTrustManager trustManager =
+                new PinnedServerTrustManager(trustService, REFERENCE, Optional.empty());
 
-        SSLContext serverContext =
-                contexts.create(attacker.keyManagers(), null, new SecureRandom());
-        SSLContext clientContext =
-                contexts.create(
-                        null,
-                        new TrustManager[] {
-                            new PinnedServerTrustManager(trustService, REFERENCE, Optional.empty())
-                        },
-                        new SecureRandom());
-
-        try (LoopbackServer server = new LoopbackServer(serverContext)) {
+        try (LoopbackServer server = new LoopbackServer(attackerCredentials)) {
             Future<ServerObservation> observation = server.acceptOne();
-            try (SSLSocket client = server.connect(clientContext)) {
-                Tls13Policy.configureClient(
-                        client, Tls13Policy.ServerAuthentication.PINNED_IDENTITY);
-                client.setSoTimeout((int) TIMEOUT.toMillis());
-                Throwable failure =
-                        catchThrowable(() -> Tls13Handshake.establish(client, TIMEOUT));
-                assertThat(failure)
-                        .isInstanceOf(IOException.class)
-                        .hasRootCauseInstanceOf(TlsTrustException.class);
-                TlsTrustException trustFailure = findCause(failure, TlsTrustException.class);
-                assertThat(trustFailure.status())
-                        .isEqualTo(ServerTrustDecision.Status.CHANGED_IDENTITY);
-            }
+            Throwable failure =
+                    catchThrowable(
+                            () ->
+                                    Tls13ClientConnector.connect(
+                                            server.connectSocket(),
+                                            trustManager,
+                                            new SecureRandom()));
+            assertThat(failure)
+                    .isInstanceOf(IOException.class)
+                    .hasRootCauseInstanceOf(TlsTrustException.class);
+            TlsTrustException trustFailure = findCause(failure, TlsTrustException.class);
+            assertThat(trustFailure.status())
+                    .isEqualTo(ServerTrustDecision.Status.CHANGED_IDENTITY);
+            assertThat(store.find(REFERENCE).orElseThrow().serverId()).isEqualTo(trustedId);
             assertExpectedServerHandshakeFailure(observation);
         }
     }
 
     @Test
-    void rejectsAJsseSocketThatCannotExposeTheTlsExporter() throws IOException {
-        try (SSLSocket socket =
-                (SSLSocket) javax.net.ssl.SSLSocketFactory.getDefault().createSocket()) {
-            assertThatThrownBy(() -> Tls13Handshake.establish(socket, TIMEOUT))
+    void requiresAConnectedSocketWithABoundedReadTimeout() throws IOException {
+        InMemoryServerTrustStore store = new InMemoryServerTrustStore();
+        PinnedServerTrustManager trustManager =
+                new PinnedServerTrustManager(
+                        new ServerTrustService(store), REFERENCE, Optional.empty());
+
+        try (Socket socket = new Socket()) {
+            assertThatThrownBy(
+                            () ->
+                                    Tls13ClientConnector.connect(
+                                            socket, trustManager, new SecureRandom()))
                     .isInstanceOfSatisfying(
                             TlsTransportException.class,
                             exception ->
                                     assertThat(exception.code())
                                             .isEqualTo(
                                                     TlsTransportException.Code
-                                                            .UNSUPPORTED_JSSE_SOCKET));
-            assertThatThrownBy(() -> Tls13Handshake.establish(socket, Duration.ZERO))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("completion timeout");
+                                                            .SOCKET_CONFIGURATION_INVALID));
+        }
+
+        try (ServerSocket listener =
+                        new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
+                Socket socket =
+                        new Socket(InetAddress.getLoopbackAddress(), listener.getLocalPort())) {
+            assertThat(socket.getSoTimeout()).isZero();
+            assertThatThrownBy(
+                            () ->
+                                    Tls13ClientConnector.connect(
+                                            socket, trustManager, new SecureRandom()))
+                    .isInstanceOfSatisfying(
+                            TlsTransportException.class,
+                            exception ->
+                                    assertThat(exception.code())
+                                            .isEqualTo(
+                                                    TlsTransportException.Code
+                                                            .SOCKET_CONFIGURATION_INVALID));
         }
     }
 
@@ -177,51 +181,42 @@ class Tls13LoopbackIntegrationTest {
         throw new AssertionError("expected cause " + type.getName(), failure);
     }
 
-    private record ServerObservation(
-            SecureChannelBinding channelBinding,
-            String cipherSuite,
-            String applicationProtocol,
-            int receivedByte) {}
+    private record ServerObservation(Tls13SessionSecurity security, int receivedByte) {}
 
     private static final class LoopbackServer implements AutoCloseable {
-        private final SSLServerSocket serverSocket;
+        private final ServerSocket serverSocket;
+        private final Tls13ServerCredentials credentials;
         private final ExecutorService executor;
 
-        private LoopbackServer(SSLContext context) throws IOException, TlsTransportException {
+        private LoopbackServer(Tls13ServerCredentials credentials) throws IOException {
+            this.credentials = credentials;
             serverSocket =
-                    (SSLServerSocket)
-                            context.getServerSocketFactory()
-                                    .createServerSocket(0, 1, InetAddress.getLoopbackAddress());
+                    new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
             serverSocket.setSoTimeout((int) TIMEOUT.toMillis());
-            Tls13Policy.configureServer(serverSocket);
             executor = Executors.newSingleThreadExecutor();
         }
 
         private Future<ServerObservation> acceptOne() {
             return executor.submit(
                     () -> {
-                        try (SSLSocket socket = (SSLSocket) serverSocket.accept()) {
-                            socket.setSoTimeout((int) TIMEOUT.toMillis());
-                            Tls13Policy.configureAcceptedServerSocket(socket);
-                            SecureChannelBinding binding =
-                                    Tls13Handshake.establish(socket, TIMEOUT);
-                            int received = socket.getInputStream().read();
-                            socket.getOutputStream().write(0xA5);
-                            socket.getOutputStream().flush();
-                            return new ServerObservation(
-                                    binding,
-                                    socket.getSession().getCipherSuite(),
-                                    socket.getApplicationProtocol(),
-                                    received);
+                        Socket socket = serverSocket.accept();
+                        socket.setSoTimeout((int) TIMEOUT.toMillis());
+                        try (Tls13Connection connection =
+                                Tls13ServerAcceptor.accept(
+                                        socket, credentials, new SecureRandom())) {
+                            int received = connection.inputStream().read();
+                            connection.outputStream().write(0xA5);
+                            connection.outputStream().flush();
+                            return new ServerObservation(connection.security(), received);
                         }
                     });
         }
 
-        private SSLSocket connect(SSLContext context) throws IOException {
-            return (SSLSocket)
-                    context.getSocketFactory()
-                            .createSocket(
-                                    InetAddress.getLoopbackAddress(), serverSocket.getLocalPort());
+        private Socket connectSocket() throws IOException {
+            Socket socket =
+                    new Socket(InetAddress.getLoopbackAddress(), serverSocket.getLocalPort());
+            socket.setSoTimeout((int) TIMEOUT.toMillis());
+            return socket;
         }
 
         @Override
