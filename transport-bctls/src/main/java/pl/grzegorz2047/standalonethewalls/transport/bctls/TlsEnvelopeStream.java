@@ -19,7 +19,7 @@ import pl.grzegorz2047.standalonethewalls.protocol.ProtocolVersion;
  * <p>Callers may use one reader and one writer concurrently. Multiple readers or multiple writers
  * are serialized independently. The class must not be called from the simulation thread.
  */
-public final class TlsEnvelopeStream implements AutoCloseable {
+public final class TlsEnvelopeStream implements AutoCloseable, ReliableEnvelopeStream {
     private final Tls13Connection connection;
     private final UUID sessionId;
     private final InputStream input;
@@ -45,11 +45,13 @@ public final class TlsEnvelopeStream implements AutoCloseable {
         return connection.security();
     }
 
+    @Override
     public boolean isOpen() {
         return !closed.get();
     }
 
     /** Atomically assigns and returns the next outbound sequence number. */
+    @Override
     public long send(MessageType messageType, byte[] payload)
             throws IOException, ProtocolException {
         Objects.requireNonNull(messageType, "messageType");
@@ -79,6 +81,7 @@ public final class TlsEnvelopeStream implements AutoCloseable {
     }
 
     /** Returns an empty result only for a clean EOF before the next fixed header begins. */
+    @Override
     public Optional<ProtocolEnvelope> receive() throws IOException, ProtocolException {
         synchronized (readLock) {
             ensureOpen();
