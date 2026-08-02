@@ -65,9 +65,7 @@ class TlsSessionBootstrapMalformedIntegrationTest {
                             try {
                                 sessions.add(
                                         TlsSessionBootstrap.acceptServerSession(
-                                                connection,
-                                                bootstrapConfig,
-                                                new SecureRandom()));
+                                                connection, bootstrapConfig, new SecureRandom()));
                             } catch (Exception exception) {
                                 failures.add(exception);
                             }
@@ -97,9 +95,7 @@ class TlsSessionBootstrapMalformedIntegrationTest {
                     setup.trustManager(),
                     offered -> {
                         byte[] record = TlsSessionBootstrapCodec.encodeAccept(offered);
-                        ByteBuffer.wrap(record)
-                                .order(ByteOrder.BIG_ENDIAN)
-                                .putShort(8, (short) 2);
+                        ByteBuffer.wrap(record).order(ByteOrder.BIG_ENDIAN).putShort(8, (short) 2);
                         return record;
                     },
                     TlsSessionBootstrapException.Code.UNSUPPORTED_PROTOCOL,

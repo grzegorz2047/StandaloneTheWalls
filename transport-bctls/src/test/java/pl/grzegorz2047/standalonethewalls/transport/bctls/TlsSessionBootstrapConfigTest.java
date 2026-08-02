@@ -9,10 +9,8 @@ import org.junit.jupiter.api.Test;
 class TlsSessionBootstrapConfigTest {
     @Test
     void acceptsBoundedMillisecondTimeouts() {
-        TlsSessionBootstrapConfig minimum =
-                new TlsSessionBootstrapConfig(Duration.ofMillis(1));
-        TlsSessionBootstrapConfig maximum =
-                new TlsSessionBootstrapConfig(Duration.ofSeconds(30));
+        TlsSessionBootstrapConfig minimum = new TlsSessionBootstrapConfig(Duration.ofMillis(1));
+        TlsSessionBootstrapConfig maximum = new TlsSessionBootstrapConfig(Duration.ofSeconds(30));
 
         assertThat(minimum.timeoutMillis()).isEqualTo(1);
         assertThat(maximum.timeoutMillis()).isEqualTo(30_000);

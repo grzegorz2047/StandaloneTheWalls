@@ -15,9 +15,7 @@ public final class TlsSessionBootstrap {
     }
 
     public static BootstrappedReliableSession acceptServerSession(
-            AcceptedTlsConnection connection,
-            TlsSessionBootstrapConfig config,
-            SecureRandom random)
+            AcceptedTlsConnection connection, TlsSessionBootstrapConfig config, SecureRandom random)
             throws IOException, TlsSessionBootstrapException {
         Objects.requireNonNull(connection, "connection");
         Objects.requireNonNull(config, "config");
@@ -37,9 +35,7 @@ public final class TlsSessionBootstrap {
             tlsConnection.setReadTimeoutMillis(0);
             TlsEnvelopeStream stream = new TlsEnvelopeStream(connection, sessionId);
             return new BootstrappedReliableSession(
-                    sessionId,
-                    connection.security(),
-                    new AsyncTlsReliableChannel(stream));
+                    sessionId, connection.security(), new AsyncTlsReliableChannel(stream));
         } catch (IOException exception) {
             if (containsSocketTimeout(exception)) {
                 TlsSessionBootstrapException failure = timeout(exception);
@@ -63,13 +59,12 @@ public final class TlsSessionBootstrap {
             configureBootstrapTimeout(connection, config);
             UUID sessionId =
                     TlsSessionBootstrapCodec.decodeOffer(readRecord(connection.inputStream()));
-            writeRecord(connection.outputStream(), TlsSessionBootstrapCodec.encodeAccept(sessionId));
+            writeRecord(
+                    connection.outputStream(), TlsSessionBootstrapCodec.encodeAccept(sessionId));
             connection.setReadTimeoutMillis(0);
             TlsEnvelopeStream stream = new TlsEnvelopeStream(connection, sessionId);
             return new BootstrappedReliableSession(
-                    sessionId,
-                    connection.security(),
-                    new AsyncTlsReliableChannel(stream));
+                    sessionId, connection.security(), new AsyncTlsReliableChannel(stream));
         } catch (IOException exception) {
             if (containsSocketTimeout(exception)) {
                 TlsSessionBootstrapException failure = timeout(exception);

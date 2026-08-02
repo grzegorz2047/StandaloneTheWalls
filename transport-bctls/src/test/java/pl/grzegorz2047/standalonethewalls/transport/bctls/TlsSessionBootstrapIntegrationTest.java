@@ -52,8 +52,7 @@ class TlsSessionBootstrapIntegrationTest {
         Setup setup = setup(51L);
         TlsSessionBootstrapConfig bootstrapConfig =
                 new TlsSessionBootstrapConfig(Duration.ofSeconds(2));
-        BlockingQueue<BootstrappedReliableSession> serverSessions =
-                new LinkedBlockingQueue<>();
+        BlockingQueue<BootstrappedReliableSession> serverSessions = new LinkedBlockingQueue<>();
         BlockingQueue<Throwable> failures = new LinkedBlockingQueue<>();
         BlockingQueue<Integer> serverTimeouts = new LinkedBlockingQueue<>();
         Tls13ServerListener listener =
@@ -64,9 +63,7 @@ class TlsSessionBootstrapIntegrationTest {
                             try {
                                 BootstrappedReliableSession session =
                                         TlsSessionBootstrap.acceptServerSession(
-                                                connection,
-                                                bootstrapConfig,
-                                                new SecureRandom());
+                                                connection, bootstrapConfig, new SecureRandom());
                                 serverTimeouts.add(connection.tlsConnection().readTimeoutMillis());
                                 serverSessions.add(session);
                             } catch (Exception exception) {
@@ -139,8 +136,7 @@ class TlsSessionBootstrapIntegrationTest {
         Setup setup = setup(52L);
         TlsSessionBootstrapConfig bootstrapConfig =
                 new TlsSessionBootstrapConfig(Duration.ofSeconds(2));
-        BlockingQueue<BootstrappedReliableSession> serverSessions =
-                new LinkedBlockingQueue<>();
+        BlockingQueue<BootstrappedReliableSession> serverSessions = new LinkedBlockingQueue<>();
         BlockingQueue<Throwable> failures = new LinkedBlockingQueue<>();
         Tls13ServerListener listener =
                 listener(
@@ -150,9 +146,7 @@ class TlsSessionBootstrapIntegrationTest {
                             try {
                                 serverSessions.add(
                                         TlsSessionBootstrap.acceptServerSession(
-                                                connection,
-                                                bootstrapConfig,
-                                                new SecureRandom()));
+                                                connection, bootstrapConfig, new SecureRandom()));
                             } catch (Exception exception) {
                                 failures.add(exception);
                             }
@@ -166,8 +160,7 @@ class TlsSessionBootstrapIntegrationTest {
         try {
             maliciousClient = connectTls(listener, setup.trustManager());
             UUID offered =
-                    TlsSessionBootstrapCodec.decodeOffer(
-                            readRecord(maliciousClient.inputStream()));
+                    TlsSessionBootstrapCodec.decodeOffer(readRecord(maliciousClient.inputStream()));
             UUID changed =
                     new UUID(
                             offered.getMostSignificantBits(),
@@ -211,8 +204,7 @@ class TlsSessionBootstrapIntegrationTest {
         Setup setup = setup(53L);
         TlsSessionBootstrapConfig shortConfig =
                 new TlsSessionBootstrapConfig(Duration.ofMillis(300));
-        BlockingQueue<BootstrappedReliableSession> serverSessions =
-                new LinkedBlockingQueue<>();
+        BlockingQueue<BootstrappedReliableSession> serverSessions = new LinkedBlockingQueue<>();
         BlockingQueue<Throwable> failures = new LinkedBlockingQueue<>();
         Tls13ServerListener listener =
                 listener(
@@ -222,9 +214,7 @@ class TlsSessionBootstrapIntegrationTest {
                             try {
                                 serverSessions.add(
                                         TlsSessionBootstrap.acceptServerSession(
-                                                connection,
-                                                shortConfig,
-                                                new SecureRandom()));
+                                                connection, shortConfig, new SecureRandom()));
                             } catch (Exception exception) {
                                 failures.add(exception);
                             }
@@ -258,9 +248,7 @@ class TlsSessionBootstrapIntegrationTest {
     }
 
     private static Tls13ServerListener listener(
-            Setup setup,
-            int maximumActiveConnections,
-            Tls13AcceptedConnectionHandler handler)
+            Setup setup, int maximumActiveConnections, Tls13AcceptedConnectionHandler handler)
             throws IOException {
         return new Tls13ServerListener(
                 new Tls13ServerListenerConfig(

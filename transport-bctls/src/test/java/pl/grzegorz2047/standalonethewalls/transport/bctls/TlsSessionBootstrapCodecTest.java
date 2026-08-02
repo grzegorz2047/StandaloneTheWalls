@@ -12,8 +12,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class TlsSessionBootstrapCodecTest {
-    private static final UUID SESSION_ID =
-            UUID.fromString("11111111-2222-4333-8444-555555555555");
+    private static final UUID SESSION_ID = UUID.fromString("11111111-2222-4333-8444-555555555555");
     private static final String OFFER_HEX =
             "53465342000100010001000011111111222243338444555555555555";
     private static final String ACCEPT_HEX =
@@ -55,9 +54,7 @@ class TlsSessionBootstrapCodecTest {
     @Test
     void rejectsZeroNonV4AndNonRfcVariantSessionIds() {
         assertCode(
-                replaceUuid(
-                        TlsSessionBootstrapCodec.encodeOffer(SESSION_ID),
-                        new UUID(0L, 0L)),
+                replaceUuid(TlsSessionBootstrapCodec.encodeOffer(SESSION_ID), new UUID(0L, 0L)),
                 TlsSessionBootstrapException.Code.INVALID_SESSION_ID);
         assertCode(
                 replaceUuid(
@@ -84,7 +81,8 @@ class TlsSessionBootstrapCodecTest {
                         exception -> {
                             assertThat(exception.code())
                                     .isEqualTo(TlsSessionBootstrapException.Code.INVALID_MAGIC);
-                            assertThat(exception.getMessage()).doesNotContain(HexFormat.of().formatHex(invalid));
+                            assertThat(exception.getMessage())
+                                    .doesNotContain(HexFormat.of().formatHex(invalid));
                         });
     }
 

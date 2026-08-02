@@ -12,9 +12,7 @@ public final class BootstrappedReliableSession {
     private final ReliableChannel reliableChannel;
 
     BootstrappedReliableSession(
-            UUID sessionId,
-            Tls13SessionSecurity security,
-            ReliableChannel reliableChannel) {
+            UUID sessionId, Tls13SessionSecurity security, ReliableChannel reliableChannel) {
         if (!TlsSessionBootstrapCodec.isValidSessionId(sessionId)) {
             throw new IllegalArgumentException("sessionId must be a non-zero RFC 4122 UUIDv4");
         }
@@ -45,9 +43,12 @@ public final class BootstrappedReliableSession {
 
     @Override
     public String toString() {
-        return "BootstrappedReliableSession[sessionId=" + sessionId
-                + ", serverId=" + security.serverId()
-                + ", open=" + isOpen()
+        return "BootstrappedReliableSession[sessionId="
+                + sessionId
+                + ", serverId="
+                + security.serverId()
+                + ", open="
+                + isOpen()
                 + ']';
     }
 }

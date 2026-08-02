@@ -12,9 +12,7 @@ public record TlsSessionBootstrapConfig(Duration timeout) {
 
     public TlsSessionBootstrapConfig {
         timeout = Objects.requireNonNull(timeout, "timeout");
-        if (timeout.isZero()
-                || timeout.isNegative()
-                || timeout.compareTo(MAXIMUM_TIMEOUT) > 0) {
+        if (timeout.isZero() || timeout.isNegative() || timeout.compareTo(MAXIMUM_TIMEOUT) > 0) {
             throw new IllegalArgumentException(
                     "session bootstrap timeout must be positive and no longer than 30 seconds");
         }
