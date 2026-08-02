@@ -152,18 +152,26 @@ class AssetPackSynchronizerTest {
                 createPackWithManifest("1.0.0", Map.of(), AssetPackManifestCodec.encode(missingManifest));
         assertManifestInvalid(missing);
 
-        AssetPackManifest orphanManifest =
-                new AssetPackManifest("core", "1.0.1", "CC0-1.0", List.of());
-        assertThatThrownBy(() -> AssetPackManifestCodec.encode(orphanManifest))
+        assertThatThrownBy(
+                        () ->
+                                new AssetPackManifest(
+                                        "core", "1.0.1", "CC0-1.0", List.of()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("file count");
 
+        byte[] listed = bytes("listed");
         byte[] orphanBytes =
                 bytes(
-                        "{\"files\":[],\"license\":\"CC0-1.0\",\"packId\":\"core\",\"version\":\"1.0.1\"}");
+                        "{\"files\":[{\"path\":\"data/listed.txt\",\"sha256\":\""
+                                + sha256(listed)
+                                + "\",\"size\":6}],\"license\":\"CC0-1.0\",\"packId\":\"core\",\"version\":\"1.0.1\"}");
         PackFixture orphan =
                 createPackWithManifest(
-                        "1.0.1", Map.of("data/orphan.txt", bytes("orphan")), orphanBytes);
+                        "1.0.1",
+                        Map.of(
+                                "data/listed.txt", listed,
+                                "data/orphan.txt", bytes("orphan")),
+                        orphanBytes);
         assertManifestInvalid(orphan);
 
         byte[] forbidden =
