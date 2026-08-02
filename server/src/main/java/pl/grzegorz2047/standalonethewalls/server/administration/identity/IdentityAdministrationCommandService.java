@@ -8,11 +8,15 @@ import pl.grzegorz2047.standalonethewalls.identity.policy.LocalPlayerBanAdminist
 public final class IdentityAdministrationCommandService {
     private final LocalHandleAdministrationService handles;
     private final LocalPlayerBanAdministrationService bans;
+    private final RegistryAdministrationOperations registry;
 
     public IdentityAdministrationCommandService(
-            LocalHandleAdministrationService handles, LocalPlayerBanAdministrationService bans) {
+            LocalHandleAdministrationService handles,
+            LocalPlayerBanAdministrationService bans,
+            RegistryAdministrationOperations registry) {
         this.handles = Objects.requireNonNull(handles, "handles");
         this.bans = Objects.requireNonNull(bans, "bans");
+        this.registry = Objects.requireNonNull(registry, "registry");
     }
 
     public IdentityAdministrationResponse execute(
@@ -30,6 +34,10 @@ public final class IdentityAdministrationCommandService {
                     new IdentityAdministrationResponse.Handles(handles.bindings());
             case IdentityAdministrationCommand.ListBans ignored ->
                     new IdentityAdministrationResponse.Bans(bans.bans());
+            case IdentityAdministrationCommand.VerifySnapshot ignored ->
+                    new IdentityAdministrationResponse.RegistryOperation(registry.verifySnapshot());
+            case IdentityAdministrationCommand.ReloadRegistry ignored ->
+                    new IdentityAdministrationResponse.RegistryOperation(registry.reloadRegistry());
             case IdentityAdministrationCommand.InspectHandle inspect ->
                     new IdentityAdministrationResponse.HandleInspection(
                             inspect.handle(), handles.inspect(inspect.handle()));
@@ -86,6 +94,10 @@ public final class IdentityAdministrationCommandService {
                 || command instanceof IdentityAdministrationCommand.RebindHandle) {
             return IdentityAdministrationPermission.MANAGE_HANDLE_BINDINGS;
         }
-        return IdentityAdministrationPermission.MANAGE_PLAYER_BANS;
+        if (command instanceof IdentityAdministrationCommand.BanPlayer
+                || command instanceof IdentityAdministrationCommand.UnbanPlayer) {
+            return IdentityAdministrationPermission.MANAGE_PLAYER_BANS;
+        }
+        return IdentityAdministrationPermission.MANAGE_REGISTRY;
     }
 }
