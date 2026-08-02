@@ -12,6 +12,19 @@ public record LocalIdentityProcessConfiguration(
         Path trustRootsPath,
         RegistryTrustBundle trustBundle,
         RegistrySnapshotPolicy registryPolicy) {
+    public LocalIdentityProcessConfiguration(
+            LocalIdentityRuntimeConfiguration runtimeConfiguration,
+            Path trustRootsPath,
+            RegistryTrustBundle trustBundle,
+            RegistrySnapshotPolicy registryPolicy,
+            RegistryRefreshConfiguration registryRefreshConfiguration) {
+        this(
+                withRefreshConfiguration(runtimeConfiguration, registryRefreshConfiguration),
+                trustRootsPath,
+                trustBundle,
+                registryPolicy);
+    }
+
     public LocalIdentityProcessConfiguration {
         runtimeConfiguration = Objects.requireNonNull(runtimeConfiguration, "runtimeConfiguration");
         trustRootsPath =
@@ -32,5 +45,17 @@ public record LocalIdentityProcessConfiguration(
 
     public RegistryRefreshConfiguration registryRefreshConfiguration() {
         return runtimeConfiguration.registryRefreshConfiguration();
+    }
+
+    private static LocalIdentityRuntimeConfiguration withRefreshConfiguration(
+            LocalIdentityRuntimeConfiguration configuration,
+            RegistryRefreshConfiguration refreshConfiguration) {
+        LocalIdentityRuntimeConfiguration runtime =
+                Objects.requireNonNull(configuration, "runtimeConfiguration");
+        return new LocalIdentityRuntimeConfiguration(
+                runtime.sqliteDatabasePath(),
+                runtime.registryBundlePath(),
+                runtime.authorizationMode(),
+                Objects.requireNonNull(refreshConfiguration, "registryRefreshConfiguration"));
     }
 }
