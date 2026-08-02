@@ -79,6 +79,22 @@ public final class LocalIdentityRuntime {
             RegistrySnapshotPolicy registryPolicy,
             RegistryRefreshConfiguration refreshConfiguration,
             Clock clock) {
+        return open(
+                configuration,
+                trustBundle,
+                registryPolicy,
+                refreshConfiguration,
+                clock,
+                RegistrySnapshotHttpsProvider::new);
+    }
+
+    static LocalIdentityRuntime open(
+            LocalIdentityRuntimeConfiguration configuration,
+            RegistryTrustBundle trustBundle,
+            RegistrySnapshotPolicy registryPolicy,
+            RegistryRefreshConfiguration refreshConfiguration,
+            Clock clock,
+            RegistryRefreshProviderFactory providerFactory) {
         LocalIdentityRuntimeConfiguration localConfiguration =
                 Objects.requireNonNull(configuration, "configuration");
         RegistryTrustBundle trustedRoots = Objects.requireNonNull(trustBundle, "trustBundle");
@@ -87,6 +103,8 @@ public final class LocalIdentityRuntime {
         RegistryRefreshConfiguration refreshSource =
                 Objects.requireNonNull(refreshConfiguration, "refreshConfiguration");
         Clock timeSource = Objects.requireNonNull(clock, "clock");
+        RegistryRefreshProviderFactory refreshProviders =
+                Objects.requireNonNull(providerFactory, "providerFactory");
 
         SqliteLocalPlayerBanAdministrationStore banStore =
                 new SqliteLocalPlayerBanAdministrationStore(
@@ -110,6 +128,7 @@ public final class LocalIdentityRuntime {
         RegistryAdministrationOperations registryAdministration =
                 registryAdministration(
                         refreshSource,
+                        refreshProviders,
                         registrySnapshots,
                         registryStore,
                         bundleFile,
@@ -166,6 +185,7 @@ public final class LocalIdentityRuntime {
 
     private static RegistryAdministrationOperations registryAdministration(
             RegistryRefreshConfiguration refreshConfiguration,
+            RegistryRefreshProviderFactory providerFactory,
             RegistrySnapshotService snapshots,
             AtomicRegistrySnapshotStore store,
             RegistrySnapshotBundleFile bundleFile,
@@ -175,11 +195,10 @@ public final class LocalIdentityRuntime {
         }
         RegistryRefreshConfiguration.Https https =
                 (RegistryRefreshConfiguration.Https) refreshConfiguration;
-        RegistrySnapshotProvider provider =
-                new RegistrySnapshotHttpsProvider(https.configuration());
+        RegistrySnapshotProvider provider = providerFactory.create(https.configuration());
         return new CachingRegistryAdministrationService(
                 snapshots,
-                provider,
+                Objects.requireNonNull(provider, "HTTPS registry provider"),
                 new RegistrySnapshotCachingRefreshService(snapshots, bundleFile),
                 store);
     }
