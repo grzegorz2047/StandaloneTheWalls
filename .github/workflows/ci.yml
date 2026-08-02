@@ -29,8 +29,8 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Run full quality gate
-        run: ./gradlew --no-daemon check
+      - name: Generate verification metadata and run quality gate
+        run: ./gradlew --no-daemon check --write-verification-metadata sha256
 
       - name: Upload quality reports
         if: always()
@@ -38,6 +38,7 @@ jobs:
         with:
           name: quality-reports-linux
           path: |
+            gradle/verification-metadata.xml
             **/build/reports/jacoco/**
             **/build/reports/spotbugs/**
             **/build/reports/tests/**
