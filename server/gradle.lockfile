@@ -45,6 +45,7 @@ org.ow2.asm:asm:9.10.1=jacocoAnt,spotbugs
 org.slf4j:slf4j-api:2.0.17=compileClasspath,runtimeClasspath,spotbugsSlf4j,testCompileClasspath,testRuntimeClasspath
 org.slf4j:slf4j-api:2.0.18=spotbugs
 org.slf4j:slf4j-simple:2.0.17=spotbugsSlf4j
+org.xerial:sqlite-jdbc:3.53.2.1=runtimeClasspath,testRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
 tools.jackson.core:jackson-core:3.2.1=runtimeClasspath,testRuntimeClasspath
 tools.jackson:jackson-bom:3.2.1=runtimeClasspath,testRuntimeClasspath
