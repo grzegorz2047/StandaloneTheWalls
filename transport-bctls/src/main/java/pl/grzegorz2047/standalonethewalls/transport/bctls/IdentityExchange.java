@@ -40,11 +40,7 @@ public final class IdentityExchange {
         Objects.requireNonNull(session, "session");
         Objects.requireNonNull(challengeService, "challengeService");
         Objects.requireNonNull(config, "config");
-        return start(
-                session,
-                "server",
-                () -> runServer(session, challengeService, config),
-                config);
+        return start(session, "server", () -> runServer(session, challengeService, config), config);
     }
 
     public static CompletionStage<AuthenticatedReliableSession> authenticateClient(
@@ -168,8 +164,7 @@ public final class IdentityExchange {
                 throw failure;
             }
 
-            IdentityVerification verification =
-                    challengeService.verify(session.sessionId(), proof);
+            IdentityVerification verification = challengeService.verify(session.sessionId(), proof);
             challengeConsumed = true;
             IdentityResultStatus status =
                     IdentityResultStatus.fromVerification(verification.status());

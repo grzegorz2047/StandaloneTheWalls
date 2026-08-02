@@ -17,9 +17,12 @@ public final class IdentityExchangeException extends Exception {
         this(code, message, cause, Optional.empty());
     }
 
-    public IdentityExchangeException(
-            Code code, String message, IdentityResultStatus resultStatus) {
-        this(code, message, null, Optional.of(Objects.requireNonNull(resultStatus, "resultStatus")));
+    public IdentityExchangeException(Code code, String message, IdentityResultStatus resultStatus) {
+        this(
+                code,
+                message,
+                null,
+                Optional.of(Objects.requireNonNull(resultStatus, "resultStatus")));
     }
 
     private IdentityExchangeException(

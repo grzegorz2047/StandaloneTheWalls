@@ -158,8 +158,7 @@ class IdentityExchangeIntegrationTest {
                     IdentityPayloadCodec.decodeChallenge(firstChallengeEnvelope.payload());
             IdentityChallenge firstChallenge = localChallenge(firstClient, firstChallengePayload);
             IdentityProof firstProof =
-                    IdentityProof.create(
-                            identity, ProtocolVersion.CURRENT, firstChallenge, handle);
+                    IdentityProof.create(identity, ProtocolVersion.CURRENT, firstChallenge, handle);
             byte[] replayedProofPayload = IdentityPayloadCodec.encodeProof(firstProof);
 
             assertThat(
@@ -225,9 +224,7 @@ class IdentityExchangeIntegrationTest {
                     TimeoutException {
         IdentityExchangeConfig shortConfig =
                 new IdentityExchangeConfig(
-                        Duration.ofMillis(250),
-                        Duration.ofMillis(700),
-                        Duration.ofSeconds(1));
+                        Duration.ofMillis(250), Duration.ofMillis(700), Duration.ofSeconds(1));
         Setup setup = setup(63L, shortConfig, 1);
         PlayerIdentity identity = PlayerIdentity.generate(new SecureRandom());
         setup.listener().start();
@@ -291,10 +288,7 @@ class IdentityExchangeIntegrationTest {
         IdentityChallengeService challengeService =
                 new IdentityChallengeService(
                         new ChallengeLedger(
-                                Clock.systemUTC(),
-                                new SecureRandom(),
-                                Duration.ofSeconds(3),
-                                16));
+                                Clock.systemUTC(), new SecureRandom(), Duration.ofSeconds(3), 16));
         BlockingQueue<AuthenticatedReliableSession> authenticated = new LinkedBlockingQueue<>();
         BlockingQueue<Throwable> failures = new LinkedBlockingQueue<>();
         Tls13ServerListener listener =
@@ -311,9 +305,7 @@ class IdentityExchangeIntegrationTest {
                             try {
                                 BootstrappedReliableSession session =
                                         TlsSessionBootstrap.acceptServerSession(
-                                                connection,
-                                                BOOTSTRAP_CONFIG,
-                                                new SecureRandom());
+                                                connection, BOOTSTRAP_CONFIG, new SecureRandom());
                                 IdentityExchange.authenticateServer(
                                                 session, challengeService, exchangeConfig)
                                         .whenComplete(

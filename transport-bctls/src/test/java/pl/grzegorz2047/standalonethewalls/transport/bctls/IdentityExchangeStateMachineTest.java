@@ -33,8 +33,7 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerId;
 
 class IdentityExchangeStateMachineTest {
     private static final Duration TEST_TIMEOUT = Duration.ofSeconds(5);
-    private static final UUID SESSION_ID =
-            UUID.fromString("11111111-2222-4333-8444-555555555555");
+    private static final UUID SESSION_ID = UUID.fromString("11111111-2222-4333-8444-555555555555");
     private static final ServerId SERVER_ID =
             new ServerId("sfs1_ne2243wbcs3fox5evlg23khripu53paxtss2ckqxnycbtqgks7ua");
 
@@ -60,8 +59,7 @@ class IdentityExchangeStateMachineTest {
                                 Clock.systemUTC(),
                                 IdentityExchangeConfig.DEFAULT));
 
-        assertThat(failure.code())
-                .isEqualTo(IdentityExchangeException.Code.UNEXPECTED_MESSAGE);
+        assertThat(failure.code()).isEqualTo(IdentityExchangeException.Code.UNEXPECTED_MESSAGE);
         assertThat(channel.closeCount()).isEqualTo(1);
         assertThat(channel.isOpen()).isFalse();
     }
@@ -75,9 +73,7 @@ class IdentityExchangeStateMachineTest {
         PlayerIdentity identity = PlayerIdentity.generate(new SecureRandom());
         IdentityExchangeConfig shortConfig =
                 new IdentityExchangeConfig(
-                        Duration.ofMillis(25),
-                        Duration.ofMillis(50),
-                        Duration.ofMillis(50));
+                        Duration.ofMillis(25), Duration.ofMillis(50), Duration.ofMillis(50));
 
         IdentityExchangeException first =
                 awaitFailure(
@@ -110,7 +106,8 @@ class IdentityExchangeStateMachineTest {
 
         ScriptedChannel sendDelegate = new ScriptedChannel();
         AuthenticatedReliableSession sendSession =
-                new AuthenticatedReliableSession(session(sendDelegate), identity.playerId(), handle);
+                new AuthenticatedReliableSession(
+                        session(sendDelegate), identity.playerId(), handle);
         IdentityExchangeException sendFailure =
                 awaitFailure(
                         sendSession
@@ -123,7 +120,8 @@ class IdentityExchangeStateMachineTest {
         ScriptedChannel receiveDelegate = new ScriptedChannel();
         receiveDelegate.enqueue(envelope(MessageType.IDENTITY_CHALLENGE, 0L, new byte[0]));
         AuthenticatedReliableSession receiveSession =
-                new AuthenticatedReliableSession(session(receiveDelegate), identity.playerId(), handle);
+                new AuthenticatedReliableSession(
+                        session(receiveDelegate), identity.playerId(), handle);
         IdentityExchangeException receiveFailure =
                 awaitFailure(receiveSession.reliableChannel().receive());
         assertThat(receiveFailure.code())
@@ -186,8 +184,7 @@ class IdentityExchangeStateMachineTest {
         }
 
         @Override
-        public CompletionStage<ReliableSendResult> send(
-                MessageType messageType, byte[] payload) {
+        public CompletionStage<ReliableSendResult> send(MessageType messageType, byte[] payload) {
             if (!open.get()) {
                 return CompletableFuture.failedFuture(
                         new IllegalStateException("scripted channel is closed"));

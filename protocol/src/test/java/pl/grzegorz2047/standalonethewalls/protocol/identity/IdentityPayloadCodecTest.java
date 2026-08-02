@@ -67,8 +67,7 @@ class IdentityPayloadCodecTest {
 
     @Test
     void encodesAndDecodesCanonicalAcceptedResultVector() throws IdentityPayloadException {
-        IdentityResultPayload payload =
-                new IdentityResultPayload(IdentityResultStatus.ACCEPTED);
+        IdentityResultPayload payload = new IdentityResultPayload(IdentityResultStatus.ACCEPTED);
 
         byte[] encoded = IdentityPayloadCodec.encodeResult(payload);
 
@@ -144,8 +143,7 @@ class IdentityPayloadCodecTest {
                         failure -> assertThat(failure.code()).isEqualTo(expected));
     }
 
-    private static void assertProofCode(
-            byte[] encoded, IdentityPayloadException.Code expected) {
+    private static void assertProofCode(byte[] encoded, IdentityPayloadException.Code expected) {
         assertThatThrownBy(() -> IdentityPayloadCodec.decodeProof(encoded))
                 .isInstanceOfSatisfying(
                         IdentityPayloadException.class,

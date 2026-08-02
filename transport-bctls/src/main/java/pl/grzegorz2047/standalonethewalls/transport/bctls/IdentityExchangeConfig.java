@@ -16,16 +16,14 @@ public record IdentityExchangeConfig(
 
     public IdentityExchangeConfig {
         stepTimeout = requireDuration(stepTimeout, "stepTimeout", MAXIMUM_STEP_TIMEOUT);
-        overallTimeout =
-                requireDuration(overallTimeout, "overallTimeout", MAXIMUM_OVERALL_TIMEOUT);
+        overallTimeout = requireDuration(overallTimeout, "overallTimeout", MAXIMUM_OVERALL_TIMEOUT);
         closeTimeout = requireDuration(closeTimeout, "closeTimeout", MAXIMUM_CLOSE_TIMEOUT);
         if (overallTimeout.compareTo(stepTimeout) < 0) {
             throw new IllegalArgumentException("overallTimeout cannot be shorter than stepTimeout");
         }
     }
 
-    private static Duration requireDuration(
-            Duration value, String field, Duration maximum) {
+    private static Duration requireDuration(Duration value, String field, Duration maximum) {
         Duration duration = Objects.requireNonNull(value, field);
         if (duration.isZero() || duration.isNegative() || duration.compareTo(maximum) > 0) {
             throw new IllegalArgumentException(field + " is outside the safe range");

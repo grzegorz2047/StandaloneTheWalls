@@ -18,10 +18,7 @@ class ChallengeDiscardTest {
         IdentityChallengeService service =
                 new IdentityChallengeService(
                         new ChallengeLedger(
-                                Clock.systemUTC(),
-                                new SecureRandom(),
-                                Duration.ofSeconds(30),
-                                4));
+                                Clock.systemUTC(), new SecureRandom(), Duration.ofSeconds(30), 4));
         UUID first = UUID.fromString("11111111-2222-3333-4444-555555555555");
         UUID second = UUID.fromString("aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee");
         service.issue(SERVER_ID, first, CHANNEL_BINDING);
@@ -39,8 +36,7 @@ class ChallengeDiscardTest {
     private static IdentityProof placeholderProof() {
         byte[] publicKey =
                 java.util.Base64.getDecoder()
-                        .decode(
-                                "MCowBQYDK2VwAyEAoBGdJyYRGPquhsJXoEoTOOticDHR4bM2z/5DScGCHPU=");
+                        .decode("MCowBQYDK2VwAyEAoBGdJyYRGPquhsJXoEoTOOticDHR4bM2z/5DScGCHPU=");
         return new IdentityProof(
                 pl.grzegorz2047.standalonethewalls.protocol.ProtocolVersion.CURRENT,
                 new CanonicalHandle("player_one"),

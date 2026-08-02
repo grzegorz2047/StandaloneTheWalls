@@ -31,7 +31,8 @@ public final class IdentityPayloadCodec {
 
     public static byte[] encodeChallenge(IdentityChallenge challenge) {
         Objects.requireNonNull(challenge, "challenge");
-        return encodeChallenge(new IdentityChallengePayload(challenge.nonce(), challenge.expiresAt()));
+        return encodeChallenge(
+                new IdentityChallengePayload(challenge.nonce(), challenge.expiresAt()));
     }
 
     public static byte[] encodeChallenge(IdentityChallengePayload payload) {
@@ -150,7 +151,8 @@ public final class IdentityPayloadCodec {
         Objects.requireNonNull(payload, "payload");
         byte[] code = ascii(payload.publicCode());
         if (code.length < 1 || code.length > MAXIMUM_PUBLIC_CODE_BYTES) {
-            throw new IllegalArgumentException("identity result public code is outside the wire range");
+            throw new IllegalArgumentException(
+                    "identity result public code is outside the wire range");
         }
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream(MAXIMUM_RESULT_BYTES);
@@ -178,8 +180,7 @@ public final class IdentityPayloadCodec {
                                             new IdentityPayloadException(
                                                     IdentityPayloadException.Code.INVALID_STATUS,
                                                     "identity result status is unknown"));
-            String publicCode =
-                    readAsciiField(input, 1, MAXIMUM_PUBLIC_CODE_BYTES, "public code");
+            String publicCode = readAsciiField(input, 1, MAXIMUM_PUBLIC_CODE_BYTES, "public code");
             requireEnd(input);
             if (!status.publicCode().equals(publicCode)) {
                 throw new IdentityPayloadException(
@@ -224,8 +225,7 @@ public final class IdentityPayloadCodec {
         output.write(value);
     }
 
-    private static byte[] readField(
-            DataInputStream input, int minimum, int maximum, String field)
+    private static byte[] readField(DataInputStream input, int minimum, int maximum, String field)
             throws IOException, IdentityPayloadException {
         int length = input.readUnsignedShort();
         if (length < minimum || length > maximum) {
