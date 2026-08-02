@@ -39,9 +39,9 @@ capacities above the current product target fail closed.
 ## Local identity process configuration
 
 Issue #69 adds a separate strict configuration file for the inputs required by
-`LocalIdentityRuntime`. Copy `identity.properties.example` and replace every path
-and authorization choice intentionally. Issue #70 connects the validated result to
-`ServerLauncher` through `--identity-config`.
+`LocalIdentityRuntime`. Copy `identity.properties.example` and replace every path,
+authorization choice, trust root, and refresh source intentionally. Issue #70
+connects the validated result to `ServerLauncher` through `--identity-config`.
 
 Required literal `key=value` properties are:
 
@@ -50,9 +50,10 @@ identity.sqlite-path=<file>
 identity.registry-bundle-path=<file>
 identity.authorization-mode=LOCAL_TOFU|GLOBAL_ONLY|HYBRID
 identity.trust-roots-path=<file>
+identity.registry.refresh-source=LOCAL_BUNDLE|HTTPS
 ```
 
-Optional bounded policy overrides are:
+Optional bounded registry policy overrides are:
 
 ```text
 identity.registry.minimum-sequence=<unsigned integer>
@@ -69,8 +70,8 @@ different files.
 
 The parser reads at most 64 KiB of strict UTF-8. It rejects symlinks, non-regular
 files, malformed UTF-8, escapes, edge whitespace, controls, unknown properties,
-duplicate keys, and malformed numeric values. Missing paths or authorization mode
-are errors; there is no implicit identity mode.
+duplicate keys, and malformed numeric values. Missing paths, authorization mode,
+or refresh source are errors; there is no implicit process identity policy.
 
 The trust-root file is separate, at most 16 KiB, and contains 1–64 non-empty lines.
 Every line must be lowercase hexadecimal X.509 DER for an Ed25519 public key.
@@ -82,12 +83,53 @@ not a production or test trust root. Replace it with an explicitly provisioned
 public registry root before loading the identity configuration. Private keys and
 credentials do not belong in either configuration file.
 
-In validate-only mode the launcher parses the identity file and trust roots but
-does not open the runtime, create SQLite, migrate schema, or load the registry
-bundle through a runtime provider. In a normal start, invalid trust roots or SQLite
-open/schema failure return the configuration exit code before the tick loop.
-Missing or rejected registry bundle data remains a typed startup state rather than
-a process failure or generated default snapshot.
+### Registry refresh source
+
+The refresh source controls only the administrative `identity verify-snapshot` and
+`identity reload-registry` commands. Runtime startup always verifies the configured
+local `SFRB` bundle and never performs an HTTP request. A valid local cache can
+therefore restore the server while GitHub, a mirror, DNS, or the network is down.
+
+`LOCAL_BUNDLE` keeps verification and reload pointed at the local file. HTTPS
+properties are rejected in this mode rather than ignored.
+
+`HTTPS` requires all three explicit immutable versioned resources:
+
+```text
+identity.registry.https.json-uri=https://registry.example/releases/v1/registry-v1.json
+identity.registry.https.digest-uri=https://registry.example/releases/v1/registry-v1.sha256
+identity.registry.https.signature-uri=https://registry.example/releases/v1/registry-v1.sig
+```
+
+Optional bounded transport overrides are:
+
+```text
+identity.registry.https.connect-timeout-seconds=<unsigned integer>
+identity.registry.https.request-timeout-seconds=<unsigned integer>
+```
+
+The defaults are 10 and 30 seconds. Every URI must be absolute HTTPS with a host,
+without user information or a fragment, and the three normalized URIs must differ.
+Mutable `latest` discovery, GitHub API calls, credentials, and authenticated
+requests are not supported. The configured registry maximum JSON bytes is also the
+hard HTTPS JSON response limit.
+
+With `HTTPS`, `verify-snapshot` downloads and verifies the three-resource artifact
+without changing active state or the local cache. `reload-registry` verifies the
+same artifact, atomically persists its exact bytes to the local `SFRB`, and only
+then publishes it in the shared active store. Provider, signature, rollback,
+equivocation, or cache-write failure preserves the prior active snapshot and prior
+bundle.
+
+Validate-only mode parses the source-specific properties and trust roots but does
+not construct the runtime, create SQLite, load the local bundle, or execute HTTP.
+Retry, backoff, jitter, and automatic refresh scheduling are not part of this
+configuration.
+
+In a normal start, invalid trust roots or SQLite open/schema failure return the
+configuration exit code before the tick loop. Missing or rejected local bundle data
+remains a typed startup state rather than a process failure or generated default
+snapshot.
 
 Launcher identity logs contain only enabled/disabled state, authorization mode,
 registry startup result code, and registry availability state. They do not contain
@@ -115,32 +157,37 @@ or lobby membership.
 
 ## Local identity runtime composition
 
-Issue #68 adds `LocalIdentityRuntime` as the single local composition used by
-session admission and identity administration. Its configuration contains one
-SQLite database path, one different registry bundle path, and one explicit handle
-authorization mode.
+Issue #68 adds `LocalIdentityRuntime` as the single composition used by session
+admission and identity administration. Its configuration contains one SQLite
+path, one different local registry bundle path, one explicit handle authorization
+mode, and one explicit administrative refresh source.
 
 Opening the runtime constructs:
 
 - handle binding and player-ban SQLite stores on the same database file;
-- one atomic registry snapshot store;
-- one local `SFRB` bundle provider;
-- registry verification and administration services;
+- one atomic registry snapshot store shared by startup, administration, and
+  admission;
+- one local `SFRB` provider used exclusively for startup recovery;
+- the selected local or HTTPS administration provider;
+- one registry verifier and one local bundle cache;
 - the ban-before-handle session admission gate;
 - the typed identity administration command service.
 
-The runtime attempts one local registry reload during construction and retains the
+The runtime attempts one local bundle reload during construction and retains the
 typed result. A missing bundle remains `PROVIDER_FAILURE`; a rejected artifact
-remains `SNAPSHOT_REJECTED`; neither creates a default snapshot. `LOCAL_TOFU` can
-operate without registry data only when explicitly selected. `GLOBAL_ONLY` and
-`HYBRID` keep their existing fail-closed decisions.
+remains `SNAPSHOT_REJECTED`; neither creates a default snapshot. Constructing an
+HTTPS-enabled runtime does not execute remote I/O.
 
-Registry availability is computed dynamically from the shared store, clock, and
-policy. A later authorized `reload-registry` command is therefore immediately
-visible to the next admission call. Bindings and player bans survive reopening via
-the shared SQLite file. `ServerLauncher` owns one runtime for the process lifetime
-when `--identity-config` is supplied. Sockets, TLS, refresh scheduling, and lobby
-membership remain outside this composition.
+`LOCAL_TOFU` can operate without registry data only when explicitly selected.
+`GLOBAL_ONLY` and `HYBRID` keep their existing fail-closed decisions. Registry
+availability is computed dynamically from the one shared store, clock, and policy.
+A successful authorized remote reload is therefore immediately visible to the next
+admission call and survives restart through the local bundle.
+
+Bindings and player bans survive reopening via the shared SQLite file.
+`ServerLauncher` owns one runtime for the process lifetime when `--identity-config`
+is supplied. Sockets, TLS, automatic refresh scheduling, and lobby membership
+remain outside this composition.
 
 ## Local identity administration commands
 
@@ -170,16 +217,17 @@ manage handle bindings, manage player bans, or manage the registry provider.
 Permission denial happens before any mutation or provider I/O. Successful binding
 and ban commands delegate to the existing atomic audited policy services.
 
-`verify-snapshot` loads and cryptographically verifies the configured provider
-artifact without changing the active snapshot. `reload-registry` verifies first
-and then activates only a monotonic higher sequence; an identical artifact returns
-`UNCHANGED`. Provider, signature, rollback, and equivocation failures preserve the
-last known good active snapshot.
+`verify-snapshot` loads and cryptographically verifies the configured administrative
+refresh source without changing the active snapshot or cache. `reload-registry`
+verifies and applies only a monotonic candidate. With HTTPS it atomically writes the
+exact verified artifact to the local bundle before publishing active state. An
+identical artifact returns `UNCHANGED` without rewriting the bundle.
 
-Registry responses contain only sequence, generation time, registry root ID,
-SHA-256 digest, entry count, and stable semantic result codes. They never contain
-canonical JSON, signature bytes, provider exception text, private keys, IP
-addresses, credentials, or sockets.
+Provider, signature, rollback, equivocation, and cache failures preserve the last
+known good active snapshot. Registry responses contain only sequence, generation
+time, registry root ID, SHA-256 digest, entry count, and stable semantic result
+codes. They never contain canonical JSON, signature bytes, provider exception text,
+private keys, IP addresses, credentials, or sockets.
 
 ## One-shot local identity administration
 
@@ -226,6 +274,8 @@ Exit codes are:
 
 Because each invocation reopens the configured runtime, successful bindings and
 player bans are visible to later one-shot commands through the shared SQLite file.
+A successful HTTPS reload is also available to later offline starts through the
+local registry bundle.
 
 ## Smoke mode
 
@@ -257,4 +307,5 @@ thread as normal operation and exits after the requested number of executed tick
 - Tests inject a fake clock and sleeper; they do not wait on real tick intervals.
 
 The handler is still a boundary only. Wiring the match lifecycle, map state,
-transport queues, and administration belongs to later issues.
+transport queues, automatic registry refresh, and remote administration belongs to
+later issues.
