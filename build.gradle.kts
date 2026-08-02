@@ -182,6 +182,7 @@ val engineFreeModules = listOf(
     "identity-registry",
     "identity-registry-file",
     "identity-policy",
+    "identity-policy-sqlite",
 )
 val engineFreeSourceDirectories =
     engineFreeModules.map { module -> layout.projectDirectory.dir("$module/src") }
