@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Properties;
 import pl.grzegorz2047.standalonethewalls.identity.policy.InMemoryLocalHandleBindingStore;
 import pl.grzegorz2047.standalonethewalls.identity.policy.LocalHandleAdministrationReason;
 import pl.grzegorz2047.standalonethewalls.identity.policy.LocalHandleAdministrationResult;
@@ -289,6 +290,10 @@ public final class SqliteLocalHandleAdministrationStore implements LocalHandleAd
 
     private void preparePath() {
         Path parent = path.getParent();
+        if (parent == null) {
+            throw new SqliteLocalHandleStoreException(
+                    "SQLite local identity path has no parent directory");
+        }
         try {
             Files.createDirectories(parent);
             if (Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
@@ -412,8 +417,8 @@ public final class SqliteLocalHandleAdministrationStore implements LocalHandleAd
             throw new SQLException("SQLite local identity schema version is unsupported");
         }
         validateRequiredColumns(connection);
-        if (count(connection, BINDINGS_TABLE) > maximumBindings
-                || count(connection, AUDIT_TABLE) > maximumAuditEvents) {
+        if (countBindings(connection) > maximumBindings
+                || countAuditEvents(connection) > maximumAuditEvents) {
             throw new SQLException("SQLite local identity data exceeds configured capacity");
         }
     }
@@ -577,25 +582,38 @@ public final class SqliteLocalHandleAdministrationStore implements LocalHandleAd
     }
 
     private boolean hasBindingAndAuditCapacity(Connection connection) throws SQLException {
-        return count(connection, BINDINGS_TABLE) < maximumBindings && hasAuditCapacity(connection);
+        return countBindings(connection) < maximumBindings && hasAuditCapacity(connection);
     }
 
     private boolean hasAuditCapacity(Connection connection) throws SQLException {
-        return count(connection, AUDIT_TABLE) < maximumAuditEvents;
+        return countAuditEvents(connection) < maximumAuditEvents;
     }
 
-    private static long count(Connection connection, String table) throws SQLException {
+    private static long countBindings(Connection connection) throws SQLException {
         try (Statement statement = connection.createStatement();
-                ResultSet result = statement.executeQuery("SELECT COUNT(*) FROM " + table)) {
-            if (!result.next()) {
-                throw new SQLException("SQLite count query returned no row");
-            }
-            long count = result.getLong(1);
-            if (count < 0L || result.next()) {
-                throw new SQLException("SQLite count query returned an invalid result");
-            }
-            return count;
+                ResultSet result =
+                        statement.executeQuery("SELECT COUNT(*) FROM local_handle_bindings")) {
+            return readCount(result);
         }
+    }
+
+    private static long countAuditEvents(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement();
+                ResultSet result =
+                        statement.executeQuery("SELECT COUNT(*) FROM local_handle_audit")) {
+            return readCount(result);
+        }
+    }
+
+    private static long readCount(ResultSet result) throws SQLException {
+        if (!result.next()) {
+            throw new SQLException("SQLite count query returned no row");
+        }
+        long count = result.getLong(1);
+        if (count < 0L || result.next()) {
+            throw new SQLException("SQLite count query returned an invalid result");
+        }
+        return count;
     }
 
     private static long nextAuditSequence(Connection connection) throws SQLException {
@@ -651,10 +669,11 @@ public final class SqliteLocalHandleAdministrationStore implements LocalHandleAd
     }
 
     private Connection openConnection() throws SQLException {
-        Connection connection = DriverManager.getConnection("jdbc:sqlite:" + path);
+        Properties properties = new Properties();
+        properties.setProperty("busy_timeout", Integer.toString(busyTimeoutMillis));
+        Connection connection = DriverManager.getConnection("jdbc:sqlite:" + path, properties);
         try (Statement statement = connection.createStatement()) {
             statement.execute("PRAGMA foreign_keys = ON");
-            statement.execute("PRAGMA busy_timeout = " + busyTimeoutMillis);
         } catch (SQLException exception) {
             try {
                 connection.close();
