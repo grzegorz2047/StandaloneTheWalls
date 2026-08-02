@@ -58,11 +58,9 @@ class SessionIdentityAdmissionServiceTest {
                         HANDLE,
                         FIRST,
                         RegistrySnapshotAvailability.absent());
-        assertThat(firstUse)
-                .isEqualTo(SessionIdentityAdmissionDecision.LOCAL_FIRST_USE_ACCEPTED);
+        assertThat(firstUse).isEqualTo(SessionIdentityAdmissionDecision.LOCAL_FIRST_USE_ACCEPTED);
         assertThat(firstUse.isAccepted()).isTrue();
-        assertThat(firstUse.verificationLevel())
-                .contains(HandleVerificationLevel.LOCAL_UNVERIFIED);
+        assertThat(firstUse.verificationLevel()).contains(HandleVerificationLevel.LOCAL_UNVERIFIED);
 
         assertThat(
                         service.evaluate(
