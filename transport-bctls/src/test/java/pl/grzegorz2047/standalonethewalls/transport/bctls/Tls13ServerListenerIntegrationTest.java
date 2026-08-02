@@ -87,7 +87,7 @@ class Tls13ServerListenerIntegrationTest {
             firstLease.close();
             firstLease.close();
             waitUntil(() -> listener.activeConnectionCount() == 0, "first lease release");
-            closeQuietly(firstClient);
+            closeForCleanup(firstClient);
             firstClient = null;
 
             thirdClient = connect(listener, setup.trustManager());
@@ -102,10 +102,10 @@ class Tls13ServerListenerIntegrationTest {
             assertThat(listener.inFlightHandshakeCount()).isZero();
             assertThat(thirdLease.isOpen()).isFalse();
         } finally {
-            closeQuietly(rejected);
-            closeQuietly(firstClient);
-            closeQuietly(thirdClient);
-            closeQuietly(listener);
+            closeForCleanup(rejected);
+            closeForCleanup(firstClient);
+            closeForCleanup(thirdClient);
+            closeForCleanup(listener);
         }
     }
 
@@ -155,10 +155,10 @@ class Tls13ServerListenerIntegrationTest {
             waitUntil(() -> listener.activeConnectionCount() == 0, "valid lease release");
             assertThat(listener.isRunning()).isTrue();
         } finally {
-            closeQuietly(stalled);
-            closeQuietly(rejected);
-            closeQuietly(validClient);
-            closeQuietly(listener);
+            closeForCleanup(stalled);
+            closeForCleanup(rejected);
+            closeForCleanup(validClient);
+            closeForCleanup(listener);
         }
     }
 
@@ -201,7 +201,7 @@ class Tls13ServerListenerIntegrationTest {
                             failure ->
                                     assertThat(failure).isInstanceOf(IllegalStateException.class));
             waitUntil(() -> listener.activeConnectionCount() == 0, "failed handler lease release");
-            closeQuietly(firstClient);
+            closeForCleanup(firstClient);
             firstClient = null;
 
             secondClient = connect(listener, setup.trustManager());
@@ -211,9 +211,9 @@ class Tls13ServerListenerIntegrationTest {
             assertThat(listener.isRunning()).isTrue();
             secondLease.close();
         } finally {
-            closeQuietly(firstClient);
-            closeQuietly(secondClient);
-            closeQuietly(listener);
+            closeForCleanup(firstClient);
+            closeForCleanup(secondClient);
+            closeForCleanup(listener);
         }
     }
 
@@ -237,7 +237,14 @@ class Tls13ServerListenerIntegrationTest {
                 new Tls13ServerListener(
                         config(1, 1, Duration.ofSeconds(10)),
                         setup.credentials(),
-                        connection -> closeQuietly(connection),
+                        connection -> {
+                            try {
+                                connection.close();
+                            } catch (IOException exception) {
+                                throw new IllegalStateException(
+                                        "listener fixture could not close a connection", exception);
+                            }
+                        },
                         events::add);
         listener.start();
 
@@ -261,8 +268,8 @@ class Tls13ServerListenerIntegrationTest {
                                     event.code()
                                             == Tls13ServerListenerEvent.Code.ACCEPT_LOOP_FAILED);
         } finally {
-            closeQuietly(stalled);
-            closeQuietly(listener);
+            closeForCleanup(stalled);
+            closeForCleanup(listener);
         }
     }
 
@@ -306,7 +313,11 @@ class Tls13ServerListenerIntegrationTest {
         try {
             return Tls13ClientConnector.connect(socket, trustManager, new SecureRandom());
         } catch (IOException | TlsTransportException | RuntimeException exception) {
-            closeQuietly(socket);
+            try {
+                socket.close();
+            } catch (IOException closeFailure) {
+                exception.addSuppressed(closeFailure);
+            }
             throw exception;
         }
     }
@@ -363,14 +374,14 @@ class Tls13ServerListenerIntegrationTest {
         stage.toCompletableFuture().get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
     }
 
-    private static void closeQuietly(AutoCloseable resource) {
+    private static void closeForCleanup(AutoCloseable resource) {
         if (resource == null) {
             return;
         }
         try {
             resource.close();
-        } catch (Exception ignored) {
-            // Cleanup is best-effort after the assertion path has captured the primary result.
+        } catch (Exception exception) {
+            throw new AssertionError("test resource cleanup failed", exception);
         }
     }
 
