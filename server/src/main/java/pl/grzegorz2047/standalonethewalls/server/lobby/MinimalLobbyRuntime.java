@@ -34,7 +34,6 @@ import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMember;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
 import pl.grzegorz2047.standalonethewalls.server.identity.session.AuthorizedPlayerSession;
-import pl.grzegorz2047.standalonethewalls.server.identity.session.AuthorizedPlayerSessionLease;
 import pl.grzegorz2047.standalonethewalls.server.identity.session.AuthorizedPlayerSessionQueue;
 
 /**
@@ -61,6 +60,7 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
     private final AtomicLong visibleRevision = new AtomicLong();
     private final CompletableFuture<Void> terminated = new CompletableFuture<>();
     private final Object lifecycleLock = new Object();
+    private final long runtimeId = RUNTIME_IDS.incrementAndGet();
 
     private Thread coordinator;
 
@@ -78,7 +78,6 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
                 requireDuration(shutdownTimeout, "shutdownTimeout", MAXIMUM_SHUTDOWN_TIMEOUT);
         this.eventObserver = Objects.requireNonNull(eventObserver, "eventObserver");
         commands = new ArrayBlockingQueue<>(Math.max(16, source.capacity() * 4 + 1));
-        long runtimeId = RUNTIME_IDS.incrementAndGet();
         workers =
                 Executors.newThreadPerTaskExecutor(
                         Thread.ofVirtual()
@@ -91,7 +90,6 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
             if (!lifecycle.compareAndSet(State.NEW, State.RUNNING)) {
                 throw new IllegalStateException("minimal lobby runtime can be started only once");
             }
-            long runtimeId = RUNTIME_IDS.incrementAndGet();
             coordinator =
                     Thread.ofVirtual()
                             .name("sunderfront-minimal-lobby-coordinator-" + runtimeId)
@@ -216,26 +214,25 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
     }
 
     private void acceptPending(LobbyState state) {
-        List<AuthorizedPlayerSessionLease> pending = source.drain(source.capacity());
-        for (AuthorizedPlayerSessionLease lease : pending) {
+        List<AuthorizedPlayerSession> pending = source.drain(source.capacity());
+        for (AuthorizedPlayerSession session : pending) {
             if (lifecycle.get() != State.RUNNING) {
-                closeLease(lease);
+                closeSession(session);
                 continue;
             }
-            acceptOne(state, lease);
+            acceptOne(state, session);
         }
     }
 
-    private void acceptOne(LobbyState state, AuthorizedPlayerSessionLease lease) {
-        AuthorizedPlayerSession session = lease.session();
+    private void acceptOne(LobbyState state, AuthorizedPlayerSession session) {
         PlayerId playerId = session.playerId();
         if (state.members.containsKey(playerId)) {
-            closeLease(lease);
+            closeSession(session);
             publish(MinimalLobbyEvent.Code.DUPLICATE_PLAYER_REJECTED);
             return;
         }
 
-        long joinedRevision = incrementRevision(state);
+        long joinedRevision = Math.incrementExact(state.revision);
         LobbyMember member = new LobbyMember(playerId, session.handle());
         try {
             await(
@@ -247,35 +244,35 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
                     sendTimeout);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            closeLease(lease);
+            closeSession(session);
             return;
         } catch (ExecutionException | TimeoutException | RuntimeException exception) {
-            state.revision--;
-            visibleRevision.set(state.revision);
-            closeLease(lease);
+            closeSession(session);
             publish(MinimalLobbyEvent.Code.SEND_FAILED);
             return;
         }
 
-        state.members.put(playerId, new MemberState(member, lease));
+        state.revision = joinedRevision;
+        visibleRevision.set(joinedRevision);
+        state.members.put(playerId, new MemberState(member, session));
         memberCount.set(state.members.size());
         publish(MinimalLobbyEvent.Code.MEMBER_JOINED);
         stabilizeSnapshots(state);
         MemberState retained = state.members.get(playerId);
-        if (retained != null && retained.lease == lease) {
+        if (retained != null && retained.session == session) {
             startReceiveWatcher(retained);
         }
     }
 
     private void handleSessionEnded(LobbyState state, SessionEnded ended) {
         MemberState current = state.members.get(ended.playerId);
-        if (current == null || !current.lease.session().sessionId().equals(ended.sessionId)) {
+        if (current == null || !current.session.sessionId().equals(ended.sessionId)) {
             return;
         }
         state.members.remove(ended.playerId);
         incrementRevision(state);
         memberCount.set(state.members.size());
-        closeLease(current.lease);
+        closeSession(current.session);
         publish(
                 ended.reason == EndReason.PROTOCOL_VIOLATION
                         ? MinimalLobbyEvent.Code.PROTOCOL_VIOLATION
@@ -303,7 +300,7 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
                 if (removed != null) {
                     incrementRevision(state);
                     memberCount.set(state.members.size());
-                    closeLease(removed.lease);
+                    closeSession(removed.session);
                     publish(MinimalLobbyEvent.Code.SEND_FAILED);
                 }
             });
@@ -320,8 +317,7 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
                         entry.getKey(),
                         Objects.requireNonNull(
                                         entry.getValue()
-                                                .lease
-                                                .session()
+                                                .session
                                                 .reliableChannel()
                                                 .send(MessageType.LOBBY_SNAPSHOT, payload),
                                         "snapshot send stage")
@@ -345,7 +341,10 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
                 Thread.currentThread().interrupt();
                 entry.getValue().cancel(true);
                 failed.add(entry.getKey());
-            } catch (ExecutionException | TimeoutException | CompletionException exception) {
+            } catch (ExecutionException | TimeoutException exception) {
+                entry.getValue().cancel(true);
+                failed.add(entry.getKey());
+            } catch (RuntimeException exception) {
                 entry.getValue().cancel(true);
                 failed.add(entry.getKey());
             }
@@ -361,10 +360,7 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
                         try {
                             Optional<ProtocolEnvelope> received =
                                     Objects.requireNonNull(
-                                                    member.lease
-                                                            .session()
-                                                            .reliableChannel()
-                                                            .receive(),
+                                                    member.session.reliableChannel().receive(),
                                                     "lobby receive stage")
                                             .toCompletableFuture()
                                             .get();
@@ -375,20 +371,22 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
                         } catch (InterruptedException exception) {
                             Thread.currentThread().interrupt();
                             return;
-                        } catch (ExecutionException | CompletionException | RuntimeException exception) {
+                        } catch (ExecutionException exception) {
+                            reason = EndReason.RECEIVE_FAILED;
+                        } catch (RuntimeException exception) {
                             reason = EndReason.RECEIVE_FAILED;
                         }
                         enqueue(
                                 new SessionEnded(
                                         member.member.playerId(),
-                                        member.lease.session().sessionId(),
+                                        member.session.sessionId(),
                                         reason));
                     });
         } catch (RejectedExecutionException exception) {
             enqueue(
                     new SessionEnded(
                             member.member.playerId(),
-                            member.lease.session().sessionId(),
+                            member.session.sessionId(),
                             EndReason.RECEIVE_FAILED));
         }
     }
@@ -407,19 +405,19 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
     }
 
     private void closeMembers(LobbyState state) {
-        List<AuthorizedPlayerSessionLease> leases =
-                state.members.values().stream().map(member -> member.lease).toList();
+        List<AuthorizedPlayerSession> sessions =
+                state.members.values().stream().map(member -> member.session).toList();
         state.members.clear();
         memberCount.set(0);
-        if (leases.isEmpty()) {
+        if (sessions.isEmpty()) {
             return;
         }
 
-        List<CompletableFuture<Void>> closures = new ArrayList<>(leases.size());
-        for (AuthorizedPlayerSessionLease lease : leases) {
+        List<CompletableFuture<Void>> closures = new ArrayList<>(sessions.size());
+        for (AuthorizedPlayerSession session : sessions) {
             try {
                 closures.add(
-                        Objects.requireNonNull(lease.closeAsync(), "lease close stage")
+                        Objects.requireNonNull(session.closeAsync(), "session close stage")
                                 .toCompletableFuture());
             } catch (RuntimeException exception) {
                 CompletableFuture<Void> failed = new CompletableFuture<>();
@@ -430,13 +428,13 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         awaitAll(closures, shutdownTimeout);
     }
 
-    private void closeLease(AuthorizedPlayerSessionLease lease) {
+    private void closeSession(AuthorizedPlayerSession session) {
         try {
-            await(lease.closeAsync(), sendTimeout);
+            await(session.closeAsync(), sendTimeout);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
         } catch (ExecutionException | TimeoutException | RuntimeException ignored) {
-            // The lease still owns release-on-completion; diagnostics must remain bounded.
+            // Capacity release remains bound to eventual close completion; details stay private.
         }
     }
 
@@ -469,11 +467,13 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("interrupted while closing lobby sessions", exception);
-        } catch (ExecutionException | CompletionException exception) {
+        } catch (ExecutionException exception) {
             throw new IllegalStateException("lobby session close failed", unwrap(exception));
         } catch (TimeoutException exception) {
             throw new IllegalStateException(
                     "lobby sessions did not close within the bounded timeout", exception);
+        } catch (RuntimeException exception) {
+            throw new IllegalStateException("lobby session close failed", exception);
         }
     }
 
@@ -527,11 +527,11 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
 
     private static final class MemberState {
         private final LobbyMember member;
-        private final AuthorizedPlayerSessionLease lease;
+        private final AuthorizedPlayerSession session;
 
-        private MemberState(LobbyMember member, AuthorizedPlayerSessionLease lease) {
+        private MemberState(LobbyMember member, AuthorizedPlayerSession session) {
             this.member = Objects.requireNonNull(member, "member");
-            this.lease = Objects.requireNonNull(lease, "lease");
+            this.session = Objects.requireNonNull(session, "session");
         }
     }
 
