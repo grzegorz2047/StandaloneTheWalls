@@ -87,10 +87,7 @@ public final class ServerLauncher {
 
             LocalIdentityRuntime identityRuntime = openIdentityRuntime(identityConfiguration);
             return runServer(
-                    configuration,
-                    options.runForTicks(),
-                    identityRuntime,
-                    tlsConfiguration);
+                    configuration, options.runForTicks(), identityRuntime, tlsConfiguration);
         } catch (IllegalArgumentException | IOException exception) {
             LOGGER.error("Server configuration or command-line error: {}", exception.getMessage());
             return EXIT_USAGE_OR_CONFIGURATION;
@@ -226,8 +223,7 @@ public final class ServerLauncher {
                             : identityRuntime.startAutomaticRegistryRefresh();
 
             ReliableTlsAdmissionRuntime ownedTlsRuntime = tlsRuntime;
-            RegistryRefreshScheduler ownedRegistryRefreshScheduler =
-                    registryRefreshScheduler;
+            RegistryRefreshScheduler ownedRegistryRefreshScheduler = registryRefreshScheduler;
             shutdownHook =
                     Thread.ofPlatform()
                             .name("sunderfront-shutdown")

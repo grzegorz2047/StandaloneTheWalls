@@ -33,8 +33,7 @@ class ReliableTlsAdmissionRuntimeTest {
         ReliableTlsProcessConfiguration configuration = configuration(port, 10L);
 
         ReliableTlsAdmissionRuntime runtime =
-                ReliableTlsAdmissionRuntime.open(
-                        configuration, identityRuntime, Clock.systemUTC());
+                ReliableTlsAdmissionRuntime.open(configuration, identityRuntime, Clock.systemUTC());
         runtime.start();
 
         assertThat(runtime.isRunning()).isTrue();
@@ -83,8 +82,7 @@ class ReliableTlsAdmissionRuntimeTest {
 
     private static ReliableTlsProcessConfiguration configuration(int port, long serial)
             throws Exception {
-        ServerTlsTestCertificateMaterial material =
-                ServerTlsTestCertificateMaterial.create(serial);
+        ServerTlsTestCertificateMaterial material = ServerTlsTestCertificateMaterial.create(serial);
         Tls13ServerCredentials credentials =
                 Tls13ServerCredentials.create(
                         material.keyPair().getPrivate(), List.of(material.certificate()));

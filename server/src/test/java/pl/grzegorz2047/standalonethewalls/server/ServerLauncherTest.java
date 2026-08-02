@@ -100,8 +100,7 @@ class ServerLauncherTest {
         KeyPair registryRoot = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
         Path trustRoots = temporaryDirectory.resolve("registry-roots-" + reliablePort + ".hex");
         Files.writeString(
-                trustRoots,
-                HexFormat.of().formatHex(registryRoot.getPublic().getEncoded()) + "\n");
+                trustRoots, HexFormat.of().formatHex(registryRoot.getPublic().getEncoded()) + "\n");
         Path identity = temporaryDirectory.resolve("identity-" + reliablePort + ".properties");
         Files.writeString(
                 identity,

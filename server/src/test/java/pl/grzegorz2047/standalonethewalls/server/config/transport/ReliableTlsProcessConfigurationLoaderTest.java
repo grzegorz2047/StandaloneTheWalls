@@ -17,14 +17,12 @@ class ReliableTlsProcessConfigurationLoaderTest {
 
     @Test
     void loadsCanonicalCredentialsWithoutBindingTheConfiguredPort() throws Exception {
-        ServerTlsTestCertificateMaterial material =
-                ServerTlsTestCertificateMaterial.create(1L);
+        ServerTlsTestCertificateMaterial material = ServerTlsTestCertificateMaterial.create(1L);
         writeCredentials(material, "server-key.pk8", "server-certificate.der");
 
         try (ServerSocket occupied = new ServerSocket(0)) {
             ServerConfiguration server =
-                    new ServerConfiguration(
-                            "Test", 20, occupied.getLocalPort(), 27421, 40);
+                    new ServerConfiguration("Test", 20, occupied.getLocalPort(), 27421, 40);
             Path configuration =
                     writeConfiguration(
                             "transport.schema=1\n"
@@ -49,11 +47,11 @@ class ReliableTlsProcessConfigurationLoaderTest {
 
     @Test
     void rejectsMismatchedKeysUnknownFieldsAndCapacityAboveServerLimit() throws Exception {
-        ServerTlsTestCertificateMaterial first =
-                ServerTlsTestCertificateMaterial.create(2L);
-        ServerTlsTestCertificateMaterial second =
-                ServerTlsTestCertificateMaterial.create(3L);
-        Files.write(temporaryDirectory.resolve("server-key.pk8"), first.keyPair().getPrivate().getEncoded());
+        ServerTlsTestCertificateMaterial first = ServerTlsTestCertificateMaterial.create(2L);
+        ServerTlsTestCertificateMaterial second = ServerTlsTestCertificateMaterial.create(3L);
+        Files.write(
+                temporaryDirectory.resolve("server-key.pk8"),
+                first.keyPair().getPrivate().getEncoded());
         Files.write(
                 temporaryDirectory.resolve("server-certificate.der"),
                 second.certificate().getEncoded());
@@ -64,10 +62,7 @@ class ReliableTlsProcessConfigurationLoaderTest {
                         "transport.schema=1\n"
                                 + "transport.reliable.private-key-pkcs8-path=server-key.pk8\n"
                                 + "transport.reliable.certificate-x509-path=server-certificate.der\n");
-        assertThatThrownBy(
-                        () ->
-                                ReliableTlsProcessConfigurationLoader.load(
-                                        mismatch, server))
+        assertThatThrownBy(() -> ReliableTlsProcessConfigurationLoader.load(mismatch, server))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("does not match");
 
@@ -78,10 +73,7 @@ class ReliableTlsProcessConfigurationLoaderTest {
                                 + "transport.reliable.private-key-pkcs8-path=server-key.pk8\n"
                                 + "transport.reliable.certificate-x509-path=server-certificate.der\n"
                                 + "transport.reliable.fallback-plaintext=true\n");
-        assertThatThrownBy(
-                        () ->
-                                ReliableTlsProcessConfigurationLoader.load(
-                                        unknown, server))
+        assertThatThrownBy(() -> ReliableTlsProcessConfigurationLoader.load(unknown, server))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("unknown TLS configuration key");
 
@@ -91,19 +83,14 @@ class ReliableTlsProcessConfigurationLoaderTest {
                                 + "transport.reliable.private-key-pkcs8-path=server-key.pk8\n"
                                 + "transport.reliable.certificate-x509-path=server-certificate.der\n"
                                 + "transport.reliable.maximum-active-connections=11\n");
-        assertThatThrownBy(
-                        () ->
-                                ReliableTlsProcessConfigurationLoader.load(
-                                        excessive, server))
+        assertThatThrownBy(() -> ReliableTlsProcessConfigurationLoader.load(excessive, server))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("cannot exceed server.maximum-players");
     }
 
     @Test
-    void rejectsTrailingCertificateDataDuplicateKeysAndOversizedCredentialFiles()
-            throws Exception {
-        ServerTlsTestCertificateMaterial material =
-                ServerTlsTestCertificateMaterial.create(4L);
+    void rejectsTrailingCertificateDataDuplicateKeysAndOversizedCredentialFiles() throws Exception {
+        ServerTlsTestCertificateMaterial material = ServerTlsTestCertificateMaterial.create(4L);
         writeCredentials(material, "server-key.pk8", "server-certificate.der");
         Files.write(
                 temporaryDirectory.resolve("server-certificate.der"),
@@ -115,10 +102,7 @@ class ReliableTlsProcessConfigurationLoaderTest {
                         "transport.schema=1\n"
                                 + "transport.reliable.private-key-pkcs8-path=server-key.pk8\n"
                                 + "transport.reliable.certificate-x509-path=server-certificate.der\n");
-        assertThatThrownBy(
-                        () ->
-                                ReliableTlsProcessConfigurationLoader.load(
-                                        configuration, server))
+        assertThatThrownBy(() -> ReliableTlsProcessConfigurationLoader.load(configuration, server))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("canonical X.509 DER");
 
@@ -129,20 +113,14 @@ class ReliableTlsProcessConfigurationLoaderTest {
                                 + "transport.schema=1\n"
                                 + "transport.reliable.private-key-pkcs8-path=server-key.pk8\n"
                                 + "transport.reliable.certificate-x509-path=server-certificate.der\n");
-        assertThatThrownBy(
-                        () ->
-                                ReliableTlsProcessConfigurationLoader.load(
-                                        duplicate, server))
+        assertThatThrownBy(() -> ReliableTlsProcessConfigurationLoader.load(duplicate, server))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("duplicate TLS configuration key");
 
         Files.write(
                 temporaryDirectory.resolve("server-key.pk8"),
                 new byte[ReliableTlsProcessConfigurationLoader.MAXIMUM_PRIVATE_KEY_BYTES + 1]);
-        assertThatThrownBy(
-                        () ->
-                                ReliableTlsProcessConfigurationLoader.load(
-                                        configuration, server))
+        assertThatThrownBy(() -> ReliableTlsProcessConfigurationLoader.load(configuration, server))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("maximum byte size");
     }
@@ -154,7 +132,9 @@ class ReliableTlsProcessConfigurationLoaderTest {
     }
 
     private void writeCredentials(
-            ServerTlsTestCertificateMaterial material, String privateKeyName, String certificateName)
+            ServerTlsTestCertificateMaterial material,
+            String privateKeyName,
+            String certificateName)
             throws Exception {
         Files.write(
                 temporaryDirectory.resolve(privateKeyName),

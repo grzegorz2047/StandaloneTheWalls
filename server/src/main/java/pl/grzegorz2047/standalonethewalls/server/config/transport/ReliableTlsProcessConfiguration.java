@@ -21,19 +21,14 @@ public record ReliableTlsProcessConfiguration(
         listenerConfig = Objects.requireNonNull(listenerConfig, "listenerConfig");
         credentials = Objects.requireNonNull(credentials, "credentials");
         challengeLifetime =
-                requireDuration(
-                        challengeLifetime,
-                        MAXIMUM_CHALLENGE_LIFETIME,
-                        "challengeLifetime");
+                requireDuration(challengeLifetime, MAXIMUM_CHALLENGE_LIFETIME, "challengeLifetime");
         if (maximumOutstandingChallenges < 1 || maximumOutstandingChallenges > 100_000) {
             throw new IllegalArgumentException(
                     "maximumOutstandingChallenges is outside the safe range");
         }
         resultSendTimeout =
                 requireDuration(
-                        resultSendTimeout,
-                        MAXIMUM_RESULT_SEND_TIMEOUT,
-                        "resultSendTimeout");
+                        resultSendTimeout, MAXIMUM_RESULT_SEND_TIMEOUT, "resultSendTimeout");
         gatewayShutdownTimeout =
                 requireDuration(
                         gatewayShutdownTimeout,

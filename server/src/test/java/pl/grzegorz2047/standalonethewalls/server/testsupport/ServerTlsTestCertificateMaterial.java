@@ -45,8 +45,7 @@ public record ServerTlsTestCertificateMaterial(
                 false,
                 new ExtendedKeyUsage(KeyPurposeId.id_kp_serverAuth));
 
-        ContentSigner signer =
-                new JcaContentSignerBuilder("Ed25519").build(keyPair.getPrivate());
+        ContentSigner signer = new JcaContentSignerBuilder("Ed25519").build(keyPair.getPrivate());
         X509CertificateHolder holder = builder.build(signer);
         java.security.cert.X509Certificate certificate =
                 new JcaX509CertificateConverter().getCertificate(holder);

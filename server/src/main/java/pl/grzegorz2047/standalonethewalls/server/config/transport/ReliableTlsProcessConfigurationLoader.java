@@ -14,7 +14,6 @@ import java.security.KeyFactory;
 import java.security.MessageDigest;
 import java.security.PrivateKey;
 import java.security.Signature;
-import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
@@ -39,10 +38,8 @@ public final class ReliableTlsProcessConfigurationLoader {
 
     private static final String SCHEMA = "transport.schema";
     private static final String BIND_ADDRESS = "transport.reliable.bind-address";
-    private static final String PRIVATE_KEY_PATH =
-            "transport.reliable.private-key-pkcs8-path";
-    private static final String CERTIFICATE_PATH =
-            "transport.reliable.certificate-x509-path";
+    private static final String PRIVATE_KEY_PATH = "transport.reliable.private-key-pkcs8-path";
+    private static final String CERTIFICATE_PATH = "transport.reliable.certificate-x509-path";
     private static final String BACKLOG = "transport.reliable.backlog";
     private static final String MAXIMUM_CONCURRENT_HANDSHAKES =
             "transport.reliable.maximum-concurrent-handshakes";
@@ -79,7 +76,8 @@ public final class ReliableTlsProcessConfigurationLoader {
     private static final Set<String> REQUIRED_KEYS =
             Set.of(SCHEMA, PRIVATE_KEY_PATH, CERTIFICATE_PATH);
     private static final byte[] CREDENTIAL_MATCH_PROBE =
-            "SUNDERFRONT-SERVER-CREDENTIAL-MATCH-V1".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+            "SUNDERFRONT-SERVER-CREDENTIAL-MATCH-V1"
+                    .getBytes(java.nio.charset.StandardCharsets.US_ASCII);
 
     private ReliableTlsProcessConfigurationLoader() {
         throw new AssertionError("No instances");
@@ -120,14 +118,10 @@ public final class ReliableTlsProcessConfigurationLoader {
         Tls13ServerCredentials credentials = createCredentials(privateKey, certificate);
 
         int maximumActiveConnections =
-                integer(
-                        properties,
-                        MAXIMUM_ACTIVE_CONNECTIONS,
-                        server.maximumPlayers());
+                integer(properties, MAXIMUM_ACTIVE_CONNECTIONS, server.maximumPlayers());
         if (maximumActiveConnections > server.maximumPlayers()) {
             throw new IllegalArgumentException(
-                    MAXIMUM_ACTIVE_CONNECTIONS
-                            + " cannot exceed server.maximum-players");
+                    MAXIMUM_ACTIVE_CONNECTIONS + " cannot exceed server.maximum-players");
         }
         int maximumConcurrentHandshakes =
                 integer(
@@ -135,26 +129,20 @@ public final class ReliableTlsProcessConfigurationLoader {
                         MAXIMUM_CONCURRENT_HANDSHAKES,
                         Math.min(16, maximumActiveConnections));
         int maximumOutstandingChallenges =
-                integer(
-                        properties,
-                        MAXIMUM_OUTSTANDING_CHALLENGES,
-                        maximumActiveConnections);
+                integer(properties, MAXIMUM_OUTSTANDING_CHALLENGES, maximumActiveConnections);
         if (maximumOutstandingChallenges > maximumActiveConnections) {
             throw new IllegalArgumentException(
-                    MAXIMUM_OUTSTANDING_CHALLENGES
-                            + " cannot exceed maximum active connections");
+                    MAXIMUM_OUTSTANDING_CHALLENGES + " cannot exceed maximum active connections");
         }
 
-        Duration challengeLifetime =
-                seconds(properties, CHALLENGE_LIFETIME_SECONDS, 30L);
+        Duration challengeLifetime = seconds(properties, CHALLENGE_LIFETIME_SECONDS, 30L);
         if (challengeLifetime.compareTo(IdentityExchangeConfig.DEFAULT.overallTimeout()) < 0) {
             throw new IllegalArgumentException(
                     CHALLENGE_LIFETIME_SECONDS
                             + " cannot be shorter than the identity exchange overall timeout");
         }
 
-        InetAddress bindAddress =
-                numericAddress(properties.getOrDefault(BIND_ADDRESS, "0.0.0.0"));
+        InetAddress bindAddress = numericAddress(properties.getOrDefault(BIND_ADDRESS, "0.0.0.0"));
         Tls13ServerListenerConfig listenerConfig =
                 new Tls13ServerListenerConfig(
                         new InetSocketAddress(bindAddress, server.reliablePort()),
@@ -222,8 +210,7 @@ public final class ReliableTlsProcessConfigurationLoader {
 
     private static void verifyKeyPair(PrivateKey privateKey, X509Certificate certificate) {
         if (!"Ed25519".equalsIgnoreCase(certificate.getPublicKey().getAlgorithm())) {
-            throw new IllegalArgumentException(
-                    "TLS certificate leaf public key must use Ed25519");
+            throw new IllegalArgumentException("TLS certificate leaf public key must use Ed25519");
         }
         try {
             Signature signer = Signature.getInstance("Ed25519");
@@ -255,15 +242,15 @@ public final class ReliableTlsProcessConfigurationLoader {
             encoded = input.readNBytes(maximumBytes + 1);
         }
         if (encoded.length == 0 || encoded.length > maximumBytes) {
-            throw new IllegalArgumentException(label + " is empty or exceeds its maximum byte size");
+            throw new IllegalArgumentException(
+                    label + " is empty or exceeds its maximum byte size");
         }
         return encoded;
     }
 
     private static Map<String, String> parse(Path path) throws IOException {
         byte[] encoded =
-                readBoundedRegularFile(
-                        path, MAXIMUM_CONFIGURATION_BYTES, "TLS configuration file");
+                readBoundedRegularFile(path, MAXIMUM_CONFIGURATION_BYTES, "TLS configuration file");
         String text;
         try {
             text =
@@ -345,7 +332,8 @@ public final class ReliableTlsProcessConfigurationLoader {
             try {
                 return InetAddress.getByName(address);
             } catch (UnknownHostException exception) {
-                throw new IllegalArgumentException(BIND_ADDRESS + " is not a valid IPv6 address", exception);
+                throw new IllegalArgumentException(
+                        BIND_ADDRESS + " is not a valid IPv6 address", exception);
             }
         }
 
@@ -397,8 +385,7 @@ public final class ReliableTlsProcessConfigurationLoader {
         }
     }
 
-    private static long unsignedLong(
-            Map<String, String> values, String key, long defaultValue) {
+    private static long unsignedLong(Map<String, String> values, String key, long defaultValue) {
         String value = values.get(key);
         if (value == null) {
             return defaultValue;

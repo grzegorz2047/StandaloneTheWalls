@@ -21,8 +21,7 @@ import pl.grzegorz2047.standalonethewalls.transport.bctls.TlsSessionBootstrapCon
 
 /** Process-owned composition of the reliable TLS listener and mandatory identity admission. */
 public final class ReliableTlsAdmissionRuntime implements AutoCloseable {
-    private static final Logger LOGGER =
-            LoggerFactory.getLogger(ReliableTlsAdmissionRuntime.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ReliableTlsAdmissionRuntime.class);
 
     private final TlsIdentityAdmissionGateway gateway;
     private final Tls13ServerListener listener;
@@ -52,8 +51,7 @@ public final class ReliableTlsAdmissionRuntime implements AutoCloseable {
             throws IOException {
         ReliableTlsProcessConfiguration transport =
                 Objects.requireNonNull(configuration, "configuration");
-        LocalIdentityRuntime identity =
-                Objects.requireNonNull(identityRuntime, "identityRuntime");
+        LocalIdentityRuntime identity = Objects.requireNonNull(identityRuntime, "identityRuntime");
         Clock timeSource = Objects.requireNonNull(clock, "clock");
         Runnable failureHandler =
                 Objects.requireNonNull(terminalFailureHandler, "terminalFailureHandler");
@@ -96,7 +94,8 @@ public final class ReliableTlsAdmissionRuntime implements AutoCloseable {
     public void start() throws IOException {
         synchronized (lifecycleLock) {
             if (state != State.NEW) {
-                throw new IllegalStateException("reliable TLS admission runtime can start only once");
+                throw new IllegalStateException(
+                        "reliable TLS admission runtime can start only once");
             }
             try {
                 listener.start();
@@ -181,7 +180,8 @@ public final class ReliableTlsAdmissionRuntime implements AutoCloseable {
 
     private static void observeAdmission(TlsIdentityAdmissionEvent event) {
         if (event.admissionStatus().isPresent()) {
-            LOGGER.info("Player session admission result: {}.", event.admissionStatus().orElseThrow());
+            LOGGER.info(
+                    "Player session admission result: {}.", event.admissionStatus().orElseThrow());
         } else {
             LOGGER.warn("Player session admission event: {}.", event.code());
         }
