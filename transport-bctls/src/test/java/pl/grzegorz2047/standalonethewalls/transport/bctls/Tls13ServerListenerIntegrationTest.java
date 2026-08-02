@@ -76,8 +76,11 @@ class Tls13ServerListenerIntegrationTest {
 
             rejected = connectRaw(listener);
             assertThat(rejected.getInputStream().read()).isEqualTo(-1);
-            assertThat(awaitEvent(events, Tls13ServerListenerEvent.Code.ACTIVE_CONNECTION_LIMIT)
-                            .remoteAddress())
+            assertThat(
+                            awaitEvent(
+                                            events,
+                                            Tls13ServerListenerEvent.Code.ACTIVE_CONNECTION_LIMIT)
+                                    .remoteAddress())
                     .isPresent();
             assertThat(listener.activeConnectionCount()).isEqualTo(1);
 
@@ -143,9 +146,7 @@ class Tls13ServerListenerIntegrationTest {
             Tls13ServerListenerEvent timeoutEvent =
                     awaitEvent(events, Tls13ServerListenerEvent.Code.HANDSHAKE_FAILED);
             assertThat(timeoutEvent.failure()).isPresent();
-            waitUntil(
-                    () -> listener.inFlightHandshakeCount() == 0,
-                    "handshake timeout release");
+            waitUntil(() -> listener.inFlightHandshakeCount() == 0, "handshake timeout release");
 
             validClient = connect(listener, setup.trustManager());
             AcceptedTlsConnection lease = take(accepted, "valid connection after timeout");
@@ -197,7 +198,8 @@ class Tls13ServerListenerIntegrationTest {
                     awaitEvent(events, Tls13ServerListenerEvent.Code.HANDLER_FAILED);
             assertThat(handlerFailure.failure())
                     .hasValueSatisfying(
-                            failure -> assertThat(failure).isInstanceOf(IllegalStateException.class));
+                            failure ->
+                                    assertThat(failure).isInstanceOf(IllegalStateException.class));
             waitUntil(() -> listener.activeConnectionCount() == 0, "failed handler lease release");
             closeQuietly(firstClient);
             firstClient = null;
@@ -319,8 +321,7 @@ class Tls13ServerListenerIntegrationTest {
     private static AcceptedTlsConnection take(
             BlockingQueue<AcceptedTlsConnection> queue, String operation)
             throws InterruptedException {
-        AcceptedTlsConnection connection =
-                queue.poll(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        AcceptedTlsConnection connection = queue.poll(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
         if (connection == null) {
             throw new AssertionError(operation + " timed out");
         }
@@ -328,8 +329,7 @@ class Tls13ServerListenerIntegrationTest {
     }
 
     private static Tls13ServerListenerEvent awaitEvent(
-            BlockingQueue<Tls13ServerListenerEvent> events,
-            Tls13ServerListenerEvent.Code expected)
+            BlockingQueue<Tls13ServerListenerEvent> events, Tls13ServerListenerEvent.Code expected)
             throws InterruptedException {
         long deadline = System.nanoTime() + TIMEOUT.toNanos();
         while (true) {

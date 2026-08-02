@@ -76,9 +76,12 @@ public final class AcceptedTlsConnection implements AutoCloseable {
 
     @Override
     public String toString() {
-        return "AcceptedTlsConnection[connectionId=" + connectionId
-                + ", remoteAddress=" + remoteAddress
-                + ", open=" + isOpen()
+        return "AcceptedTlsConnection[connectionId="
+                + connectionId
+                + ", remoteAddress="
+                + remoteAddress
+                + ", open="
+                + isOpen()
                 + ']';
     }
 }

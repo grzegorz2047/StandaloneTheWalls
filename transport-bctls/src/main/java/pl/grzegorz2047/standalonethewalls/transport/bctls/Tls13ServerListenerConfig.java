@@ -35,19 +35,14 @@ public record Tls13ServerListenerConfig(
             throw new IllegalArgumentException(
                     "maximum concurrent handshakes must be between 1 and 256");
         }
-        if (maximumActiveConnections < 1
-                || maximumActiveConnections > MAXIMUM_ACTIVE_CONNECTIONS) {
+        if (maximumActiveConnections < 1 || maximumActiveConnections > MAXIMUM_ACTIVE_CONNECTIONS) {
             throw new IllegalArgumentException(
                     "maximum active connections must be between 1 and 4096");
         }
-        handshakeTimeout = requireDuration(
-                handshakeTimeout,
-                MAXIMUM_HANDSHAKE_TIMEOUT,
-                "handshake timeout");
-        shutdownTimeout = requireDuration(
-                shutdownTimeout,
-                MAXIMUM_SHUTDOWN_TIMEOUT,
-                "shutdown timeout");
+        handshakeTimeout =
+                requireDuration(handshakeTimeout, MAXIMUM_HANDSHAKE_TIMEOUT, "handshake timeout");
+        shutdownTimeout =
+                requireDuration(shutdownTimeout, MAXIMUM_SHUTDOWN_TIMEOUT, "shutdown timeout");
     }
 
     public static Tls13ServerListenerConfig localDefault(int port, int maximumConnections) {
@@ -68,7 +63,10 @@ public record Tls13ServerListenerConfig(
         Duration duration = Objects.requireNonNull(value, field);
         if (duration.isZero() || duration.isNegative() || duration.compareTo(maximum) > 0) {
             throw new IllegalArgumentException(
-                    field + " must be positive and no longer than " + maximum.toSeconds() + " seconds");
+                    field
+                            + " must be positive and no longer than "
+                            + maximum.toSeconds()
+                            + " seconds");
         }
         if (duration.toMillis() < 1L) {
             throw new IllegalArgumentException(field + " must be at least 1 millisecond");

@@ -10,8 +10,7 @@ public final class Tls13ServerListenerEvent {
     private final SocketAddress remoteAddress;
     private final Throwable failure;
 
-    private Tls13ServerListenerEvent(
-            Code code, SocketAddress remoteAddress, Throwable failure) {
+    private Tls13ServerListenerEvent(Code code, SocketAddress remoteAddress, Throwable failure) {
         this.code = Objects.requireNonNull(code, "code");
         this.remoteAddress = remoteAddress;
         this.failure = failure;
@@ -32,9 +31,7 @@ public final class Tls13ServerListenerEvent {
             throw new IllegalArgumentException("limit events do not carry failures");
         }
         return new Tls13ServerListenerEvent(
-                code,
-                remoteAddress,
-                Objects.requireNonNull(failure, "failure"));
+                code, remoteAddress, Objects.requireNonNull(failure, "failure"));
     }
 
     public Code code() {
@@ -51,9 +48,12 @@ public final class Tls13ServerListenerEvent {
 
     @Override
     public String toString() {
-        return "Tls13ServerListenerEvent[code=" + code
-                + ", remoteAddressPresent=" + (remoteAddress != null)
-                + ", failureType=" + (failure == null ? "none" : failure.getClass().getName())
+        return "Tls13ServerListenerEvent[code="
+                + code
+                + ", remoteAddressPresent="
+                + (remoteAddress != null)
+                + ", failureType="
+                + (failure == null ? "none" : failure.getClass().getName())
                 + ']';
     }
 

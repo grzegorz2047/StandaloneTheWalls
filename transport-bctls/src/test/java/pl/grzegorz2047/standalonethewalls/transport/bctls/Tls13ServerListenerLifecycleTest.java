@@ -47,7 +47,8 @@ class Tls13ServerListenerLifecycleTest {
                             throw new AssertionError("no connection can be accepted before start");
                         },
                         event -> {
-                            throw new AssertionError("clean pre-start close must not emit an event");
+                            throw new AssertionError(
+                                    "clean pre-start close must not emit an event");
                         });
 
         listener.closeAsync().toCompletableFuture().get(5L, TimeUnit.SECONDS);

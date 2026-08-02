@@ -37,7 +37,6 @@ class Tls13ServerListenerEventTest {
                 .isThrownBy(
                         () ->
                                 Tls13ServerListenerEvent.rejected(
-                                        Tls13ServerListenerEvent.Code.HANDSHAKE_FAILED,
-                                        null));
+                                        Tls13ServerListenerEvent.Code.HANDSHAKE_FAILED, null));
     }
 }

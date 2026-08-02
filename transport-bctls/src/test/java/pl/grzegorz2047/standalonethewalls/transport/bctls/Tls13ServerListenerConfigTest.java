@@ -8,19 +8,13 @@ import java.time.Duration;
 import org.junit.jupiter.api.Test;
 
 class Tls13ServerListenerConfigTest {
-    private static final InetSocketAddress LOOPBACK =
-            new InetSocketAddress("127.0.0.1", 0);
+    private static final InetSocketAddress LOOPBACK = new InetSocketAddress("127.0.0.1", 0);
 
     @Test
     void acceptsAResolvedEphemeralLoopbackEndpoint() {
         Tls13ServerListenerConfig config =
                 new Tls13ServerListenerConfig(
-                        LOOPBACK,
-                        16,
-                        2,
-                        40,
-                        Duration.ofSeconds(2),
-                        Duration.ofSeconds(3));
+                        LOOPBACK, 16, 2, 40, Duration.ofSeconds(2), Duration.ofSeconds(3));
 
         assertThat(config.bindAddress()).isEqualTo(LOOPBACK);
         assertThat(config.handshakeTimeoutMillis()).isEqualTo(2_000);
@@ -70,14 +64,7 @@ class Tls13ServerListenerConfigTest {
                                         Duration.ofSeconds(3)));
         assertThatIllegalArgumentException()
                 .isThrownBy(
-                        () ->
-                                config(
-                                        LOOPBACK,
-                                        16,
-                                        2,
-                                        40,
-                                        Duration.ZERO,
-                                        Duration.ofSeconds(3)));
+                        () -> config(LOOPBACK, 16, 2, 40, Duration.ZERO, Duration.ofSeconds(3)));
         assertThatIllegalArgumentException()
                 .isThrownBy(
                         () ->
