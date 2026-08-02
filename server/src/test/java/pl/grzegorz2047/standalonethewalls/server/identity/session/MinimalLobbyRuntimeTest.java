@@ -309,7 +309,7 @@ class MinimalLobbyRuntimeTest {
 
         @Override
         public CompletionStage<Optional<ProtocolEnvelope>> receive() {
-            return receive;
+            return receive.minimalCompletionStage();
         }
 
         @Override
