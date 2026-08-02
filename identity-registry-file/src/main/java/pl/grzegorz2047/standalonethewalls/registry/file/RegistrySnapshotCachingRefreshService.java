@@ -15,9 +15,7 @@ public final class RegistrySnapshotCachingRefreshService {
 
     public RegistrySnapshotCachingRefreshService(
             RegistrySnapshotService snapshotService, RegistrySnapshotBundleFile bundleFile) {
-        this(
-                snapshotService,
-                Objects.requireNonNull(bundleFile, "bundleFile")::storeVerified);
+        this(snapshotService, Objects.requireNonNull(bundleFile, "bundleFile")::storeVerified);
     }
 
     RegistrySnapshotCachingRefreshService(

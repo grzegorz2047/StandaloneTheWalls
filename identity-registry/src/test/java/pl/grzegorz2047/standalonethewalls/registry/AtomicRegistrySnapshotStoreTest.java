@@ -123,8 +123,7 @@ class AtomicRegistrySnapshotStoreTest {
                         RegistrySnapshotException.class,
                         failure ->
                                 assertThat(failure.code())
-                                        .isEqualTo(
-                                                RegistrySnapshotException.Code.EQUIVOCATION));
+                                        .isEqualTo(RegistrySnapshotException.Code.EQUIVOCATION));
 
         assertThat(commits).hasValue(0);
         assertThat(store.active()).containsSame(active);

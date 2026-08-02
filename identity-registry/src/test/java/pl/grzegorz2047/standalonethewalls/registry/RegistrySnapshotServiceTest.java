@@ -188,8 +188,7 @@ class RegistrySnapshotServiceTest {
                         () ->
                                 service.refreshAndCommit(
                                         () -> invalid,
-                                        (artifact, verifiedSnapshot) ->
-                                                commits.incrementAndGet()))
+                                        (artifact, verifiedSnapshot) -> commits.incrementAndGet()))
                 .isInstanceOfSatisfying(
                         RegistrySnapshotException.class,
                         failure ->

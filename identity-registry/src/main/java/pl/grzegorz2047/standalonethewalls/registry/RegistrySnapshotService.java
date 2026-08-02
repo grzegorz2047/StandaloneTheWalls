@@ -41,17 +41,14 @@ public final class RegistrySnapshotService {
             throws RegistrySnapshotProviderException, RegistrySnapshotException {
         RegistrySnapshotArtifact artifact = load(provider);
         VerifiedRegistrySnapshot verifiedSnapshot = verifyArtifact(artifact);
-        VerifiedRegistrySnapshotCommit activationCommit =
-                Objects.requireNonNull(commit, "commit");
+        VerifiedRegistrySnapshotCommit activationCommit = Objects.requireNonNull(commit, "commit");
         return store.activateAfterCommit(
-                verifiedSnapshot,
-                () -> activationCommit.commit(artifact, verifiedSnapshot));
+                verifiedSnapshot, () -> activationCommit.commit(artifact, verifiedSnapshot));
     }
 
     private RegistrySnapshotArtifact load(RegistrySnapshotProvider provider)
             throws RegistrySnapshotProviderException {
-        RegistrySnapshotArtifact artifact =
-                Objects.requireNonNull(provider, "provider").load();
+        RegistrySnapshotArtifact artifact = Objects.requireNonNull(provider, "provider").load();
         return Objects.requireNonNull(artifact, "provider artifact");
     }
 

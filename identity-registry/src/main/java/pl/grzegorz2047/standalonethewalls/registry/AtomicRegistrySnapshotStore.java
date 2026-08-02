@@ -83,7 +83,8 @@ public final class AtomicRegistrySnapshotStore {
 
     private void requireNoActivationCommitReentry() {
         if (activationCommitInProgress) {
-            throw new IllegalStateException("registry activation cannot recurse from its commit hook");
+            throw new IllegalStateException(
+                    "registry activation cannot recurse from its commit hook");
         }
     }
 }

@@ -88,7 +88,8 @@ class RegistrySnapshotCachingRefreshServiceTest {
         RegistrySnapshotBundleFile bundle = bundle("stable.sfrb");
         RegistrySnapshotCachingRefreshService refresh = refreshService(fixtures, store, bundle);
         refresh.refresh(() -> active);
-        Files.setLastModifiedTime(bundle.path(), FileTime.from(Instant.parse("2000-01-01T00:00:00Z")));
+        Files.setLastModifiedTime(
+                bundle.path(), FileTime.from(Instant.parse("2000-01-01T00:00:00Z")));
         FileTime marker = Files.getLastModifiedTime(bundle.path());
 
         assertThat(refresh.refresh(() -> active)).isEqualTo(RegistryActivationResult.UNCHANGED);
@@ -164,8 +165,7 @@ class RegistrySnapshotCachingRefreshServiceTest {
                                         }));
         try {
             assertThat(olderStarted.await(5L, TimeUnit.SECONDS)).isTrue();
-            assertThat(refresh.refresh(() -> newer))
-                    .isEqualTo(RegistryActivationResult.ACTIVATED);
+            assertThat(refresh.refresh(() -> newer)).isEqualTo(RegistryActivationResult.ACTIVATED);
             releaseOlder.countDown();
 
             assertThatThrownBy(olderResult::get)
