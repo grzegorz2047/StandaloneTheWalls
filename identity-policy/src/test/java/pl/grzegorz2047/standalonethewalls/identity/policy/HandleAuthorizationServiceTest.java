@@ -214,8 +214,7 @@ class HandleAuthorizationServiceTest {
                                     artifact,
                                     RegistryTrustBundle.of(List.of(root.getPublic().getEncoded())),
                                     RegistrySnapshotPolicy.DEFAULT);
-            return new RegistryFixture(
-                    snapshot, activePlayer.playerId(), revokedPlayer.playerId());
+            return new RegistryFixture(snapshot, activePlayer.playerId(), revokedPlayer.playerId());
         } catch (GeneralSecurityException
                 | IdentityException
                 | RegistrySnapshotException exception) {
