@@ -181,6 +181,7 @@ val engineFreeModules = listOf(
     "transport-bctls",
     "identity-registry",
     "identity-registry-file",
+    "identity-policy",
 )
 val engineFreeSourceDirectories =
     engineFreeModules.map { module -> layout.projectDirectory.dir("$module/src") }
