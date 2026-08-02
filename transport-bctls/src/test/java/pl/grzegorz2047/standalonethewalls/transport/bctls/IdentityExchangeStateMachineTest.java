@@ -137,12 +137,9 @@ class IdentityExchangeStateMachineTest {
         delegate.enqueueNull();
         AuthenticatedReliableSession authenticated =
                 new AuthenticatedReliableSession(
-                        session(delegate),
-                        identity.playerId(),
-                        new CanonicalHandle("player_one"));
+                        session(delegate), identity.playerId(), new CanonicalHandle("player_one"));
 
-        IdentityExchangeException failure =
-                awaitFailure(authenticated.reliableChannel().receive());
+        IdentityExchangeException failure = awaitFailure(authenticated.reliableChannel().receive());
 
         assertThat(failure.code()).isEqualTo(IdentityExchangeException.Code.INTERNAL_ERROR);
         assertThat(delegate.closeCount()).isEqualTo(1);
