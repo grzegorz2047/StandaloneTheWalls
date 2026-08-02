@@ -5,6 +5,7 @@ import java.io.PrintStream;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
@@ -26,8 +27,11 @@ import pl.grzegorz2047.standalonethewalls.server.config.ServerConfiguration;
 import pl.grzegorz2047.standalonethewalls.server.config.ServerConfigurationLoader;
 import pl.grzegorz2047.standalonethewalls.server.config.identity.LocalIdentityProcessConfiguration;
 import pl.grzegorz2047.standalonethewalls.server.config.identity.LocalIdentityProcessConfigurationLoader;
+import pl.grzegorz2047.standalonethewalls.server.config.transport.ReliableTlsProcessConfiguration;
+import pl.grzegorz2047.standalonethewalls.server.config.transport.ReliableTlsProcessConfigurationLoader;
 import pl.grzegorz2047.standalonethewalls.server.identity.LocalIdentityRuntime;
 import pl.grzegorz2047.standalonethewalls.server.identity.RegistryRefreshScheduler;
+import pl.grzegorz2047.standalonethewalls.server.identity.session.ReliableTlsAdmissionRuntime;
 import pl.grzegorz2047.standalonethewalls.server.runtime.FixedTickLoop;
 import pl.grzegorz2047.standalonethewalls.server.runtime.ServerRuntime;
 import pl.grzegorz2047.standalonethewalls.server.runtime.SystemNanoSleeper;
@@ -67,30 +71,26 @@ public final class ServerLauncher {
                     options.identityConfigurationPath() == null
                             ? null
                             : loadIdentityConfiguration(options.identityConfigurationPath());
+            ReliableTlsProcessConfiguration tlsConfiguration =
+                    options.tlsConfigurationPath() == null
+                            ? null
+                            : ReliableTlsProcessConfigurationLoader.load(
+                                    options.tlsConfigurationPath(), configuration);
             if (options.identityCommandTokens() != null) {
                 return runIdentityCommand(
                         identityConfiguration, options.identityCommandTokens(), output);
             }
             if (options.validateOnly()) {
-                if (identityConfiguration == null) {
-                    LOGGER.info(
-                            "Configuration valid for server '{}' ({} Hz, max {} players).",
-                            configuration.name(),
-                            configuration.tickRate(),
-                            configuration.maximumPlayers());
-                } else {
-                    LOGGER.info(
-                            "Configuration valid for server '{}' ({} Hz, max {} players) with local identity mode {}.",
-                            configuration.name(),
-                            configuration.tickRate(),
-                            configuration.maximumPlayers(),
-                            identityConfiguration.runtimeConfiguration().authorizationMode());
-                }
+                logValidConfiguration(configuration, identityConfiguration, tlsConfiguration);
                 return EXIT_OK;
             }
 
             LocalIdentityRuntime identityRuntime = openIdentityRuntime(identityConfiguration);
-            return runServer(configuration, options.runForTicks(), identityRuntime);
+            return runServer(
+                    configuration,
+                    options.runForTicks(),
+                    identityRuntime,
+                    tlsConfiguration);
         } catch (IllegalArgumentException | IOException exception) {
             LOGGER.error("Server configuration or command-line error: {}", exception.getMessage());
             return EXIT_USAGE_OR_CONFIGURATION;
@@ -99,6 +99,36 @@ public final class ServerLauncher {
             LOGGER.error("Server launcher interrupted.");
             return EXIT_RUNTIME_FAILURE;
         }
+    }
+
+    private static void logValidConfiguration(
+            ServerConfiguration server,
+            LocalIdentityProcessConfiguration identity,
+            ReliableTlsProcessConfiguration tls) {
+        if (identity == null) {
+            LOGGER.info(
+                    "Configuration valid for server '{}' ({} Hz, max {} players); local identity and reliable TLS disabled.",
+                    server.name(),
+                    server.tickRate(),
+                    server.maximumPlayers());
+            return;
+        }
+        if (tls == null) {
+            LOGGER.info(
+                    "Configuration valid for server '{}' ({} Hz, max {} players) with local identity mode {}; reliable TLS disabled.",
+                    server.name(),
+                    server.tickRate(),
+                    server.maximumPlayers(),
+                    identity.runtimeConfiguration().authorizationMode());
+            return;
+        }
+        LOGGER.info(
+                "Configuration valid for server '{}' ({} Hz, max {} players) with local identity mode {} and reliable TLS server identity {}.",
+                server.name(),
+                server.tickRate(),
+                server.maximumPlayers(),
+                identity.runtimeConfiguration().authorizationMode(),
+                tls.credentials().serverId().value());
     }
 
     private static int runIdentityCommand(
@@ -155,7 +185,8 @@ public final class ServerLauncher {
     private static int runServer(
             ServerConfiguration configuration,
             Long runForTicks,
-            LocalIdentityRuntime identityRuntime)
+            LocalIdentityRuntime identityRuntime,
+            ReliableTlsProcessConfiguration tlsConfiguration)
             throws InterruptedException {
         AtomicLong executedTicks = new AtomicLong();
         FixedTickLoop loop =
@@ -174,31 +205,56 @@ public final class ServerLauncher {
                                 loop.requestStop();
                             }
                         });
-        RegistryRefreshScheduler registryRefreshScheduler =
-                identityRuntime == null
-                        ? RegistryRefreshScheduler.disabled()
-                        : identityRuntime.startAutomaticRegistryRefresh();
 
-        Thread shutdownHook =
-                Thread.ofPlatform()
-                        .name("sunderfront-shutdown")
-                        .unstarted(() -> closeRuntime(runtime, registryRefreshScheduler));
+        ReliableTlsAdmissionRuntime tlsRuntime = null;
+        RegistryRefreshScheduler registryRefreshScheduler = RegistryRefreshScheduler.disabled();
+        Thread shutdownHook = null;
         boolean hookInstalled = false;
         try {
+            if (tlsConfiguration != null) {
+                tlsRuntime =
+                        ReliableTlsAdmissionRuntime.open(
+                                tlsConfiguration,
+                                Objects.requireNonNull(
+                                        identityRuntime,
+                                        "reliable TLS requires local identity runtime"),
+                                Clock.systemUTC());
+            }
+            registryRefreshScheduler =
+                    identityRuntime == null
+                            ? RegistryRefreshScheduler.disabled()
+                            : identityRuntime.startAutomaticRegistryRefresh();
+
+            ReliableTlsAdmissionRuntime ownedTlsRuntime = tlsRuntime;
+            RegistryRefreshScheduler ownedRegistryRefreshScheduler =
+                    registryRefreshScheduler;
+            shutdownHook =
+                    Thread.ofPlatform()
+                            .name("sunderfront-shutdown")
+                            .unstarted(
+                                    () ->
+                                            closeRuntime(
+                                                    runtime,
+                                                    ownedRegistryRefreshScheduler,
+                                                    ownedTlsRuntime));
             if (runForTicks == null) {
                 Runtime.getRuntime().addShutdownHook(shutdownHook);
                 hookInstalled = true;
             }
+            if (tlsRuntime != null) {
+                tlsRuntime.start();
+            }
             runtime.start();
             LOGGER.info(
-                    "{} dedicated server '{}' started at {} Hz; reliable port {}, realtime port {}, max {} players; local identity {}.",
+                    "{} dedicated server '{}' started at {} Hz; reliable port {}, realtime port {}, max {} players; local identity {}; reliable TLS {}.",
                     BuildInfo.PRODUCT_NAME,
                     configuration.name(),
                     configuration.tickRate(),
                     configuration.reliablePort(),
                     configuration.realtimePort(),
                     configuration.maximumPlayers(),
-                    identityRuntime == null ? "disabled" : "enabled");
+                    identityRuntime == null ? "disabled" : "enabled",
+                    tlsRuntime == null ? "disabled" : "enabled");
 
             boolean terminated;
             if (runForTicks == null) {
@@ -217,22 +273,47 @@ public final class ServerLauncher {
                         runtime.failure().orElseThrow());
                 return EXIT_RUNTIME_FAILURE;
             }
+            if (tlsRuntime != null && tlsRuntime.failure().isPresent()) {
+                LOGGER.error("Reliable TLS listener stopped after an internal failure.");
+                return EXIT_RUNTIME_FAILURE;
+            }
             LOGGER.info("Server stopped cleanly after {} ticks.", executedTicks.get());
             return EXIT_OK;
+        } catch (IOException | RuntimeException exception) {
+            LOGGER.error("Server process failed to start its reliable TLS/runtime resources.");
+            return EXIT_RUNTIME_FAILURE;
         } finally {
-            closeRuntime(runtime, registryRefreshScheduler);
-            if (hookInstalled) {
+            closeRuntime(runtime, registryRefreshScheduler, tlsRuntime);
+            if (hookInstalled && shutdownHook != null) {
                 removeShutdownHookIfPossible(shutdownHook);
             }
         }
     }
 
     private static void closeRuntime(
-            ServerRuntime runtime, RegistryRefreshScheduler registryRefreshScheduler) {
+            ServerRuntime runtime,
+            RegistryRefreshScheduler registryRefreshScheduler,
+            ReliableTlsAdmissionRuntime tlsRuntime) {
+        List<Throwable> failures = new ArrayList<>();
+        if (tlsRuntime != null) {
+            try {
+                tlsRuntime.close();
+            } catch (IOException | RuntimeException exception) {
+                failures.add(exception);
+            }
+        }
         try {
             registryRefreshScheduler.close();
-        } finally {
+        } catch (RuntimeException exception) {
+            failures.add(exception);
+        }
+        try {
             runtime.close();
+        } catch (RuntimeException exception) {
+            failures.add(exception);
+        }
+        if (!failures.isEmpty()) {
+            LOGGER.error("Server shutdown completed with {} resource failure(s).", failures.size());
         }
     }
 
@@ -247,12 +328,14 @@ public final class ServerLauncher {
     private record LaunchOptions(
             Path configurationPath,
             Path identityConfigurationPath,
+            Path tlsConfigurationPath,
             boolean validateOnly,
             Long runForTicks,
             List<String> identityCommandTokens) {
         private static LaunchOptions parse(String[] arguments) {
             Path configuration = null;
             Path identityConfiguration = null;
+            Path tlsConfiguration = null;
             boolean validate = false;
             Long ticks = null;
             List<String> commandTokens = null;
@@ -273,6 +356,14 @@ public final class ServerLauncher {
                         }
                         identityConfiguration =
                                 Path.of(requireValue(arguments, ++index, "--identity-config"));
+                    }
+                    case "--tls-config" -> {
+                        if (tlsConfiguration != null) {
+                            throw new IllegalArgumentException(
+                                    "--tls-config may be supplied only once");
+                        }
+                        tlsConfiguration =
+                                Path.of(requireValue(arguments, ++index, "--tls-config"));
                     }
                     case "--validate-config" -> {
                         if (validate) {
@@ -320,10 +411,17 @@ public final class ServerLauncher {
                 throw new IllegalArgumentException(
                         "--validate-config cannot be combined with --run-for-ticks");
             }
+            if (tlsConfiguration != null && identityConfiguration == null) {
+                throw new IllegalArgumentException("--tls-config requires --identity-config");
+            }
             if (commandTokens != null) {
                 if (identityConfiguration == null) {
                     throw new IllegalArgumentException(
                             "--identity-command requires --identity-config");
+                }
+                if (tlsConfiguration != null) {
+                    throw new IllegalArgumentException(
+                            "--identity-command cannot be combined with --tls-config");
                 }
                 if (validate) {
                     throw new IllegalArgumentException(
@@ -335,7 +433,12 @@ public final class ServerLauncher {
                 }
             }
             return new LaunchOptions(
-                    configuration, identityConfiguration, validate, ticks, commandTokens);
+                    configuration,
+                    identityConfiguration,
+                    tlsConfiguration,
+                    validate,
+                    ticks,
+                    commandTokens);
         }
 
         private static String requireValue(String[] arguments, int index, String option) {
