@@ -110,7 +110,20 @@ class TlsIdentityAdmissionGatewayIntegrationTest {
     @TempDir java.nio.file.Path temporaryDirectory;
 
     @Test
-    void localTofuAdmitsFirstUseAndReturningIdentityButRejectsConflictingKey() throws Exception {
+    void localTofuAdmitsFirstUseAndReturningIdentityButRejectsConflictingKey()
+            throws GeneralSecurityException,
+                    OperatorCreationException,
+                    IOException,
+                    IdentityException,
+                    ServerTrustStoreException,
+                    TlsTransportException,
+                    RegistrySnapshotException,
+                    RegistrySnapshotProviderException,
+                    TlsSessionBootstrapException,
+                    InterruptedException,
+                    ExecutionException,
+                    TimeoutException,
+                    PlayerSessionAdmissionException {
         PlayerIdentity identity = PlayerIdentity.generate(new SecureRandom());
         PlayerIdentity conflicting = PlayerIdentity.generate(new SecureRandom());
         CanonicalHandle handle = new CanonicalHandle("player_one");
@@ -149,7 +162,19 @@ class TlsIdentityAdmissionGatewayIntegrationTest {
 
     @Test
     void globalOnlyAndHybridUseTheVerifiedRegistryWhileHybridStillAdmitsLocalGuests()
-            throws Exception {
+            throws GeneralSecurityException,
+                    OperatorCreationException,
+                    IOException,
+                    IdentityException,
+                    ServerTrustStoreException,
+                    TlsTransportException,
+                    RegistrySnapshotException,
+                    RegistrySnapshotProviderException,
+                    TlsSessionBootstrapException,
+                    InterruptedException,
+                    ExecutionException,
+                    TimeoutException,
+                    PlayerSessionAdmissionException {
         PlayerIdentity globalIdentity = PlayerIdentity.generate(new SecureRandom());
         CanonicalHandle globalHandle = new CanonicalHandle("global_one");
         RegistrySnapshotEntry globalEntry =
@@ -207,7 +232,20 @@ class TlsIdentityAdmissionGatewayIntegrationTest {
     }
 
     @Test
-    void bannedFirstUseIsRejectedBeforeBindingAndListenerAdmissionIsReleased() throws Exception {
+    void bannedFirstUseIsRejectedBeforeBindingAndListenerAdmissionIsReleased()
+            throws GeneralSecurityException,
+                    OperatorCreationException,
+                    IOException,
+                    IdentityException,
+                    ServerTrustStoreException,
+                    TlsTransportException,
+                    RegistrySnapshotException,
+                    RegistrySnapshotProviderException,
+                    TlsSessionBootstrapException,
+                    InterruptedException,
+                    ExecutionException,
+                    TimeoutException,
+                    PlayerSessionAdmissionException {
         PlayerIdentity banned = PlayerIdentity.generate(new SecureRandom());
         PlayerIdentity replacement = PlayerIdentity.generate(new SecureRandom());
         CanonicalHandle handle = new CanonicalHandle("player_one");
@@ -239,7 +277,20 @@ class TlsIdentityAdmissionGatewayIntegrationTest {
     }
 
     @Test
-    void fullPreLobbyQueueRejectsWithoutBlockingAndShutdownClosesQueuedLease() throws Exception {
+    void fullPreLobbyQueueRejectsWithoutBlockingAndShutdownClosesQueuedLease()
+            throws GeneralSecurityException,
+                    OperatorCreationException,
+                    IOException,
+                    IdentityException,
+                    ServerTrustStoreException,
+                    TlsTransportException,
+                    RegistrySnapshotException,
+                    RegistrySnapshotProviderException,
+                    TlsSessionBootstrapException,
+                    InterruptedException,
+                    ExecutionException,
+                    TimeoutException,
+                    PlayerSessionAdmissionException {
         LocalIdentityRuntime runtime =
                 openRuntime("capacity", HandleAuthorizationMode.LOCAL_TOFU, List.of());
 
