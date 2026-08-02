@@ -17,6 +17,7 @@ import org.bouncycastle.operator.OperatorCreationException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import pl.grzegorz2047.standalonethewalls.identity.policy.HandleAuthorizationMode;
+import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotException;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotPolicy;
 import pl.grzegorz2047.standalonethewalls.registry.RegistryTrustBundle;
 import pl.grzegorz2047.standalonethewalls.server.config.transport.ReliableTlsProcessConfiguration;
@@ -35,6 +36,7 @@ class ReliableTlsAdmissionRuntimeTest {
             throws IOException,
                     GeneralSecurityException,
                     OperatorCreationException,
+                    RegistrySnapshotException,
                     TlsTransportException {
         int port = freePort();
         LocalIdentityRuntime identityRuntime = identityRuntime();
@@ -61,6 +63,7 @@ class ReliableTlsAdmissionRuntimeTest {
             throws IOException,
                     GeneralSecurityException,
                     OperatorCreationException,
+                    RegistrySnapshotException,
                     TlsTransportException {
         LocalIdentityRuntime identityRuntime = identityRuntime();
         AtomicBoolean terminalFailure = new AtomicBoolean();
@@ -80,7 +83,8 @@ class ReliableTlsAdmissionRuntimeTest {
         }
     }
 
-    private LocalIdentityRuntime identityRuntime() throws GeneralSecurityException {
+    private LocalIdentityRuntime identityRuntime()
+            throws GeneralSecurityException, RegistrySnapshotException {
         KeyPair root = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
         return LocalIdentityRuntime.open(
                 new LocalIdentityRuntimeConfiguration(
