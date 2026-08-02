@@ -12,4 +12,5 @@ include(
     "transport-bctls",
     "identity-registry",
     "identity-registry-file",
+    "identity-policy",
 )
