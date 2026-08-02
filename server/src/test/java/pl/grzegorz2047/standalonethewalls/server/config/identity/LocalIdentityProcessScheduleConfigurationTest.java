@@ -32,8 +32,7 @@ class LocalIdentityProcessScheduleConfigurationTest {
     void httpsScheduleDefaultsToDisabledBoundedValues() throws Exception {
         LocalIdentityProcessConfiguration configuration = load(httpsPrefix());
         RegistryRefreshConfiguration.Https https =
-                (RegistryRefreshConfiguration.Https)
-                        configuration.registryRefreshConfiguration();
+                (RegistryRefreshConfiguration.Https) configuration.registryRefreshConfiguration();
 
         assertThat(https.schedule()).isEqualTo(RegistryRefreshScheduleConfiguration.DEFAULT);
         assertThat(https.schedule().enabled()).isFalse();
@@ -51,8 +50,7 @@ class LocalIdentityProcessScheduleConfigurationTest {
                                 + "identity.registry.scheduler.maximum-failure-backoff-seconds=48\n"
                                 + "identity.registry.scheduler.maximum-jitter-seconds=2\n");
         RegistryRefreshConfiguration.Https https =
-                (RegistryRefreshConfiguration.Https)
-                        configuration.registryRefreshConfiguration();
+                (RegistryRefreshConfiguration.Https) configuration.registryRefreshConfiguration();
 
         assertThat(https.schedule())
                 .isEqualTo(
@@ -68,36 +66,24 @@ class LocalIdentityProcessScheduleConfigurationTest {
     @Test
     void localBundleRejectsEverySchedulerKeyInsteadOfIgnoringIt() {
         assertRejected(localPrefix() + "identity.registry.scheduler.enabled=false\n");
-        assertRejected(
-                localPrefix()
-                        + "identity.registry.scheduler.initial-delay-seconds=60\n");
-        assertRejected(
-                localPrefix()
-                        + "identity.registry.scheduler.maximum-jitter-seconds=5\n");
+        assertRejected(localPrefix() + "identity.registry.scheduler.initial-delay-seconds=60\n");
+        assertRejected(localPrefix() + "identity.registry.scheduler.maximum-jitter-seconds=5\n");
     }
 
     @Test
     void rejectsInvalidBooleanZeroNegativeBackoffOrderingAndUnitOverflow() {
         assertRejected(httpsPrefix() + "identity.registry.scheduler.enabled=TRUE\n");
+        assertRejected(httpsPrefix() + "identity.registry.scheduler.success-interval-seconds=0\n");
         assertRejected(
-                httpsPrefix()
-                        + "identity.registry.scheduler.success-interval-seconds=0\n");
+                httpsPrefix() + "identity.registry.scheduler.initial-failure-backoff-seconds=0\n");
         assertRejected(
-                httpsPrefix()
-                        + "identity.registry.scheduler.initial-failure-backoff-seconds=0\n");
-        assertRejected(
-                httpsPrefix()
-                        + "identity.registry.scheduler.maximum-failure-backoff-seconds=0\n");
-        assertRejected(
-                httpsPrefix()
-                        + "identity.registry.scheduler.initial-delay-seconds=-1\n");
+                httpsPrefix() + "identity.registry.scheduler.maximum-failure-backoff-seconds=0\n");
+        assertRejected(httpsPrefix() + "identity.registry.scheduler.initial-delay-seconds=-1\n");
         assertRejected(
                 httpsPrefix()
                         + "identity.registry.scheduler.initial-failure-backoff-seconds=10\n"
                         + "identity.registry.scheduler.maximum-failure-backoff-seconds=9\n");
-        assertRejected(
-                httpsPrefix()
-                        + "identity.registry.scheduler.maximum-jitter-seconds=3601\n");
+        assertRejected(httpsPrefix() + "identity.registry.scheduler.maximum-jitter-seconds=3601\n");
         assertRejected(
                 httpsPrefix()
                         + "identity.registry.scheduler.success-interval-seconds=9223372036854775807\n");
