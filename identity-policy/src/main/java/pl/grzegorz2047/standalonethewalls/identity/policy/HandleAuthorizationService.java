@@ -102,8 +102,7 @@ public final class HandleAuthorizationService {
             case BOUND -> HandleAuthorizationDecision.LOCAL_FIRST_USE_ACCEPTED;
             case MATCHED -> HandleAuthorizationDecision.LOCAL_RETURNING_ACCEPTED;
             case CONFLICT -> HandleAuthorizationDecision.LOCAL_BINDING_CONFLICT;
-            case CAPACITY_EXCEEDED ->
-                    HandleAuthorizationDecision.LOCAL_BINDING_CAPACITY_EXCEEDED;
+            case CAPACITY_EXCEEDED -> HandleAuthorizationDecision.LOCAL_BINDING_CAPACITY_EXCEEDED;
         };
     }
 }
