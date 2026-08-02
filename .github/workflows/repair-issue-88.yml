@@ -1,0 +1,75 @@
+name: Repair issue 88 branch
+
+on:
+  push:
+    branches:
+      - agent/issue-88-direct-connect-service
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: agent/issue-88-direct-connect-service
+          fetch-depth: 0
+
+      - name: Set up Java 21
+        uses: actions/setup-java@d7793b545071e98d581d3bf084a51c3213318a07
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Merge current main and repair ownership callbacks
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git fetch origin main
+          git merge --no-edit origin/main
+          python3 - <<'PY'
+          from pathlib import Path
+
+          service = Path('client/src/main/java/pl/grzegorz2047/standalonethewalls/client/network/DirectConnectService.java')
+          text = service.read_text()
+          text = text.replace(
+              'if (current != null && current.isOpen()) {',
+              'if (current != null) {')
+          text = text.replace(
+              '() -> connected.compareAndSet(connected.get(), null)',
+              'session -> connected.compareAndSet(session, null)')
+          service.write_text(text)
+
+          endpoint = Path('client/src/main/java/pl/grzegorz2047/standalonethewalls/client/network/DirectConnectEndpoint.java')
+          text = endpoint.read_text().replace('import java.util.Arrays;\n', '')
+          endpoint.write_text(text)
+
+          connected = Path('client/src/main/java/pl/grzegorz2047/standalonethewalls/client/network/ConnectedLobbySession.java')
+          text = connected.read_text()
+          text = text.replace('    private final Thread receiver;\n', '')
+          text = text.replace(
+              '        receiver =\n                Thread.ofVirtual()\n                        .name("sunderfront-direct-connect-lobby-receiver")\n                        .start(this::receiveLoop);',
+              '        Thread.ofVirtual()\n                .name("sunderfront-direct-connect-lobby-receiver")\n                .start(this::receiveLoop);')
+          connected.write_text(text)
+          PY
+
+      - name: Apply repository formatter
+        run: ./gradlew --no-daemon spotlessApply
+
+      - name: Remove temporary workflows and commit
+        shell: bash
+        run: |
+          git rm -f .github/workflows/repair-issue-88.yml
+          if test -f .github/workflows/update-format-issue-88.yml; then
+            git rm -f .github/workflows/update-format-issue-88.yml
+          fi
+          git add client/build.gradle.kts
+          git add client/src/main/java/pl/grzegorz2047/standalonethewalls/client
+          git add client/src/test/java/pl/grzegorz2047/standalonethewalls/client
+          git diff --cached --quiet || git commit -m 'style: update and format Direct Connect implementation'
+          git push origin HEAD:agent/issue-88-direct-connect-service
