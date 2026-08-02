@@ -22,8 +22,8 @@ public final class RegistrySnapshotService {
 
     public VerifiedRegistrySnapshot verify(RegistrySnapshotProvider provider)
             throws RegistrySnapshotProviderException, RegistrySnapshotException {
-        RegistrySnapshotArtifact artifact = Objects.requireNonNull(provider, "provider").load();
-        return verifier.verify(artifact, trustBundle, policy);
+        RegistrySnapshotArtifact artifact = load(provider);
+        return verifyArtifact(artifact);
     }
 
     public RegistryActivationResult activate(VerifiedRegistrySnapshot snapshot)
@@ -34,5 +34,29 @@ public final class RegistrySnapshotService {
     public RegistryActivationResult refresh(RegistrySnapshotProvider provider)
             throws RegistrySnapshotProviderException, RegistrySnapshotException {
         return activate(verify(provider));
+    }
+
+    public RegistryActivationResult refreshAndCommit(
+            RegistrySnapshotProvider provider, VerifiedRegistrySnapshotCommit commit)
+            throws RegistrySnapshotProviderException, RegistrySnapshotException {
+        RegistrySnapshotArtifact artifact = load(provider);
+        VerifiedRegistrySnapshot verifiedSnapshot = verifyArtifact(artifact);
+        VerifiedRegistrySnapshotCommit activationCommit =
+                Objects.requireNonNull(commit, "commit");
+        return store.activateAfterCommit(
+                verifiedSnapshot,
+                () -> activationCommit.commit(artifact, verifiedSnapshot));
+    }
+
+    private RegistrySnapshotArtifact load(RegistrySnapshotProvider provider)
+            throws RegistrySnapshotProviderException {
+        RegistrySnapshotArtifact artifact =
+                Objects.requireNonNull(provider, "provider").load();
+        return Objects.requireNonNull(artifact, "provider artifact");
+    }
+
+    private VerifiedRegistrySnapshot verifyArtifact(RegistrySnapshotArtifact artifact)
+            throws RegistrySnapshotException {
+        return verifier.verify(artifact, trustBundle, policy);
     }
 }
