@@ -44,8 +44,7 @@ class LocalDisplayNameAdministrationServiceTest {
         assertThat(
                         service.setDisplayName(
                                 FIRST,
-                                LocalDisplayNameExpectation.exact(
-                                        new LocalDisplayName("Grzegorz")),
+                                LocalDisplayNameExpectation.exact(new LocalDisplayName("Grzegorz")),
                                 "Grzegorz",
                                 ADMINISTRATOR,
                                 REASON))
@@ -55,8 +54,7 @@ class LocalDisplayNameAdministrationServiceTest {
         assertThat(
                         service.setDisplayName(
                                 FIRST,
-                                LocalDisplayNameExpectation.exact(
-                                        new LocalDisplayName("Grzegorz")),
+                                LocalDisplayNameExpectation.exact(new LocalDisplayName("Grzegorz")),
                                 "Gżegorz",
                                 ADMINISTRATOR,
                                 REASON))
@@ -248,7 +246,6 @@ class LocalDisplayNameAdministrationServiceTest {
 
     private static LocalDisplayNameAdministrationService service(
             InMemoryLocalDisplayNameStore store) {
-        return new LocalDisplayNameAdministrationService(
-                store, Clock.fixed(NOW, ZoneOffset.UTC));
+        return new LocalDisplayNameAdministrationService(store, Clock.fixed(NOW, ZoneOffset.UTC));
     }
 }
