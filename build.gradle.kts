@@ -179,11 +179,12 @@ val engineFreeModules = listOf(
     "server",
     "bot-client",
     "transport-bctls",
+    "identity-registry",
 )
 val engineFreeSourceDirectories =
     engineFreeModules.map { module -> layout.projectDirectory.dir("$module/src") }
 val productionSourceDirectories =
-    subprojects.map { project -> project.layout.projectDirectory.dir("src/main") }
+    subprojects.map { project -> layout.projectDirectory.dir("src/main") }
 
 val verifyArchitecture = tasks.register("verifyArchitecture") {
     group = "verification"
