@@ -214,10 +214,7 @@ class HandleAuthorizationServiceTest {
 
         assertThat(
                         service.authorize(
-                                HandleAuthorizationMode.HYBRID,
-                                LOCAL_HANDLE,
-                                LOCAL_PLAYER,
-                                stale))
+                                HandleAuthorizationMode.HYBRID, LOCAL_HANDLE, LOCAL_PLAYER, stale))
                 .isEqualTo(HandleAuthorizationDecision.LOCAL_FIRST_USE_ACCEPTED);
         assertThat(store.find(LOCAL_HANDLE)).contains(LOCAL_PLAYER);
         assertThat(HandleAuthorizationDecision.REGISTRY_STALE.verificationLevel()).isEmpty();
