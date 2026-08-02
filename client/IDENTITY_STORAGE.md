@@ -134,3 +134,12 @@ Reset is intentionally outside normal startup:
 Startup failures return bounded storage error codes and preserve the files for
 inspection. The client must not implement "delete and retry" as an automatic
 recovery path.
+
+## Validation boundary
+
+Pull-request CI exercises the portable implementation on Linux, including POSIX
+permissions, symbolic-link rejection, restart continuity, corrupt-file handling,
+and concurrent first-use behavior. The repository's protected `main` workflow is
+the authoritative Windows compilation and test check. The alpha release must not
+claim Windows validation until that post-merge workflow has passed for the exact
+commit included in the release.
