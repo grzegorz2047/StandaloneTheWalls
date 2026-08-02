@@ -33,7 +33,8 @@ class RegistrySnapshotCachingRefreshClassificationTest {
     @TempDir Path temporaryDirectory;
 
     @Test
-    void classifiesActivationUnchangedAndProviderFailure() throws Exception {
+    void classifiesActivationUnchangedAndProviderFailure()
+            throws GeneralSecurityException, RegistrySnapshotException {
         Fixture fixture = new Fixture();
         RegistrySnapshotArtifact artifact = fixture.artifact(1L);
         RegistrySnapshotCachingRefreshService refresh = fixture.refresh("classified.sfrb");
@@ -51,7 +52,8 @@ class RegistrySnapshotCachingRefreshClassificationTest {
     }
 
     @Test
-    void classifiesCacheFailureWithoutPublishingCandidate() throws Exception {
+    void classifiesCacheFailureWithoutPublishingCandidate()
+            throws GeneralSecurityException, RegistrySnapshotException {
         Fixture fixture = new Fixture();
         RegistrySnapshotArtifact baseline = fixture.artifact(4L);
         RegistrySnapshotArtifact candidate = fixture.artifact(5L);
