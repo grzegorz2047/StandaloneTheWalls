@@ -13,10 +13,12 @@ import java.sql.Statement;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import pl.grzegorz2047.standalonethewalls.identity.policy.LocalDisplayName;
@@ -67,7 +69,9 @@ class SqliteLocalDisplayNameAdministrationStoreTest {
                 .containsExactly(
                         new LocalDisplayNameAssignment(FIRST, new LocalDisplayName("Shared")),
                         new LocalDisplayNameAssignment(SECOND, new LocalDisplayName("Shared")));
-        assertThat(reopened.auditEvents()).extracting(event -> event.sequence()).containsExactly(1L, 2L);
+        assertThat(reopened.auditEvents())
+                .extracting(event -> event.sequence())
+                .containsExactly(1L, 2L);
         assertThat(new SqliteLocalHandleAdministrationStore(database, 10, 10, 5_000).bindings())
                 .singleElement()
                 .satisfies(binding -> assertThat(binding.playerId()).isEqualTo(FIRST));
@@ -90,7 +94,13 @@ class SqliteLocalDisplayNameAdministrationStoreTest {
         SqliteLocalDisplayNameAdministrationStore store = store(database, 10, 10);
         assertThat(set(store, FIRST, LocalDisplayNameExpectation.absent(), "Initial", 0))
                 .isEqualTo(LocalDisplayNameAdministrationResult.APPLIED);
-        assertThat(set(store, FIRST, LocalDisplayNameExpectation.exact(name("Initial")), "Initial", 1))
+        assertThat(
+                        set(
+                                store,
+                                FIRST,
+                                LocalDisplayNameExpectation.exact(name("Initial")),
+                                "Initial",
+                                1))
                 .isEqualTo(LocalDisplayNameAdministrationResult.UNCHANGED);
         assertThat(set(store, FIRST, LocalDisplayNameExpectation.absent(), "Other", 2))
                 .isEqualTo(LocalDisplayNameAdministrationResult.EXPECTATION_MISMATCH);
@@ -142,7 +152,7 @@ class SqliteLocalDisplayNameAdministrationStoreTest {
     }
 
     @Test
-    void twoStoreInstancesAllowOnlyOneExactConcurrentUpdate() throws Exception {
+    void twoStoreInstancesAllowOnlyOneExactConcurrentUpdate() throws InterruptedException {
         Path database = temporaryDirectory.resolve("concurrent.sqlite");
         SqliteLocalDisplayNameAdministrationStore firstStore = store(database, 10, 10);
         SqliteLocalDisplayNameAdministrationStore secondStore = store(database, 10, 10);
@@ -158,7 +168,7 @@ class SqliteLocalDisplayNameAdministrationStoreTest {
                     executor.submit(() -> raceSet(secondStore, "Two", ready, start));
             assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
             start.countDown();
-            assertThat(List.of(first.get(10, TimeUnit.SECONDS), second.get(10, TimeUnit.SECONDS)))
+            assertThat(List.of(await(first), await(second)))
                     .containsExactlyInAnyOrder(
                             LocalDisplayNameAdministrationResult.APPLIED,
                             LocalDisplayNameAdministrationResult.EXPECTATION_MISMATCH);
@@ -185,14 +195,25 @@ class SqliteLocalDisplayNameAdministrationStoreTest {
         assertThat(set(store, FIRST, LocalDisplayNameExpectation.absent(), "Name", 0))
                 .isEqualTo(LocalDisplayNameAdministrationResult.APPLIED);
         assertThatThrownBy(
-                        () -> execute(future, "UPDATE local_player_display_name_audit SET reason = 'x'"))
+                        () ->
+                                execute(
+                                        future,
+                                        "UPDATE local_player_display_name_audit SET reason = 'x'"))
                 .isInstanceOf(SQLException.class);
-        assertThatThrownBy(
-                        () -> execute(future, "DELETE FROM local_player_display_name_audit"))
+        assertThatThrownBy(() -> execute(future, "DELETE FROM local_player_display_name_audit"))
                 .isInstanceOf(SQLException.class);
         execute(future, "UPDATE local_identity_schema SET version = 4 WHERE singleton = 1");
         assertThatThrownBy(() -> store(future, 10, 10))
                 .isInstanceOf(SqliteLocalHandleStoreException.class);
+    }
+
+    private static LocalDisplayNameAdministrationResult await(
+            Future<LocalDisplayNameAdministrationResult> result) throws InterruptedException {
+        try {
+            return result.get(10, TimeUnit.SECONDS);
+        } catch (ExecutionException | TimeoutException exception) {
+            throw new AssertionError("concurrent display-name update failed", exception);
+        }
     }
 
     private static LocalDisplayNameAdministrationResult raceSet(
@@ -206,11 +227,7 @@ class SqliteLocalDisplayNameAdministrationStoreTest {
             throw new IllegalStateException("concurrent display-name test did not start");
         }
         return set(
-                store,
-                FIRST,
-                LocalDisplayNameExpectation.exact(name("Initial")),
-                replacement,
-                1);
+                store, FIRST, LocalDisplayNameExpectation.exact(name("Initial")), replacement, 1);
     }
 
     private static LocalDisplayNameAdministrationResult set(
