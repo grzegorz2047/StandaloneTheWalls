@@ -10,7 +10,8 @@ public record LocalHandleAdministrationReason(String value) {
     public LocalHandleAdministrationReason {
         Objects.requireNonNull(value, "value");
         if (value.isBlank() || !value.equals(value.strip())) {
-            throw new IllegalArgumentException("administration reason must be non-blank and trimmed");
+            throw new IllegalArgumentException(
+                    "administration reason must be non-blank and trimmed");
         }
         if (!Normalizer.isNormalized(value, Normalizer.Form.NFC)) {
             throw new IllegalArgumentException("administration reason must use NFC normalization");
