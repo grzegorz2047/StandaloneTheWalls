@@ -8,6 +8,7 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import pl.grzegorz2047.standalonethewalls.identity.policy.sqlite.SqliteLocalHandleStoreException;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotException;
 import pl.grzegorz2047.standalonethewalls.server.config.ServerConfiguration;
 import pl.grzegorz2047.standalonethewalls.server.config.ServerConfigurationLoader;
@@ -42,8 +43,7 @@ public final class ServerLauncher {
             LocalIdentityProcessConfiguration identityConfiguration =
                     options.identityConfigurationPath() == null
                             ? null
-                            : LocalIdentityProcessConfigurationLoader.load(
-                                    options.identityConfigurationPath());
+                            : loadIdentityConfiguration(options.identityConfigurationPath());
             if (options.validateOnly()) {
                 if (identityConfiguration == null) {
                     LOGGER.info(
@@ -64,7 +64,7 @@ public final class ServerLauncher {
 
             LocalIdentityRuntime identityRuntime = openIdentityRuntime(identityConfiguration);
             return runServer(configuration, options.runForTicks(), identityRuntime);
-        } catch (IllegalArgumentException | IOException | RegistrySnapshotException exception) {
+        } catch (IllegalArgumentException | IOException exception) {
             LOGGER.error("Server configuration or command-line error: {}", exception.getMessage());
             return EXIT_USAGE_OR_CONFIGURATION;
         } catch (InterruptedException exception) {
@@ -74,23 +74,36 @@ public final class ServerLauncher {
         }
     }
 
+    private static LocalIdentityProcessConfiguration loadIdentityConfiguration(Path path) {
+        try {
+            return LocalIdentityProcessConfigurationLoader.load(path);
+        } catch (IOException | RegistrySnapshotException exception) {
+            throw new IllegalArgumentException("local identity configuration is invalid", exception);
+        }
+    }
+
     private static LocalIdentityRuntime openIdentityRuntime(
             LocalIdentityProcessConfiguration identityConfiguration) {
         if (identityConfiguration == null) {
             return null;
         }
-        LocalIdentityRuntime runtime =
-                LocalIdentityRuntime.open(
-                        identityConfiguration.runtimeConfiguration(),
-                        identityConfiguration.trustBundle(),
-                        identityConfiguration.registryPolicy(),
-                        Clock.systemUTC());
-        LOGGER.info(
-                "Local identity runtime opened in {} mode; registry startup {}, availability {}.",
-                runtime.configuration().authorizationMode(),
-                runtime.startupRegistryResult().code(),
-                runtime.registryAvailability().state());
-        return runtime;
+        try {
+            LocalIdentityRuntime runtime =
+                    LocalIdentityRuntime.open(
+                            identityConfiguration.runtimeConfiguration(),
+                            identityConfiguration.trustBundle(),
+                            identityConfiguration.registryPolicy(),
+                            Clock.systemUTC());
+            LOGGER.info(
+                    "Local identity runtime opened in {} mode; registry startup {}, availability {}.",
+                    runtime.configuration().authorizationMode(),
+                    runtime.startupRegistryResult().code(),
+                    runtime.registryAvailability().state());
+            return runtime;
+        } catch (SqliteLocalHandleStoreException exception) {
+            throw new IllegalArgumentException(
+                    "local identity persistence configuration is invalid", exception);
+        }
     }
 
     private static int runServer(
