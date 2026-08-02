@@ -46,7 +46,7 @@ class FilePlayerIdentityStoreTest {
 
     @Test
     void concurrentFirstUseConvergesOnOnePersistedIdentity()
-            throws InterruptedException, ExecutionException {
+            throws IdentityException, InterruptedException, ExecutionException {
         Path path = temporaryDirectory.resolve("concurrent/player-identity.sfki");
         CountDownLatch ready = new CountDownLatch(2);
         CountDownLatch start = new CountDownLatch(1);
