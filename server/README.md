@@ -43,6 +43,35 @@ results never carry a verification level. Accepted local identities are marked
 The gate does not own sockets, TLS, private keys, IP addresses, SQLite lifecycle,
 or lobby membership.
 
+## Local identity runtime composition
+
+Issue #68 adds `LocalIdentityRuntime` as the single local composition used by
+session admission and identity administration. Its configuration contains one
+SQLite database path, one different registry bundle path, and one explicit handle
+authorization mode.
+
+Opening the runtime constructs:
+
+- handle binding and player-ban SQLite stores on the same database file;
+- one atomic registry snapshot store;
+- one local `SFRB` bundle provider;
+- registry verification and administration services;
+- the ban-before-handle session admission gate;
+- the typed identity administration command service.
+
+The runtime attempts one local registry reload during construction and retains the
+typed result. A missing bundle remains `PROVIDER_FAILURE`; a rejected artifact
+remains `SNAPSHOT_REJECTED`; neither creates a default snapshot. `LOCAL_TOFU` can
+operate without registry data only when explicitly selected. `GLOBAL_ONLY` and
+`HYBRID` keep their existing fail-closed decisions.
+
+Registry availability is computed dynamically from the shared store, clock, and
+policy. A later authorized `reload-registry` command is therefore immediately
+visible to the next admission call. Bindings and player bans survive reopening via
+the shared SQLite file. Trust-root parsing and process configuration are still
+outside this composition, as are sockets, TLS, refresh scheduling, and lobby
+membership.
+
 ## Local identity administration commands
 
 Issues #66 and #67 define a strict typed command boundary for future console,
