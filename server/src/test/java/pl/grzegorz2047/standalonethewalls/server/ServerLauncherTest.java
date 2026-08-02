@@ -36,6 +36,10 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerReference;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerTrustRecord;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerTrustService;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerTrustStore;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyJoined;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolCodec;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolException;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
 import pl.grzegorz2047.standalonethewalls.server.testsupport.ServerTlsTestCertificateMaterial;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.AuthenticatedReliableSession;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.BootstrappedReliableSession;
@@ -108,7 +112,7 @@ class ServerLauncherTest {
     }
 
     @Test
-    void launcherAcceptsARealTlsIdentityAndLocalTofuPolicySession()
+    void launcherAcceptsARealTlsIdentityAndTransfersItIntoMinimalLobby()
             throws GeneralSecurityException,
                     OperatorCreationException,
                     IOException,
@@ -116,6 +120,7 @@ class ServerLauncherTest {
                     TlsTransportException,
                     TlsSessionBootstrapException,
                     PlayerSessionAdmissionException,
+                    LobbyProtocolException,
                     InterruptedException,
                     ExecutionException,
                     TimeoutException {
@@ -152,6 +157,7 @@ class ServerLauncherTest {
                         reference,
                         Optional.of(process.serverId()));
         PlayerIdentity identity = PlayerIdentity.generate(new SecureRandom());
+        CanonicalHandle handle = new CanonicalHandle("launcher_player");
         Tls13Connection connection = null;
         BootstrappedReliableSession bootstrapped = null;
         AuthenticatedReliableSession authenticated = null;
@@ -164,7 +170,7 @@ class ServerLauncherTest {
                     IdentityExchange.authenticateClient(
                                     bootstrapped,
                                     identity,
-                                    new CanonicalHandle("launcher_player"),
+                                    handle,
                                     Clock.systemUTC(),
                                     IdentityExchangeConfig.DEFAULT)
                             .toCompletableFuture()
@@ -172,17 +178,25 @@ class ServerLauncherTest {
             bootstrapped = null;
             connection = null;
 
-            ProtocolEnvelope admission =
-                    authenticated
-                            .reliableChannel()
-                            .receive()
-                            .toCompletableFuture()
-                            .get(NETWORK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                            .orElseThrow();
+            ProtocolEnvelope admission = receive(authenticated);
             assertEquals(MessageType.SESSION_ADMISSION_RESULT, admission.messageType());
             assertEquals(
                     PlayerSessionAdmissionStatus.LOCAL_FIRST_USE_ACCEPTED,
                     PlayerSessionAdmissionCodec.decode(admission.payload()));
+
+            ProtocolEnvelope joinedEnvelope = receive(authenticated);
+            assertEquals(MessageType.LOBBY_JOINED, joinedEnvelope.messageType());
+            LobbyJoined joined = LobbyProtocolCodec.decodeJoined(joinedEnvelope.payload());
+            assertEquals(1L, joined.revision());
+            assertEquals(identity.playerId(), joined.self().playerId());
+            assertEquals(handle, joined.self().handle());
+
+            ProtocolEnvelope snapshotEnvelope = receive(authenticated);
+            assertEquals(MessageType.LOBBY_SNAPSHOT, snapshotEnvelope.messageType());
+            LobbySnapshot snapshot = LobbyProtocolCodec.decodeSnapshot(snapshotEnvelope.payload());
+            assertEquals(joined.revision(), snapshot.revision());
+            assertEquals(java.util.List.of(joined.self()), snapshot.members());
+
             authenticated
                     .closeAsync()
                     .toCompletableFuture()
@@ -278,6 +292,15 @@ class ServerLauncherTest {
                 identity,
                 tls,
                 ServerId.fromPublicKey(material.keyPair().getPublic().getEncoded()));
+    }
+
+    private static ProtocolEnvelope receive(AuthenticatedReliableSession session)
+            throws InterruptedException, ExecutionException, TimeoutException {
+        return session.reliableChannel()
+                .receive()
+                .toCompletableFuture()
+                .get(NETWORK_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .orElseThrow();
     }
 
     private static Tls13Connection connectWithRetry(int port, PinnedServerTrustManager trustManager)

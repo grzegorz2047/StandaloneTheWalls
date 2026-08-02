@@ -21,7 +21,7 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerId;
 
 class AuthorizedPlayerSessionQueueTest {
     @Test
-    void reservationBoundsCapacityAndPollTransfersOwnership() {
+    void reservationBoundsCapacityAndTransferRetainsItsSlotUntilSessionClose() {
         AuthorizedPlayerSessionQueue queue =
                 new AuthorizedPlayerSessionQueue(1, Duration.ofSeconds(1));
         AuthorizedPlayerSessionQueue.Reservation reservation = queue.tryReserve().orElseThrow();
@@ -34,11 +34,39 @@ class AuthorizedPlayerSessionQueueTest {
         assertThat(queue.reservedSlotCount()).isZero();
         assertThat(queue.size()).isEqualTo(1);
 
-        assertThat(queue.poll()).containsSame(authorized);
-        queue.close();
+        AuthorizedPlayerSession transferred = queue.poll().orElseThrow();
+        assertThat(transferred.sessionId()).isEqualTo(authorized.sessionId());
+        assertThat(queue.size()).isZero();
+        assertThat(queue.activeTransferCount()).isEqualTo(1);
+        assertThat(queue.tryReserve()).isEmpty();
 
+        queue.close();
         assertThat(transport.closeCount()).isZero();
         assertThat(queue.isClosed()).isTrue();
+
+        transferred.closeAsync().toCompletableFuture().join();
+        transferred.closeAsync().toCompletableFuture().join();
+        assertThat(transport.closeCount()).isEqualTo(1);
+        assertThat(queue.activeTransferCount()).isZero();
+    }
+
+    @Test
+    void closingTransferredSessionReturnsCapacityToAnOpenQueue() {
+        AuthorizedPlayerSessionQueue queue =
+                new AuthorizedPlayerSessionQueue(1, Duration.ofSeconds(1));
+        TestSession transport = new TestSession(1);
+        try (AuthorizedPlayerSessionQueue.Reservation reservation =
+                queue.tryReserve().orElseThrow()) {
+            assertThat(reservation.commit(authorized(transport))).isTrue();
+        }
+        AuthorizedPlayerSession transferred = queue.poll().orElseThrow();
+
+        assertThat(queue.tryReserve()).isEmpty();
+        transferred.closeAsync().toCompletableFuture().join();
+
+        assertThat(queue.activeTransferCount()).isZero();
+        assertThat(queue.tryReserve()).isPresent();
+        queue.close();
     }
 
     @Test

@@ -12,7 +12,9 @@ public enum MessageType {
     IDENTITY_CHALLENGE(6, 2 * 1024, Channel.RELIABLE),
     IDENTITY_PROOF(7, 4 * 1024, Channel.RELIABLE),
     IDENTITY_RESULT(8, 1024, Channel.RELIABLE),
-    SESSION_ADMISSION_RESULT(9, 64, Channel.RELIABLE);
+    SESSION_ADMISSION_RESULT(9, 64, Channel.RELIABLE),
+    LOBBY_JOINED(10, 128, Channel.RELIABLE),
+    LOBBY_SNAPSHOT(11, 4 * 1024, Channel.RELIABLE);
 
     private final int wireId;
     private final int maximumPayloadBytes;
@@ -47,6 +49,8 @@ public enum MessageType {
             case 7 -> Optional.of(IDENTITY_PROOF);
             case 8 -> Optional.of(IDENTITY_RESULT);
             case 9 -> Optional.of(SESSION_ADMISSION_RESULT);
+            case 10 -> Optional.of(LOBBY_JOINED);
+            case 11 -> Optional.of(LOBBY_SNAPSHOT);
             default -> Optional.empty();
         };
     }

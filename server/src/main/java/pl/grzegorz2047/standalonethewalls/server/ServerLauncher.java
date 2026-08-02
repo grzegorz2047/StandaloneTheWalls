@@ -32,6 +32,7 @@ import pl.grzegorz2047.standalonethewalls.server.config.transport.ReliableTlsPro
 import pl.grzegorz2047.standalonethewalls.server.identity.LocalIdentityRuntime;
 import pl.grzegorz2047.standalonethewalls.server.identity.RegistryRefreshScheduler;
 import pl.grzegorz2047.standalonethewalls.server.identity.session.ReliableTlsAdmissionRuntime;
+import pl.grzegorz2047.standalonethewalls.server.lobby.MinimalLobbyRuntime;
 import pl.grzegorz2047.standalonethewalls.server.runtime.FixedTickLoop;
 import pl.grzegorz2047.standalonethewalls.server.runtime.ServerRuntime;
 import pl.grzegorz2047.standalonethewalls.server.runtime.SystemNanoSleeper;
@@ -45,6 +46,8 @@ public final class ServerLauncher {
     public static final int EXIT_ADMINISTRATION_REJECTED = 3;
     private static final Logger LOGGER = LoggerFactory.getLogger(ServerLauncher.class);
     private static final Duration SMOKE_TIMEOUT = Duration.ofSeconds(30);
+    private static final Duration LOBBY_SEND_TIMEOUT = Duration.ofSeconds(5);
+    private static final Duration LOBBY_SHUTDOWN_TIMEOUT = Duration.ofSeconds(10);
     private static final IdentityAdministrationPrincipal LOCAL_CLI_PRINCIPAL =
             new IdentityAdministrationPrincipal(
                     new LocalIdentityAdministratorId("local-cli"),
@@ -204,6 +207,7 @@ public final class ServerLauncher {
                         });
 
         ReliableTlsAdmissionRuntime tlsRuntime = null;
+        MinimalLobbyRuntime lobbyRuntime = null;
         RegistryRefreshScheduler registryRefreshScheduler = RegistryRefreshScheduler.disabled();
         Thread shutdownHook = null;
         boolean hookInstalled = false;
@@ -217,6 +221,18 @@ public final class ServerLauncher {
                                         "reliable TLS requires local identity runtime"),
                                 Clock.systemUTC(),
                                 runtime::close);
+                lobbyRuntime =
+                        new MinimalLobbyRuntime(
+                                tlsRuntime.authorizedSessions(),
+                                LOBBY_SEND_TIMEOUT,
+                                LOBBY_SHUTDOWN_TIMEOUT,
+                                event ->
+                                        LOGGER.debug(
+                                                "Minimal lobby event {}; members {}, revision {}.",
+                                                event.code(),
+                                                event.memberCount(),
+                                                event.revision()),
+                                runtime::close);
             }
             registryRefreshScheduler =
                     identityRuntime == null
@@ -224,6 +240,7 @@ public final class ServerLauncher {
                             : identityRuntime.startAutomaticRegistryRefresh();
 
             ReliableTlsAdmissionRuntime ownedTlsRuntime = tlsRuntime;
+            MinimalLobbyRuntime ownedLobbyRuntime = lobbyRuntime;
             RegistryRefreshScheduler ownedRegistryRefreshScheduler = registryRefreshScheduler;
             shutdownHook =
                     Thread.ofPlatform()
@@ -233,17 +250,21 @@ public final class ServerLauncher {
                                             closeRuntime(
                                                     runtime,
                                                     ownedRegistryRefreshScheduler,
-                                                    ownedTlsRuntime));
+                                                    ownedTlsRuntime,
+                                                    ownedLobbyRuntime));
             if (runForTicks == null) {
                 Runtime.getRuntime().addShutdownHook(shutdownHook);
                 hookInstalled = true;
+            }
+            if (lobbyRuntime != null) {
+                lobbyRuntime.start();
             }
             if (tlsRuntime != null) {
                 tlsRuntime.start();
             }
             runtime.start();
             LOGGER.info(
-                    "{} dedicated server '{}' started at {} Hz; reliable port {}, realtime port {}, max {} players; local identity {}; reliable TLS {}.",
+                    "{} dedicated server '{}' started at {} Hz; reliable port {}, realtime port {}, max {} players; local identity {}; reliable TLS {}; minimal lobby {}.",
                     BuildInfo.PRODUCT_NAME,
                     configuration.name(),
                     configuration.tickRate(),
@@ -251,7 +272,8 @@ public final class ServerLauncher {
                     configuration.realtimePort(),
                     configuration.maximumPlayers(),
                     identityRuntime == null ? "disabled" : "enabled",
-                    tlsRuntime == null ? "disabled" : "enabled");
+                    tlsRuntime == null ? "disabled" : "enabled",
+                    lobbyRuntime == null ? "disabled" : "enabled");
 
             boolean terminated;
             if (runForTicks == null) {
@@ -274,13 +296,17 @@ public final class ServerLauncher {
                 LOGGER.error("Reliable TLS listener stopped after an internal failure.");
                 return EXIT_RUNTIME_FAILURE;
             }
+            if (lobbyRuntime != null && lobbyRuntime.failure().isPresent()) {
+                LOGGER.error("Minimal lobby stopped after an internal failure.");
+                return EXIT_RUNTIME_FAILURE;
+            }
             LOGGER.info("Server stopped cleanly after {} ticks.", executedTicks.get());
             return EXIT_OK;
         } catch (IOException | RuntimeException exception) {
             LOGGER.error("Server process failed to start its reliable TLS/runtime resources.");
             return EXIT_RUNTIME_FAILURE;
         } finally {
-            closeRuntime(runtime, registryRefreshScheduler, tlsRuntime);
+            closeRuntime(runtime, registryRefreshScheduler, tlsRuntime, lobbyRuntime);
             if (hookInstalled && shutdownHook != null) {
                 removeShutdownHookIfPossible(shutdownHook);
             }
@@ -290,12 +316,20 @@ public final class ServerLauncher {
     private static void closeRuntime(
             ServerRuntime runtime,
             RegistryRefreshScheduler registryRefreshScheduler,
-            ReliableTlsAdmissionRuntime tlsRuntime) {
+            ReliableTlsAdmissionRuntime tlsRuntime,
+            MinimalLobbyRuntime lobbyRuntime) {
         List<Throwable> failures = new ArrayList<>();
         if (tlsRuntime != null) {
             try {
                 tlsRuntime.close();
             } catch (IOException | RuntimeException exception) {
+                failures.add(exception);
+            }
+        }
+        if (lobbyRuntime != null) {
+            try {
+                lobbyRuntime.close();
+            } catch (RuntimeException exception) {
                 failures.add(exception);
             }
         }
