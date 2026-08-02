@@ -65,8 +65,6 @@ public record RegistryAdministrationResult(
     private static RegistryAdministrationResult success(
             RegistryAdministrationResultCode code, RegistrySnapshotSummary snapshot) {
         return new RegistryAdministrationResult(
-                code,
-                Optional.of(Objects.requireNonNull(snapshot, "snapshot")),
-                Optional.empty());
+                code, Optional.of(Objects.requireNonNull(snapshot, "snapshot")), Optional.empty());
     }
 }
