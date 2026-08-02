@@ -1,6 +1,7 @@
 package pl.grzegorz2047.standalonethewalls.registry.file;
 
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 import pl.grzegorz2047.standalonethewalls.registry.RegistryActivationResult;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotException;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotProvider;
@@ -28,5 +29,31 @@ public final class RegistrySnapshotCachingRefreshService {
             throws RegistrySnapshotProviderException, RegistrySnapshotException {
         return snapshotService.refreshAndCommit(
                 Objects.requireNonNull(provider, "provider"), commit);
+    }
+
+    public Outcome refreshClassified(RegistrySnapshotProvider provider)
+            throws RegistrySnapshotException {
+        AtomicBoolean cacheCommitStarted = new AtomicBoolean();
+        try {
+            RegistryActivationResult activation =
+                    snapshotService.refreshAndCommit(
+                            Objects.requireNonNull(provider, "provider"),
+                            (artifact, verifiedSnapshot) -> {
+                                cacheCommitStarted.set(true);
+                                commit.commit(artifact, verifiedSnapshot);
+                            });
+            return activation == RegistryActivationResult.ACTIVATED
+                    ? Outcome.ACTIVATED
+                    : Outcome.UNCHANGED;
+        } catch (RegistrySnapshotProviderException exception) {
+            return cacheCommitStarted.get() ? Outcome.CACHE_FAILURE : Outcome.PROVIDER_FAILURE;
+        }
+    }
+
+    public enum Outcome {
+        ACTIVATED,
+        UNCHANGED,
+        PROVIDER_FAILURE,
+        CACHE_FAILURE
     }
 }

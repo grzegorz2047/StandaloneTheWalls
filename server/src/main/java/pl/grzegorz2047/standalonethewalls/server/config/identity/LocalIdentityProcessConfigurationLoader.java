@@ -18,6 +18,7 @@ import pl.grzegorz2047.standalonethewalls.server.identity.LocalIdentityRuntimeCo
 /** Strict duplicate-detecting loader for a standalone local identity configuration file. */
 public final class LocalIdentityProcessConfigurationLoader {
     public static final int MAXIMUM_FILE_BYTES = 64 * 1024;
+    private static final long NANOS_PER_SECOND = 1_000_000_000L;
     private static final String SQLITE_PATH = "identity.sqlite-path";
     private static final String REGISTRY_BUNDLE_PATH = "identity.registry-bundle-path";
     private static final String AUTHORIZATION_MODE = "identity.authorization-mode";
@@ -36,13 +37,30 @@ public final class LocalIdentityProcessConfigurationLoader {
             "identity.registry.https.connect-timeout-seconds";
     private static final String HTTPS_REQUEST_TIMEOUT_SECONDS =
             "identity.registry.https.request-timeout-seconds";
-    private static final Set<String> HTTPS_KEYS =
+    private static final String SCHEDULER_ENABLED = "identity.registry.scheduler.enabled";
+    private static final String SCHEDULER_INITIAL_DELAY_SECONDS =
+            "identity.registry.scheduler.initial-delay-seconds";
+    private static final String SCHEDULER_SUCCESS_INTERVAL_SECONDS =
+            "identity.registry.scheduler.success-interval-seconds";
+    private static final String SCHEDULER_INITIAL_FAILURE_BACKOFF_SECONDS =
+            "identity.registry.scheduler.initial-failure-backoff-seconds";
+    private static final String SCHEDULER_MAXIMUM_FAILURE_BACKOFF_SECONDS =
+            "identity.registry.scheduler.maximum-failure-backoff-seconds";
+    private static final String SCHEDULER_MAXIMUM_JITTER_SECONDS =
+            "identity.registry.scheduler.maximum-jitter-seconds";
+    private static final Set<String> REMOTE_REFRESH_KEYS =
             Set.of(
                     HTTPS_JSON_URI,
                     HTTPS_DIGEST_URI,
                     HTTPS_SIGNATURE_URI,
                     HTTPS_CONNECT_TIMEOUT_SECONDS,
-                    HTTPS_REQUEST_TIMEOUT_SECONDS);
+                    HTTPS_REQUEST_TIMEOUT_SECONDS,
+                    SCHEDULER_ENABLED,
+                    SCHEDULER_INITIAL_DELAY_SECONDS,
+                    SCHEDULER_SUCCESS_INTERVAL_SECONDS,
+                    SCHEDULER_INITIAL_FAILURE_BACKOFF_SECONDS,
+                    SCHEDULER_MAXIMUM_FAILURE_BACKOFF_SECONDS,
+                    SCHEDULER_MAXIMUM_JITTER_SECONDS);
     private static final Set<String> REQUIRED_HTTPS_KEYS =
             Set.of(HTTPS_JSON_URI, HTTPS_DIGEST_URI, HTTPS_SIGNATURE_URI);
     private static final Set<String> ALLOWED_KEYS =
@@ -61,7 +79,13 @@ public final class LocalIdentityProcessConfigurationLoader {
                     HTTPS_DIGEST_URI,
                     HTTPS_SIGNATURE_URI,
                     HTTPS_CONNECT_TIMEOUT_SECONDS,
-                    HTTPS_REQUEST_TIMEOUT_SECONDS);
+                    HTTPS_REQUEST_TIMEOUT_SECONDS,
+                    SCHEDULER_ENABLED,
+                    SCHEDULER_INITIAL_DELAY_SECONDS,
+                    SCHEDULER_SUCCESS_INTERVAL_SECONDS,
+                    SCHEDULER_INITIAL_FAILURE_BACKOFF_SECONDS,
+                    SCHEDULER_MAXIMUM_FAILURE_BACKOFF_SECONDS,
+                    SCHEDULER_MAXIMUM_JITTER_SECONDS);
     private static final Set<String> REQUIRED_KEYS =
             Set.of(
                     SQLITE_PATH,
@@ -133,7 +157,7 @@ public final class LocalIdentityProcessConfigurationLoader {
                     REFRESH_SOURCE + " must be LOCAL_BUNDLE or HTTPS", exception);
         }
         if (source == RegistryRefreshConfiguration.Source.LOCAL_BUNDLE) {
-            for (String key : HTTPS_KEYS) {
+            for (String key : REMOTE_REFRESH_KEYS) {
                 if (properties.containsKey(key)) {
                     throw new IllegalArgumentException(
                             key + " is not allowed for LOCAL_BUNDLE refresh source");
@@ -169,7 +193,59 @@ public final class LocalIdentityProcessConfigurationLoader {
                                         HTTPS_REQUEST_TIMEOUT_SECONDS,
                                         defaults.requestTimeout().toSeconds())),
                         maximumJsonBytes);
-        return new RegistryRefreshConfiguration.Https(https);
+        return new RegistryRefreshConfiguration.Https(https, scheduleConfiguration(properties));
+    }
+
+    private static RegistryRefreshScheduleConfiguration scheduleConfiguration(
+            Map<String, String> properties) {
+        RegistryRefreshScheduleConfiguration defaults =
+                RegistryRefreshScheduleConfiguration.DEFAULT;
+        return new RegistryRefreshScheduleConfiguration(
+                booleanValue(properties, SCHEDULER_ENABLED, defaults.enabled()),
+                durationSeconds(
+                        properties,
+                        SCHEDULER_INITIAL_DELAY_SECONDS,
+                        defaults.initialDelay().toSeconds()),
+                durationSeconds(
+                        properties,
+                        SCHEDULER_SUCCESS_INTERVAL_SECONDS,
+                        defaults.successInterval().toSeconds()),
+                durationSeconds(
+                        properties,
+                        SCHEDULER_INITIAL_FAILURE_BACKOFF_SECONDS,
+                        defaults.initialFailureBackoff().toSeconds()),
+                durationSeconds(
+                        properties,
+                        SCHEDULER_MAXIMUM_FAILURE_BACKOFF_SECONDS,
+                        defaults.maximumFailureBackoff().toSeconds()),
+                durationSeconds(
+                        properties,
+                        SCHEDULER_MAXIMUM_JITTER_SECONDS,
+                        defaults.maximumJitter().toSeconds()));
+    }
+
+    private static Duration durationSeconds(
+            Map<String, String> values, String key, long defaultSeconds) {
+        long seconds = longValue(values, key, defaultSeconds);
+        try {
+            return Duration.ofNanos(Math.multiplyExact(seconds, NANOS_PER_SECOND));
+        } catch (ArithmeticException exception) {
+            throw new IllegalArgumentException(
+                    key + " overflows nanosecond unit conversion", exception);
+        }
+    }
+
+    private static boolean booleanValue(
+            Map<String, String> values, String key, boolean defaultValue) {
+        String value = values.get(key);
+        if (value == null) {
+            return defaultValue;
+        }
+        return switch (value) {
+            case "true" -> true;
+            case "false" -> false;
+            default -> throw new IllegalArgumentException(key + " must be true or false");
+        };
     }
 
     private static URI uri(String value, String key) {

@@ -3,7 +3,7 @@ package pl.grzegorz2047.standalonethewalls.server.config.identity;
 import java.util.Objects;
 import pl.grzegorz2047.standalonethewalls.registry.http.RegistrySnapshotHttpsConfiguration;
 
-/** Immutable process choice for administrative registry verification and reload. */
+/** Immutable process choice for administrative and optional automatic registry refresh. */
 public sealed interface RegistryRefreshConfiguration
         permits RegistryRefreshConfiguration.LocalBundle, RegistryRefreshConfiguration.Https {
     Source source();
@@ -20,10 +20,17 @@ public sealed interface RegistryRefreshConfiguration
         }
     }
 
-    record Https(RegistrySnapshotHttpsConfiguration configuration)
+    record Https(
+            RegistrySnapshotHttpsConfiguration configuration,
+            RegistryRefreshScheduleConfiguration schedule)
             implements RegistryRefreshConfiguration {
+        public Https(RegistrySnapshotHttpsConfiguration configuration) {
+            this(configuration, RegistryRefreshScheduleConfiguration.DEFAULT);
+        }
+
         public Https {
             configuration = Objects.requireNonNull(configuration, "configuration");
+            schedule = Objects.requireNonNull(schedule, "schedule");
         }
 
         @Override
