@@ -71,7 +71,7 @@ class Tls13LoopbackIntegrationTest {
                 Tls13Policy.configureClient(
                         client, Tls13Policy.ServerAuthentication.PINNED_IDENTITY);
                 client.setSoTimeout((int) TIMEOUT.toMillis());
-                SecureChannelBinding clientBinding = Tls13Handshake.establish(client);
+                SecureChannelBinding clientBinding = Tls13Handshake.establish(client, TIMEOUT);
                 Tls13SessionSecurity clientSecurity =
                         Tls13SessionInspector.inspectClient(client, clientBinding);
                 client.getOutputStream().write(0x5A);
@@ -128,7 +128,8 @@ class Tls13LoopbackIntegrationTest {
                 Tls13Policy.configureClient(
                         client, Tls13Policy.ServerAuthentication.PINNED_IDENTITY);
                 client.setSoTimeout((int) TIMEOUT.toMillis());
-                Throwable failure = catchThrowable(() -> Tls13Handshake.establish(client));
+                Throwable failure =
+                        catchThrowable(() -> Tls13Handshake.establish(client, TIMEOUT));
                 assertThat(failure)
                         .isInstanceOf(IOException.class)
                         .hasRootCauseInstanceOf(TlsTrustException.class);
@@ -144,7 +145,7 @@ class Tls13LoopbackIntegrationTest {
     void rejectsAJsseSocketThatCannotExposeTheTlsExporter() throws IOException {
         try (SSLSocket socket =
                 (SSLSocket) javax.net.ssl.SSLSocketFactory.getDefault().createSocket()) {
-            assertThatThrownBy(() -> Tls13Handshake.establish(socket))
+            assertThatThrownBy(() -> Tls13Handshake.establish(socket, TIMEOUT))
                     .isInstanceOfSatisfying(
                             TlsTransportException.class,
                             exception ->
@@ -152,6 +153,9 @@ class Tls13LoopbackIntegrationTest {
                                             .isEqualTo(
                                                     TlsTransportException.Code
                                                             .UNSUPPORTED_JSSE_SOCKET));
+            assertThatThrownBy(() -> Tls13Handshake.establish(socket, Duration.ZERO))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("completion timeout");
         }
     }
 
@@ -199,7 +203,8 @@ class Tls13LoopbackIntegrationTest {
                         try (SSLSocket socket = (SSLSocket) serverSocket.accept()) {
                             socket.setSoTimeout((int) TIMEOUT.toMillis());
                             Tls13Policy.configureAcceptedServerSocket(socket);
-                            SecureChannelBinding binding = Tls13Handshake.establish(socket);
+                            SecureChannelBinding binding =
+                                    Tls13Handshake.establish(socket, TIMEOUT);
                             int received = socket.getInputStream().read();
                             socket.getOutputStream().write(0xA5);
                             socket.getOutputStream().flush();
