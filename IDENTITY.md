@@ -2,10 +2,10 @@
 
 This document records the intended security model and the implementation status
 of its foundations. Dedicated Ed25519 player identity, channel-bound Identity
-Proof V2, strict identity exchange payloads, and offline signed-snapshot
-verification/activation are implemented. Claim authoring, snapshot download and
-persistence adapters, confusable policy, and server authorization modes remain
-tracked by issues #30 and #31.
+Proof V2, strict identity exchange payloads, offline signed-snapshot
+verification/activation, and a local atomic bundle cache are implemented. Claim
+authoring, network download, confusable policy, and server authorization modes
+remain tracked by issues #30 and #31.
 
 ## Goals
 
@@ -210,12 +210,24 @@ digest as idempotent, rejects rollback, and rejects same-sequence equivocation.
 Every provider, parsing, digest, signature, policy or activation failure leaves
 the last valid snapshot active.
 
-The source is represented by a provider interface. Future providers can read a
-specific GitHub Release asset, local file, static mirror or HTTPS service without
-changing trust semantics. Network/file providers, disk cache and persistence are
-not implemented by this slice. Reproducible configurations should pin a specific
-version or minimum monotonic sequence rather than accepting a mutable `latest`
-response.
+The source is represented by a provider interface. The implemented
+`identity-registry-file` adapter reads a versioned single-file `SFRB` bundle from
+a local mirror or last-known-good cache. It rejects symbolic links, non-regular
+files, unsupported headers, impossible lengths, truncation and trailing data,
+but still returns only an untrusted `RegistrySnapshotArtifact` that must pass the
+core verifier.
+
+The same adapter can atomically persist an artifact only when it matches a
+specific `VerifiedRegistrySnapshot`. It forces a temporary file in the target
+directory and requires `ATOMIC_MOVE`, without a non-atomic fallback. A cached
+artifact is reverified against the current trust bundle, minimum sequence, age
+and future-skew policy after every restart. See ADR 0012 and issue #59.
+
+Future providers can read a specific GitHub Release asset, static mirror or
+HTTPS service without changing trust semantics. Network download, refresh
+scheduling and retry policy are not implemented by this slice. Reproducible
+configurations should pin a specific version or minimum monotonic sequence
+rather than accepting a mutable `latest` response.
 
 ## Rotation and recovery
 
