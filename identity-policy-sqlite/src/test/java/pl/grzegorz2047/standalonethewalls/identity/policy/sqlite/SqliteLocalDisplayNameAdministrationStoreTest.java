@@ -152,7 +152,7 @@ class SqliteLocalDisplayNameAdministrationStoreTest {
     }
 
     @Test
-    void twoStoreInstancesAllowOnlyOneExactConcurrentUpdate() throws InterruptedException {
+    void twoStoreInstancesAllowOnlyOneExactConcurrentUpdate() {
         Path database = temporaryDirectory.resolve("concurrent.sqlite");
         SqliteLocalDisplayNameAdministrationStore firstStore = store(database, 10, 10);
         SqliteLocalDisplayNameAdministrationStore secondStore = store(database, 10, 10);
@@ -166,7 +166,7 @@ class SqliteLocalDisplayNameAdministrationStoreTest {
                     executor.submit(() -> raceSet(firstStore, "One", ready, start));
             Future<LocalDisplayNameAdministrationResult> second =
                     executor.submit(() -> raceSet(secondStore, "Two", ready, start));
-            assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(await(ready, 5, TimeUnit.SECONDS)).isTrue();
             start.countDown();
             assertThat(List.of(await(first), await(second)))
                     .containsExactlyInAnyOrder(
@@ -208,11 +208,23 @@ class SqliteLocalDisplayNameAdministrationStoreTest {
     }
 
     private static LocalDisplayNameAdministrationResult await(
-            Future<LocalDisplayNameAdministrationResult> result) throws InterruptedException {
+            Future<LocalDisplayNameAdministrationResult> result) {
         try {
             return result.get(10, TimeUnit.SECONDS);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError("concurrent display-name update was interrupted", exception);
         } catch (ExecutionException | TimeoutException exception) {
             throw new AssertionError("concurrent display-name update failed", exception);
+        }
+    }
+
+    private static boolean await(CountDownLatch latch, long timeout, TimeUnit unit) {
+        try {
+            return latch.await(timeout, unit);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError("concurrent display-name coordination was interrupted", exception);
         }
     }
 
@@ -220,10 +232,9 @@ class SqliteLocalDisplayNameAdministrationStoreTest {
             SqliteLocalDisplayNameAdministrationStore store,
             String replacement,
             CountDownLatch ready,
-            CountDownLatch start)
-            throws InterruptedException {
+            CountDownLatch start) {
         ready.countDown();
-        if (!start.await(5, TimeUnit.SECONDS)) {
+        if (!await(start, 5, TimeUnit.SECONDS)) {
             throw new IllegalStateException("concurrent display-name test did not start");
         }
         return set(
