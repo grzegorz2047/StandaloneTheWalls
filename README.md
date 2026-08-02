@@ -52,7 +52,9 @@ official wrapper JAR checksum, and pins the Gradle distribution checksum in
 - `identity-registry-file` - bounded local bundle provider and atomic cache for
   verified registry snapshot artifacts
 - `identity-policy` - fail-closed `LOCAL_TOFU`, `GLOBAL_ONLY`, and `HYBRID`
-  authorization above cryptographic player authentication
+  authorization plus atomic audited local administration
+- `identity-policy-sqlite` - transactional SQLite persistence for local handle
+  bindings and append-only administration audit
 - `client` - jMonkeyEngine game client
 - `server` - headless authoritative dedicated server
 - `map-studio` - map authoring application
