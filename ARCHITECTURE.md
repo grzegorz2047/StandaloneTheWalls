@@ -18,8 +18,10 @@ opening a graphics device.
 |---|---|---|
 | `shared` | Small immutable cross-cutting values | JDK only |
 | `game-domain` | Match, teams, inventory, combat, building, resource and victory rules | `shared` |
-| `protocol` | Versioned message schemas and transport interfaces | `shared` |
+| `protocol` | Versioned messages and transport interfaces | `shared` |
 | `map-format` | `.twmap` schemas, validation and safe package rules | `shared` |
+| `identity-registry` | Offline verification and monotonic activation of signed global-handle snapshots | `protocol`, bounded JSON/JCS libraries |
+| `identity-registry-file` | Bounded local bundle provider and atomic verified snapshot cache | `identity-registry` |
 | `server` | Authoritative simulation, identity policies, adapters, administration and persistence | core modules, SLF4J |
 | `client` | jMonkeyEngine rendering, input, prediction, interpolation, identity profile and UI | core modules, jMonkeyEngine |
 | `map-studio` | jMonkeyEngine-based authoring UI | `shared`, `map-format`, jMonkeyEngine |
@@ -38,6 +40,10 @@ shared
   ^
   +-- game-domain
   +-- protocol
+  |       ^
+  |       +-- identity-registry
+  |                    ^
+  |                    +-- identity-registry-file
   +-- map-format
           ^
           |
@@ -80,6 +86,49 @@ may initially author claims, but servers consume a deterministic, signed and
 cached snapshot through a provider interface. A future HTTPS endpoint or local
 mirror can replace GitHub without changing the claim or handshake formats. See
 [IDENTITY.md](IDENTITY.md) and epic #28.
+
+## Offline registry snapshots
+
+`identity-registry` consumes untrusted snapshot artifacts without importing a
+network, filesystem, GitHub, SQLite, UI or server-runtime adapter. A provider
+returns exact bytes; it never establishes trust.
+
+Snapshot v1 is exact RFC 8785/JCS canonical UTF-8 JSON with schema, monotonic
+sequence, canonical generation time, derived root-key ID and strictly sorted
+resolved handle entries. Each entry contains a canonical handle, canonical
+`playerId`, canonical Ed25519 SPKI and `ACTIVE` or `REVOKED` state. Verification
+derives each player ID from its key rather than trusting the declared value.
+
+The detached artifact contains SHA-256 and an Ed25519 root signature over the
+exact canonical JSON bytes. Root keys come only from an explicitly configured
+local trust bundle whose IDs are derived from canonical SPKI. Bounded
+canonicalization and duplicate-detecting streaming parsing precede signature and
+freshness policy checks.
+
+`AtomicRegistrySnapshotStore` activates only verified immutable snapshots. A
+higher sequence replaces the active view, the same sequence and digest is
+idempotent, a lower sequence is rollback, and the same sequence with a different
+digest is equivocation. Every load, parsing, digest, signature, policy or
+activation failure leaves the previous valid snapshot untouched. See ADR 0011
+and issue #57.
+
+`identity-registry-file` is a separate filesystem adapter. Bundle v1 is one
+regular `SFRB` file containing a fixed versioned header, exact detached digest,
+exact detached signature and exact canonical JSON. It rejects symbolic links,
+non-regular files, impossible lengths, truncation, trailing data and unknown
+versions before returning an untrusted artifact. A valid file is still fully
+reverified by `RegistrySnapshotVerifier` on every process start.
+
+The cache writer accepts only an artifact matching a concrete
+`VerifiedRegistrySnapshot`, forces a same-directory temporary file to storage and
+requires atomic replacement. It never falls back to a non-atomic move, so a
+failed write cannot silently replace the last known artifact with torn bytes.
+See ADR 0012 and issue #59.
+
+These modules establish trustworthy offline registry state, not player
+authorization. Claim authoring, network source adapters, refresh scheduling,
+root transition ceremonies, confusable policy and the `LOCAL_TOFU`,
+`GLOBAL_ONLY` and `HYBRID` decisions remain separate layers.
 
 ## Secure transport adapters
 
@@ -187,9 +236,11 @@ and issue #33.
 ## Decisions intentionally deferred
 
 - Authorization of verified identities through `LOCAL_TOFU`, `GLOBAL_ONLY` or `HYBRID`.
+- Registry claim authoring, confusable policy and signed release publication.
+- Registry HTTP/GitHub Release providers, refresh scheduling and retry policy.
+- Registry-root transition signatures and emergency trust-bundle operations.
 - Integration of authenticated commands with the fixed-tick command queue.
 - Client connection ownership, DNS resolution and reconnect policy.
 - Public-PKI certificate validation as a separate trust adapter.
 - Realtime DTLS/UDP transport and replay-resistant realtime session tokens.
-- Global registry repository and signed snapshot pipeline: issue #30.
 - Persistent player/server trust stores and production key provisioning.

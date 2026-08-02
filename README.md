@@ -47,8 +47,17 @@ official wrapper JAR checksum, and pins the Gradle distribution checksum in
 - `game-domain` - deterministic game rules
 - `protocol` - versioned messages and transport boundaries
 - `map-format` - safe `.twmap` contracts and validation
+- `identity-registry` - offline verification and monotonic activation of signed
+  global-handle snapshots
+- `identity-registry-file` - bounded local bundle provider and atomic cache for
+  verified registry snapshot artifacts
+- `identity-policy` - fail-closed handle authorization, audited local
+  administration, and stable-player ban policy
+- `identity-policy-sqlite` - transactional persistence and versioned migrations for
+  local bindings, audits, and player bans
 - `client` - jMonkeyEngine game client
-- `server` - headless authoritative dedicated server
+- `server` - headless authoritative dedicated server and the identity admission
+  boundary before future lobby access
 - `map-studio` - map authoring application
 - `bot-client` - headless integration and load-test client
 - `transport-bctls` - authenticated TLS 1.3, bounded admission, session bootstrap,

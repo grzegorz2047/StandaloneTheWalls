@@ -1,0 +1,24 @@
+# Local identity process configuration
+# Relative paths are resolved from this file's directory.
+identity.sqlite-path=data/identity.sqlite
+identity.registry-bundle-path=data/registry.sfrb
+identity.authorization-mode=LOCAL_TOFU
+identity.trust-roots-path=registry-trust-roots.hex
+
+# Required administrative refresh source. Startup always reads the local bundle above.
+identity.registry.refresh-source=LOCAL_BUNDLE
+
+# To enable explicit immutable HTTPS refresh resources, change refresh-source to HTTPS
+# and uncomment all three URI lines. The optional timeouts default to 10 and 30 seconds.
+# identity.registry.https.json-uri=https://registry.example/releases/v1/registry-v1.json
+# identity.registry.https.digest-uri=https://registry.example/releases/v1/registry-v1.sha256
+# identity.registry.https.signature-uri=https://registry.example/releases/v1/registry-v1.sig
+# identity.registry.https.connect-timeout-seconds=10
+# identity.registry.https.request-timeout-seconds=30
+
+# Optional bounded registry policy overrides. Remove these lines to use exact defaults.
+identity.registry.minimum-sequence=0
+identity.registry.maximum-age-seconds=2592000
+identity.registry.maximum-future-skew-seconds=300
+identity.registry.maximum-json-bytes=8388608
+identity.registry.maximum-entries=100000

@@ -10,4 +10,9 @@ include(
     "map-studio",
     "bot-client",
     "transport-bctls",
+    "identity-registry",
+    "identity-registry-file",
+    "identity-registry-http",
+    "identity-policy",
+    "identity-policy-sqlite",
 )

@@ -1,8 +1,11 @@
 # Player identity and handle registry
 
-This document records the intended security model. It is not evidence that the
-protocol has already been implemented or audited. Implementation work is tracked
-by issues #29, #30, and #31.
+This document records the intended security model and the implementation status
+of its foundations. Dedicated Ed25519 player identity, channel-bound Identity
+Proof V2, strict identity exchange payloads, offline signed-snapshot
+verification/activation, and a local atomic bundle cache are implemented. Claim
+authoring, network download, confusable policy, and server authorization modes
+remain tracked by issues #30 and #31.
 
 ## Goals
 
@@ -41,9 +44,9 @@ A stable identifier is derived from the canonical encoded public key:
 playerId = "sf1_" + lowercase-base32(sha256(subjectPublicKeyInfo))
 ```
 
-The exact byte encoding, Base32 alphabet, length, and test vectors must be frozen
-before protocol v1 is released. A shorter grouped fingerprint is displayed for
-manual verification, but it is never used as the authoritative identifier.
+The encoding and vectors are frozen by protocol tests. A shorter grouped
+fingerprint is displayed for manual verification, but it is never used as the
+authoritative identifier.
 
 ## Local key storage and backup
 
@@ -61,35 +64,37 @@ Logs may contain only a shortened public fingerprint where operationally useful.
 They must not contain private key bytes, seeds, encrypted backup contents,
 signature transcripts containing secrets, or recovery passphrases.
 
-## Challenge-response v1
+## Challenge-response V2
 
 A server proves freshness by generating a cryptographically random 32-byte nonce
 for a single connection attempt. The client signs a canonical, length-prefixed
 binary transcript. Concatenating ambiguous strings is forbidden.
 
-The transcript includes at least:
+The implemented V2 transcript includes:
 
-1. a fixed domain separator such as `SUNDERFRONT-CLIENT-AUTH-V1`;
+1. the `SUNDERFRONT-CLIENT-AUTH-V2` domain separator;
 2. protocol version;
-3. server identity or configured `serverId`;
-4. connection/session identifier;
+3. pinned server identity;
+4. logical session UUID;
 5. the server nonce;
-6. canonical handle;
-7. `playerId`;
-8. the encoded public key or an unambiguous reference already bound to the
-   session.
+6. the exact 32-byte secure-channel binding;
+7. canonical handle;
+8. `playerId`;
+9. canonical encoded public key.
 
 The server verifies that:
 
 - the declared `playerId` matches the supplied public key;
 - the signature is valid for the exact transcript;
-- the challenge belongs to this session and server;
+- the challenge belongs to this session, server and secure channel;
 - the nonce is unused, unexpired, and removed atomically after a terminal result;
 - field sizes, versions, and encodings satisfy strict limits;
 - the selected authorization policy permits the handle/key binding.
 
 A nonce cannot be reused after success or failure. Challenges have a short
-expiry, per-source and per-identity rate limits, and bounded memory usage.
+expiry and bounded memory usage. The reliable identity exchange has bounded
+step, overall and close deadlines and forbids identity-state re-entry after
+success. Authorization remains separate from cryptographic proof.
 
 ## Canonical handle and display name
 
@@ -110,6 +115,10 @@ violate the confusable policy are rejected by the registry. Local servers may be
 stricter but must not reinterpret a globally registered handle.
 
 ## Server authorization modes
+
+These modes are the intended authorization layer above a successfully verified
+`AuthenticatedReliableSession`; they are not implemented by the snapshot
+verifier itself.
 
 ### `LOCAL_TOFU`
 
@@ -166,30 +175,59 @@ A claim contains at least:
 JSON claims use a documented canonicalization algorithm before signing. CI
 validates schema, canonical form, signature, `playerId`, file path, uniqueness,
 case collisions, confusable skeleton, reserved words, and operation rules.
-Merging still requires repository review and branch protection.
+Merging still requires repository review and branch protection. This authoring
+workflow and claim-operation schema remain future work in #30.
 
 ## Signed registry snapshots
 
 Game servers do not scan pull requests or individual claim files during login.
-A release workflow produces a deterministic snapshot containing the resolved
-active state. It publishes:
+The implemented `identity-registry` module verifies and atomically activates a
+resolved snapshot entirely offline. It has no GitHub, HTTP, filesystem, SQLite,
+UI or server-runtime dependency.
 
-- versioned snapshot bytes;
-- SHA-256 digest;
-- registry-root Ed25519 signature;
-- key/trust-bundle identifier;
-- generated-at and monotonic sequence/version metadata;
-- optional revocation and migration metadata.
+Snapshot v1 uses exact RFC 8785/JCS canonical UTF-8 JSON containing:
 
-Servers activate a snapshot only after all limits, digest, signature, root trust,
-version, rollback, and schema checks pass. Replacement is atomic; a failed
-refresh leaves the last valid snapshot active.
+- schema version `1`;
+- non-negative monotonic sequence;
+- canonical UTC `generatedAt`;
+- a registry-root ID derived from canonical Ed25519 SPKI;
+- entries strictly sorted by canonical handle;
+- for each entry: handle, `playerId`, canonical public key and `ACTIVE` or
+  `REVOKED` status.
 
-The source is represented by a provider interface. The first provider may read a
-specific GitHub Release asset, but equivalent providers can use a local file,
-static mirror, or future HTTPS service. Reproducible configurations pin a
-specific version or minimum monotonic sequence rather than accepting a mutable
-`latest` response.
+The detached artifact contains the exact canonical JSON bytes, a SHA-256 digest,
+and an Ed25519 registry-root signature over the exact JSON bytes. The verifier:
+
+- requires byte-for-byte JCS canonical form;
+- performs bounded duplicate-detecting streaming schema parsing;
+- derives each `playerId` from its public key;
+- resolves the root only from an explicitly configured local trust bundle;
+- validates digest, signature, sequence, age, future skew, byte and entry limits;
+- returns an immutable verified snapshot.
+
+Atomic activation accepts only higher sequences, treats the same sequence and
+digest as idempotent, rejects rollback, and rejects same-sequence equivocation.
+Every provider, parsing, digest, signature, policy or activation failure leaves
+the last valid snapshot active.
+
+The source is represented by a provider interface. The implemented
+`identity-registry-file` adapter reads a versioned single-file `SFRB` bundle from
+a local mirror or last-known-good cache. It rejects symbolic links, non-regular
+files, unsupported headers, impossible lengths, truncation and trailing data,
+but still returns only an untrusted `RegistrySnapshotArtifact` that must pass the
+core verifier.
+
+The same adapter can atomically persist an artifact only when it matches a
+specific `VerifiedRegistrySnapshot`. It forces a temporary file in the target
+directory and requires `ATOMIC_MOVE`, without a non-atomic fallback. A cached
+artifact is reverified against the current trust bundle, minimum sequence, age
+and future-skew policy after every restart. See ADR 0012 and issue #59.
+
+Future providers can read a specific GitHub Release asset, static mirror or
+HTTPS service without changing trust semantics. Network download, refresh
+scheduling and retry policy are not implemented by this slice. Reproducible
+configurations should pin a specific version or minimum monotonic sequence
+rather than accepting a mutable `latest` response.
 
 ## Rotation and recovery
 
@@ -200,9 +238,11 @@ review procedure and should be visibly recorded as a recovery, not represented
 as an ordinary cryptographic rotation.
 
 Registry-root rotation uses a trust bundle that can accept old and new roots for
-a bounded transition window. The old trusted root signs the transition metadata
-whenever possible. Servers support explicit emergency trust-bundle updates but
-never download and trust an unknown replacement root automatically.
+a bounded transition window. The current verifier supports multiple explicitly
+configured roots but does not define or automatically trust a transition
+artifact. The old trusted root should sign transition metadata whenever
+possible. Servers support explicit emergency trust-bundle updates but never
+download and trust an unknown replacement root automatically.
 
 ## Privacy and abuse considerations
 

@@ -2,19 +2,24 @@
 assertj = "3.27.3"
 bouncycastle = "1.84"
 google-java-format = "1.35.0"
+jackson = "3.2.1"
 jacoco = "0.8.15"
+jcs = "1.1"
 jme = "3.9.0-stable"
 junit = "5.13.4"
 logback = "1.5.18"
 slf4j = "2.0.17"
 spotbugs-plugin = "6.5.9"
 spotless = "8.9.0"
+sqlite-jdbc = "3.53.2.1"
 
 [libraries]
 bouncycastle-pkix = { module = "org.bouncycastle:bcpkix-jdk18on", version.ref = "bouncycastle" }
 bouncycastle-provider = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
 bouncycastle-tls = { module = "org.bouncycastle:bctls-jdk18on", version.ref = "bouncycastle" }
 assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
+jackson-core = { module = "tools.jackson.core:jackson-core", version.ref = "jackson" }
+json-canonicalization = { module = "io.github.erdtman:java-json-canonicalization", version.ref = "jcs" }
 jme3-core = { module = "org.jmonkeyengine:jme3-core", version.ref = "jme" }
 jme3-desktop = { module = "org.jmonkeyengine:jme3-desktop", version.ref = "jme" }
 jme3-lwjgl3 = { module = "org.jmonkeyengine:jme3-lwjgl3", version.ref = "jme" }
@@ -23,6 +28,7 @@ junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite-jdbc" }
 
 [plugins]
 spotbugs = { id = "com.github.spotbugs", version.ref = "spotbugs-plugin" }
