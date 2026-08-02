@@ -65,11 +65,13 @@ public final class LocalIdentityRuntime {
             RegistryTrustBundle trustBundle,
             RegistrySnapshotPolicy registryPolicy,
             Clock clock) {
+        LocalIdentityRuntimeConfiguration runtimeConfiguration =
+                Objects.requireNonNull(configuration, "configuration");
         return open(
-                configuration,
+                runtimeConfiguration,
                 trustBundle,
                 registryPolicy,
-                new RegistryRefreshConfiguration.LocalBundle(),
+                runtimeConfiguration.registryRefreshConfiguration(),
                 clock);
     }
 
