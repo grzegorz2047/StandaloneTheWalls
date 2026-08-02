@@ -11,8 +11,7 @@ import java.util.Optional;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
 
 /** Thread-safe reference implementation of presentation-only display-name administration. */
-public final class InMemoryLocalDisplayNameStore
-        implements LocalDisplayNameAdministrationStore {
+public final class InMemoryLocalDisplayNameStore implements LocalDisplayNameAdministrationStore {
     public static final int DEFAULT_MAXIMUM_DISPLAY_NAMES = 100_000;
     public static final int DEFAULT_MAXIMUM_AUDIT_EVENTS = 1_000_000;
     public static final int ABSOLUTE_MAXIMUM_DISPLAY_NAMES = 1_000_000;
@@ -28,12 +27,10 @@ public final class InMemoryLocalDisplayNameStore
     }
 
     public InMemoryLocalDisplayNameStore(int maximumDisplayNames, int maximumAuditEvents) {
-        if (maximumDisplayNames < 1
-                || maximumDisplayNames > ABSOLUTE_MAXIMUM_DISPLAY_NAMES) {
+        if (maximumDisplayNames < 1 || maximumDisplayNames > ABSOLUTE_MAXIMUM_DISPLAY_NAMES) {
             throw new IllegalArgumentException("maximumDisplayNames is outside the safe range");
         }
-        if (maximumAuditEvents < 1
-                || maximumAuditEvents > ABSOLUTE_MAXIMUM_AUDIT_EVENTS) {
+        if (maximumAuditEvents < 1 || maximumAuditEvents > ABSOLUTE_MAXIMUM_AUDIT_EVENTS) {
             throw new IllegalArgumentException("maximumAuditEvents is outside the safe range");
         }
         this.maximumDisplayNames = maximumDisplayNames;
@@ -49,8 +46,7 @@ public final class InMemoryLocalDisplayNameStore
             LocalHandleAdministrationReason reason,
             Instant occurredAt) {
         PlayerId identity = Objects.requireNonNull(playerId, "playerId");
-        LocalDisplayNameExpectation expected =
-                Objects.requireNonNull(expectation, "expectation");
+        LocalDisplayNameExpectation expected = Objects.requireNonNull(expectation, "expectation");
         LocalDisplayName replacement = Objects.requireNonNull(displayName, "displayName");
         LocalIdentityAdministratorId administrator =
                 Objects.requireNonNull(administratorId, "administratorId");
@@ -94,8 +90,7 @@ public final class InMemoryLocalDisplayNameStore
             LocalHandleAdministrationReason reason,
             Instant occurredAt) {
         PlayerId identity = Objects.requireNonNull(playerId, "playerId");
-        LocalDisplayNameExpectation expected =
-                Objects.requireNonNull(expectation, "expectation");
+        LocalDisplayNameExpectation expected = Objects.requireNonNull(expectation, "expectation");
         LocalIdentityAdministratorId administrator =
                 Objects.requireNonNull(administratorId, "administratorId");
         LocalHandleAdministrationReason auditReason = Objects.requireNonNull(reason, "reason");
