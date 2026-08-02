@@ -15,6 +15,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import pl.grzegorz2047.standalonethewalls.protocol.MessageType;
 import pl.grzegorz2047.standalonethewalls.protocol.ProtocolEnvelope;
@@ -148,8 +149,9 @@ class AsyncTlsReliableChannelTest {
             CompletionStage<?> stage, ReliableChannelException.Code expectedCode)
             throws InterruptedException, TimeoutException {
         Throwable failure = failure(stage);
-        assertThat(failure).isInstanceOf(ReliableChannelException.class);
-        ReliableChannelException channelFailure = (ReliableChannelException) failure;
+        if (!(failure instanceof ReliableChannelException channelFailure)) {
+            throw new AssertionError("expected a reliable channel failure", failure);
+        }
         assertThat(channelFailure.code()).isEqualTo(expectedCode);
         return channelFailure;
     }
@@ -176,13 +178,14 @@ class AsyncTlsReliableChannelTest {
         private final CountDownLatch sendRelease = new CountDownLatch(1);
         private final CountDownLatch receiveStarted = new CountDownLatch(1);
         private final CountDownLatch receiveRelease = new CountDownLatch(1);
+        private final AtomicReference<byte[]> capturedPayload =
+                new AtomicReference<>(new byte[0]);
 
         private volatile boolean sendBlocked;
         private volatile boolean receiveBlocked;
         private volatile Optional<ProtocolEnvelope> receiveResult = Optional.empty();
         private volatile IOException receiveFailure;
         private volatile Thread sendThread;
-        private volatile byte[] capturedPayload;
 
         private void blockSend() {
             sendBlocked = true;
@@ -221,7 +224,7 @@ class AsyncTlsReliableChannelTest {
         }
 
         private byte[] capturedPayload() {
-            return capturedPayload.clone();
+            return capturedPayload.get().clone();
         }
 
         @Override
@@ -232,7 +235,7 @@ class AsyncTlsReliableChannelTest {
                 await(sendRelease, "send release");
             }
             ensureOpen();
-            capturedPayload = payload.clone();
+            capturedPayload.set(payload.clone());
             return sequence.getAndIncrement();
         }
 
