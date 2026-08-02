@@ -1,0 +1,20 @@
+Sunderfront TLS Session Bootstrap v1
+====================================
+
+Encoding: fixed 28-byte big-endian records
+Protocol version: 1.0
+Session UUID: 11111111-2222-4333-8444-555555555555
+
+SESSION_OFFER (type 1)
+53465342000100010001000011111111222243338444555555555555
+
+SESSION_ACCEPT (type 2)
+53465342000100020001000011111111222243338444555555555555
+
+Field offsets (bytes)
+0..3   magic "SFSB"
+4..5   bootstrap schema version (1)
+6..7   record type (1=offer, 2=accept)
+8..9   protocol major (1)
+10..11 protocol minor (0)
+12..27 RFC 4122 UUIDv4 bytes
