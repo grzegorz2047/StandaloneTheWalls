@@ -30,11 +30,9 @@ final class AuthenticatedPlayerAdmissionCoordinator {
             return new PreparedAdmission.Rejected(status);
         }
 
-        AuthorizedPlayerSessionQueue.Reservation reservation =
-                reservationAttempt.orElseThrow();
+        AuthorizedPlayerSessionQueue.Reservation reservation = reservationAttempt.orElseThrow();
         try {
-            AuthenticatedPlayerAdmissionResult admission =
-                    admissionService.evaluate(authenticated);
+            AuthenticatedPlayerAdmissionResult admission = admissionService.evaluate(authenticated);
             if (admission instanceof AuthenticatedPlayerAdmissionResult.Rejected rejected) {
                 reservation.close();
                 return new PreparedAdmission.Rejected(rejected.status());
