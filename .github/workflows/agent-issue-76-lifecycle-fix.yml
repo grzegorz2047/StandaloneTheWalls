@@ -24,25 +24,11 @@ jobs:
           from pathlib import Path
           path = Path('server/src/main/java/pl/grzegorz2047/standalonethewalls/server/identity/session/TlsIdentityAdmissionGateway.java')
           text = path.read_text(encoding='utf-8')
-          old = '''        try {
-              authorizedSessions.close();
-          } catch (RuntimeException exception) {
-              failures.add(exception);
-          }
-          try {
-              if (!executor.awaitTermination(shutdownTimeout.toNanos(), TimeUnit.NANOSECONDS)) {
-                  failures.add(
-                          new IllegalStateException("identity admission executor did not terminate"));
-              }
-          } catch (InterruptedException exception) {
-              Thread.currentThread().interrupt();
-              failures.add(
-                      new IllegalStateException(
-                              "interrupted while closing identity admission gateway", exception));
-          }
-          state.set(State.CLOSED);
-          '''
-          new = '''        try {
+          start_marker = '        try {\n            authorizedSessions.close();'
+          end_marker = '        state.set(State.CLOSED);'
+          start = text.index(start_marker)
+          end = text.index(end_marker, start)
+          replacement = '''        try {
               if (!executor.awaitTermination(shutdownTimeout.toNanos(), TimeUnit.NANOSECONDS)) {
                   failures.add(
                           new IllegalStateException("identity admission executor did not terminate"));
@@ -58,11 +44,8 @@ jobs:
           } catch (RuntimeException exception) {
               failures.add(exception);
           }
-          state.set(State.CLOSED);
           '''
-          if old not in text:
-              raise SystemExit('expected shutdown block was not found')
-          path.write_text(text.replace(old, new), encoding='utf-8')
+          path.write_text(text[:start] + replacement + text[end:], encoding='utf-8')
           PY
 
       - name: Set up Java 21
