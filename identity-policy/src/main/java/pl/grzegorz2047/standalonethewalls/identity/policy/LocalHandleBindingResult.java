@@ -4,5 +4,6 @@ package pl.grzegorz2047.standalonethewalls.identity.policy;
 public enum LocalHandleBindingResult {
     BOUND,
     MATCHED,
-    CONFLICT
+    CONFLICT,
+    CAPACITY_EXCEEDED
 }
