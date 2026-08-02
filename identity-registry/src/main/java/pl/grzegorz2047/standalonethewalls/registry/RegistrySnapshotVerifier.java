@@ -51,7 +51,7 @@ public final class RegistrySnapshotVerifier {
                     "registry snapshot root signature is invalid");
         }
         requirePolicy(payload, acceptance, clock.instant());
-        return new VerifiedRegistrySnapshot(payload, computedDigest);
+        return new VerifiedRegistrySnapshot(payload, computedDigest, candidate.signature());
     }
 
     private static void requirePolicy(
