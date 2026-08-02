@@ -130,7 +130,8 @@ class LocalHandleAdministrationServiceTest {
                             LocalHandleAdministrationResult.EXPECTATION_MISMATCH);
         }
 
-        assertThat(service.inspect(ALPHA)).hasValueSatisfying(value -> assertThat(value).isIn(SECOND, THIRD));
+        assertThat(service.inspect(ALPHA))
+                .hasValueSatisfying(value -> assertThat(value).isIn(SECOND, THIRD));
         assertThat(service.auditEvents()).hasSize(1);
         assertThat(service.auditEvents().getFirst().action())
                 .isEqualTo(LocalHandleAuditAction.REBIND);
@@ -151,7 +152,6 @@ class LocalHandleAdministrationServiceTest {
 
     private static LocalHandleAdministrationService service(
             InMemoryLocalHandleBindingStore store) {
-        return new LocalHandleAdministrationService(
-                store, Clock.fixed(NOW, ZoneOffset.UTC));
+        return new LocalHandleAdministrationService(store, Clock.fixed(NOW, ZoneOffset.UTC));
     }
 }
