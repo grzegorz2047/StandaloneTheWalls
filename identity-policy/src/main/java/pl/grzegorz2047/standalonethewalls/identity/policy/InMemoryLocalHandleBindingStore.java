@@ -141,8 +141,7 @@ public final class InMemoryLocalHandleBindingStore implements LocalHandleAdminis
             Instant occurredAt) {
         CanonicalHandle canonicalHandle = Objects.requireNonNull(handle, "handle");
         PlayerId expected = Objects.requireNonNull(expectedPlayerId, "expectedPlayerId");
-        PlayerId replacement =
-                Objects.requireNonNull(replacementPlayerId, "replacementPlayerId");
+        PlayerId replacement = Objects.requireNonNull(replacementPlayerId, "replacementPlayerId");
         LocalIdentityAdministratorId administrator =
                 Objects.requireNonNull(administratorId, "administratorId");
         LocalHandleAdministrationReason auditReason = Objects.requireNonNull(reason, "reason");
