@@ -24,7 +24,7 @@ opening a graphics device.
 | `client` | jMonkeyEngine rendering, input, prediction, interpolation, identity profile and UI | core modules, jMonkeyEngine |
 | `map-studio` | jMonkeyEngine-based authoring UI | `shared`, `map-format`, jMonkeyEngine |
 | `bot-client` | Headless integration and load-test behavior | core modules, SLF4J |
-| `transport-bctls` | TLS 1.3, server pinning and RFC 9266 channel binding | `protocol`, Bouncy Castle TLS |
+| `transport-bctls` | TLS 1.3, server pinning, RFC 9266 binding and strict reliable framing | `protocol`, Bouncy Castle TLS |
 
 Core modules must never import `com.jme3`, LWJGL, desktop UI toolkits, concrete
 socket libraries, SQLite, GitHub SDKs, HTTP clients, or server persistence
@@ -95,10 +95,17 @@ finite timeout before the handshake begins. Exporter bytes are copied
 synchronously inside the low-level peer's `notifyHandshakeComplete()` callback,
 before Bouncy Castle clears the exporter secret.
 
-Protocol-envelope framing, runtime socket ownership, certificate/key
-provisioning, public-PKI validation, reconnect, realtime DTLS/UDP, and realtime
-session tokens remain separate adapters and work items. See ADR 0005 and issue
-#34.
+`TlsEnvelopeStream` adds strict framing for the fixed 40-byte protocol header and
+bounded payload. It validates the header before allocating payload memory, binds
+all envelopes to one logical session UUID, assigns outbound sequence numbers,
+requires gap-free inbound sequences, serializes writers independently from
+readers, and closes TLS after malformed or cross-session input. It remains a
+blocking primitive and must never execute on the fixed-tick simulation thread.
+See ADR 0005, ADR 0006, issue #34, and issue #46.
+
+Asynchronous `ReliableChannel` adaptation, runtime socket ownership,
+certificate/key provisioning, public-PKI validation, reconnect, realtime
+DTLS/UDP, and realtime session tokens remain separate adapters and work items.
 
 ## Fixed-tick simulation
 
@@ -136,7 +143,7 @@ and issue #33.
 
 ## Decisions intentionally deferred
 
-- Protocol framing and runtime integration for the reliable TLS connection.
+- Asynchronous `ReliableChannel`, executor ownership and runtime TLS integration.
 - Public-PKI certificate validation as a separate trust adapter.
 - Realtime DTLS/UDP transport and replay-resistant realtime session tokens.
 - Global registry repository and signed snapshot pipeline: issue #30.
