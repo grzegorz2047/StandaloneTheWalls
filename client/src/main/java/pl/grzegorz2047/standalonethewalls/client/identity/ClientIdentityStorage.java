@@ -19,8 +19,7 @@ public final class ClientIdentityStorage {
             throw new IllegalArgumentException("dataDirectory must name an explicit directory");
         }
         playerIdentityStore =
-                new FilePlayerIdentityStore(
-                        this.dataDirectory.resolve(PLAYER_IDENTITY_FILE_NAME));
+                new FilePlayerIdentityStore(this.dataDirectory.resolve(PLAYER_IDENTITY_FILE_NAME));
         serverTrustStore =
                 new FileServerTrustStore(this.dataDirectory.resolve(SERVER_TRUST_FILE_NAME));
     }

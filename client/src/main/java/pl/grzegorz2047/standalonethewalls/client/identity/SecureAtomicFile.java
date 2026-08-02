@@ -49,8 +49,7 @@ final class SecureAtomicFile {
             return Optional.empty();
         }
         BasicFileAttributes attributes =
-                Files.readAttributes(
-                        path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+                Files.readAttributes(path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
         if (!attributes.isRegularFile() || Files.isSymbolicLink(path)) {
             throw new IOException("persistent state path is not a regular file");
         }
@@ -61,8 +60,7 @@ final class SecureAtomicFile {
 
         ByteBuffer content = ByteBuffer.allocate(Math.toIntExact(size));
         try (FileChannel channel =
-                FileChannel.open(
-                        path, StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS)) {
+                FileChannel.open(path, StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS)) {
             while (content.hasRemaining()) {
                 if (channel.read(content) < 0) {
                     throw new IOException("persistent state file ended before its declared size");
@@ -79,8 +77,7 @@ final class SecureAtomicFile {
     static <T> T withExclusiveLock(Path target, IoOperation<T> operation) throws IOException {
         Objects.requireNonNull(operation, "operation");
         ensureParent(target);
-        Path lockPath =
-                target.resolveSibling('.' + target.getFileName().toString() + ".lock");
+        Path lockPath = target.resolveSibling('.' + target.getFileName().toString() + ".lock");
         ReentrantLock processLock =
                 PROCESS_LOCKS.computeIfAbsent(lockPath, ignored -> new ReentrantLock());
         processLock.lock();
@@ -103,11 +100,7 @@ final class SecureAtomicFile {
         ensureParent(target);
         Path temporary =
                 target.resolveSibling(
-                        '.'
-                                + target.getFileName().toString()
-                                + '.'
-                                + UUID.randomUUID()
-                                + ".tmp");
+                        '.' + target.getFileName().toString() + '.' + UUID.randomUUID() + ".tmp");
         try {
             try (FileChannel channel =
                     FileChannel.open(
@@ -141,8 +134,7 @@ final class SecureAtomicFile {
     private static void ensureParent(Path target) throws IOException {
         Path parent = target.getParent();
         Files.createDirectories(parent);
-        if (Files.isSymbolicLink(parent)
-                || !Files.isDirectory(parent, LinkOption.NOFOLLOW_LINKS)) {
+        if (Files.isSymbolicLink(parent) || !Files.isDirectory(parent, LinkOption.NOFOLLOW_LINKS)) {
             throw new IOException("persistent state parent is not a regular directory");
         }
         PosixFileAttributeView view =

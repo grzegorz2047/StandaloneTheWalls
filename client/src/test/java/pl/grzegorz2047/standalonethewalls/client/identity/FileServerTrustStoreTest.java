@@ -37,13 +37,15 @@ class FileServerTrustStoreTest {
 
     @Test
     void persistsFirstUseDetectsChangedIdentityAndSupportsExplicitReplacement()
-            throws IdentityException, NoSuchAlgorithmException, ServerTrustStoreException, IOException {
+            throws IdentityException,
+                    NoSuchAlgorithmException,
+                    ServerTrustStoreException,
+                    IOException {
         Path path = temporaryDirectory.resolve("profile/server-trust.sftr");
         ServerReference reference = new ServerReference("127.0.0.1:27420");
         ServerId firstId = generateServerId();
         ServerId replacementId = generateServerId();
-        ServerTrustService firstService =
-                new ServerTrustService(new FileServerTrustStore(path));
+        ServerTrustService firstService = new ServerTrustService(new FileServerTrustStore(path));
 
         assertEquals(
                 ServerTrustDecision.Status.FIRST_USE_REQUIRES_CONFIRMATION,
@@ -52,8 +54,7 @@ class FileServerTrustStoreTest {
                 firstService.confirmFirstUse(
                         reference, firstId, Optional.empty(), "confirmed on local network");
 
-        ServerTrustService restarted =
-                new ServerTrustService(new FileServerTrustStore(path));
+        ServerTrustService restarted = new ServerTrustService(new FileServerTrustStore(path));
         assertEquals(
                 ServerTrustDecision.Status.TRUSTED,
                 restarted.inspect(reference, firstId, Optional.empty()).status());
@@ -110,8 +111,7 @@ class FileServerTrustStoreTest {
         }
 
         assertTrue(firstWon ^ secondWon);
-        ServerTrustRecord persisted =
-                new FileServerTrustStore(path).find(reference).orElseThrow();
+        ServerTrustRecord persisted = new FileServerTrustStore(path).find(reference).orElseThrow();
         assertTrue(persisted.equals(first) || persisted.equals(second));
     }
 
@@ -147,7 +147,10 @@ class FileServerTrustStoreTest {
 
     @Test
     void rejectsTrailingBytesWithoutRewritingTheStore()
-            throws IdentityException, NoSuchAlgorithmException, ServerTrustStoreException, IOException {
+            throws IdentityException,
+                    NoSuchAlgorithmException,
+                    ServerTrustStoreException,
+                    IOException {
         Path path = temporaryDirectory.resolve("trailing/server-trust.sftr");
         FileServerTrustStore store = new FileServerTrustStore(path);
         ServerReference reference = new ServerReference("127.0.0.1:27420");
@@ -174,34 +177,26 @@ class FileServerTrustStoreTest {
         try {
             Files.createSymbolicLink(link, target.getFileName());
         } catch (UnsupportedOperationException | SecurityException | IOException exception) {
-            Assumptions.assumeTrue(false, "symbolic links are not available: " + exception.getClass());
+            Assumptions.assumeTrue(
+                    false, "symbolic links are not available: " + exception.getClass());
         }
 
         assertThrows(
                 ServerTrustStoreException.class,
-                () ->
-                        new FileServerTrustStore(link)
-                                .find(new ServerReference("localhost:27420")));
+                () -> new FileServerTrustStore(link).find(new ServerReference("localhost:27420")));
     }
 
     private static boolean saveAfterBarrier(
-            Path path,
-            ServerTrustRecord record,
-            CountDownLatch ready,
-            CountDownLatch start)
+            Path path, ServerTrustRecord record, CountDownLatch ready, CountDownLatch start)
             throws InterruptedException, ServerTrustStoreException {
         ready.countDown();
         start.await();
         return new FileServerTrustStore(path).saveIfAbsent(record);
     }
 
-    private static ServerId generateServerId()
-            throws NoSuchAlgorithmException, IdentityException {
+    private static ServerId generateServerId() throws NoSuchAlgorithmException, IdentityException {
         return ServerId.fromPublicKey(
-                KeyPairGenerator.getInstance("Ed25519")
-                        .generateKeyPair()
-                        .getPublic()
-                        .getEncoded());
+                KeyPairGenerator.getInstance("Ed25519").generateKeyPair().getPublic().getEncoded());
     }
 
     private static void assertOwnerOnlyWhenPosix(Path path) throws IOException {
@@ -209,9 +204,7 @@ class FileServerTrustStoreTest {
                 Files.getFileAttributeView(path, PosixFileAttributeView.class);
         if (view != null) {
             assertEquals(
-                    EnumSet.of(
-                            PosixFilePermission.OWNER_READ,
-                            PosixFilePermission.OWNER_WRITE),
+                    EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE),
                     Files.getPosixFilePermissions(path));
         }
     }

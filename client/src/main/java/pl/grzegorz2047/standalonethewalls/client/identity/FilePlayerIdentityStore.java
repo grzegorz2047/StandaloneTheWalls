@@ -44,8 +44,7 @@ public final class FilePlayerIdentityStore implements PlayerIdentityStore {
     @Override
     public Optional<KeyPair> load() throws IdentityException {
         try {
-            Optional<byte[]> encoded =
-                    SecureAtomicFile.readIfPresent(path, MAXIMUM_FILE_BYTES);
+            Optional<byte[]> encoded = SecureAtomicFile.readIfPresent(path, MAXIMUM_FILE_BYTES);
             if (encoded.isEmpty()) {
                 return Optional.empty();
             }

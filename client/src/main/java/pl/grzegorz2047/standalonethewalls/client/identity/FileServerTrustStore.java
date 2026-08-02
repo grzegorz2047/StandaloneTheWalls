@@ -65,7 +65,8 @@ public final class FileServerTrustStore implements ServerTrustStore {
                             return false;
                         }
                         if (records.size() >= MAXIMUM_RECORDS) {
-                            throw new IOException("server trust store record capacity is exhausted");
+                            throw new IOException(
+                                    "server trust store record capacity is exhausted");
                         }
                         records.put(record.reference().value(), record);
                         SecureAtomicFile.replaceAtomically(path, encode(records));
@@ -103,8 +104,7 @@ public final class FileServerTrustStore implements ServerTrustStore {
     }
 
     private TreeMap<String, ServerTrustRecord> readRecords() throws IOException {
-        Optional<byte[]> content =
-                SecureAtomicFile.readIfPresent(path, MAXIMUM_FILE_BYTES);
+        Optional<byte[]> content = SecureAtomicFile.readIfPresent(path, MAXIMUM_FILE_BYTES);
         if (content.isEmpty()) {
             return new TreeMap<>();
         }
@@ -178,12 +178,10 @@ public final class FileServerTrustStore implements ServerTrustStore {
                             "server trust store contains an invalid record", exception);
                 }
                 if (!record.reason().equals(reason)) {
-                    throw new StoreFormatException(
-                            "server trust record reason is not canonical");
+                    throw new StoreFormatException("server trust record reason is not canonical");
                 }
                 if (previous != null && previous.compareTo(referenceValue) >= 0) {
-                    throw new StoreFormatException(
-                            "server trust records are not strictly sorted");
+                    throw new StoreFormatException("server trust records are not strictly sorted");
                 }
                 if (records.put(referenceValue, record) != null) {
                     throw new StoreFormatException(

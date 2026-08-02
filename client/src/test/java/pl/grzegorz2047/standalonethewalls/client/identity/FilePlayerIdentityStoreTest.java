@@ -35,11 +35,9 @@ class FilePlayerIdentityStoreTest {
             throws IdentityException, IOException {
         Path path = temporaryDirectory.resolve("profile/player-identity.sfki");
         PlayerIdentity first =
-                PlayerIdentity.loadOrCreate(
-                        new FilePlayerIdentityStore(path), new SecureRandom());
+                PlayerIdentity.loadOrCreate(new FilePlayerIdentityStore(path), new SecureRandom());
         PlayerIdentity second =
-                PlayerIdentity.loadOrCreate(
-                        new FilePlayerIdentityStore(path), new SecureRandom());
+                PlayerIdentity.loadOrCreate(new FilePlayerIdentityStore(path), new SecureRandom());
 
         assertEquals(first.playerId(), second.playerId());
         assertEquals(first.fingerprint(), second.fingerprint());
@@ -84,11 +82,7 @@ class FilePlayerIdentityStoreTest {
         byte[] replacementPublic = replacement.getPublic().getEncoded();
         assertEquals(publicLength, replacementPublic.length);
         System.arraycopy(
-                replacementPublic,
-                0,
-                content,
-                16 + privateLength,
-                replacementPublic.length);
+                replacementPublic, 0, content, 16 + privateLength, replacementPublic.length);
         Files.write(path, content);
         byte[] corrupted = Files.readAllBytes(path);
 
@@ -124,11 +118,13 @@ class FilePlayerIdentityStoreTest {
         try {
             Files.createSymbolicLink(link, target.getFileName());
         } catch (UnsupportedOperationException | SecurityException | IOException exception) {
-            Assumptions.assumeTrue(false, "symbolic links are not available: " + exception.getClass());
+            Assumptions.assumeTrue(
+                    false, "symbolic links are not available: " + exception.getClass());
         }
 
         IdentityException exception =
-                assertThrows(IdentityException.class, () -> new FilePlayerIdentityStore(link).load());
+                assertThrows(
+                        IdentityException.class, () -> new FilePlayerIdentityStore(link).load());
 
         assertEquals(IdentityException.Code.KEY_STORE_READ_FAILED, exception.code());
     }
@@ -146,9 +142,7 @@ class FilePlayerIdentityStoreTest {
                 Files.getFileAttributeView(path, PosixFileAttributeView.class);
         if (view != null) {
             assertEquals(
-                    EnumSet.of(
-                            PosixFilePermission.OWNER_READ,
-                            PosixFilePermission.OWNER_WRITE),
+                    EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE),
                     Files.getPosixFilePermissions(path));
         }
     }
