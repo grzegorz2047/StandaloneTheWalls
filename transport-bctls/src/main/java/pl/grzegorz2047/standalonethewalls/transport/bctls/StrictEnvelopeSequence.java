@@ -18,21 +18,36 @@ final class StrictEnvelopeSequence {
         this.expected = initialExpected;
     }
 
+    long claim() throws ProtocolException {
+        long claimed = expectedValue();
+        advance(claimed);
+        return claimed;
+    }
+
     void accept(long actual) throws ProtocolException {
+        long required = expectedValue();
+        if (actual != required) {
+            throw new ProtocolException(
+                    ProtocolException.Code.OUT_OF_ORDER_SEQUENCE,
+                    "the envelope sequence is not the next expected value");
+        }
+        advance(actual);
+    }
+
+    private long expectedValue() throws ProtocolException {
         if (exhausted) {
             throw new ProtocolException(
                     ProtocolException.Code.SEQUENCE_EXHAUSTED,
                     "the envelope sequence space is exhausted");
         }
-        if (actual != expected) {
-            throw new ProtocolException(
-                    ProtocolException.Code.OUT_OF_ORDER_SEQUENCE,
-                    "the envelope sequence is not the next expected value");
-        }
-        if (actual == Long.MAX_VALUE) {
+        return expected;
+    }
+
+    private void advance(long accepted) {
+        if (accepted == Long.MAX_VALUE) {
             exhausted = true;
         } else {
-            expected = actual + 1L;
+            expected = accepted + 1L;
         }
     }
 }
