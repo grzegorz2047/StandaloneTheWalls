@@ -3,6 +3,8 @@ package pl.grzegorz2047.standalonethewalls.server.identity;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadLocalRandom;
@@ -276,6 +278,7 @@ public final class RegistryRefreshScheduler implements AutoCloseable {
     }
 
     private static final class ExecutorTaskScheduler implements TaskScheduler {
+        private final Set<Thread> workerThreads = ConcurrentHashMap.newKeySet();
         private final ScheduledThreadPoolExecutor executor;
         private final AtomicBoolean closed = new AtomicBoolean();
 
@@ -283,10 +286,14 @@ public final class RegistryRefreshScheduler implements AutoCloseable {
             executor =
                     new ScheduledThreadPoolExecutor(
                             1,
-                            runnable ->
-                                    Thread.ofPlatform()
-                                            .name("sunderfront-registry-refresh")
-                                            .unstarted(runnable));
+                            runnable -> {
+                                Thread worker =
+                                        Thread.ofPlatform()
+                                                .name("sunderfront-registry-refresh")
+                                                .unstarted(runnable);
+                                workerThreads.add(worker);
+                                return worker;
+                            });
             executor.setRemoveOnCancelPolicy(true);
             executor.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
             executor.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
@@ -307,17 +314,41 @@ public final class RegistryRefreshScheduler implements AutoCloseable {
             if (!closed.compareAndSet(false, true)) {
                 return;
             }
+            long deadlineNanos = System.nanoTime() + EXECUTOR_SHUTDOWN_TIMEOUT.toNanos();
             executor.shutdownNow();
             try {
-                if (!executor.awaitTermination(
-                        EXECUTOR_SHUTDOWN_TIMEOUT.toNanos(), TimeUnit.NANOSECONDS)) {
+                long remainingNanos = Math.max(0L, deadlineNanos - System.nanoTime());
+                if (!executor.awaitTermination(remainingNanos, TimeUnit.NANOSECONDS)) {
                     throw new IllegalStateException(
                             "registry refresh executor did not terminate after interruption");
+                }
+                for (Thread workerThread : workerThreads) {
+                    joinWorker(workerThread, deadlineNanos);
                 }
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
                 throw new IllegalStateException(
                         "interrupted while closing registry refresh executor", exception);
+            }
+        }
+
+        private static void joinWorker(Thread workerThread, long deadlineNanos)
+                throws InterruptedException {
+            if (workerThread == Thread.currentThread()) {
+                return;
+            }
+            while (workerThread.isAlive()) {
+                long remainingNanos = deadlineNanos - System.nanoTime();
+                if (remainingNanos <= 0L) {
+                    throw new IllegalStateException(
+                            "registry refresh worker did not terminate after interruption");
+                }
+                long remainingMillis = TimeUnit.NANOSECONDS.toMillis(remainingNanos);
+                int remainingNanoseconds =
+                        (int)
+                                (remainingNanos
+                                        - TimeUnit.MILLISECONDS.toNanos(remainingMillis));
+                workerThread.join(remainingMillis, remainingNanoseconds);
             }
         }
     }
