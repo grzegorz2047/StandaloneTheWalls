@@ -41,9 +41,7 @@ class ServerLauncherHttpsIdentityValidationTest {
         int exitCode =
                 ServerLauncher.run(
                         new String[] {
-                            "--identity-config",
-                            configuration.toString(),
-                            "--validate-config"
+                            "--identity-config", configuration.toString(), "--validate-config"
                         });
 
         assertThat(exitCode).isEqualTo(ServerLauncher.EXIT_OK);

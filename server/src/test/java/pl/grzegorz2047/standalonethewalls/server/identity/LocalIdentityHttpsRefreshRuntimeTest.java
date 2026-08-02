@@ -17,7 +17,6 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import pl.grzegorz2047.standalonethewalls.identity.policy.HandleAuthorizationMode;
@@ -207,8 +206,7 @@ class LocalIdentityHttpsRefreshRuntimeTest {
                         4096));
     }
 
-    private static void storeBundle(
-            Path path, Fixture fixture, RegistrySnapshotArtifact artifact)
+    private static void storeBundle(Path path, Fixture fixture, RegistrySnapshotArtifact artifact)
             throws RegistrySnapshotException, RegistrySnapshotProviderException {
         VerifiedRegistrySnapshot verified =
                 new RegistrySnapshotVerifier(CLOCK)

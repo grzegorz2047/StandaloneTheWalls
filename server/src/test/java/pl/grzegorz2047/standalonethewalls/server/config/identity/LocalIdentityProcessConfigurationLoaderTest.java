@@ -151,7 +151,8 @@ class LocalIdentityProcessConfigurationLoaderTest {
         assertRejected(validPrefix() + "identity.registry.maximum-json-bytes=1MB\n");
         assertRejected(validPrefix().replace("identity.sqlite-path", " identity.sqlite-path"));
         assertRejected(validPrefix().replace("LOCAL_BUNDLE", "local-bundle"));
-        assertRejected(validPrefix().replace("identity.registry.refresh-source=LOCAL_BUNDLE\n", ""));
+        assertRejected(
+                validPrefix().replace("identity.registry.refresh-source=LOCAL_BUNDLE\n", ""));
     }
 
     @Test
