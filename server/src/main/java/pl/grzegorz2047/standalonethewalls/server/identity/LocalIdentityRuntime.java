@@ -13,16 +13,22 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
 import pl.grzegorz2047.standalonethewalls.registry.AtomicRegistrySnapshotStore;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotAvailability;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotPolicy;
+import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotProvider;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotService;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotVerifier;
 import pl.grzegorz2047.standalonethewalls.registry.RegistryTrustBundle;
 import pl.grzegorz2047.standalonethewalls.registry.file.RegistrySnapshotBundleFile;
+import pl.grzegorz2047.standalonethewalls.registry.file.RegistrySnapshotCachingRefreshService;
+import pl.grzegorz2047.standalonethewalls.registry.http.RegistrySnapshotHttpsProvider;
+import pl.grzegorz2047.standalonethewalls.server.administration.identity.CachingRegistryAdministrationService;
 import pl.grzegorz2047.standalonethewalls.server.administration.identity.IdentityAdministrationCommand;
 import pl.grzegorz2047.standalonethewalls.server.administration.identity.IdentityAdministrationCommandService;
 import pl.grzegorz2047.standalonethewalls.server.administration.identity.IdentityAdministrationPrincipal;
 import pl.grzegorz2047.standalonethewalls.server.administration.identity.IdentityAdministrationResponse;
+import pl.grzegorz2047.standalonethewalls.server.administration.identity.RegistryAdministrationOperations;
 import pl.grzegorz2047.standalonethewalls.server.administration.identity.RegistryAdministrationResult;
 import pl.grzegorz2047.standalonethewalls.server.administration.identity.RegistryAdministrationService;
+import pl.grzegorz2047.standalonethewalls.server.config.identity.RegistryRefreshConfiguration;
 
 /**
  * One local identity composition shared by session admission and administration. Missing or
@@ -59,11 +65,27 @@ public final class LocalIdentityRuntime {
             RegistryTrustBundle trustBundle,
             RegistrySnapshotPolicy registryPolicy,
             Clock clock) {
+        return open(
+                configuration,
+                trustBundle,
+                registryPolicy,
+                new RegistryRefreshConfiguration.LocalBundle(),
+                clock);
+    }
+
+    public static LocalIdentityRuntime open(
+            LocalIdentityRuntimeConfiguration configuration,
+            RegistryTrustBundle trustBundle,
+            RegistrySnapshotPolicy registryPolicy,
+            RegistryRefreshConfiguration refreshConfiguration,
+            Clock clock) {
         LocalIdentityRuntimeConfiguration localConfiguration =
                 Objects.requireNonNull(configuration, "configuration");
         RegistryTrustBundle trustedRoots = Objects.requireNonNull(trustBundle, "trustBundle");
         RegistrySnapshotPolicy snapshotPolicy =
                 Objects.requireNonNull(registryPolicy, "registryPolicy");
+        RegistryRefreshConfiguration refreshSource =
+                Objects.requireNonNull(refreshConfiguration, "refreshConfiguration");
         Clock timeSource = Objects.requireNonNull(clock, "clock");
 
         SqliteLocalPlayerBanAdministrationStore banStore =
@@ -79,10 +101,19 @@ public final class LocalIdentityRuntime {
                         trustedRoots,
                         snapshotPolicy,
                         registryStore);
-        RegistryAdministrationService registryAdministration =
-                new RegistryAdministrationService(
+        RegistrySnapshotBundleFile bundleFile =
+                new RegistrySnapshotBundleFile(localConfiguration.registryBundlePath());
+        RegistryAdministrationService localRegistryAdministration =
+                new RegistryAdministrationService(registrySnapshots, bundleFile);
+        RegistryAdministrationResult startupRegistryResult =
+                localRegistryAdministration.reloadRegistry();
+        RegistryAdministrationOperations registryAdministration =
+                registryAdministration(
+                        refreshSource,
                         registrySnapshots,
-                        new RegistrySnapshotBundleFile(localConfiguration.registryBundlePath()));
+                        registryStore,
+                        bundleFile,
+                        localRegistryAdministration);
 
         LocalHandleAdministrationService handleAdministration =
                 new LocalHandleAdministrationService(handleStore, timeSource);
@@ -95,8 +126,6 @@ public final class LocalIdentityRuntime {
         IdentityAdministrationCommandService administration =
                 new IdentityAdministrationCommandService(
                         handleAdministration, banAdministration, registryAdministration);
-        RegistryAdministrationResult startupRegistryResult =
-                registryAdministration.reloadRegistry();
 
         return new LocalIdentityRuntime(
                 localConfiguration,
@@ -133,5 +162,25 @@ public final class LocalIdentityRuntime {
         return administration.execute(
                 Objects.requireNonNull(command, "command"),
                 Objects.requireNonNull(principal, "principal"));
+    }
+
+    private static RegistryAdministrationOperations registryAdministration(
+            RegistryRefreshConfiguration refreshConfiguration,
+            RegistrySnapshotService snapshots,
+            AtomicRegistrySnapshotStore store,
+            RegistrySnapshotBundleFile bundleFile,
+            RegistryAdministrationService localAdministration) {
+        if (refreshConfiguration instanceof RegistryRefreshConfiguration.LocalBundle) {
+            return localAdministration;
+        }
+        RegistryRefreshConfiguration.Https https =
+                (RegistryRefreshConfiguration.Https) refreshConfiguration;
+        RegistrySnapshotProvider provider =
+                new RegistrySnapshotHttpsProvider(https.configuration());
+        return new CachingRegistryAdministrationService(
+                snapshots,
+                provider,
+                new RegistrySnapshotCachingRefreshService(snapshots, bundleFile),
+                store);
     }
 }
