@@ -47,6 +47,8 @@ official wrapper JAR checksum, and pins the Gradle distribution checksum in
 - `game-domain` - deterministic game rules
 - `protocol` - versioned messages and transport boundaries
 - `map-format` - safe `.twmap` contracts and validation
+- `identity-registry` - offline verification and monotonic activation of signed
+  global-handle snapshots
 - `client` - jMonkeyEngine game client
 - `server` - headless authoritative dedicated server
 - `map-studio` - map authoring application
