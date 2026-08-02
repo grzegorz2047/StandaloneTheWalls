@@ -204,8 +204,7 @@ class AuthenticatedPlayerAdmissionCoordinatorTest {
         private final AtomicBoolean open = new AtomicBoolean(true);
 
         @Override
-        public CompletionStage<ReliableSendResult> send(
-                MessageType messageType, byte[] payload) {
+        public CompletionStage<ReliableSendResult> send(MessageType messageType, byte[] payload) {
             return CompletableFuture.completedFuture(new ReliableSendResult(0L));
         }
 
