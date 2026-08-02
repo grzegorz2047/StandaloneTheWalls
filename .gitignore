@@ -14,5 +14,9 @@ Thumbs.db
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+*.sfki
+*.sfki.lock
+*.sftr
+*.sftr.lock
 runtime/
 .asset-cache/
