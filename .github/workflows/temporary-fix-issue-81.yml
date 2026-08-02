@@ -1,140 +1,75 @@
 name: Temporary fix issue 81
 
 on:
-  push:
-    branches:
-      - agent/issue-81-production-tls-listener
+  pull_request:
 
 permissions:
   contents: write
 
 jobs:
   fix:
+    if: github.head_ref == 'agent/issue-81-production-tls-listener'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Check out branch
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          ref: agent/issue-81-production-tls-listener
+          ref: ${{ github.head_ref }}
 
-      - name: Set up Java 21
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v4
 
-      - name: Apply focused review fixes
+      - name: Apply focused fixes
         run: |
           python3 - <<'PY'
           from pathlib import Path
 
           launcher = Path("server/src/main/java/pl/grzegorz2047/standalonethewalls/server/ServerLauncher.java")
-          source = launcher.read_text()
-          anchor = source.index("ReliableTlsAdmissionRuntime.open(")
-          segment = source[anchor:anchor + 700]
-          if "runtime::close);" not in segment:
-              target = "Clock.systemUTC());"
-              position = source.index(target, anchor)
-              source = (
-                  source[:position]
-                  + "Clock.systemUTC(),\n                                runtime::close);"
-                  + source[position + len(target):]
-              )
-              launcher.write_text(source)
+          text = launcher.read_text()
+          start = text.index("ReliableTlsAdmissionRuntime.open(")
+          if "runtime::close);" not in text[start:start + 700]:
+              position = text.index("Clock.systemUTC());", start)
+              text = text[:position] + "Clock.systemUTC(),\n                                runtime::close);" + text[position + len("Clock.systemUTC());"):]
+              launcher.write_text(text)
 
           loader = Path("server/src/main/java/pl/grzegorz2047/standalonethewalls/server/config/transport/ReliableTlsProcessConfigurationLoader.java")
-          source = loader.read_text()
-          if "CRYPTO_PROVIDER" not in source:
-              source = source.replace(
-                  "import java.security.PrivateKey;\n",
-                  "import java.security.PrivateKey;\nimport java.security.Provider;\n",
-                  1,
-              )
-              source = source.replace(
-                  "import pl.grzegorz2047.standalonethewalls.server.config.ServerConfiguration;\n",
-                  "import pl.grzegorz2047.standalonethewalls.server.config.ServerConfiguration;\nimport pl.grzegorz2047.standalonethewalls.transport.bctls.BouncyCastleTlsCryptoFactory;\n",
-                  1,
-              )
-              source = source.replace(
-                  "    private static final byte[] CREDENTIAL_MATCH_PROBE =",
-                  "    private static final Provider CRYPTO_PROVIDER =\n            BouncyCastleTlsCryptoFactory.provider();\n\n    private static final byte[] CREDENTIAL_MATCH_PROBE =",
-                  1,
-              )
-              source = source.replace(
-                  'KeyFactory.getInstance("Ed25519")',
-                  'KeyFactory.getInstance("Ed25519", CRYPTO_PROVIDER)',
-              )
-              source = source.replace(
-                  'CertificateFactory.getInstance("X.509")',
-                  'CertificateFactory.getInstance("X.509", CRYPTO_PROVIDER)',
-              )
-              source = source.replace(
-                  'Signature.getInstance("Ed25519")',
-                  'Signature.getInstance("Ed25519", CRYPTO_PROVIDER)',
-              )
-              loader.write_text(source)
+          text = loader.read_text()
+          if "CRYPTO_PROVIDER" not in text:
+              text = text.replace("import java.security.PrivateKey;\n", "import java.security.PrivateKey;\nimport java.security.Provider;\n", 1)
+              text = text.replace("import pl.grzegorz2047.standalonethewalls.server.config.ServerConfiguration;\n", "import pl.grzegorz2047.standalonethewalls.server.config.ServerConfiguration;\nimport pl.grzegorz2047.standalonethewalls.transport.bctls.BouncyCastleTlsCryptoFactory;\n", 1)
+              text = text.replace("    private static final byte[] CREDENTIAL_MATCH_PROBE =", "    private static final Provider CRYPTO_PROVIDER =\n            BouncyCastleTlsCryptoFactory.provider();\n\n    private static final byte[] CREDENTIAL_MATCH_PROBE =", 1)
+              text = text.replace('KeyFactory.getInstance("Ed25519")', 'KeyFactory.getInstance("Ed25519", CRYPTO_PROVIDER)')
+              text = text.replace('CertificateFactory.getInstance("X.509")', 'CertificateFactory.getInstance("X.509", CRYPTO_PROVIDER)')
+              text = text.replace('Signature.getInstance("Ed25519")', 'Signature.getInstance("Ed25519", CRYPTO_PROVIDER)')
+              loader.write_text(text)
 
           fixture = Path("server/src/test/java/pl/grzegorz2047/standalonethewalls/server/testsupport/ServerTlsTestCertificateMaterial.java")
-          source = fixture.read_text()
-          if "BouncyCastleTlsCryptoFactory" not in source:
-              source = source.replace(
-                  "import java.security.KeyPairGenerator;\n",
-                  "import java.security.KeyPairGenerator;\nimport java.security.Provider;\n",
-                  1,
-              )
-              source = source.replace(
-                  "import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;\n",
-                  "import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;\nimport pl.grzegorz2047.standalonethewalls.transport.bctls.BouncyCastleTlsCryptoFactory;\n",
-                  1,
-              )
-              source = source.replace(
-                  '        KeyPairGenerator generator = KeyPairGenerator.getInstance("Ed25519");\n',
-                  '        Provider provider = BouncyCastleTlsCryptoFactory.provider();\n        KeyPairGenerator generator = KeyPairGenerator.getInstance("Ed25519", provider);\n',
-                  1,
-              )
-              source = source.replace(
-                  '        ContentSigner signer = new JcaContentSignerBuilder("Ed25519").build(keyPair.getPrivate());\n',
-                  '        ContentSigner signer =\n                new JcaContentSignerBuilder("Ed25519")\n                        .setProvider(provider)\n                        .build(keyPair.getPrivate());\n',
-                  1,
-              )
-              source = source.replace(
-                  '                new JcaX509CertificateConverter().getCertificate(holder);\n        certificate.verify(keyPair.getPublic());\n',
-                  '                new JcaX509CertificateConverter()\n                        .setProvider(provider)\n                        .getCertificate(holder);\n        certificate.verify(keyPair.getPublic(), provider);\n',
-                  1,
-              )
-              fixture.write_text(source)
+          text = fixture.read_text()
+          if "BouncyCastleTlsCryptoFactory" not in text:
+              text = text.replace("import java.security.KeyPairGenerator;\n", "import java.security.KeyPairGenerator;\nimport java.security.Provider;\n", 1)
+              text = text.replace("import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;\n", "import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;\nimport pl.grzegorz2047.standalonethewalls.transport.bctls.BouncyCastleTlsCryptoFactory;\n", 1)
+              text = text.replace('        KeyPairGenerator generator = KeyPairGenerator.getInstance("Ed25519");\n', '        Provider provider = BouncyCastleTlsCryptoFactory.provider();\n        KeyPairGenerator generator = KeyPairGenerator.getInstance("Ed25519", provider);\n', 1)
+              text = text.replace('        ContentSigner signer = new JcaContentSignerBuilder("Ed25519").build(keyPair.getPrivate());\n', '        ContentSigner signer =\n                new JcaContentSignerBuilder("Ed25519")\n                        .setProvider(provider)\n                        .build(keyPair.getPrivate());\n', 1)
+              text = text.replace('                new JcaX509CertificateConverter().getCertificate(holder);\n        certificate.verify(keyPair.getPublic());\n', '                new JcaX509CertificateConverter()\n                        .setProvider(provider)\n                        .getCertificate(holder);\n        certificate.verify(keyPair.getPublic(), provider);\n', 1)
+              fixture.write_text(text)
 
           test = Path("server/src/test/java/pl/grzegorz2047/standalonethewalls/server/config/transport/ReliableTlsProcessConfigurationLoaderTest.java")
-          source = test.read_text()
-          if "Path oversized =" not in source:
-              array_anchor = "new byte[ReliableTlsProcessConfigurationLoader.MAXIMUM_PRIVATE_KEY_BYTES + 1]);"
-              array_position = source.index(array_anchor)
-              write_position = source.rfind("        Files.write(", 0, array_position)
-              oversized = '''        Path oversized =
-                writeConfiguration(
-                        "transport.schema=1\\n"
-                                + "transport.reliable.private-key-pkcs8-path=server-key.pk8\\n"
-                                + "transport.reliable.certificate-x509-path=server-certificate.der\\n");
-'''
-              source = source[:write_position] + oversized + source[write_position:]
-              load_target = "ReliableTlsProcessConfigurationLoader.load(configuration, server)"
-              load_position = source.index(load_target, write_position + len(oversized))
-              source = (
-                  source[:load_position]
-                  + "ReliableTlsProcessConfigurationLoader.load(oversized, server)"
-                  + source[load_position + len(load_target):]
-              )
-              test.write_text(source)
+          text = test.read_text()
+          if "Path oversized =" not in text:
+              marker = "        Files.write(\n                temporaryDirectory.resolve(\"server-key.pk8\"),\n                new byte[ReliableTlsProcessConfigurationLoader.MAXIMUM_PRIVATE_KEY_BYTES + 1]);"
+              replacement = "        Path oversized =\n                writeConfiguration(\n                        \"transport.schema=1\\n\"\n                                + \"transport.reliable.private-key-pkcs8-path=server-key.pk8\\n\"\n                                + \"transport.reliable.certificate-x509-path=server-certificate.der\\n\");\n" + marker
+              text = text.replace(marker, replacement, 1)
+              position = text.index("ReliableTlsProcessConfigurationLoader.load(configuration, server)", text.index("Path oversized ="))
+              text = text[:position] + "ReliableTlsProcessConfigurationLoader.load(oversized, server)" + text[position + len("ReliableTlsProcessConfigurationLoader.load(configuration, server)"):]
+              test.write_text(text)
           PY
+          ./gradlew --no-daemon spotlessApply
 
-      - name: Apply repository formatting
-        run: ./gradlew --no-daemon spotlessApply
-
-      - name: Commit review fixes
+      - name: Commit fixes
         run: |
           if git diff --quiet -- server/src transport-bctls/src; then
             exit 0
@@ -143,4 +78,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add server/src transport-bctls/src
           git commit -m "Apply TLS credential and lifecycle review fixes"
-          git push origin HEAD:agent/issue-81-production-tls-listener
+          git push origin HEAD:${{ github.head_ref }}
