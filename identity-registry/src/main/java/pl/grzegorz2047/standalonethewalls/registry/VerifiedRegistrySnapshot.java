@@ -23,7 +23,7 @@ public final class VerifiedRegistrySnapshot {
         this.generatedAt = payload.generatedAt();
         this.rootKeyId = payload.rootKeyId();
         this.digest = Objects.requireNonNull(digest, "digest").clone();
-        this.entries = payload.entries();
+        this.entries = List.copyOf(payload.entries());
         Map<String, RegistrySnapshotEntry> indexed = new LinkedHashMap<>();
         for (RegistrySnapshotEntry entry : entries) {
             indexed.put(entry.handle().value(), entry);
@@ -48,7 +48,7 @@ public final class VerifiedRegistrySnapshot {
     }
 
     public List<RegistrySnapshotEntry> entries() {
-        return entries;
+        return List.copyOf(entries);
     }
 
     public Optional<RegistrySnapshotEntry> find(CanonicalHandle handle) {
