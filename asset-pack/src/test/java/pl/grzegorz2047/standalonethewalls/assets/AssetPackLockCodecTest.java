@@ -13,7 +13,7 @@ class AssetPackLockCodecTest {
     private static final String MANIFEST_DIGEST = "b".repeat(64);
 
     @Test
-    void exactCanonicalBytesRoundTripDeterministically() throws Exception {
+    void exactCanonicalBytesRoundTripDeterministically() throws AssetPackLockException {
         AssetPackLock lock = new AssetPackLock(1, List.of(reference("core", "1.2.3")));
 
         byte[] encoded = AssetPackLockCodec.encode(lock);
