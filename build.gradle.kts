@@ -180,6 +180,7 @@ val engineFreeModules = listOf(
     "bot-client",
     "transport-bctls",
     "identity-registry",
+    "identity-registry-file",
 )
 val engineFreeSourceDirectories =
     engineFreeModules.map { module -> layout.projectDirectory.dir("$module/src") }
