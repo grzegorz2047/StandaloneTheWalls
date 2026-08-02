@@ -11,7 +11,21 @@ public record LocalIdentityProcessConfiguration(
         LocalIdentityRuntimeConfiguration runtimeConfiguration,
         Path trustRootsPath,
         RegistryTrustBundle trustBundle,
-        RegistrySnapshotPolicy registryPolicy) {
+        RegistrySnapshotPolicy registryPolicy,
+        RegistryRefreshConfiguration registryRefreshConfiguration) {
+    public LocalIdentityProcessConfiguration(
+            LocalIdentityRuntimeConfiguration runtimeConfiguration,
+            Path trustRootsPath,
+            RegistryTrustBundle trustBundle,
+            RegistrySnapshotPolicy registryPolicy) {
+        this(
+                runtimeConfiguration,
+                trustRootsPath,
+                trustBundle,
+                registryPolicy,
+                new RegistryRefreshConfiguration.LocalBundle());
+    }
+
     public LocalIdentityProcessConfiguration {
         runtimeConfiguration = Objects.requireNonNull(runtimeConfiguration, "runtimeConfiguration");
         trustRootsPath =
@@ -20,6 +34,9 @@ public record LocalIdentityProcessConfiguration(
                         .normalize();
         trustBundle = Objects.requireNonNull(trustBundle, "trustBundle");
         registryPolicy = Objects.requireNonNull(registryPolicy, "registryPolicy");
+        registryRefreshConfiguration =
+                Objects.requireNonNull(
+                        registryRefreshConfiguration, "registryRefreshConfiguration");
         if (trustRootsPath.getFileName() == null || trustRootsPath.getParent() == null) {
             throw new IllegalArgumentException("trustRootsPath must identify a file");
         }
