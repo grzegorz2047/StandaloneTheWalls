@@ -66,7 +66,9 @@ class TlsSessionBootstrapIntegrationTest {
                                                 connection, bootstrapConfig, new SecureRandom());
                                 serverTimeouts.add(connection.tlsConnection().readTimeoutMillis());
                                 serverSessions.add(session);
-                            } catch (Exception exception) {
+                            } catch (IOException
+                                    | TlsSessionBootstrapException
+                                    | RuntimeException exception) {
                                 failures.add(exception);
                             }
                         });
@@ -147,7 +149,9 @@ class TlsSessionBootstrapIntegrationTest {
                                 serverSessions.add(
                                         TlsSessionBootstrap.acceptServerSession(
                                                 connection, bootstrapConfig, new SecureRandom()));
-                            } catch (Exception exception) {
+                            } catch (IOException
+                                    | TlsSessionBootstrapException
+                                    | RuntimeException exception) {
                                 failures.add(exception);
                             }
                         });
@@ -215,7 +219,9 @@ class TlsSessionBootstrapIntegrationTest {
                                 serverSessions.add(
                                         TlsSessionBootstrap.acceptServerSession(
                                                 connection, shortConfig, new SecureRandom()));
-                            } catch (Exception exception) {
+                            } catch (IOException
+                                    | TlsSessionBootstrapException
+                                    | RuntimeException exception) {
                                 failures.add(exception);
                             }
                         });
