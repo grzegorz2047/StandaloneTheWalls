@@ -2,10 +2,13 @@ package pl.grzegorz2047.standalonethewalls.server.administration.identity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.security.InvalidKeyException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.Signature;
+import java.security.SignatureException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -143,7 +146,7 @@ class RegistryAdministrationServiceTest {
     }
 
     private static Fixture fixture(KeyPair root, RegistrySnapshotProvider provider)
-            throws Exception {
+            throws RegistrySnapshotException {
         AtomicRegistrySnapshotStore store = new AtomicRegistrySnapshotStore();
         RegistrySnapshotService snapshots = snapshots(root, store);
         return new Fixture(store, new RegistryAdministrationService(snapshots, provider));
@@ -158,12 +161,16 @@ class RegistryAdministrationServiceTest {
                 store);
     }
 
-    private static KeyPair root() throws Exception {
+    private static KeyPair root() throws NoSuchAlgorithmException {
         return KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
     }
 
     private static RegistrySnapshotArtifact artifact(
-            KeyPair root, long sequence, Instant generatedAt) throws Exception {
+            KeyPair root, long sequence, Instant generatedAt)
+            throws RegistrySnapshotException,
+                    NoSuchAlgorithmException,
+                    InvalidKeyException,
+                    SignatureException {
         RegistrySnapshotPayload payload =
                 new RegistrySnapshotPayload(
                         sequence,
