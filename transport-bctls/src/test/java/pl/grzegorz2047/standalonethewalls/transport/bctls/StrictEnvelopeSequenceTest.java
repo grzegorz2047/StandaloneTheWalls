@@ -9,7 +9,15 @@ import pl.grzegorz2047.standalonethewalls.protocol.ProtocolException;
 
 class StrictEnvelopeSequenceTest {
     @Test
-    void acceptsOnlyTheExactNextSequence() throws ProtocolException {
+    void claimsConsecutiveOutboundValues() throws ProtocolException {
+        StrictEnvelopeSequence sequence = new StrictEnvelopeSequence();
+
+        assertThat(sequence.claim()).isZero();
+        assertThat(sequence.claim()).isEqualTo(1L);
+    }
+
+    @Test
+    void acceptsOnlyTheExactNextInboundSequence() throws ProtocolException {
         StrictEnvelopeSequence sequence = new StrictEnvelopeSequence();
 
         sequence.accept(0L);
@@ -37,9 +45,9 @@ class StrictEnvelopeSequenceTest {
     void marksTheSequenceSpaceExhaustedAfterLongMaximum() throws ProtocolException {
         StrictEnvelopeSequence sequence = new StrictEnvelopeSequence(Long.MAX_VALUE);
 
-        sequence.accept(Long.MAX_VALUE);
+        assertThat(sequence.claim()).isEqualTo(Long.MAX_VALUE);
 
-        assertThatThrownBy(() -> sequence.accept(Long.MAX_VALUE))
+        assertThatThrownBy(sequence::claim)
                 .isInstanceOfSatisfying(
                         ProtocolException.class,
                         exception ->
