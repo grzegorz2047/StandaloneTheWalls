@@ -14,6 +14,7 @@ import java.util.HexFormat;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotException;
 
 class LocalIdentityProcessScheduleConfigurationTest {
     @TempDir Path temporaryDirectory;
@@ -29,7 +30,8 @@ class LocalIdentityProcessScheduleConfigurationTest {
     }
 
     @Test
-    void httpsScheduleDefaultsToDisabledBoundedValues() throws Exception {
+    void httpsScheduleDefaultsToDisabledBoundedValues()
+            throws IOException, RegistrySnapshotException {
         LocalIdentityProcessConfiguration configuration = load(httpsPrefix());
         RegistryRefreshConfiguration.Https https =
                 (RegistryRefreshConfiguration.Https) configuration.registryRefreshConfiguration();
@@ -39,7 +41,8 @@ class LocalIdentityProcessScheduleConfigurationTest {
     }
 
     @Test
-    void loadsExplicitEnabledScheduleInSeconds() throws Exception {
+    void loadsExplicitEnabledScheduleInSeconds()
+            throws IOException, RegistrySnapshotException {
         LocalIdentityProcessConfiguration configuration =
                 load(
                         httpsPrefix()
@@ -113,7 +116,8 @@ class LocalIdentityProcessScheduleConfigurationTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    private LocalIdentityProcessConfiguration load(String content) throws Exception {
+    private LocalIdentityProcessConfiguration load(String content)
+            throws IOException, RegistrySnapshotException {
         Path path = temporaryDirectory.resolve("identity.properties");
         Files.writeString(path, content, StandardCharsets.UTF_8);
         return LocalIdentityProcessConfigurationLoader.load(path);
