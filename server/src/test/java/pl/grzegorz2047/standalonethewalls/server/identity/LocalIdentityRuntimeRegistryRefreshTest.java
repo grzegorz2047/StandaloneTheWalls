@@ -2,11 +2,14 @@ package pl.grzegorz2047.standalonethewalls.server.identity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.Signature;
 import java.time.Clock;
 import java.time.Duration;
@@ -17,10 +20,12 @@ import java.util.Deque;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -28,6 +33,7 @@ import pl.grzegorz2047.standalonethewalls.identity.policy.HandleAuthorizationMod
 import pl.grzegorz2047.standalonethewalls.identity.policy.LocalIdentityAdministratorId;
 import pl.grzegorz2047.standalonethewalls.registry.RegistryRootId;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotArtifact;
+import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotException;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotJsonCodec;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotPayload;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotPolicy;
@@ -52,7 +58,8 @@ class LocalIdentityRuntimeRegistryRefreshTest {
     @TempDir Path temporaryDirectory;
 
     @Test
-    void localBundleNeverConstructsRemoteProviderSchedulerOrNetworkAttempt() throws Exception {
+    void localBundleNeverConstructsRemoteProviderSchedulerOrNetworkAttempt()
+            throws NoSuchAlgorithmException, RegistrySnapshotException {
         KeyPair root = root();
         AtomicInteger providerConstructions = new AtomicInteger();
         AtomicInteger schedulerConstructions = new AtomicInteger();
@@ -86,7 +93,8 @@ class LocalIdentityRuntimeRegistryRefreshTest {
     }
 
     @Test
-    void disabledHttpsSchedulerCreatesNoExecutorAndPerformsNoRemoteIo() throws Exception {
+    void disabledHttpsSchedulerCreatesNoExecutorAndPerformsNoRemoteIo()
+            throws NoSuchAlgorithmException, RegistrySnapshotException {
         KeyPair root = root();
         AtomicInteger providerCalls = new AtomicInteger();
         AtomicInteger schedulerConstructions = new AtomicInteger();
@@ -120,7 +128,8 @@ class LocalIdentityRuntimeRegistryRefreshTest {
     }
 
     @Test
-    void automaticActivationUnchangedAndOfflineRestartUseLastKnownGoodBundle() throws Exception {
+    void automaticActivationUnchangedAndOfflineRestartUseLastKnownGoodBundle()
+            throws GeneralSecurityException, RegistrySnapshotException {
         KeyPair root = root();
         RegistrySnapshotArtifact artifact = artifact(root, 7L, NOW);
         AtomicInteger remoteCalls = new AtomicInteger();
@@ -172,7 +181,8 @@ class LocalIdentityRuntimeRegistryRefreshTest {
     }
 
     @Test
-    void providerFailureKeepsActiveSnapshotAndCachedBundle() throws Exception {
+    void providerFailureKeepsActiveSnapshotAndCachedBundle()
+            throws GeneralSecurityException, RegistrySnapshotException {
         KeyPair root = root();
         RegistrySnapshotArtifact baseline = artifact(root, 8L, NOW.minusSeconds(1));
         AtomicInteger calls = new AtomicInteger();
@@ -207,7 +217,8 @@ class LocalIdentityRuntimeRegistryRefreshTest {
     }
 
     @Test
-    void invalidSignatureRollbackAndEquivocationKeepActiveSnapshotAndRetry() throws Exception {
+    void invalidSignatureRollbackAndEquivocationKeepActiveSnapshotAndRetry()
+            throws GeneralSecurityException, RegistrySnapshotException {
         KeyPair root = root();
         RegistrySnapshotArtifact baseline = artifact(root, 10L, NOW.minusSeconds(2));
         RegistrySnapshotArtifact invalid = invalidSignature(artifact(root, 11L, NOW));
@@ -246,7 +257,8 @@ class LocalIdentityRuntimeRegistryRefreshTest {
     }
 
     @Test
-    void cacheFailureIsClassifiedAndDoesNotPublishCandidate() throws Exception {
+    void cacheFailureIsClassifiedAndDoesNotPublishCandidate()
+            throws GeneralSecurityException, RegistrySnapshotException, IOException {
         KeyPair root = root();
         RegistrySnapshotArtifact candidate = artifact(root, 1L, NOW);
         RegistryRefreshConfiguration.Https https = https(true);
@@ -280,7 +292,12 @@ class LocalIdentityRuntimeRegistryRefreshTest {
     }
 
     @Test
-    void automaticAndManualRefreshShareOneSingleFlightProviderBoundary() throws Exception {
+    void automaticAndManualRefreshShareOneSingleFlightProviderBoundary()
+            throws GeneralSecurityException,
+                    RegistrySnapshotException,
+                    InterruptedException,
+                    ExecutionException,
+                    TimeoutException {
         KeyPair root = root();
         RegistrySnapshotArtifact artifact = artifact(root, 2L, NOW);
         CountDownLatch firstEntered = new CountDownLatch(1);
@@ -361,16 +378,18 @@ class LocalIdentityRuntimeRegistryRefreshTest {
                         Duration.ZERO));
     }
 
-    private static RegistryTrustBundle trustBundle(KeyPair root) throws Exception {
+    private static RegistryTrustBundle trustBundle(KeyPair root)
+            throws RegistrySnapshotException {
         return RegistryTrustBundle.of(List.of(root.getPublic().getEncoded()));
     }
 
-    private static KeyPair root() throws Exception {
+    private static KeyPair root() throws NoSuchAlgorithmException {
         return KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
     }
 
     private static RegistrySnapshotArtifact artifact(
-            KeyPair root, long sequence, Instant generatedAt) throws Exception {
+            KeyPair root, long sequence, Instant generatedAt)
+            throws GeneralSecurityException, RegistrySnapshotException {
         RegistrySnapshotPayload payload =
                 new RegistrySnapshotPayload(
                         sequence,
