@@ -78,7 +78,8 @@ public final class ServerLauncher {
         try {
             return LocalIdentityProcessConfigurationLoader.load(path);
         } catch (IOException | RegistrySnapshotException exception) {
-            throw new IllegalArgumentException("local identity configuration is invalid", exception);
+            throw new IllegalArgumentException(
+                    "local identity configuration is invalid", exception);
         }
     }
 
