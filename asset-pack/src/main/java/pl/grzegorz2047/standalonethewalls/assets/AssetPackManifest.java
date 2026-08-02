@@ -14,17 +14,8 @@ public record AssetPackManifest(
             Set.of("CC0-1.0", "CC-BY-4.0", "OFL-1.1");
 
     public AssetPackManifest {
-        packId = new AssetPackReference(
-                        packId,
-                        version,
-                        1,
-                        java.net.URI.create("https://assets.invalid/releases/validation-1.0.0.zip"),
-                        1,
-                        "0".repeat(64),
-                        "manifest.json",
-                        "0".repeat(64))
-                .id();
-        version = requireVersion(version);
+        packId = AssetPackReference.requireId(packId);
+        version = AssetPackReference.requireVersion(version);
         license = Objects.requireNonNull(license, "license");
         if (!ALLOWED_LICENSES.contains(license)) {
             throw new IllegalArgumentException("asset pack license is not allowed");
@@ -53,24 +44,6 @@ public record AssetPackManifest(
             if (total > MAXIMUM_TOTAL_BYTES) {
                 throw new IllegalArgumentException("asset manifest total size exceeds the safe range");
             }
-        }
-    }
-
-    private static String requireVersion(String value) {
-        try {
-            return new AssetPackReference(
-                            "validation",
-                            value,
-                            1,
-                            java.net.URI.create(
-                                    "https://assets.invalid/releases/validation-1.0.0.zip"),
-                            1,
-                            "0".repeat(64),
-                            "manifest.json",
-                            "0".repeat(64))
-                    .version();
-        } catch (IllegalArgumentException exception) {
-            throw new IllegalArgumentException("asset manifest version is invalid", exception);
         }
     }
 }
