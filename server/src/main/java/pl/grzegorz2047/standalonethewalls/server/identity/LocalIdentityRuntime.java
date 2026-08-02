@@ -70,8 +70,7 @@ public final class LocalIdentityRuntime {
                 new SqliteLocalPlayerBanAdministrationStore(
                         localConfiguration.sqliteDatabasePath());
         SqliteLocalHandleAdministrationStore handleStore =
-                new SqliteLocalHandleAdministrationStore(
-                        localConfiguration.sqliteDatabasePath());
+                new SqliteLocalHandleAdministrationStore(localConfiguration.sqliteDatabasePath());
 
         AtomicRegistrySnapshotStore registryStore = new AtomicRegistrySnapshotStore();
         RegistrySnapshotService registrySnapshots =

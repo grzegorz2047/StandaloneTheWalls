@@ -76,10 +76,7 @@ class LocalIdentityRuntimeTest {
 
         LocalIdentityRuntime first =
                 LocalIdentityRuntime.open(
-                        configuration,
-                        trustBundle(root),
-                        RegistrySnapshotPolicy.DEFAULT,
-                        CLOCK);
+                        configuration, trustBundle(root), RegistrySnapshotPolicy.DEFAULT, CLOCK);
 
         assertThat(first.startupRegistryResult().code())
                 .isEqualTo(RegistryAdministrationResultCode.PROVIDER_FAILURE);
@@ -90,10 +87,7 @@ class LocalIdentityRuntimeTest {
 
         LocalIdentityRuntime restarted =
                 LocalIdentityRuntime.open(
-                        configuration,
-                        trustBundle(root),
-                        RegistrySnapshotPolicy.DEFAULT,
-                        CLOCK);
+                        configuration, trustBundle(root), RegistrySnapshotPolicy.DEFAULT, CLOCK);
 
         assertThat(restarted.admit(HANDLE, PLAYER))
                 .isEqualTo(SessionIdentityAdmissionDecision.LOCAL_RETURNING_ACCEPTED);
@@ -138,10 +132,7 @@ class LocalIdentityRuntimeTest {
 
         LocalIdentityRuntime runtime =
                 LocalIdentityRuntime.open(
-                        configuration,
-                        trustBundle(root),
-                        RegistrySnapshotPolicy.DEFAULT,
-                        CLOCK);
+                        configuration, trustBundle(root), RegistrySnapshotPolicy.DEFAULT, CLOCK);
 
         assertThat(runtime.startupRegistryResult().code())
                 .isEqualTo(RegistryAdministrationResultCode.ACTIVATED);
@@ -160,15 +151,11 @@ class LocalIdentityRuntimeTest {
                 configuration("ban", HandleAuthorizationMode.LOCAL_TOFU);
         IdentityAdministrationPrincipal principal =
                 new IdentityAdministrationPrincipal(
-                        ADMINISTRATOR,
-                        Set.of(IdentityAdministrationPermission.MANAGE_PLAYER_BANS));
+                        ADMINISTRATOR, Set.of(IdentityAdministrationPermission.MANAGE_PLAYER_BANS));
 
         LocalIdentityRuntime first =
                 LocalIdentityRuntime.open(
-                        configuration,
-                        trustBundle(root),
-                        RegistrySnapshotPolicy.DEFAULT,
-                        CLOCK);
+                        configuration, trustBundle(root), RegistrySnapshotPolicy.DEFAULT, CLOCK);
         IdentityAdministrationResponse response =
                 first.execute(
                         new IdentityAdministrationCommand.BanPlayer(PLAYER, REASON), principal);
@@ -182,10 +169,7 @@ class LocalIdentityRuntimeTest {
 
         LocalIdentityRuntime restarted =
                 LocalIdentityRuntime.open(
-                        configuration,
-                        trustBundle(root),
-                        RegistrySnapshotPolicy.DEFAULT,
-                        CLOCK);
+                        configuration, trustBundle(root), RegistrySnapshotPolicy.DEFAULT, CLOCK);
         assertThat(restarted.admit(HANDLE, PLAYER))
                 .isEqualTo(SessionIdentityAdmissionDecision.PLAYER_BANNED);
     }
@@ -203,10 +187,7 @@ class LocalIdentityRuntimeTest {
         storeBundle(configuration.registryBundlePath(), root, 1L, NOW.minusSeconds(1));
         LocalIdentityRuntime runtime =
                 LocalIdentityRuntime.open(
-                        configuration,
-                        trustBundle(root),
-                        RegistrySnapshotPolicy.DEFAULT,
-                        CLOCK);
+                        configuration, trustBundle(root), RegistrySnapshotPolicy.DEFAULT, CLOCK);
         assertThat(runtime.registryAvailability().requireSnapshot().sequence()).isEqualTo(1L);
 
         storeBundle(configuration.registryBundlePath(), root, 2L, NOW);
@@ -217,12 +198,10 @@ class LocalIdentityRuntimeTest {
                                 ADMINISTRATOR,
                                 Set.of(IdentityAdministrationPermission.MANAGE_REGISTRY)));
 
-        assertThat(response)
-                .isInstanceOf(IdentityAdministrationResponse.RegistryOperation.class);
+        assertThat(response).isInstanceOf(IdentityAdministrationResponse.RegistryOperation.class);
         IdentityAdministrationResponse.RegistryOperation operation =
                 (IdentityAdministrationResponse.RegistryOperation) response;
-        assertThat(operation.result().code())
-                .isEqualTo(RegistryAdministrationResultCode.ACTIVATED);
+        assertThat(operation.result().code()).isEqualTo(RegistryAdministrationResultCode.ACTIVATED);
         assertThat(runtime.registryAvailability().requireSnapshot().sequence()).isEqualTo(2L);
         assertThat(runtime.admit(HANDLE, PLAYER))
                 .isEqualTo(SessionIdentityAdmissionDecision.UNKNOWN_GLOBAL_HANDLE);
@@ -247,10 +226,7 @@ class LocalIdentityRuntimeTest {
 
         LocalIdentityRuntime runtime =
                 LocalIdentityRuntime.open(
-                        configuration,
-                        trustBundle(root),
-                        RegistrySnapshotPolicy.DEFAULT,
-                        CLOCK);
+                        configuration, trustBundle(root), RegistrySnapshotPolicy.DEFAULT, CLOCK);
 
         assertThat(runtime.startupRegistryResult().code())
                 .isEqualTo(RegistryAdministrationResultCode.SNAPSHOT_REJECTED);
@@ -268,8 +244,7 @@ class LocalIdentityRuntimeTest {
                 mode);
     }
 
-    private static RegistryTrustBundle trustBundle(KeyPair root)
-            throws RegistrySnapshotException {
+    private static RegistryTrustBundle trustBundle(KeyPair root) throws RegistrySnapshotException {
         return RegistryTrustBundle.of(List.of(root.getPublic().getEncoded()));
     }
 
@@ -277,8 +252,7 @@ class LocalIdentityRuntimeTest {
         return KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
     }
 
-    private static void storeBundle(
-            Path path, KeyPair root, long sequence, Instant generatedAt)
+    private static void storeBundle(Path path, KeyPair root, long sequence, Instant generatedAt)
             throws RegistrySnapshotException,
                     NoSuchAlgorithmException,
                     InvalidKeyException,
