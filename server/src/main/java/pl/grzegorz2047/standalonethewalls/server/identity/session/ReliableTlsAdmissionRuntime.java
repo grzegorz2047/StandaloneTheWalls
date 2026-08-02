@@ -41,11 +41,22 @@ public final class ReliableTlsAdmissionRuntime implements AutoCloseable {
             LocalIdentityRuntime identityRuntime,
             Clock clock)
             throws IOException {
+        return open(configuration, identityRuntime, clock, () -> {});
+    }
+
+    public static ReliableTlsAdmissionRuntime open(
+            ReliableTlsProcessConfiguration configuration,
+            LocalIdentityRuntime identityRuntime,
+            Clock clock,
+            Runnable terminalFailureHandler)
+            throws IOException {
         ReliableTlsProcessConfiguration transport =
                 Objects.requireNonNull(configuration, "configuration");
         LocalIdentityRuntime identity =
                 Objects.requireNonNull(identityRuntime, "identityRuntime");
         Clock timeSource = Objects.requireNonNull(clock, "clock");
+        Runnable failureHandler =
+                Objects.requireNonNull(terminalFailureHandler, "terminalFailureHandler");
 
         IdentityChallengeService challenges =
                 new IdentityChallengeService(
@@ -70,7 +81,7 @@ public final class ReliableTlsAdmissionRuntime implements AutoCloseable {
                             transport.listenerConfig(),
                             transport.credentials(),
                             gateway,
-                            ReliableTlsAdmissionRuntime::observeListener);
+                            event -> observeListener(event, failureHandler));
             return new ReliableTlsAdmissionRuntime(gateway, listener);
         } catch (IOException | RuntimeException exception) {
             try {
@@ -155,8 +166,17 @@ public final class ReliableTlsAdmissionRuntime implements AutoCloseable {
         return failure;
     }
 
-    private static void observeListener(Tls13ServerListenerEvent event) {
+    private static void observeListener(
+            Tls13ServerListenerEvent event, Runnable terminalFailureHandler) {
         LOGGER.warn("Reliable TLS listener event: {}.", event.code());
+        if (event.code() == Tls13ServerListenerEvent.Code.ACCEPT_LOOP_FAILED
+                || event.code() == Tls13ServerListenerEvent.Code.SHUTDOWN_FAILED) {
+            try {
+                terminalFailureHandler.run();
+            } catch (RuntimeException ignored) {
+                // Supervision is best-effort; listener failure remains independently observable.
+            }
+        }
     }
 
     private static void observeAdmission(TlsIdentityAdmissionEvent event) {
