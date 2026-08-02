@@ -86,8 +86,14 @@ listener before starting the handshake. Inside that callback it obtains the
 BCJSSE connection and captures `tls-exporter`. Bouncy Castle maps this value to
 the RFC 9266 TLS exporter channel binding. The captured result must be exactly 32
 bytes and is immediately wrapped in ADR 0004's defensively copied, non-logging
-`SecureChannelBinding` value. The listener is removed after the handshake and no
-exporter secret or provider context is retained.
+`SecureChannelBinding` value.
+
+The initial handshake itself is synchronous, but JSSE event delivery may occur
+after `startHandshake()` returns. The adapter therefore waits on a
+`CountDownLatch`, not a sleep or polling loop. The caller must supply a positive
+completion timeout no longer than 30 seconds. Timeout or interruption closes the
+channel and returns a bounded semantic error. The listener is removed after the
+callback or terminal failure; no exporter secret or provider context is retained.
 
 A missing callback, missing provider extension, incomplete handshake, null
 exporter, wrong length, rejected TLS policy, or use of a non-BCJSSE socket fails
@@ -109,6 +115,7 @@ The module must include a real loopback TLS integration test that proves:
 - TLS 1.3 and `sunderfront/1` are negotiated;
 - both peers capture the same 32-byte `tls-exporter` value during their own
   handshake-completed callbacks;
+- event delivery is awaited with an explicit bounded timeout;
 - encrypted application data can make a bounded round trip;
 - the inspected peer `ServerId` matches the certificate key;
 - a different certificate key for an existing local reference aborts the
@@ -126,6 +133,7 @@ quality gate.
   exact exporter required by the identity transcript.
 - The exporter is captured only during the supported BCJSSE callback and then
   represented by an independent immutable 32-byte value.
+- Callback delivery is synchronized explicitly and cannot block indefinitely.
 - The first adapter is pure Java and does not add Netty, OpenSSL, BoringSSL, JNI,
   or platform-specific binaries.
 - LAN/private servers can operate offline after explicit first-use confirmation.
@@ -142,6 +150,8 @@ quality gate.
 - **Post-handshake exporter polling:** BCJSSE clears the TLS 1.3 exporter secret
   after its completion callback; polling is racy and cannot restore erased key
   material.
+- **Sleep before reading the callback result:** scheduler timing is not a
+  synchronization contract and would make failures nondeterministic.
 - **Certificate hash as channel binding:** binds a certificate rather than the
   exact secure connection and breaks legitimate certificate rotation.
 - **Custom nonce/hash substitute:** not a standard exporter and does not provide
@@ -161,6 +171,7 @@ quality gate.
   `tls-exporter`.
 - Bouncy Castle mock TLS peers exporting channel bindings from
   `notifyHandshakeComplete()`.
+- Java 21 `SSLSocket` handshake and completion-event API.
 - RFC 8446: TLS 1.3.
 - RFC 9266: `tls-exporter` channel binding.
 - RFC 7301: ALPN.
