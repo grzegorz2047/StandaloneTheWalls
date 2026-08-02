@@ -91,7 +91,7 @@ public final class SqliteLocalHandleAdministrationStore implements LocalHandleAd
                                 ? LocalHandleBindingResult.MATCHED
                                 : LocalHandleBindingResult.CONFLICT;
                     }
-                    if (count(connection, BINDINGS_TABLE) >= maximumBindings) {
+                    if (countBindings(connection) >= maximumBindings) {
                         return LocalHandleBindingResult.CAPACITY_EXCEEDED;
                     }
                     insertBinding(connection, canonicalHandle, identity);
