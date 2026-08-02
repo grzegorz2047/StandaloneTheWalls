@@ -20,8 +20,7 @@ public final class SessionIdentityAdmissionService {
     public SessionIdentityAdmissionService(
             PlayerBanAdmissionService playerBanAdmission,
             HandleAuthorizationService handleAuthorization) {
-        this.playerBanAdmission =
-                Objects.requireNonNull(playerBanAdmission, "playerBanAdmission");
+        this.playerBanAdmission = Objects.requireNonNull(playerBanAdmission, "playerBanAdmission");
         this.handleAuthorization =
                 Objects.requireNonNull(handleAuthorization, "handleAuthorization");
     }
