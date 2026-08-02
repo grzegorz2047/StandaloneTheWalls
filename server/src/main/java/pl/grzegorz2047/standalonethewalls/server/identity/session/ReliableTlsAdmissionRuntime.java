@@ -92,12 +92,10 @@ public final class ReliableTlsAdmissionRuntime implements AutoCloseable {
                 state = State.RUNNING;
             } catch (IOException | RuntimeException exception) {
                 state = State.CLOSING;
-                try {
-                    closeResources();
-                } catch (IOException closeFailure) {
+                IOException closeFailure = closeResources();
+                state = State.CLOSED;
+                if (closeFailure != null) {
                     exception.addSuppressed(closeFailure);
-                } finally {
-                    state = State.CLOSED;
                 }
                 throw exception;
             }
@@ -125,21 +123,15 @@ public final class ReliableTlsAdmissionRuntime implements AutoCloseable {
     @Override
     public void close() throws IOException {
         synchronized (lifecycleLock) {
-            if (state == State.CLOSED || state == State.CLOSING) {
+            if (state == State.CLOSED) {
                 return;
             }
             state = State.CLOSING;
-        }
-        IOException failure;
-        try {
-            failure = closeResources();
-        } finally {
-            synchronized (lifecycleLock) {
-                state = State.CLOSED;
+            IOException failure = closeResources();
+            state = State.CLOSED;
+            if (failure != null) {
+                throw failure;
             }
-        }
-        if (failure != null) {
-            throw failure;
         }
     }
 
