@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,12 +18,13 @@ import org.junit.jupiter.api.io.TempDir;
 import pl.grzegorz2047.standalonethewalls.identity.policy.HandleAuthorizationMode;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotException;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotPolicy;
+import pl.grzegorz2047.standalonethewalls.registry.http.RegistrySnapshotHttpsConfiguration;
 
 class LocalIdentityProcessConfigurationLoaderTest {
     @TempDir Path temporaryDirectory;
 
     @Test
-    void loadsRelativePathsAndExactDefaultPolicy()
+    void loadsRelativePathsExactDefaultPolicyAndLocalRefresh()
             throws IOException, NoSuchAlgorithmException, RegistrySnapshotException {
         Path directory = Files.createDirectories(temporaryDirectory.resolve("configuration"));
         KeyPair root = root();
@@ -33,7 +35,8 @@ class LocalIdentityProcessConfigurationLoaderTest {
                         "identity.sqlite-path=data/identity.sqlite\n"
                                 + "identity.registry-bundle-path=cache/registry.sfrb\n"
                                 + "identity.authorization-mode=HYBRID\n"
-                                + "identity.trust-roots-path=roots.hex\n");
+                                + "identity.trust-roots-path=roots.hex\n"
+                                + "identity.registry.refresh-source=LOCAL_BUNDLE\n");
 
         LocalIdentityProcessConfiguration configuration =
                 LocalIdentityProcessConfigurationLoader.load(configurationPath);
@@ -48,6 +51,8 @@ class LocalIdentityProcessConfigurationLoaderTest {
                 .isEqualTo(directory.resolve("roots.hex").toAbsolutePath().normalize());
         assertThat(configuration.trustBundle().size()).isOne();
         assertThat(configuration.registryPolicy()).isEqualTo(RegistrySnapshotPolicy.DEFAULT);
+        assertThat(configuration.registryRefreshConfiguration())
+                .isInstanceOf(RegistryRefreshConfiguration.LocalBundle.class);
     }
 
     @Test
@@ -62,6 +67,7 @@ class LocalIdentityProcessConfigurationLoaderTest {
                                 + "identity.registry-bundle-path=registry.sfrb\n"
                                 + "identity.authorization-mode=GLOBAL_ONLY\n"
                                 + "identity.trust-roots-path=roots.hex\n"
+                                + "identity.registry.refresh-source=LOCAL_BUNDLE\n"
                                 + "identity.registry.minimum-sequence=42\n"
                                 + "identity.registry.maximum-age-seconds=3600\n"
                                 + "identity.registry.maximum-future-skew-seconds=30\n"
@@ -82,6 +88,52 @@ class LocalIdentityProcessConfigurationLoaderTest {
     }
 
     @Test
+    void loadsHttpsRefreshUsingJsonPolicyBoundAndExplicitTimeouts()
+            throws IOException, NoSuchAlgorithmException, RegistrySnapshotException {
+        KeyPair root = root();
+        writeTrustRoots(temporaryDirectory.resolve("roots.hex"), root.getPublic().getEncoded());
+        Path configurationPath =
+                writeConfiguration(
+                        temporaryDirectory,
+                        "identity.sqlite-path=identity.sqlite\n"
+                                + "identity.registry-bundle-path=registry.sfrb\n"
+                                + "identity.authorization-mode=GLOBAL_ONLY\n"
+                                + "identity.trust-roots-path=roots.hex\n"
+                                + "identity.registry.refresh-source=HTTPS\n"
+                                + "identity.registry.maximum-json-bytes=4096\n"
+                                + "identity.registry.https.json-uri=https://registry.example/releases/v7/registry.json\n"
+                                + "identity.registry.https.digest-uri=https://registry.example/releases/v7/registry.sha256\n"
+                                + "identity.registry.https.signature-uri=https://registry.example/releases/v7/registry.sig\n"
+                                + "identity.registry.https.connect-timeout-seconds=7\n"
+                                + "identity.registry.https.request-timeout-seconds=19\n");
+
+        LocalIdentityProcessConfiguration configuration =
+                LocalIdentityProcessConfigurationLoader.load(configurationPath);
+
+        assertThat(configuration.registryRefreshConfiguration())
+                .isInstanceOfSatisfying(
+                        RegistryRefreshConfiguration.Https.class,
+                        https -> {
+                            RegistrySnapshotHttpsConfiguration remote = https.configuration();
+                            assertThat(remote.canonicalJsonUri())
+                                    .isEqualTo(
+                                            URI.create(
+                                                    "https://registry.example/releases/v7/registry.json"));
+                            assertThat(remote.digestUri())
+                                    .isEqualTo(
+                                            URI.create(
+                                                    "https://registry.example/releases/v7/registry.sha256"));
+                            assertThat(remote.signatureUri())
+                                    .isEqualTo(
+                                            URI.create(
+                                                    "https://registry.example/releases/v7/registry.sig"));
+                            assertThat(remote.connectTimeout()).isEqualTo(Duration.ofSeconds(7));
+                            assertThat(remote.requestTimeout()).isEqualTo(Duration.ofSeconds(19));
+                            assertThat(remote.maximumJsonBytes()).isEqualTo(4096);
+                        });
+    }
+
+    @Test
     void rejectsDuplicateUnknownMissingAndMalformedProperties()
             throws IOException, NoSuchAlgorithmException {
         KeyPair root = root();
@@ -92,11 +144,39 @@ class LocalIdentityProcessConfigurationLoaderTest {
         assertRejected(
                 "identity.sqlite-path=identity.sqlite\n"
                         + "identity.registry-bundle-path=registry.sfrb\n"
-                        + "identity.trust-roots-path=roots.hex\n");
+                        + "identity.trust-roots-path=roots.hex\n"
+                        + "identity.registry.refresh-source=LOCAL_BUNDLE\n");
         assertRejected(validPrefix().replace("LOCAL_TOFU", "local-tofu"));
         assertRejected(validPrefix() + "identity.registry.minimum-sequence=-1\n");
         assertRejected(validPrefix() + "identity.registry.maximum-json-bytes=1MB\n");
         assertRejected(validPrefix().replace("identity.sqlite-path", " identity.sqlite-path"));
+        assertRejected(validPrefix().replace("LOCAL_BUNDLE", "local-bundle"));
+        assertRejected(validPrefix().replace("identity.registry.refresh-source=LOCAL_BUNDLE\n", ""));
+    }
+
+    @Test
+    void enforcesSourceSpecificHttpsKeys() throws IOException, NoSuchAlgorithmException {
+        KeyPair root = root();
+        writeTrustRoots(temporaryDirectory.resolve("roots.hex"), root.getPublic().getEncoded());
+
+        assertRejected(
+                validPrefix()
+                        + "identity.registry.https.json-uri=https://registry.example/registry.json\n");
+        assertRejected(
+                httpsPrefix()
+                        + "identity.registry.https.json-uri=https://registry.example/registry.json\n"
+                        + "identity.registry.https.digest-uri=https://registry.example/registry.sha256\n");
+        assertRejected(
+                httpsPrefix()
+                        + "identity.registry.https.json-uri=http://registry.example/registry.json\n"
+                        + "identity.registry.https.digest-uri=https://registry.example/registry.sha256\n"
+                        + "identity.registry.https.signature-uri=https://registry.example/registry.sig\n");
+        assertRejected(
+                httpsPrefix()
+                        + "identity.registry.https.json-uri=https://registry.example/registry.json\n"
+                        + "identity.registry.https.digest-uri=https://registry.example/registry.sha256\n"
+                        + "identity.registry.https.signature-uri=https://registry.example/registry.sig\n"
+                        + "identity.registry.https.connect-timeout-seconds=0\n");
     }
 
     @Test
@@ -107,7 +187,8 @@ class LocalIdentityProcessConfigurationLoaderTest {
                 "identity.sqlite-path=identity.sqlite\n"
                         + "identity.registry-bundle-path=registry.sfrb\n"
                         + "identity.authorization-mode=LOCAL_TOFU\n"
-                        + "identity.trust-roots-path=registry.sfrb\n";
+                        + "identity.trust-roots-path=registry.sfrb\n"
+                        + "identity.registry.refresh-source=LOCAL_BUNDLE\n";
 
         assertRejected(configuration);
     }
@@ -182,7 +263,16 @@ class LocalIdentityProcessConfigurationLoaderTest {
         return "identity.sqlite-path=identity.sqlite\n"
                 + "identity.registry-bundle-path=registry.sfrb\n"
                 + "identity.authorization-mode=LOCAL_TOFU\n"
-                + "identity.trust-roots-path=roots.hex\n";
+                + "identity.trust-roots-path=roots.hex\n"
+                + "identity.registry.refresh-source=LOCAL_BUNDLE\n";
+    }
+
+    private static String httpsPrefix() {
+        return "identity.sqlite-path=identity.sqlite\n"
+                + "identity.registry-bundle-path=registry.sfrb\n"
+                + "identity.authorization-mode=LOCAL_TOFU\n"
+                + "identity.trust-roots-path=roots.hex\n"
+                + "identity.registry.refresh-source=HTTPS\n";
     }
 
     private static Path writeConfiguration(Path directory, String content) throws IOException {
