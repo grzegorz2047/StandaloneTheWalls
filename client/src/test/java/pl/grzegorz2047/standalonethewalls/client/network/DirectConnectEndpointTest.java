@@ -1,8 +1,9 @@
 package pl.grzegorz2047.standalonethewalls.client.network;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -30,7 +31,7 @@ class DirectConnectEndpointTest {
         assertEquals(expectedAuthority, endpoint.serverReference().value());
         assertEquals(expectedHost, endpoint.unresolvedSocketAddress().getHostString());
         assertEquals(expectedPort, endpoint.unresolvedSocketAddress().getPort());
-        assertFalse(endpoint.unresolvedSocketAddress().isUnresolved() && expectedKind != DirectConnectEndpoint.HostKind.DNS);
+        assertTrue(endpoint.unresolvedSocketAddress().isUnresolved());
     }
 
     @ParameterizedTest
@@ -53,7 +54,7 @@ class DirectConnectEndpointTest {
 
         assertEquals(first, second);
         assertEquals(first.hashCode(), second.hashCode());
-        org.junit.jupiter.api.Assertions.assertNotEquals(first, different);
+        assertNotEquals(first, different);
     }
 
     private static Stream<Arguments> validEndpoints() {
@@ -95,27 +96,55 @@ class DirectConnectEndpointTest {
                 Arguments.of("", DirectConnectEndpointException.Code.EMPTY),
                 Arguments.of(" localhost:27420", DirectConnectEndpointException.Code.WHITESPACE),
                 Arguments.of("localhost:27420 ", DirectConnectEndpointException.Code.WHITESPACE),
-                Arguments.of("https://localhost:27420", DirectConnectEndpointException.Code.INVALID_SYNTAX),
-                Arguments.of("user@localhost:27420", DirectConnectEndpointException.Code.INVALID_SYNTAX),
-                Arguments.of("localhost:27420/path", DirectConnectEndpointException.Code.INVALID_SYNTAX),
-                Arguments.of("localhost:27420?x=1", DirectConnectEndpointException.Code.INVALID_SYNTAX),
-                Arguments.of("localhost:27420#fragment", DirectConnectEndpointException.Code.INVALID_SYNTAX),
+                Arguments.of(
+                        "https://localhost:27420",
+                        DirectConnectEndpointException.Code.INVALID_SYNTAX),
+                Arguments.of(
+                        "user@localhost:27420",
+                        DirectConnectEndpointException.Code.INVALID_SYNTAX),
+                Arguments.of(
+                        "localhost:27420/path",
+                        DirectConnectEndpointException.Code.INVALID_SYNTAX),
+                Arguments.of(
+                        "localhost:27420?x=1",
+                        DirectConnectEndpointException.Code.INVALID_SYNTAX),
+                Arguments.of(
+                        "localhost:27420#fragment",
+                        DirectConnectEndpointException.Code.INVALID_SYNTAX),
                 Arguments.of("localhost", DirectConnectEndpointException.Code.INVALID_SYNTAX),
                 Arguments.of("localhost:", DirectConnectEndpointException.Code.INVALID_PORT),
                 Arguments.of("localhost:027420", DirectConnectEndpointException.Code.INVALID_PORT),
                 Arguments.of("localhost:+27420", DirectConnectEndpointException.Code.INVALID_PORT),
                 Arguments.of("localhost:0", DirectConnectEndpointException.Code.PORT_OUT_OF_RANGE),
-                Arguments.of("localhost:65536", DirectConnectEndpointException.Code.PORT_OUT_OF_RANGE),
-                Arguments.of("::1:27420", DirectConnectEndpointException.Code.IPV6_REQUIRES_BRACKETS),
+                Arguments.of(
+                        "localhost:65536",
+                        DirectConnectEndpointException.Code.PORT_OUT_OF_RANGE),
+                Arguments.of(
+                        "::1:27420",
+                        DirectConnectEndpointException.Code.IPV6_REQUIRES_BRACKETS),
                 Arguments.of("[::1]27420", DirectConnectEndpointException.Code.INVALID_SYNTAX),
                 Arguments.of("[::1]:", DirectConnectEndpointException.Code.INVALID_PORT),
-                Arguments.of("[fe80::1%eth0]:27420", DirectConnectEndpointException.Code.INVALID_HOST),
-                Arguments.of("127.0.0.01:27420", DirectConnectEndpointException.Code.INVALID_HOST),
-                Arguments.of("256.0.0.1:27420", DirectConnectEndpointException.Code.INVALID_HOST),
-                Arguments.of("example.com.:27420", DirectConnectEndpointException.Code.INVALID_HOST),
-                Arguments.of("-example.com:27420", DirectConnectEndpointException.Code.INVALID_HOST),
-                Arguments.of("example_.com:27420", DirectConnectEndpointException.Code.INVALID_HOST),
-                Arguments.of("żółw.example:27420", DirectConnectEndpointException.Code.INVALID_HOST),
+                Arguments.of(
+                        "[fe80::1%eth0]:27420",
+                        DirectConnectEndpointException.Code.INVALID_HOST),
+                Arguments.of(
+                        "127.0.0.01:27420",
+                        DirectConnectEndpointException.Code.INVALID_HOST),
+                Arguments.of(
+                        "256.0.0.1:27420",
+                        DirectConnectEndpointException.Code.INVALID_HOST),
+                Arguments.of(
+                        "example.com.:27420",
+                        DirectConnectEndpointException.Code.INVALID_HOST),
+                Arguments.of(
+                        "-example.com:27420",
+                        DirectConnectEndpointException.Code.INVALID_HOST),
+                Arguments.of(
+                        "example_.com:27420",
+                        DirectConnectEndpointException.Code.INVALID_HOST),
+                Arguments.of(
+                        "żółw.example:27420",
+                        DirectConnectEndpointException.Code.INVALID_HOST),
                 Arguments.of(
                         "a".repeat(301), DirectConnectEndpointException.Code.TOO_LONG));
     }
