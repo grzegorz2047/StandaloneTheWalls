@@ -153,7 +153,8 @@ class ServerLauncherIdentityTest {
                 + "identity.authorization-mode=LOCAL_TOFU\n"
                 + "identity.trust-roots-path="
                 + roots
-                + '\n';
+                + '\n'
+                + "identity.registry.refresh-source=LOCAL_BUNDLE\n";
     }
 
     private record ProcessFiles(Path configuration, Path sqlite, Path bundle) {}
