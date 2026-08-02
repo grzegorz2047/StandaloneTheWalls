@@ -200,7 +200,9 @@ public final class LocalIdentityRuntime {
         }
         CachingRegistryAdministrationService refresh =
                 automaticRegistryRefresh.orElseThrow(
-                        () -> new IllegalStateException("HTTPS registry refresh is not configured"));
+                        () ->
+                                new IllegalStateException(
+                                        "HTTPS registry refresh is not configured"));
         return RegistryRefreshScheduler.start(https.schedule(), refresh::refreshAutomatically);
     }
 
@@ -213,7 +215,9 @@ public final class LocalIdentityRuntime {
         }
         CachingRegistryAdministrationService refresh =
                 automaticRegistryRefresh.orElseThrow(
-                        () -> new IllegalStateException("HTTPS registry refresh is not configured"));
+                        () ->
+                                new IllegalStateException(
+                                        "HTTPS registry refresh is not configured"));
         return RegistryRefreshScheduler.start(
                 https.schedule(),
                 refresh::refreshAutomatically,
