@@ -27,17 +27,9 @@ public record RegistryRefreshScheduleConfiguration(
         initialDelay = requireDelay(initialDelay, "initialDelay", true, MAXIMUM_DELAY);
         successInterval = requireDelay(successInterval, "successInterval", false, MAXIMUM_DELAY);
         initialFailureBackoff =
-                requireDelay(
-                        initialFailureBackoff,
-                        "initialFailureBackoff",
-                        false,
-                        MAXIMUM_DELAY);
+                requireDelay(initialFailureBackoff, "initialFailureBackoff", false, MAXIMUM_DELAY);
         maximumFailureBackoff =
-                requireDelay(
-                        maximumFailureBackoff,
-                        "maximumFailureBackoff",
-                        false,
-                        MAXIMUM_DELAY);
+                requireDelay(maximumFailureBackoff, "maximumFailureBackoff", false, MAXIMUM_DELAY);
         maximumJitter = requireDelay(maximumJitter, "maximumJitter", true, MAXIMUM_JITTER);
         if (initialFailureBackoff.compareTo(MINIMUM_RETRY_DELAY) < 0) {
             throw new IllegalArgumentException(
@@ -58,9 +50,12 @@ public record RegistryRefreshScheduleConfiguration(
             throw new IllegalArgumentException(name + " is outside the safe range");
         }
         try {
-            value.toNanos();
+            if (value.toNanos() < 0L) {
+                throw new IllegalArgumentException(name + " cannot be negative");
+            }
         } catch (ArithmeticException exception) {
-            throw new IllegalArgumentException(name + " cannot be represented in nanoseconds", exception);
+            throw new IllegalArgumentException(
+                    name + " cannot be represented in nanoseconds", exception);
         }
         return value;
     }
