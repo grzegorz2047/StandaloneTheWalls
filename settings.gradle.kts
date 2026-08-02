@@ -5,6 +5,7 @@ include(
     "game-domain",
     "protocol",
     "map-format",
+    "asset-pack",
     "client",
     "server",
     "map-studio",

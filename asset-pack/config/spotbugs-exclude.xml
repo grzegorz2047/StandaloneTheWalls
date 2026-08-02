@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+    <!--
+      targetDirectory() always appends packs/id/version/sha256 below a constructor-validated
+      absolute, non-root cache directory. Path.getParent() therefore cannot return null at this
+      call site, but SpotBugs does not carry the path-depth invariant across Path.resolve calls.
+    -->
+    <Match>
+        <Class name="pl.grzegorz2047.standalonethewalls.assets.AssetPackSynchronizer"/>
+        <Method name="sync"/>
+        <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+    </Match>
+</FindBugsFilter>
