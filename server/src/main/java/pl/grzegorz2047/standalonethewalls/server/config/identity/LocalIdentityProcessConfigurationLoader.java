@@ -1,6 +1,7 @@
 package pl.grzegorz2047.standalonethewalls.server.config.identity;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.LinkedHashMap;
@@ -11,6 +12,7 @@ import pl.grzegorz2047.standalonethewalls.identity.policy.HandleAuthorizationMod
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotException;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotPolicy;
 import pl.grzegorz2047.standalonethewalls.registry.RegistryTrustBundle;
+import pl.grzegorz2047.standalonethewalls.registry.http.RegistrySnapshotHttpsConfiguration;
 import pl.grzegorz2047.standalonethewalls.server.identity.LocalIdentityRuntimeConfiguration;
 
 /** Strict duplicate-detecting loader for a standalone local identity configuration file. */
@@ -20,25 +22,53 @@ public final class LocalIdentityProcessConfigurationLoader {
     private static final String REGISTRY_BUNDLE_PATH = "identity.registry-bundle-path";
     private static final String AUTHORIZATION_MODE = "identity.authorization-mode";
     private static final String TRUST_ROOTS_PATH = "identity.trust-roots-path";
+    private static final String REFRESH_SOURCE = "identity.registry.refresh-source";
     private static final String MINIMUM_SEQUENCE = "identity.registry.minimum-sequence";
     private static final String MAXIMUM_AGE_SECONDS = "identity.registry.maximum-age-seconds";
     private static final String MAXIMUM_FUTURE_SKEW_SECONDS =
             "identity.registry.maximum-future-skew-seconds";
     private static final String MAXIMUM_JSON_BYTES = "identity.registry.maximum-json-bytes";
     private static final String MAXIMUM_ENTRIES = "identity.registry.maximum-entries";
+    private static final String HTTPS_JSON_URI = "identity.registry.https.json-uri";
+    private static final String HTTPS_DIGEST_URI = "identity.registry.https.digest-uri";
+    private static final String HTTPS_SIGNATURE_URI = "identity.registry.https.signature-uri";
+    private static final String HTTPS_CONNECT_TIMEOUT_SECONDS =
+            "identity.registry.https.connect-timeout-seconds";
+    private static final String HTTPS_REQUEST_TIMEOUT_SECONDS =
+            "identity.registry.https.request-timeout-seconds";
+    private static final Set<String> HTTPS_KEYS =
+            Set.of(
+                    HTTPS_JSON_URI,
+                    HTTPS_DIGEST_URI,
+                    HTTPS_SIGNATURE_URI,
+                    HTTPS_CONNECT_TIMEOUT_SECONDS,
+                    HTTPS_REQUEST_TIMEOUT_SECONDS);
+    private static final Set<String> REQUIRED_HTTPS_KEYS =
+            Set.of(HTTPS_JSON_URI, HTTPS_DIGEST_URI, HTTPS_SIGNATURE_URI);
     private static final Set<String> ALLOWED_KEYS =
             Set.of(
                     SQLITE_PATH,
                     REGISTRY_BUNDLE_PATH,
                     AUTHORIZATION_MODE,
                     TRUST_ROOTS_PATH,
+                    REFRESH_SOURCE,
                     MINIMUM_SEQUENCE,
                     MAXIMUM_AGE_SECONDS,
                     MAXIMUM_FUTURE_SKEW_SECONDS,
                     MAXIMUM_JSON_BYTES,
-                    MAXIMUM_ENTRIES);
+                    MAXIMUM_ENTRIES,
+                    HTTPS_JSON_URI,
+                    HTTPS_DIGEST_URI,
+                    HTTPS_SIGNATURE_URI,
+                    HTTPS_CONNECT_TIMEOUT_SECONDS,
+                    HTTPS_REQUEST_TIMEOUT_SECONDS);
     private static final Set<String> REQUIRED_KEYS =
-            Set.of(SQLITE_PATH, REGISTRY_BUNDLE_PATH, AUTHORIZATION_MODE, TRUST_ROOTS_PATH);
+            Set.of(
+                    SQLITE_PATH,
+                    REGISTRY_BUNDLE_PATH,
+                    AUTHORIZATION_MODE,
+                    TRUST_ROOTS_PATH,
+                    REFRESH_SOURCE);
 
     private LocalIdentityProcessConfigurationLoader() {
         throw new AssertionError("No instances");
@@ -82,12 +112,72 @@ public final class LocalIdentityProcessConfigurationLoader {
                         intValue(properties, MAXIMUM_JSON_BYTES, defaults.maximumJsonBytes()),
                         intValue(properties, MAXIMUM_ENTRIES, defaults.maximumEntries()));
         RegistryTrustBundle trustBundle = RegistryTrustBundleFileLoader.load(trustRootsPath);
+        RegistryRefreshConfiguration refreshConfiguration =
+                refreshConfiguration(properties, policy.maximumJsonBytes());
 
         return new LocalIdentityProcessConfiguration(
                 new LocalIdentityRuntimeConfiguration(sqlitePath, registryBundlePath, mode),
                 trustRootsPath,
                 trustBundle,
-                policy);
+                policy,
+                refreshConfiguration);
+    }
+
+    private static RegistryRefreshConfiguration refreshConfiguration(
+            Map<String, String> properties, int maximumJsonBytes) {
+        RegistryRefreshConfiguration.Source source;
+        try {
+            source = RegistryRefreshConfiguration.Source.valueOf(properties.get(REFRESH_SOURCE));
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException(
+                    REFRESH_SOURCE + " must be LOCAL_BUNDLE or HTTPS", exception);
+        }
+        if (source == RegistryRefreshConfiguration.Source.LOCAL_BUNDLE) {
+            for (String key : HTTPS_KEYS) {
+                if (properties.containsKey(key)) {
+                    throw new IllegalArgumentException(
+                            key + " is not allowed for LOCAL_BUNDLE refresh source");
+                }
+            }
+            return new RegistryRefreshConfiguration.LocalBundle();
+        }
+        for (String requiredKey : REQUIRED_HTTPS_KEYS) {
+            if (!properties.containsKey(requiredKey)) {
+                throw new IllegalArgumentException(
+                        "missing HTTPS registry configuration key: " + requiredKey);
+            }
+        }
+        RegistrySnapshotHttpsConfiguration defaults =
+                new RegistrySnapshotHttpsConfiguration(
+                        URI.create("https://example.invalid/registry.json"),
+                        URI.create("https://example.invalid/registry.sha256"),
+                        URI.create("https://example.invalid/registry.sig"),
+                        maximumJsonBytes);
+        RegistrySnapshotHttpsConfiguration https =
+                new RegistrySnapshotHttpsConfiguration(
+                        uri(properties.get(HTTPS_JSON_URI), HTTPS_JSON_URI),
+                        uri(properties.get(HTTPS_DIGEST_URI), HTTPS_DIGEST_URI),
+                        uri(properties.get(HTTPS_SIGNATURE_URI), HTTPS_SIGNATURE_URI),
+                        Duration.ofSeconds(
+                                longValue(
+                                        properties,
+                                        HTTPS_CONNECT_TIMEOUT_SECONDS,
+                                        defaults.connectTimeout().toSeconds())),
+                        Duration.ofSeconds(
+                                longValue(
+                                        properties,
+                                        HTTPS_REQUEST_TIMEOUT_SECONDS,
+                                        defaults.requestTimeout().toSeconds())),
+                        maximumJsonBytes);
+        return new RegistryRefreshConfiguration.Https(https);
+    }
+
+    private static URI uri(String value, String key) {
+        try {
+            return URI.create(value);
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException(key + " must contain a valid HTTPS URI", exception);
+        }
     }
 
     private static Map<String, String> parse(Path path) throws IOException {
