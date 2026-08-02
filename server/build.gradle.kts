@@ -14,6 +14,7 @@ dependencies {
     implementation(project(":identity-policy-sqlite"))
     implementation(project(":transport-bctls"))
 
+    implementation(libs.bouncycastle.provider)
     implementation(libs.slf4j.api)
     runtimeOnly(libs.logback.classic)
 
