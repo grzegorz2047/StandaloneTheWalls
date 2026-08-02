@@ -6,9 +6,11 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.util.HexFormat;
+import org.bouncycastle.operator.OperatorCreationException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import pl.grzegorz2047.standalonethewalls.server.testsupport.ServerTlsTestCertificateMaterial;
@@ -28,7 +30,8 @@ class ServerLauncherTest {
     }
 
     @Test
-    void validatesTlsCredentialsWithoutBindingAndRunsBoundedTlsLifecycle() throws Exception {
+    void validatesTlsCredentialsWithoutBindingAndRunsBoundedTlsLifecycle()
+            throws GeneralSecurityException, OperatorCreationException, IOException {
         try (ServerSocket occupied = new ServerSocket(0)) {
             ProcessConfiguration process = createProcessConfiguration(occupied.getLocalPort());
             assertEquals(
@@ -83,7 +86,8 @@ class ServerLauncherTest {
                         }));
     }
 
-    private ProcessConfiguration createProcessConfiguration(int reliablePort) throws Exception {
+    private ProcessConfiguration createProcessConfiguration(int reliablePort)
+            throws GeneralSecurityException, OperatorCreationException, IOException {
         Path server = temporaryDirectory.resolve("server-" + reliablePort + ".properties");
         Files.writeString(
                 server,
@@ -122,7 +126,7 @@ class ServerLauncherTest {
         Path certificate =
                 temporaryDirectory.resolve("server-certificate-" + reliablePort + ".der");
         Files.write(privateKey, material.keyPair().getPrivate().getEncoded());
-        Files.write(certificate, material.certificate().getEncoded());
+        Files.write(certificate, material.certificateDer());
         Path tls = temporaryDirectory.resolve("tls-" + reliablePort + ".properties");
         Files.writeString(
                 tls,
