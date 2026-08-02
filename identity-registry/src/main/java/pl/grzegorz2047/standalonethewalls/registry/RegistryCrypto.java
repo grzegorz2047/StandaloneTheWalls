@@ -5,6 +5,7 @@ import java.security.KeyFactory;
 import java.security.MessageDigest;
 import java.security.PublicKey;
 import java.security.Signature;
+import java.security.SignatureException;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
 import java.util.Objects;
@@ -59,6 +60,8 @@ final class RegistryCrypto {
             signature.initVerify(key);
             signature.update(message);
             return signature.verify(signatureBytes);
+        } catch (SignatureException exception) {
+            return false;
         } catch (GeneralSecurityException exception) {
             throw new RegistrySnapshotException(
                     RegistrySnapshotException.Code.CRYPTOGRAPHY_FAILURE,
