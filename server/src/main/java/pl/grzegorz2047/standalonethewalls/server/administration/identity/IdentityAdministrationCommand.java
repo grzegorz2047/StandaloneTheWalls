@@ -11,6 +11,10 @@ public sealed interface IdentityAdministrationCommand {
 
     record ListBans() implements IdentityAdministrationCommand {}
 
+    record VerifySnapshot() implements IdentityAdministrationCommand {}
+
+    record ReloadRegistry() implements IdentityAdministrationCommand {}
+
     record InspectHandle(CanonicalHandle handle) implements IdentityAdministrationCommand {
         public InspectHandle {
             handle = Objects.requireNonNull(handle, "handle");
