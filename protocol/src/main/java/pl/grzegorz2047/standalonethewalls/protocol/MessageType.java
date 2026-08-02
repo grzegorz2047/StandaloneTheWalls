@@ -11,7 +11,8 @@ public enum MessageType {
     DISCONNECT(5, 2 * 1024, Channel.RELIABLE),
     IDENTITY_CHALLENGE(6, 2 * 1024, Channel.RELIABLE),
     IDENTITY_PROOF(7, 4 * 1024, Channel.RELIABLE),
-    IDENTITY_RESULT(8, 1024, Channel.RELIABLE);
+    IDENTITY_RESULT(8, 1024, Channel.RELIABLE),
+    SESSION_ADMISSION_RESULT(9, 64, Channel.RELIABLE);
 
     private final int wireId;
     private final int maximumPayloadBytes;
@@ -45,6 +46,7 @@ public enum MessageType {
             case 6 -> Optional.of(IDENTITY_CHALLENGE);
             case 7 -> Optional.of(IDENTITY_PROOF);
             case 8 -> Optional.of(IDENTITY_RESULT);
+            case 9 -> Optional.of(SESSION_ADMISSION_RESULT);
             default -> Optional.empty();
         };
     }
