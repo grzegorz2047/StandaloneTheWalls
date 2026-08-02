@@ -3,6 +3,7 @@ package pl.grzegorz2047.standalonethewalls.server.config.transport;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.IOException;
 import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -53,8 +54,7 @@ class ReliableTlsProcessConfigurationLoaderTest {
                 temporaryDirectory.resolve("server-key.pk8"),
                 first.keyPair().getPrivate().getEncoded());
         Files.write(
-                temporaryDirectory.resolve("server-certificate.der"),
-                second.certificate().getEncoded());
+                temporaryDirectory.resolve("server-certificate.der"), second.certificateDer());
         ServerConfiguration server = new ServerConfiguration("Test", 20, 27420, 27421, 10);
 
         Path mismatch =
@@ -130,7 +130,7 @@ class ReliableTlsProcessConfigurationLoaderTest {
                 .hasMessageContaining("maximum byte size");
     }
 
-    private Path writeConfiguration(String content) throws Exception {
+    private Path writeConfiguration(String content) throws IOException {
         Path path = temporaryDirectory.resolve("tls.properties");
         Files.writeString(path, content);
         return path;
@@ -140,11 +140,10 @@ class ReliableTlsProcessConfigurationLoaderTest {
             ServerTlsTestCertificateMaterial material,
             String privateKeyName,
             String certificateName)
-            throws Exception {
+            throws IOException {
         Files.write(
                 temporaryDirectory.resolve(privateKeyName),
                 material.keyPair().getPrivate().getEncoded());
-        Files.write(
-                temporaryDirectory.resolve(certificateName), material.certificate().getEncoded());
+        Files.write(temporaryDirectory.resolve(certificateName), material.certificateDer());
     }
 }
