@@ -65,6 +65,11 @@ public final class ChallengeLedger {
         return ChallengeConsumption.available(challenge);
     }
 
+    /** Removes an exchange that ended before proof verification. */
+    public synchronized boolean discard(UUID sessionId) {
+        return challenges.remove(Objects.requireNonNull(sessionId, "sessionId")) != null;
+    }
+
     public synchronized int outstandingCount() {
         removeExpired(clock.instant());
         return challenges.size();
