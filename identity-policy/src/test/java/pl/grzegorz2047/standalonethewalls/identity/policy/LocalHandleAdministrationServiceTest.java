@@ -147,8 +147,7 @@ class LocalHandleAdministrationServiceTest {
         return service.rebind(ALPHA, FIRST, replacement, ADMINISTRATOR, REASON);
     }
 
-    private static LocalHandleAdministrationService service(
-            InMemoryLocalHandleBindingStore store) {
+    private static LocalHandleAdministrationService service(InMemoryLocalHandleBindingStore store) {
         return new LocalHandleAdministrationService(store, Clock.fixed(NOW, ZoneOffset.UTC));
     }
 }
