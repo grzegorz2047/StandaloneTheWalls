@@ -31,6 +31,9 @@ val repositoryRootDirectory = rootProject.rootDir
 val verifyAssetSourcePolicy = tasks.register("verifyAssetSourcePolicy") {
     group = "verification"
     description = "Rejects large or runtime-asset binaries from ordinary Git history."
+    notCompatibleWithConfigurationCache(
+        "The policy intentionally scans the complete dynamic repository file tree",
+    )
 
     val repositoryFiles = rootProject.fileTree(repositoryRootDirectory) {
         exclude(
