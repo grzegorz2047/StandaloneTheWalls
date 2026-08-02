@@ -45,3 +45,34 @@ exception.
 The bundle contains public registry material only. It must never contain player
 private keys, recovery material, local bindings, bans or other mutable server
 state.
+
+## Verified cache-before-activation refresh
+
+`RegistrySnapshotCachingRefreshService` combines an arbitrary untrusted
+`RegistrySnapshotProvider`, the core verifier and monotonic store, and this atomic
+bundle writer. One refresh follows this order:
+
+1. load the provider artifact exactly once;
+2. verify that exact artifact under the configured trust bundle and policy;
+3. under the registry store's activation lock, reject rollback or equivocation;
+4. atomically persist the exact verified artifact with `storeVerified(...)`;
+5. publish the verified snapshot as active only after the file commit succeeds.
+
+An identical sequence and digest returns `UNCHANGED` without rewriting the file.
+Provider failure, invalid signature, rollback, equivocation, artifact mismatch or
+cache-write failure leaves both the previous active snapshot and previous bundle
+unchanged.
+
+The cache commit runs under the same lock as the monotonic activation decision.
+Consequently, two concurrent refreshes cannot let an older artifact overwrite the
+bundle after a newer snapshot has become active. Commit implementations must stay
+bounded and must not call registry activation recursively.
+
+A process crash after the atomic move but before the final in-memory assignment can
+leave a newer bundle on disk. This is safe because the bundle contains only an
+artifact already accepted by the verifier; normal startup verifies it again before
+activation.
+
+This service deliberately does not choose a provider, retry, back off, add jitter,
+schedule refreshes, or change process configuration. Those are higher-level
+runtime concerns.
