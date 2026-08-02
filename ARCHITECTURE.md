@@ -24,7 +24,7 @@ opening a graphics device.
 | `client` | jMonkeyEngine rendering, input, prediction, interpolation, identity profile and UI | core modules, jMonkeyEngine |
 | `map-studio` | jMonkeyEngine-based authoring UI | `shared`, `map-format`, jMonkeyEngine |
 | `bot-client` | Headless integration and load-test behavior | core modules, SLF4J |
-| `transport-bctls` | TLS 1.3, server pinning, RFC 9266 binding, bounded listener admission, strict framing and async reliable I/O | `protocol`, Bouncy Castle TLS |
+| `transport-bctls` | TLS 1.3, server pinning, RFC 9266 binding, bounded listener admission, session bootstrap, strict framing and async reliable I/O | `protocol`, Bouncy Castle TLS |
 
 Core modules must never import `com.jme3`, LWJGL, desktop UI toolkits, concrete
 socket libraries, SQLite, GitHub SDKs, HTTP clients, or server persistence
@@ -103,13 +103,23 @@ listener socket, in-flight handshake sockets and every tracked active lease
 before awaiting owned threads. The handler receives an `AcceptedTlsConnection`
 lease outside the accept and simulation threads. See ADR 0008 and issue #51.
 
-The listener deliberately stops at authenticated TLS. It does not create
-`TlsEnvelopeStream` because both peers must first agree on the logical session
-UUID carried by every envelope. Session bootstrap requires a separate versioned
-protocol decision.
+`TlsSessionBootstrap` converts an authenticated client connection or server lease
+into one shared logical reliable session before the first envelope. The server
+generates a non-zero RFC 4122 UUIDv4 and sends a fixed 28-byte `SFSB`
+`SESSION_OFFER`. The client validates protocol/schema/type/UUID and echoes the
+exact value in `SESSION_ACCEPT`. Both sides reject malformed records or a changed
+UUID and then construct the same `TlsEnvelopeStream` and
+`AsyncTlsReliableChannel`. The short bootstrap read timeout is reset after
+success. Server-side stream closure owns the whole accepted lease, so every
+terminal channel path returns listener admission. See ADR 0009 and issue #53.
+
+The session UUID is not a secret or channel authenticator. Identity Proof V2
+binds it together with the pinned `ServerId` and the exact RFC 9266 channel
+binding. The bootstrap adds no custom MAC or signature because its records are
+already inside authenticated TLS.
 
 `TlsEnvelopeStream` adds strict framing for the fixed 40-byte protocol header and
-bounded payload after a session UUID is known. It validates the header before
+bounded payload after the session UUID is known. It validates the header before
 allocating payload memory, binds all envelopes to one logical session UUID,
 assigns outbound sequence numbers, requires gap-free inbound sequences,
 serializes writers independently from readers, and closes TLS after malformed or
@@ -124,9 +134,10 @@ returns an asynchronous close stage only after TLS and the owned executor have
 terminated. It never uses a common pool. See ADR 0005, ADR 0006, ADR 0007 and
 issue #34.
 
-Session bootstrap, integration with the server command queue, client dialing,
-certificate/key provisioning, public-PKI validation, reconnect, realtime
-DTLS/UDP, and realtime session tokens remain separate adapters and work items.
+Identity challenge/proof orchestration, integration with the server command
+queue, client dialing, certificate/key provisioning, public-PKI validation,
+reconnect, realtime DTLS/UDP, and realtime session tokens remain separate
+adapters and work items.
 
 ## Fixed-tick simulation
 
@@ -164,11 +175,10 @@ and issue #33.
 
 ## Decisions intentionally deferred
 
-- Versioned session UUID bootstrap over authenticated TLS.
-- Integration of accepted channels with the fixed-tick command queue.
+- Identity challenge/proof payload codecs and orchestration over the bootstrapped channel.
+- Integration of authenticated commands with the fixed-tick command queue.
 - Client connection ownership, DNS resolution and reconnect policy.
 - Public-PKI certificate validation as a separate trust adapter.
-- Authentication-flow orchestration above `ReliableChannel`.
 - Realtime DTLS/UDP transport and replay-resistant realtime session tokens.
 - Global registry repository and signed snapshot pipeline: issue #30.
 - Persistent player/server trust stores and production key provisioning.
