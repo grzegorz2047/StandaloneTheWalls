@@ -24,7 +24,7 @@ opening a graphics device.
 | `client` | jMonkeyEngine rendering, input, prediction, interpolation, identity profile and UI | core modules, jMonkeyEngine |
 | `map-studio` | jMonkeyEngine-based authoring UI | `shared`, `map-format`, jMonkeyEngine |
 | `bot-client` | Headless integration and load-test behavior | core modules, SLF4J |
-| `transport-bctls` | TLS 1.3, server pinning, RFC 9266 binding, bounded listener admission, session bootstrap, strict framing and async reliable I/O | `protocol`, Bouncy Castle TLS |
+| `transport-bctls` | TLS 1.3, server pinning, RFC 9266 binding, bounded listener admission, session bootstrap, identity exchange, strict framing and async reliable I/O | `protocol`, Bouncy Castle TLS |
 
 Core modules must never import `com.jme3`, LWJGL, desktop UI toolkits, concrete
 socket libraries, SQLite, GitHub SDKs, HTTP clients, or server persistence
@@ -134,10 +134,21 @@ returns an asynchronous close stage only after TLS and the owned executor have
 terminated. It never uses a common pool. See ADR 0005, ADR 0006, ADR 0007 and
 issue #34.
 
-Identity challenge/proof orchestration, integration with the server command
-queue, client dialing, certificate/key provisioning, public-PKI validation,
-reconnect, realtime DTLS/UDP, and realtime session tokens remain separate
-adapters and work items.
+`IdentityExchange` runs the strict `IDENTITY_CHALLENGE`, `IDENTITY_PROOF` and
+`IDENTITY_RESULT` state machine over one bootstrapped channel. The payload codec
+is versioned, bounded and rejects non-canonical fields and trailing bytes before
+verification. Server identity, session UUID and channel binding always come from
+the local `BootstrappedReliableSession`; the peer does not send or override those
+trusted values. Each exchange owns one named virtual thread and bounded
+step/overall/close deadlines. Failure closes the session and discards any
+unconsumed challenge. Success returns `AuthenticatedReliableSession`, whose
+application channel closes if another identity message appears. Envelope
+sequences continue across authentication. See ADR 0010 and issue #55.
+
+Cryptographic proof does not authorize a handle. Integration with identity
+policy, the server command queue, client dialing, certificate/key provisioning,
+public-PKI validation, reconnect, realtime DTLS/UDP, and realtime session tokens
+remain separate adapters and work items.
 
 ## Fixed-tick simulation
 
@@ -175,7 +186,7 @@ and issue #33.
 
 ## Decisions intentionally deferred
 
-- Identity challenge/proof payload codecs and orchestration over the bootstrapped channel.
+- Authorization of verified identities through `LOCAL_TOFU`, `GLOBAL_ONLY` or `HYBRID`.
 - Integration of authenticated commands with the fixed-tick command queue.
 - Client connection ownership, DNS resolution and reconnect policy.
 - Public-PKI certificate validation as a separate trust adapter.

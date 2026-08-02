@@ -1,0 +1,31 @@
+Sunderfront Identity Exchange Payloads v1
+=========================================
+
+Encoding: big-endian, unsigned 16-bit lengths
+Protocol version: 1.0
+
+IDENTITY_CHALLENGE
+------------------
+Nonce: bytes 00 through 1f
+Expires at: 2025-01-01T00:00:00Z (1735689600000 epoch milliseconds)
+Encoded bytes: 42
+Hex:
+0001000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f000001941f297c00
+
+IDENTITY_PROOF codec fixture
+----------------------------
+Handle: player_one
+Player ID: sf1_ne2243wbcs3fox5evlg23khripu53paxtss2ckqxnycbtqgks7ua
+Public key (Base64 SPKI): MCowBQYDK2VwAyEAoBGdJyYRGPquhsJXoEoTOOticDHR4bM2z/5DScGCHPU=
+Signature: 64 zero bytes (layout fixture only; not cryptographically valid)
+Encoded bytes: 188
+SHA-256:
+3d4f5c6b82fa7f81e9a98e18b17aca339691735fc2945794156eda4b4f304a2a
+
+IDENTITY_RESULT accepted
+------------------------
+Status wire ID: 1
+Public code: accepted
+Encoded bytes: 14
+Hex:
+0001000100086163636570746564
