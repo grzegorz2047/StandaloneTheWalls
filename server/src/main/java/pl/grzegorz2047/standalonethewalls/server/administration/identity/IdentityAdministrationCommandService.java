@@ -75,19 +75,17 @@ public final class IdentityAdministrationCommandService {
 
     private static IdentityAdministrationPermission requiredPermission(
             IdentityAdministrationCommand command) {
-        return switch (command) {
-            case IdentityAdministrationCommand.ListHandles ignored,
-                    IdentityAdministrationCommand.ListBans ignored,
-                    IdentityAdministrationCommand.InspectHandle ignored,
-                    IdentityAdministrationCommand.InspectBan ignored ->
-                    IdentityAdministrationPermission.VIEW_IDENTITY;
-            case IdentityAdministrationCommand.ReserveHandle ignored,
-                    IdentityAdministrationCommand.UnbindHandle ignored,
-                    IdentityAdministrationCommand.RebindHandle ignored ->
-                    IdentityAdministrationPermission.MANAGE_HANDLE_BINDINGS;
-            case IdentityAdministrationCommand.BanPlayer ignored,
-                    IdentityAdministrationCommand.UnbanPlayer ignored ->
-                    IdentityAdministrationPermission.MANAGE_PLAYER_BANS;
-        };
+        if (command instanceof IdentityAdministrationCommand.ListHandles
+                || command instanceof IdentityAdministrationCommand.ListBans
+                || command instanceof IdentityAdministrationCommand.InspectHandle
+                || command instanceof IdentityAdministrationCommand.InspectBan) {
+            return IdentityAdministrationPermission.VIEW_IDENTITY;
+        }
+        if (command instanceof IdentityAdministrationCommand.ReserveHandle
+                || command instanceof IdentityAdministrationCommand.UnbindHandle
+                || command instanceof IdentityAdministrationCommand.RebindHandle) {
+            return IdentityAdministrationPermission.MANAGE_HANDLE_BINDINGS;
+        }
+        return IdentityAdministrationPermission.MANAGE_PLAYER_BANS;
     }
 }
