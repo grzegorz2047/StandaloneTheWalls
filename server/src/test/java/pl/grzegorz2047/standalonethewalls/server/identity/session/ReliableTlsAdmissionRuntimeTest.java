@@ -3,14 +3,17 @@ package pl.grzegorz2047.standalonethewalls.server.identity.session;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
+import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.bouncycastle.operator.OperatorCreationException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import pl.grzegorz2047.standalonethewalls.identity.policy.HandleAuthorizationMode;
@@ -22,12 +25,17 @@ import pl.grzegorz2047.standalonethewalls.server.identity.LocalIdentityRuntimeCo
 import pl.grzegorz2047.standalonethewalls.server.testsupport.ServerTlsTestCertificateMaterial;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.Tls13ServerCredentials;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.Tls13ServerListenerConfig;
+import pl.grzegorz2047.standalonethewalls.transport.bctls.TlsTransportException;
 
 class ReliableTlsAdmissionRuntimeTest {
     @TempDir java.nio.file.Path temporaryDirectory;
 
     @Test
-    void startsAndClosesOneListenerBackedByTheSharedIdentityRuntime() throws Exception {
+    void startsAndClosesOneListenerBackedByTheSharedIdentityRuntime()
+            throws IOException,
+                    GeneralSecurityException,
+                    OperatorCreationException,
+                    TlsTransportException {
         int port = freePort();
         LocalIdentityRuntime identityRuntime = identityRuntime();
         ReliableTlsProcessConfiguration configuration = configuration(port, 10L);
@@ -49,7 +57,11 @@ class ReliableTlsAdmissionRuntimeTest {
     }
 
     @Test
-    void occupiedPortRollsBackGatewayAndNeverInvokesTerminalFailureHandler() throws Exception {
+    void occupiedPortRollsBackGatewayAndNeverInvokesTerminalFailureHandler()
+            throws IOException,
+                    GeneralSecurityException,
+                    OperatorCreationException,
+                    TlsTransportException {
         LocalIdentityRuntime identityRuntime = identityRuntime();
         AtomicBoolean terminalFailure = new AtomicBoolean();
         try (ServerSocket occupied = new ServerSocket(0)) {
@@ -63,12 +75,12 @@ class ReliableTlsAdmissionRuntimeTest {
                                             identityRuntime,
                                             Clock.systemUTC(),
                                             () -> terminalFailure.set(true)))
-                    .isInstanceOf(java.io.IOException.class);
+                    .isInstanceOf(IOException.class);
             assertThat(terminalFailure).isFalse();
         }
     }
 
-    private LocalIdentityRuntime identityRuntime() throws Exception {
+    private LocalIdentityRuntime identityRuntime() throws GeneralSecurityException {
         KeyPair root = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
         return LocalIdentityRuntime.open(
                 new LocalIdentityRuntimeConfiguration(
@@ -81,7 +93,10 @@ class ReliableTlsAdmissionRuntimeTest {
     }
 
     private static ReliableTlsProcessConfiguration configuration(int port, long serial)
-            throws Exception {
+            throws IOException,
+                    GeneralSecurityException,
+                    OperatorCreationException,
+                    TlsTransportException {
         ServerTlsTestCertificateMaterial material = ServerTlsTestCertificateMaterial.create(serial);
         Tls13ServerCredentials credentials =
                 Tls13ServerCredentials.create(
@@ -101,7 +116,7 @@ class ReliableTlsAdmissionRuntimeTest {
                 Duration.ofSeconds(2));
     }
 
-    private static int freePort() throws Exception {
+    private static int freePort() throws IOException {
         try (ServerSocket socket = new ServerSocket(0)) {
             return socket.getLocalPort();
         }
