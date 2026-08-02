@@ -148,9 +148,7 @@ public final class RegistryRefreshScheduler implements AutoCloseable {
                 return;
             }
             int failures =
-                    result.successful()
-                            ? 0
-                            : saturatedIncrement(status.consecutiveFailures());
+                    result.successful() ? 0 : saturatedIncrement(status.consecutiveFailures());
             Duration baseDelay =
                     result.successful()
                             ? configuration.successInterval()
