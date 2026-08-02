@@ -156,8 +156,7 @@ class IdentityExchangeIntegrationTest {
             ProtocolEnvelope firstChallengeEnvelope = receive(firstClient);
             IdentityChallengePayload firstChallengePayload =
                     IdentityPayloadCodec.decodeChallenge(firstChallengeEnvelope.payload());
-            IdentityChallenge firstChallenge =
-                    localChallenge(firstClient, firstChallengePayload);
+            IdentityChallenge firstChallenge = localChallenge(firstClient, firstChallengePayload);
             IdentityProof firstProof =
                     IdentityProof.create(
                             identity, ProtocolVersion.CURRENT, firstChallenge, handle);
@@ -296,8 +295,7 @@ class IdentityExchangeIntegrationTest {
                                 new SecureRandom(),
                                 Duration.ofSeconds(3),
                                 16));
-        BlockingQueue<AuthenticatedReliableSession> authenticated =
-                new LinkedBlockingQueue<>();
+        BlockingQueue<AuthenticatedReliableSession> authenticated = new LinkedBlockingQueue<>();
         BlockingQueue<Throwable> failures = new LinkedBlockingQueue<>();
         Tls13ServerListener listener =
                 new Tls13ServerListener(
@@ -331,13 +329,7 @@ class IdentityExchangeIntegrationTest {
                             }
                         },
                         event -> {});
-        return new Setup(
-                credentials,
-                trustManager,
-                challengeService,
-                listener,
-                authenticated,
-                failures);
+        return new Setup(trustManager, challengeService, listener, authenticated, failures);
     }
 
     private static BootstrappedReliableSession connectBootstrapped(Setup setup)
@@ -345,8 +337,7 @@ class IdentityExchangeIntegrationTest {
         Tls13Connection connection = connectTls(setup.listener(), setup.trustManager());
         try {
             return TlsSessionBootstrap.connectClientSession(connection, BOOTSTRAP_CONFIG);
-        } catch (IOException | TlsTransportException | TlsSessionBootstrapException
-                | RuntimeException exception) {
+        } catch (IOException | TlsSessionBootstrapException | RuntimeException exception) {
             try {
                 connection.close();
             } catch (IOException closeFailure) {
@@ -472,7 +463,6 @@ class IdentityExchangeIntegrationTest {
     }
 
     private record Setup(
-            Tls13ServerCredentials credentials,
             PinnedServerTrustManager trustManager,
             IdentityChallengeService challengeService,
             Tls13ServerListener listener,
