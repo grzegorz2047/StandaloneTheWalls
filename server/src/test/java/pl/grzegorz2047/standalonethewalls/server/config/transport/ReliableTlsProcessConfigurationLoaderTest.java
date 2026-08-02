@@ -7,8 +7,11 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.GeneralSecurityException;
+import org.bouncycastle.operator.OperatorCreationException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import pl.grzegorz2047.standalonethewalls.protocol.identity.IdentityException;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerId;
 import pl.grzegorz2047.standalonethewalls.server.config.ServerConfiguration;
 import pl.grzegorz2047.standalonethewalls.server.testsupport.ServerTlsTestCertificateMaterial;
@@ -17,7 +20,11 @@ class ReliableTlsProcessConfigurationLoaderTest {
     @TempDir Path temporaryDirectory;
 
     @Test
-    void loadsCanonicalCredentialsWithoutBindingTheConfiguredPort() throws Exception {
+    void loadsCanonicalCredentialsWithoutBindingTheConfiguredPort()
+            throws IOException,
+                    GeneralSecurityException,
+                    IdentityException,
+                    OperatorCreationException {
         ServerTlsTestCertificateMaterial material = ServerTlsTestCertificateMaterial.create(1L);
         writeCredentials(material, "server-key.pk8", "server-certificate.der");
 
@@ -47,7 +54,8 @@ class ReliableTlsProcessConfigurationLoaderTest {
     }
 
     @Test
-    void rejectsMismatchedKeysUnknownFieldsAndCapacityAboveServerLimit() throws Exception {
+    void rejectsMismatchedKeysUnknownFieldsAndCapacityAboveServerLimit()
+            throws IOException, GeneralSecurityException, OperatorCreationException {
         ServerTlsTestCertificateMaterial first = ServerTlsTestCertificateMaterial.create(2L);
         ServerTlsTestCertificateMaterial second = ServerTlsTestCertificateMaterial.create(3L);
         Files.write(
@@ -88,7 +96,8 @@ class ReliableTlsProcessConfigurationLoaderTest {
     }
 
     @Test
-    void rejectsTrailingCertificateDataDuplicateKeysAndOversizedCredentialFiles() throws Exception {
+    void rejectsTrailingCertificateDataDuplicateKeysAndOversizedCredentialFiles()
+            throws IOException, GeneralSecurityException, OperatorCreationException {
         ServerTlsTestCertificateMaterial material = ServerTlsTestCertificateMaterial.create(4L);
         writeCredentials(material, "server-key.pk8", "server-certificate.der");
         Files.write(
