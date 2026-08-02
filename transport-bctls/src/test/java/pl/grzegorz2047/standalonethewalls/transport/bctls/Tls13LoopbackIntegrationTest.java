@@ -2,6 +2,7 @@ package pl.grzegorz2047.standalonethewalls.transport.bctls;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -17,7 +18,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManager;
@@ -28,6 +28,7 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.IdentityException;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.SecureChannelBinding;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerId;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerReference;
+import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerTrustDecision;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerTrustService;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerTrustStoreException;
 
@@ -70,8 +71,9 @@ class Tls13LoopbackIntegrationTest {
                 Tls13Policy.configureClient(
                         client, Tls13Policy.ServerAuthentication.PINNED_IDENTITY);
                 client.setSoTimeout((int) TIMEOUT.toMillis());
-                client.startHandshake();
-                Tls13SessionSecurity clientSecurity = Tls13SessionInspector.inspect(client);
+                SecureChannelBinding clientBinding = Tls13Handshake.establish(client);
+                Tls13SessionSecurity clientSecurity =
+                        Tls13SessionInspector.inspectClient(client, clientBinding);
                 client.getOutputStream().write(0x5A);
                 client.getOutputStream().flush();
                 assertThat(client.getInputStream().read()).isEqualTo(0xA5);
@@ -126,8 +128,13 @@ class Tls13LoopbackIntegrationTest {
                 Tls13Policy.configureClient(
                         client, Tls13Policy.ServerAuthentication.PINNED_IDENTITY);
                 client.setSoTimeout((int) TIMEOUT.toMillis());
-                assertThatThrownBy(client::startHandshake)
-                        .isInstanceOf(SSLHandshakeException.class);
+                Throwable failure = catchThrowable(() -> Tls13Handshake.establish(client));
+                assertThat(failure)
+                        .isInstanceOf(IOException.class)
+                        .hasRootCauseInstanceOf(TlsTrustException.class);
+                TlsTrustException trustFailure = findCause(failure, TlsTrustException.class);
+                assertThat(trustFailure.status())
+                        .isEqualTo(ServerTrustDecision.Status.CHANGED_IDENTITY);
             }
             assertExpectedServerHandshakeFailure(observation);
         }
@@ -137,7 +144,7 @@ class Tls13LoopbackIntegrationTest {
     void rejectsAJsseSocketThatCannotExposeTheTlsExporter() throws IOException {
         try (SSLSocket socket =
                 (SSLSocket) javax.net.ssl.SSLSocketFactory.getDefault().createSocket()) {
-            assertThatThrownBy(() -> TlsChannelBindingExporter.export(socket))
+            assertThatThrownBy(() -> Tls13Handshake.establish(socket))
                     .isInstanceOfSatisfying(
                             TlsTransportException.class,
                             exception ->
@@ -153,6 +160,17 @@ class Tls13LoopbackIntegrationTest {
         assertThatThrownBy(() -> observation.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS))
                 .isInstanceOf(ExecutionException.class)
                 .hasCauseInstanceOf(IOException.class);
+    }
+
+    private static <T extends Throwable> T findCause(Throwable failure, Class<T> type) {
+        Throwable current = failure;
+        while (current != null) {
+            if (type.isInstance(current)) {
+                return type.cast(current);
+            }
+            current = current.getCause();
+        }
+        throw new AssertionError("expected cause " + type.getName(), failure);
     }
 
     private record ServerObservation(
@@ -181,9 +199,7 @@ class Tls13LoopbackIntegrationTest {
                         try (SSLSocket socket = (SSLSocket) serverSocket.accept()) {
                             socket.setSoTimeout((int) TIMEOUT.toMillis());
                             Tls13Policy.configureAcceptedServerSocket(socket);
-                            socket.startHandshake();
-                            Tls13Policy.verifyNegotiated(socket);
-                            SecureChannelBinding binding = TlsChannelBindingExporter.export(socket);
+                            SecureChannelBinding binding = Tls13Handshake.establish(socket);
                             int received = socket.getInputStream().read();
                             socket.getOutputStream().write(0xA5);
                             socket.getOutputStream().flush();
