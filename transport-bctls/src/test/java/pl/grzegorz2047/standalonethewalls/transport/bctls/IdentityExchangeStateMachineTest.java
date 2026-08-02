@@ -129,6 +129,25 @@ class IdentityExchangeStateMachineTest {
         assertThat(receiveDelegate.closeCount()).isEqualTo(1);
     }
 
+    @Test
+    void postAuthenticationChannelClosesOnNullReceiveContract()
+            throws IdentityException, InterruptedException, TimeoutException {
+        PlayerIdentity identity = PlayerIdentity.generate(new SecureRandom());
+        ScriptedChannel delegate = new ScriptedChannel();
+        delegate.enqueueNull();
+        AuthenticatedReliableSession authenticated =
+                new AuthenticatedReliableSession(
+                        session(delegate),
+                        identity.playerId(),
+                        new CanonicalHandle("player_one"));
+
+        IdentityExchangeException failure =
+                awaitFailure(authenticated.reliableChannel().receive());
+
+        assertThat(failure.code()).isEqualTo(IdentityExchangeException.Code.INTERNAL_ERROR);
+        assertThat(delegate.closeCount()).isEqualTo(1);
+    }
+
     private static BootstrappedReliableSession session(ReliableChannel channel) {
         byte[] binding = new byte[SecureChannelBinding.BYTES];
         for (int index = 0; index < binding.length; index++) {
@@ -177,6 +196,10 @@ class IdentityExchangeStateMachineTest {
 
         void enqueuePending() {
             receives.add(new CompletableFuture<>());
+        }
+
+        void enqueueNull() {
+            receives.add(CompletableFuture.completedFuture(null));
         }
 
         int closeCount() {
