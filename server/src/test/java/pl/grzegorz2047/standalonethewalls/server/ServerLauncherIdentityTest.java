@@ -70,8 +70,7 @@ class ServerLauncherIdentityTest {
                 StandardCharsets.UTF_8);
         Files.writeString(
                 configuration,
-                configuration(
-                        fileName(sqlite), "invalid-trust.sfrb", "invalid-trust-roots.hex"),
+                configuration(fileName(sqlite), "invalid-trust.sfrb", "invalid-trust-roots.hex"),
                 StandardCharsets.UTF_8);
 
         assertThat(
