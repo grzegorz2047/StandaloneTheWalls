@@ -30,7 +30,7 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
 
 /** Transactional SQLite persistence for local bindings and administrative audit events. */
 public final class SqliteLocalHandleAdministrationStore implements LocalHandleAdministrationStore {
-    public static final int SCHEMA_VERSION = 1;
+    public static final int SCHEMA_VERSION = 2;
     public static final int DEFAULT_BUSY_TIMEOUT_MILLIS = 5_000;
     public static final int MAXIMUM_BUSY_TIMEOUT_MILLIS = 60_000;
 
@@ -345,11 +345,7 @@ public final class SqliteLocalHandleAdministrationStore implements LocalHandleAd
                             + " (singleton INTEGER PRIMARY KEY CHECK (singleton = 1), "
                             + "version INTEGER NOT NULL CHECK (version >= 1))");
             statement.executeUpdate(
-                    "INSERT INTO "
-                            + SCHEMA_TABLE
-                            + " (singleton, version) VALUES (1, "
-                            + SCHEMA_VERSION
-                            + ")");
+                    "INSERT INTO " + SCHEMA_TABLE + " (singleton, version) VALUES (1, " + 1 + ")");
             statement.executeUpdate(
                     "CREATE TABLE "
                             + BINDINGS_TABLE
@@ -413,7 +409,7 @@ public final class SqliteLocalHandleAdministrationStore implements LocalHandleAd
         if (version > SCHEMA_VERSION) {
             throw new SQLException("SQLite local identity schema is newer than this server");
         }
-        if (version != SCHEMA_VERSION) {
+        if (version < 1) {
             throw new SQLException("SQLite local identity schema version is unsupported");
         }
         validateRequiredColumns(connection);

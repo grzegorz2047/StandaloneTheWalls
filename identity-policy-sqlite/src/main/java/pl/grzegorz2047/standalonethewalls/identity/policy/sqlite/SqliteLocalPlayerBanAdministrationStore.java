@@ -162,7 +162,8 @@ public final class SqliteLocalPlayerBanAdministrationStore
                             ResultSet result = statement.executeQuery()) {
                         while (result.next()) {
                             if (values.size() >= maximumBans) {
-                                throw new SQLException("player ban result exceeds configured capacity");
+                                throw new SQLException(
+                                        "player ban result exceeds configured capacity");
                             }
                             values.add(readBan(result));
                         }
@@ -381,8 +382,7 @@ public final class SqliteLocalPlayerBanAdministrationStore
 
     private static void deleteBan(Connection connection, PlayerId playerId) throws SQLException {
         try (PreparedStatement statement =
-                connection.prepareStatement(
-                        "DELETE FROM local_player_bans WHERE player_id = ?")) {
+                connection.prepareStatement("DELETE FROM local_player_bans WHERE player_id = ?")) {
             statement.setString(1, playerId.value());
             requireOneRow(statement.executeUpdate(), "local player ban delete");
         }

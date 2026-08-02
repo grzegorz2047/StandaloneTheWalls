@@ -36,18 +36,20 @@ class LocalPlayerBanAdministrationServiceTest {
                 .isEqualTo(LocalPlayerBanAdministrationResult.BANNED);
         assertThat(service.ban(FIRST, ADMINISTRATOR, REASON))
                 .isEqualTo(LocalPlayerBanAdministrationResult.ALREADY_BANNED);
-        assertThat(admission.evaluate(FIRST))
-                .isEqualTo(PlayerBanAdmissionDecision.PLAYER_BANNED);
-        assertThat(service.inspect(FIRST)).contains(new LocalPlayerBan(FIRST, NOW, ADMINISTRATOR, REASON));
+        assertThat(admission.evaluate(FIRST)).isEqualTo(PlayerBanAdmissionDecision.PLAYER_BANNED);
+        assertThat(service.inspect(FIRST))
+                .contains(new LocalPlayerBan(FIRST, NOW, ADMINISTRATOR, REASON));
 
         assertThat(service.unban(FIRST, ADMINISTRATOR, REASON))
                 .isEqualTo(LocalPlayerBanAdministrationResult.UNBANNED);
         assertThat(service.unban(FIRST, ADMINISTRATOR, REASON))
                 .isEqualTo(LocalPlayerBanAdministrationResult.NOT_BANNED);
         assertThat(admission.evaluate(FIRST)).isEqualTo(PlayerBanAdmissionDecision.ALLOWED);
-        assertThat(service.auditEvents()).extracting(LocalPlayerBanAuditEvent::sequence)
+        assertThat(service.auditEvents())
+                .extracting(LocalPlayerBanAuditEvent::sequence)
                 .containsExactly(1L, 2L);
-        assertThat(service.auditEvents()).extracting(LocalPlayerBanAuditEvent::action)
+        assertThat(service.auditEvents())
+                .extracting(LocalPlayerBanAuditEvent::action)
                 .containsExactly(LocalPlayerBanAuditAction.BAN, LocalPlayerBanAuditAction.UNBAN);
     }
 
@@ -104,9 +106,7 @@ class LocalPlayerBanAdministrationServiceTest {
     }
 
     private static LocalPlayerBanAdministrationResult raceBan(
-            LocalPlayerBanAdministrationService service,
-            CountDownLatch ready,
-            CountDownLatch start)
+            LocalPlayerBanAdministrationService service, CountDownLatch ready, CountDownLatch start)
             throws InterruptedException {
         ready.countDown();
         if (!start.await(5, TimeUnit.SECONDS)) {
