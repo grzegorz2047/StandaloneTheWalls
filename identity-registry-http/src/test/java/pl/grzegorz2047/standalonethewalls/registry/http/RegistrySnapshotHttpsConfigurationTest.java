@@ -9,7 +9,8 @@ import org.junit.jupiter.api.Test;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotPolicy;
 
 class RegistrySnapshotHttpsConfigurationTest {
-    private static final URI JSON = URI.create("https://registry.example/releases/v7/registry-v1.json");
+    private static final URI JSON =
+            URI.create("https://registry.example/releases/v7/registry-v1.json");
     private static final URI DIGEST =
             URI.create("https://registry.example/releases/v7/registry-v1.sha256");
     private static final URI SIGNATURE =
@@ -79,10 +80,7 @@ class RegistrySnapshotHttpsConfigurationTest {
                                                 .plusMillis(1),
                                         4096))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(
-                        () ->
-                                new RegistrySnapshotHttpsConfiguration(
-                                        JSON, DIGEST, SIGNATURE, 0))
+        assertThatThrownBy(() -> new RegistrySnapshotHttpsConfiguration(JSON, DIGEST, SIGNATURE, 0))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(
                         () ->
@@ -96,9 +94,7 @@ class RegistrySnapshotHttpsConfigurationTest {
 
     private static void assertInvalidJsonUri(URI uri) {
         assertThatThrownBy(
-                        () ->
-                                new RegistrySnapshotHttpsConfiguration(
-                                        uri, DIGEST, SIGNATURE, 4096))
+                        () -> new RegistrySnapshotHttpsConfiguration(uri, DIGEST, SIGNATURE, 4096))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("HTTPS");
     }

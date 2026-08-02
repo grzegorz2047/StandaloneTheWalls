@@ -29,8 +29,7 @@ public final class RegistrySnapshotHttpsProvider implements RegistrySnapshotProv
         this(
                 configuration,
                 new JdkRegistryHttpClient(
-                        Objects.requireNonNull(configuration, "configuration")
-                                .connectTimeout()));
+                        Objects.requireNonNull(configuration, "configuration").connectTimeout()));
     }
 
     RegistrySnapshotHttpsProvider(
@@ -45,8 +44,7 @@ public final class RegistrySnapshotHttpsProvider implements RegistrySnapshotProv
             byte[] canonicalJson =
                     loadResource(
                             configuration.canonicalJsonUri(), configuration.maximumJsonBytes());
-            byte[] digestLine =
-                    loadResource(configuration.digestUri(), DIGEST_HEX_CHARACTERS + 1);
+            byte[] digestLine = loadResource(configuration.digestUri(), DIGEST_HEX_CHARACTERS + 1);
             byte[] signatureLine =
                     loadResource(configuration.signatureUri(), SIGNATURE_HEX_CHARACTERS + 1);
             return new RegistrySnapshotArtifact(
@@ -79,7 +77,8 @@ public final class RegistrySnapshotHttpsProvider implements RegistrySnapshotProv
             long declaredLength = declaredContentLength(response.headers(), maximumBytes);
             byte[] bytes = body.readNBytes(maximumBytes + 1);
             if (bytes.length == 0 || bytes.length > maximumBytes) {
-                throw new IOException("registry HTTPS response body size is outside the safe range");
+                throw new IOException(
+                        "registry HTTPS response body size is outside the safe range");
             }
             if (declaredLength >= 0L && declaredLength != bytes.length) {
                 throw new IOException("registry HTTPS response length does not match its header");
@@ -94,7 +93,8 @@ public final class RegistrySnapshotHttpsProvider implements RegistrySnapshotProv
             String[] codings = value.split(",", -1);
             for (String coding : codings) {
                 if (!"identity".equals(coding.trim().toLowerCase(Locale.ROOT))) {
-                    throw new IOException("registry HTTPS response content encoding is not accepted");
+                    throw new IOException(
+                            "registry HTTPS response content encoding is not accepted");
                 }
             }
         }

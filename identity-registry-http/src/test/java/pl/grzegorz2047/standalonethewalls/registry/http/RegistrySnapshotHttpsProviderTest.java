@@ -26,13 +26,15 @@ import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotArtifact;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotProviderException;
 
 class RegistrySnapshotHttpsProviderTest {
-    private static final URI JSON = URI.create("https://registry.example/releases/v7/registry-v1.json");
+    private static final URI JSON =
+            URI.create("https://registry.example/releases/v7/registry-v1.json");
     private static final URI DIGEST =
             URI.create("https://registry.example/releases/v7/registry-v1.sha256");
     private static final URI SIGNATURE =
             URI.create("https://registry.example/releases/v7/registry-v1.sig");
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(12);
-    private static final byte[] JSON_BYTES = "{\"schemaVersion\":1}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    private static final byte[] JSON_BYTES =
+            "{\"schemaVersion\":1}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
     private static final byte[] DIGEST_LINE = ascii("00".repeat(32) + "\n");
     private static final byte[] SIGNATURE_LINE = ascii("11".repeat(64) + "\n");
 
@@ -42,13 +44,19 @@ class RegistrySnapshotHttpsProviderTest {
     }
 
     @Test
-    void loadsThreeExplicitResourcesAsOneUntrustedArtifact() throws RegistrySnapshotProviderException {
+    void loadsThreeExplicitResourcesAsOneUntrustedArtifact()
+            throws RegistrySnapshotProviderException {
         ScriptedClient client =
                 new ScriptedClient(
                         response(200, JSON, Map.of("Content-Length", List.of("19")), JSON_BYTES),
                         response(200, DIGEST, Map.of(), DIGEST_LINE),
-                        response(200, SIGNATURE, Map.of("Content-Encoding", List.of("identity")), SIGNATURE_LINE));
-        RegistrySnapshotHttpsProvider provider = new RegistrySnapshotHttpsProvider(configuration(1024), client);
+                        response(
+                                200,
+                                SIGNATURE,
+                                Map.of("Content-Encoding", List.of("identity")),
+                                SIGNATURE_LINE));
+        RegistrySnapshotHttpsProvider provider =
+                new RegistrySnapshotHttpsProvider(configuration(1024), client);
 
         RegistrySnapshotArtifact artifact = provider.load();
 
@@ -65,8 +73,7 @@ class RegistrySnapshotHttpsProviderTest {
     @Test
     void rejectsNonSuccessStatusHttpsDowngradeAndCompressedResponse() {
         assertProviderFailure(
-                new ScriptedClient(response(503, JSON, Map.of(), JSON_BYTES)),
-                configuration(1024));
+                new ScriptedClient(response(503, JSON, Map.of(), JSON_BYTES)), configuration(1024));
         assertProviderFailure(
                 new ScriptedClient(
                         response(
@@ -166,12 +173,7 @@ class RegistrySnapshotHttpsProviderTest {
 
     private static RegistrySnapshotHttpsConfiguration configuration(int maximumJsonBytes) {
         return new RegistrySnapshotHttpsConfiguration(
-                JSON,
-                DIGEST,
-                SIGNATURE,
-                Duration.ofSeconds(3),
-                REQUEST_TIMEOUT,
-                maximumJsonBytes);
+                JSON, DIGEST, SIGNATURE, Duration.ofSeconds(3), REQUEST_TIMEOUT, maximumJsonBytes);
     }
 
     private static void assertProviderFailure(

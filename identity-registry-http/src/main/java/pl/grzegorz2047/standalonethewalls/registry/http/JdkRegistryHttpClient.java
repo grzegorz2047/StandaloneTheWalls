@@ -20,7 +20,8 @@ final class JdkRegistryHttpClient implements RegistryHttpClient {
     @Override
     public HttpResponse<InputStream> get(URI uri, Duration requestTimeout)
             throws IOException, InterruptedException {
-        return client.send(buildRequest(uri, requestTimeout), HttpResponse.BodyHandlers.ofInputStream());
+        return client.send(
+                buildRequest(uri, requestTimeout), HttpResponse.BodyHandlers.ofInputStream());
     }
 
     static HttpClient buildClient(Duration connectTimeout) {

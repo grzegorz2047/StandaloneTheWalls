@@ -58,7 +58,8 @@ public record RegistrySnapshotHttpsConfiguration(
                 || value.getHost().isBlank()
                 || value.getRawUserInfo() != null
                 || value.getRawFragment() != null) {
-            throw new IllegalArgumentException(name + " must be an absolute HTTPS URI without userinfo or fragment");
+            throw new IllegalArgumentException(
+                    name + " must be an absolute HTTPS URI without userinfo or fragment");
         }
         return value;
     }
