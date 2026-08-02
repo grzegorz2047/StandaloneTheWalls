@@ -57,8 +57,7 @@ class AtomicRegistrySnapshotStoreTest {
         VerifiedRegistrySnapshot active = verified(root, player, 30L, (byte) 6);
         AtomicRegistrySnapshotStore store = new AtomicRegistrySnapshotStore();
         RegistrySnapshotPolicy policy =
-                new RegistrySnapshotPolicy(
-                        0L, Duration.ofHours(2), Duration.ZERO, 1024, 1);
+                new RegistrySnapshotPolicy(0L, Duration.ofHours(2), Duration.ZERO, 1024, 1);
 
         RegistrySnapshotAvailability absent =
                 store.availability(Clock.fixed(GENERATED_AT, ZoneOffset.UTC), policy);
