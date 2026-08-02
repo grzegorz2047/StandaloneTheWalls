@@ -1,12 +1,13 @@
 /**
  * Low-level Bouncy Castle TLS 1.3 and reliable-envelope adapters for Sunderfront.
  *
- * <p>The module owns blocking TLS protocol instances over caller-supplied connected sockets,
- * enforces bounded socket timeouts, TLS 1.3, ALPN, Ed25519 server pinning, RFC 9266 tls-exporter
- * channel binding, fixed-header framing, session binding, and gap-free per-direction sequences.
- * `AsyncTlsReliableChannel` moves the blocking envelope stream onto owned named virtual threads,
- * enforces count and byte admission limits, permits one receive, and terminates its executor
- * through an asynchronous bounded close. It does not implement runtime listener ownership, public
- * PKI, realtime DTLS, persistence, certificate provisioning, reconnect, or automatic trust changes.
+ * <p>The module owns blocking TLS protocol instances, authenticated server/client handshakes,
+ * strict fixed-header framing, session binding, gap-free sequences and bounded asynchronous
+ * reliable I/O. `Tls13ServerListener` additionally owns a bound endpoint, a dedicated accept
+ * thread, named virtual handshake threads, hard handshake/active-connection admission limits and
+ * tracked active leases with bounded, failure-preserving shutdown. No listener close failure is
+ * discarded. The module intentionally stops at an authenticated `AcceptedTlsConnection`: session
+ * UUID bootstrap, runtime command delivery, public PKI, reconnect, realtime DTLS, persistence and
+ * production certificate provisioning remain separate work.
  */
 package pl.grzegorz2047.standalonethewalls.transport.bctls;
