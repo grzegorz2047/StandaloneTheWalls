@@ -2,8 +2,9 @@
 
 `identity-policy` decides whether an already cryptographically authenticated
 `playerId` may use one canonical handle and defines atomic local administration
-semantics. It does not open network sessions, verify signatures, load registry
-files, persist SQLite data, or admit players to a lobby.
+semantics. It also defines an independent local display-name store keyed by
+`playerId`. It does not open network sessions, verify signatures, load registry
+files, persist SQLite data, render names, or admit players to a lobby.
 
 ## Registry availability
 
@@ -59,7 +60,7 @@ When the last verified snapshot is stale, it becomes a reservation-only view:
 This keeps private/LAN guests available during a registry outage without making
 an outage a path to steal a known global name.
 
-## Local administration
+## Local handle administration
 
 `LocalHandleAdministrationStore` extends the same binding port used by TOFU and
 must perform each successful administrative mutation and its audit event as one
@@ -85,9 +86,40 @@ ID, action, canonical handle, previous and new player IDs, and bounded NFC reaso
 Failed and idempotent attempts do not create events. If audit capacity is full,
 the mutation is rejected so an unaudited state change cannot occur.
 
-Binding views are sorted by canonical handle and audit views are ordered by
-sequence. Returned collections and events are immutable and contain no private
-keys, IP addresses, raw registry snapshots, or mutable server state.
+## Local display names
+
+A local display name is presentation-only Unicode text assigned directly to a
+stable public `playerId`. It is not a handle, login claim, registry reservation,
+or security identifier. Two different player IDs may intentionally use the same
+display name.
+
+`LocalDisplayName` applies only two visible transforms: NFC normalization and
+trimming Unicode whitespace from both ends. Input is capped at 512 UTF-16 code
+units before normalization so validation cannot allocate from an unbounded
+string. The stored result is non-empty and bounded to 64 Unicode code points and
+192 UTF-8 bytes. It rejects malformed UTF-16, NUL, controls, unassigned code
+points, surrogate code points, line and paragraph separators, and every Unicode
+format character, including bidi overrides, bidi isolates, and zero-width
+formatting controls. Validation errors are bounded and never include the rejected value.
+
+`LocalDisplayNameAdministrationStore` exposes deterministic lookup/listing and
+atomic `setDisplayName` / `clearDisplayName` operations. Every mutation carries
+an explicit expectation: absent, present, or an exact previous display name.
+There is no unconditional last-write-wins path. Applied mutations create exactly
+one monotonic append-only audit event containing the administrator, timestamp, player ID,
+previous value, new value, and bounded reason. No-op and failed attempts create
+no event, and exhausted state or audit capacity blocks the mutation.
+
+The stable result codes are `APPLIED`, `UNCHANGED`, `NOT_FOUND`,
+`EXPECTATION_MISMATCH`, `INVALID_VALUE`, and `CAPACITY_EXCEEDED`. There is no
+binding-not-found result because a local display name may be assigned to any
+valid authenticated player ID, including an identity admitted through
+`GLOBAL_ONLY`; creating the display name grants no authorization.
+
+`InMemoryLocalDisplayNameStore` is the thread-safe reference implementation for
+tests and ephemeral use. It is deliberately not injected into
+`HandleAuthorizationService`, registry lookup, local TOFU binding, or player-ban
+admission.
 
 ## Decisions
 
@@ -101,7 +133,11 @@ public key, private key, IP address, or mutable server state. `REGISTRY_STALE` i
 a bounded operational rejection distinct from `REGISTRY_UNAVAILABLE`, and
 `LOCAL_BINDING_CAPACITY_EXCEEDED` is distinct from an ownership conflict.
 
-`InMemoryLocalHandleBindingStore` is a thread-safe reference implementation for
-tests and ephemeral servers. Persistent SQLite bindings and audit, ban storage,
-command parsing and permissions, refresh scheduling, TLS/session integration,
-and lobby admission remain adapters outside this module.
+Binding views are sorted by canonical handle. Display-name views are sorted by
+`playerId`. Audit views are ordered by sequence. Returned collections and events
+are immutable and contain no private keys, IP addresses, raw registry snapshots,
+or mutable server state.
+
+Persistent SQLite storage, command parsing and permissions, refresh scheduling,
+TLS/session integration, rendering, chat, lobby admission, and display-name UI
+remain adapters outside this module.
