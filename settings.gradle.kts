@@ -13,4 +13,5 @@ include(
     "identity-registry",
     "identity-registry-file",
     "identity-policy",
+    "identity-policy-sqlite",
 )
