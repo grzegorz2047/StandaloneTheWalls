@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -103,6 +104,13 @@ class RegistrySnapshotServiceTest {
                                         }))
                 .isInstanceOf(RegistrySnapshotProviderException.class);
         assertThat(store.active()).containsSame(active);
+
+        RegistrySnapshotAvailability stale =
+                store.availability(
+                        Clock.fixed(NOW.plus(Duration.ofDays(31)), ZoneOffset.UTC),
+                        RegistrySnapshotPolicy.DEFAULT);
+        assertThat(stale.state()).isEqualTo(RegistrySnapshotAvailability.State.STALE);
+        assertThat(stale.snapshot()).containsSame(active);
     }
 
     private static RegistrySnapshotService service(
