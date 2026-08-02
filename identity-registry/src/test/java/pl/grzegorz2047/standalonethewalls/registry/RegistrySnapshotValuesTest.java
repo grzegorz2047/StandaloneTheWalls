@@ -70,31 +70,17 @@ class RegistrySnapshotValuesTest {
                 .isEqualTo(RegistrySnapshotPolicy.ABSOLUTE_MAXIMUM_ENTRIES);
 
         assertThatThrownBy(
-                        () ->
-                                new RegistrySnapshotPolicy(
-                                        -1L,
-                                        Duration.ZERO,
-                                        Duration.ZERO,
-                                        1,
-                                        0))
+                        () -> new RegistrySnapshotPolicy(-1L, Duration.ZERO, Duration.ZERO, 1, 0))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(
                         () ->
                                 new RegistrySnapshotPolicy(
-                                        0L,
-                                        Duration.ofDays(366),
-                                        Duration.ZERO,
-                                        1,
-                                        0))
+                                        0L, Duration.ofDays(366), Duration.ZERO, 1, 0))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(
                         () ->
                                 new RegistrySnapshotPolicy(
-                                        0L,
-                                        Duration.ZERO,
-                                        Duration.ofHours(25),
-                                        1,
-                                        0))
+                                        0L, Duration.ZERO, Duration.ofHours(25), 1, 0))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(
                         () ->
