@@ -25,21 +25,8 @@ public record AssetPackReference(
     private static final Pattern PATH_SEGMENT_PATTERN = Pattern.compile("[A-Za-z0-9._-]{1,96}");
 
     public AssetPackReference {
-        id = require(id, "id");
-        if (!ID_PATTERN.matcher(id).matches()) {
-            throw new IllegalArgumentException("asset pack id is invalid");
-        }
-        version = require(version, "version");
-        if (version.length() > 32 || !VERSION_PATTERN.matcher(version).matches()) {
-            throw new IllegalArgumentException("asset pack version must be canonical MAJOR.MINOR.PATCH");
-        }
-        for (String component : version.split("\\.")) {
-            try {
-                Integer.parseUnsignedInt(component);
-            } catch (NumberFormatException exception) {
-                throw new IllegalArgumentException("asset pack version component is out of range", exception);
-            }
-        }
+        id = requireId(id);
+        version = requireVersion(version);
         if (formatVersion < 1 || formatVersion > 1_000) {
             throw new IllegalArgumentException("asset pack format version is outside the safe range");
         }
@@ -50,6 +37,29 @@ public record AssetPackReference(
         sha256 = requireDigest(sha256, "sha256");
         manifestPath = requireManifestPath(manifestPath);
         manifestSha256 = requireDigest(manifestSha256, "manifestSha256");
+    }
+
+    static String requireId(String value) {
+        String id = require(value, "id");
+        if (!ID_PATTERN.matcher(id).matches()) {
+            throw new IllegalArgumentException("asset pack id is invalid");
+        }
+        return id;
+    }
+
+    static String requireVersion(String value) {
+        String version = require(value, "version");
+        if (version.length() > 32 || !VERSION_PATTERN.matcher(version).matches()) {
+            throw new IllegalArgumentException("asset pack version must be canonical MAJOR.MINOR.PATCH");
+        }
+        for (String component : version.split("\\.")) {
+            try {
+                Integer.parseUnsignedInt(component);
+            } catch (NumberFormatException exception) {
+                throw new IllegalArgumentException("asset pack version component is out of range", exception);
+            }
+        }
+        return version;
     }
 
     private static URI requireHttpsUrl(URI value) {
