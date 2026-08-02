@@ -1,6 +1,9 @@
 name: Temporary fix issue 82
 
 on:
+  push:
+    branches:
+      - agent/issue-82-asset-lock-cache
   pull_request:
 
 permissions:
@@ -8,13 +11,13 @@ permissions:
 
 jobs:
   fix:
-    if: github.head_ref == 'agent/issue-82-asset-lock-cache'
+    if: github.event_name == 'push' || github.head_ref == 'agent/issue-82-asset-lock-cache'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
+          ref: agent/issue-82-asset-lock-cache
 
       - uses: actions/setup-java@v4
         with:
@@ -64,9 +67,10 @@ jobs:
                                 "data/orphan.txt", bytes("orphan")),
                         orphanBytes);
 '''
-          if old not in text:
+          if old in text:
+              test.write_text(text.replace(old, new, 1))
+          elif "byte[] listed = bytes(\"listed\");" not in text:
               raise SystemExit("expected orphan manifest test block")
-          test.write_text(text.replace(old, new, 1))
           PY
           ./gradlew --no-daemon spotlessApply
 
@@ -79,4 +83,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add asset-pack settings.gradle.kts
           git commit -m "Format asset module and fix orphan manifest test"
-          git push origin HEAD:${{ github.head_ref }}
+          git push origin HEAD:agent/issue-82-asset-lock-cache
