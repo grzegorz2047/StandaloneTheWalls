@@ -25,8 +25,7 @@ public record LobbySnapshot(long revision, List<LobbyMember> members) {
             if (!playerIds.add(current.playerId())) {
                 throw new IllegalArgumentException("members contain a duplicate playerId");
             }
-            if (previous != null
-                    && previous.value().compareTo(current.playerId().value()) >= 0) {
+            if (previous != null && previous.value().compareTo(current.playerId().value()) >= 0) {
                 throw new IllegalArgumentException("members must be strictly sorted by playerId");
             }
             previous = current.playerId();

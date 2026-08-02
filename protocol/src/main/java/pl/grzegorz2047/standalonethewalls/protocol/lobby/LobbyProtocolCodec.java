@@ -36,8 +36,11 @@ public final class LobbyProtocolCodec {
     }
 
     public static LobbyJoined decodeJoined(byte[] payload) throws LobbyProtocolException {
-        ByteBuffer input = requirePayload(payload, JOINED_FIXED_BYTES + MINIMUM_HANDLE_BYTES,
-                MessageType.LOBBY_JOINED.maximumPayloadBytes());
+        ByteBuffer input =
+                requirePayload(
+                        payload,
+                        JOINED_FIXED_BYTES + MINIMUM_HANDLE_BYTES,
+                        MessageType.LOBBY_JOINED.maximumPayloadBytes());
         requireSchema(input);
         long revision = requireRevision(input);
         LobbyMember member = readMember(input);
@@ -69,8 +72,11 @@ public final class LobbyProtocolCodec {
     }
 
     public static LobbySnapshot decodeSnapshot(byte[] payload) throws LobbyProtocolException {
-        ByteBuffer input = requirePayload(payload, SNAPSHOT_FIXED_BYTES,
-                MessageType.LOBBY_SNAPSHOT.maximumPayloadBytes());
+        ByteBuffer input =
+                requirePayload(
+                        payload,
+                        SNAPSHOT_FIXED_BYTES,
+                        MessageType.LOBBY_SNAPSHOT.maximumPayloadBytes());
         requireSchema(input);
         long revision = requireRevision(input);
         int count = Byte.toUnsignedInt(input.get());
@@ -90,8 +96,7 @@ public final class LobbyProtocolCodec {
                         LobbyProtocolException.Code.DUPLICATE_MEMBER,
                         "lobby snapshot contains a duplicate playerId");
             }
-            if (previous != null
-                    && previous.value().compareTo(member.playerId().value()) >= 0) {
+            if (previous != null && previous.value().compareTo(member.playerId().value()) >= 0) {
                 throw new LobbyProtocolException(
                         LobbyProtocolException.Code.NON_CANONICAL_ORDER,
                         "lobby snapshot members are not strictly sorted by playerId");
@@ -132,8 +137,7 @@ public final class LobbyProtocolCodec {
         }
         if (input.remaining() < handleLength) {
             throw new LobbyProtocolException(
-                    LobbyProtocolException.Code.INVALID_SIZE,
-                    "lobby member handle is truncated");
+                    LobbyProtocolException.Code.INVALID_SIZE, "lobby member handle is truncated");
         }
         byte[] handleBytes = new byte[handleLength];
         input.get(handleBytes);

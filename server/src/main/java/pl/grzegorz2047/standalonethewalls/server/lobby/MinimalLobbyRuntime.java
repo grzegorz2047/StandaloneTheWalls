@@ -202,8 +202,7 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
             }
             workers.shutdownNow();
             try {
-                if (!workers.awaitTermination(
-                        shutdownTimeout.toNanos(), TimeUnit.NANOSECONDS)) {
+                if (!workers.awaitTermination(shutdownTimeout.toNanos(), TimeUnit.NANOSECONDS)) {
                     IllegalStateException workerFailure =
                             new IllegalStateException("minimal lobby workers did not terminate");
                     if (terminalFailure == null) {
@@ -318,20 +317,22 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
             if (failed.isEmpty()) {
                 return;
             }
-            failed.stream().sorted(Comparator.comparing(PlayerId::value)).forEach(playerId -> {
-                MemberState removed = state.members.remove(playerId);
-                if (removed != null) {
-                    incrementRevision(state);
-                    memberCount.set(state.members.size());
-                    closeSession(removed.session);
-                    publish(MinimalLobbyEvent.Code.SEND_FAILED);
-                }
-            });
+            failed.stream()
+                    .sorted(Comparator.comparing(PlayerId::value))
+                    .forEach(
+                            playerId -> {
+                                MemberState removed = state.members.remove(playerId);
+                                if (removed != null) {
+                                    incrementRevision(state);
+                                    memberCount.set(state.members.size());
+                                    closeSession(removed.session);
+                                    publish(MinimalLobbyEvent.Code.SEND_FAILED);
+                                }
+                            });
         }
     }
 
-    private List<PlayerId> sendSnapshot(
-            Map<PlayerId, MemberState> members, byte[] payload) {
+    private List<PlayerId> sendSnapshot(Map<PlayerId, MemberState> members, byte[] payload) {
         Map<PlayerId, CompletableFuture<ReliableSendResult>> sends = new LinkedHashMap<>();
         List<PlayerId> failed = new ArrayList<>();
         for (Map.Entry<PlayerId, MemberState> entry : members.entrySet()) {

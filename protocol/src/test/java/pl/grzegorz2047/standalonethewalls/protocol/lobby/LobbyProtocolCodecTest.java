@@ -32,17 +32,14 @@ class LobbyProtocolCodecTest {
                 self.playerId().value().getBytes(StandardCharsets.US_ASCII),
                 Arrays.copyOfRange(payload, 1 + Long.BYTES, 1 + Long.BYTES + 56));
         assertEquals(
-                self.handle().value().length(),
-                Byte.toUnsignedInt(payload[1 + Long.BYTES + 56]));
+                self.handle().value().length(), Byte.toUnsignedInt(payload[1 + Long.BYTES + 56]));
         assertEquals(new LobbyJoined(7L, self), LobbyProtocolCodec.decodeJoined(payload));
     }
 
     @Test
     void roundTripsACompleteStrictlySortedSnapshot() throws LobbyProtocolException {
         LobbySnapshot snapshot =
-                new LobbySnapshot(
-                        11L,
-                        List.of(member("a", "alpha"), member("b", "bravo")));
+                new LobbySnapshot(11L, List.of(member("a", "alpha"), member("b", "bravo")));
 
         byte[] payload = LobbyProtocolCodec.encodeSnapshot(snapshot);
 
@@ -76,8 +73,7 @@ class LobbyProtocolCodecTest {
         LobbyMember second = member("b", "bravo");
 
         assertThrows(
-                IllegalArgumentException.class,
-                () -> new LobbySnapshot(1L, List.of(first, first)));
+                IllegalArgumentException.class, () -> new LobbySnapshot(1L, List.of(first, first)));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> new LobbySnapshot(1L, List.of(second, first)));
@@ -105,11 +101,10 @@ class LobbyProtocolCodecTest {
 
     @Test
     void rejectsOversizedCountAndDuplicateMemberOnDecode() {
-        byte[] oversizedCount = ByteBuffer.allocate(10).put((byte) 1).putLong(1L).put((byte) 41).array();
+        byte[] oversizedCount =
+                ByteBuffer.allocate(10).put((byte) 1).putLong(1L).put((byte) 41).array();
         LobbySnapshot valid =
-                new LobbySnapshot(
-                        1L,
-                        List.of(member("a", "aaa"), member("b", "bbb")));
+                new LobbySnapshot(1L, List.of(member("a", "aaa"), member("b", "bbb")));
         byte[] duplicate = LobbyProtocolCodec.encodeSnapshot(valid);
         int firstPlayerIdOffset = 10;
         int secondPlayerIdOffset = firstPlayerIdOffset + 56 + 1 + 3;
@@ -143,8 +138,7 @@ class LobbyProtocolCodecTest {
                 new PlayerId("sf1_" + prefix + "a".repeat(51)), new CanonicalHandle(handle));
     }
 
-    private static void assertCode(
-            LobbyProtocolException.Code expected, ThrowingDecode operation) {
+    private static void assertCode(LobbyProtocolException.Code expected, ThrowingDecode operation) {
         LobbyProtocolException exception =
                 assertThrows(LobbyProtocolException.class, operation::run);
         assertEquals(expected, exception.code());

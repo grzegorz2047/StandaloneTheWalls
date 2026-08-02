@@ -193,8 +193,7 @@ class ServerLauncherTest {
 
             ProtocolEnvelope snapshotEnvelope = receive(authenticated);
             assertEquals(MessageType.LOBBY_SNAPSHOT, snapshotEnvelope.messageType());
-            LobbySnapshot snapshot =
-                    LobbyProtocolCodec.decodeSnapshot(snapshotEnvelope.payload());
+            LobbySnapshot snapshot = LobbyProtocolCodec.decodeSnapshot(snapshotEnvelope.payload());
             assertEquals(joined.revision(), snapshot.revision());
             assertEquals(java.util.List.of(joined.self()), snapshot.members());
 
