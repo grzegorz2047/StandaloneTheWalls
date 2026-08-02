@@ -28,12 +28,19 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
 public final class SqliteLocalPlayerBanAdministrationStore
         implements LocalPlayerBanAdministrationStore {
     public static final int SCHEMA_VERSION = 2;
+    private static final int LATEST_SUPPORTED_SCHEMA_VERSION = 3;
 
     private static final String SCHEMA_TABLE = "local_identity_schema";
     private static final String BANS_TABLE = "local_player_bans";
     private static final String AUDIT_TABLE = "local_player_ban_audit";
     private static final String AUDIT_UPDATE_TRIGGER = "local_player_ban_audit_no_update";
     private static final String AUDIT_DELETE_TRIGGER = "local_player_ban_audit_no_delete";
+    private static final String DISPLAY_NAMES_TABLE = "local_player_display_names";
+    private static final String DISPLAY_NAME_AUDIT_TABLE = "local_player_display_name_audit";
+    private static final String DISPLAY_NAME_AUDIT_UPDATE_TRIGGER =
+            "local_player_display_name_audit_no_update";
+    private static final String DISPLAY_NAME_AUDIT_DELETE_TRIGGER =
+            "local_player_display_name_audit_no_delete";
     private static final String COUNT_BANS = "SELECT COUNT(*) FROM local_player_bans";
     private static final String COUNT_AUDIT = "SELECT COUNT(*) FROM local_player_ban_audit";
     private static final String NEXT_AUDIT_SEQUENCE =
@@ -207,7 +214,7 @@ public final class SqliteLocalPlayerBanAdministrationStore
                 connection -> {
                     requireIntegrity(connection);
                     int version = readSchemaVersion(connection);
-                    if (version > SCHEMA_VERSION) {
+                    if (version > LATEST_SUPPORTED_SCHEMA_VERSION) {
                         throw new SQLException(
                                 "SQLite local identity schema is newer than this server");
                     }
@@ -218,7 +225,9 @@ public final class SqliteLocalPlayerBanAdministrationStore
                         }
                         createSchema(connection);
                         updateSchemaVersion(connection, 1, SCHEMA_VERSION);
-                    } else if (version != SCHEMA_VERSION) {
+                        version = SCHEMA_VERSION;
+                    }
+                    if (version < SCHEMA_VERSION) {
                         throw new SQLException(
                                 "SQLite local identity schema version is unsupported");
                     }
@@ -259,8 +268,17 @@ public final class SqliteLocalPlayerBanAdministrationStore
                 || !objectExists(connection, "trigger", AUDIT_DELETE_TRIGGER)) {
             throw new SQLException("SQLite player ban schema is incomplete");
         }
-        if (readSchemaVersion(connection) != SCHEMA_VERSION) {
+        int version = readSchemaVersion(connection);
+        if (version < SCHEMA_VERSION || version > LATEST_SUPPORTED_SCHEMA_VERSION) {
             throw new SQLException("SQLite local identity schema version is unsupported");
+        }
+        if (version == LATEST_SUPPORTED_SCHEMA_VERSION
+                && (!objectExists(connection, "table", DISPLAY_NAMES_TABLE)
+                        || !objectExists(connection, "table", DISPLAY_NAME_AUDIT_TABLE)
+                        || !objectExists(connection, "trigger", DISPLAY_NAME_AUDIT_UPDATE_TRIGGER)
+                        || !objectExists(
+                                connection, "trigger", DISPLAY_NAME_AUDIT_DELETE_TRIGGER))) {
+            throw new SQLException("SQLite schema v3 display name objects are incomplete");
         }
         try (PreparedStatement bans =
                         connection.prepareStatement(

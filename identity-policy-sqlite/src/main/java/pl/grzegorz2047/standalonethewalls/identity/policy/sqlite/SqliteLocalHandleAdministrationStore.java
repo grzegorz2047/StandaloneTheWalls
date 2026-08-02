@@ -30,7 +30,7 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
 
 /** Transactional SQLite persistence for local bindings and administrative audit events. */
 public final class SqliteLocalHandleAdministrationStore implements LocalHandleAdministrationStore {
-    public static final int SCHEMA_VERSION = 2;
+    public static final int SCHEMA_VERSION = 3;
     public static final int DEFAULT_BUSY_TIMEOUT_MILLIS = 5_000;
     public static final int MAXIMUM_BUSY_TIMEOUT_MILLIS = 60_000;
 
@@ -39,6 +39,16 @@ public final class SqliteLocalHandleAdministrationStore implements LocalHandleAd
     private static final String AUDIT_TABLE = "local_handle_audit";
     private static final String AUDIT_UPDATE_TRIGGER = "local_handle_audit_no_update";
     private static final String AUDIT_DELETE_TRIGGER = "local_handle_audit_no_delete";
+    private static final String BANS_TABLE = "local_player_bans";
+    private static final String BAN_AUDIT_TABLE = "local_player_ban_audit";
+    private static final String BAN_AUDIT_UPDATE_TRIGGER = "local_player_ban_audit_no_update";
+    private static final String BAN_AUDIT_DELETE_TRIGGER = "local_player_ban_audit_no_delete";
+    private static final String DISPLAY_NAMES_TABLE = "local_player_display_names";
+    private static final String DISPLAY_NAME_AUDIT_TABLE = "local_player_display_name_audit";
+    private static final String DISPLAY_NAME_AUDIT_UPDATE_TRIGGER =
+            "local_player_display_name_audit_no_update";
+    private static final String DISPLAY_NAME_AUDIT_DELETE_TRIGGER =
+            "local_player_display_name_audit_no_delete";
 
     private final Path path;
     private final int maximumBindings;
@@ -120,7 +130,8 @@ public final class SqliteLocalHandleAdministrationStore implements LocalHandleAd
                                 ? LocalHandleAdministrationResult.ALREADY_MATCHED
                                 : LocalHandleAdministrationResult.CONFLICT;
                     }
-                    if (!hasBindingAndAuditCapacity(connection)) {
+                    if (countBindings(connection) >= maximumBindings
+                            || countAuditEvents(connection) >= maximumAuditEvents) {
                         return LocalHandleAdministrationResult.CAPACITY_EXCEEDED;
                     }
                     insertBinding(connection, canonicalHandle, identity);
@@ -160,7 +171,7 @@ public final class SqliteLocalHandleAdministrationStore implements LocalHandleAd
                     if (!current.equals(expected)) {
                         return LocalHandleAdministrationResult.EXPECTATION_MISMATCH;
                     }
-                    if (!hasAuditCapacity(connection)) {
+                    if (countAuditEvents(connection) >= maximumAuditEvents) {
                         return LocalHandleAdministrationResult.CAPACITY_EXCEEDED;
                     }
                     deleteBinding(connection, canonicalHandle, expected);
@@ -205,7 +216,7 @@ public final class SqliteLocalHandleAdministrationStore implements LocalHandleAd
                     if (current.equals(replacement)) {
                         return LocalHandleAdministrationResult.SAME_PLAYER;
                     }
-                    if (!hasAuditCapacity(connection)) {
+                    if (countAuditEvents(connection) >= maximumAuditEvents) {
                         return LocalHandleAdministrationResult.CAPACITY_EXCEEDED;
                     }
                     updateBinding(connection, canonicalHandle, expected, replacement);
@@ -224,8 +235,7 @@ public final class SqliteLocalHandleAdministrationStore implements LocalHandleAd
 
     @Override
     public Optional<PlayerId> find(CanonicalHandle handle) {
-        CanonicalHandle canonicalHandle = Objects.requireNonNull(handle, "handle");
-        return read(connection -> find(connection, canonicalHandle));
+        return read(connection -> find(connection, Objects.requireNonNull(handle, "handle")));
     }
 
     @Override
@@ -263,8 +273,8 @@ public final class SqliteLocalHandleAdministrationStore implements LocalHandleAd
                     try (PreparedStatement statement =
                                     connection.prepareStatement(
                                             "SELECT sequence, occurred_at, administrator_id, action, "
-                                                    + "handle, previous_player_id, new_player_id, reason "
-                                                    + "FROM "
+                                                    + "handle, previous_player_id, new_player_id, "
+                                                    + "reason FROM "
                                                     + AUDIT_TABLE
                                                     + " ORDER BY sequence");
                             ResultSet result = statement.executeQuery()) {
@@ -337,24 +347,21 @@ public final class SqliteLocalHandleAdministrationStore implements LocalHandleAd
                 });
     }
 
-    private void createSchema(Connection connection) throws SQLException {
+    private static void createSchema(Connection connection) throws SQLException {
         try (Statement statement = connection.createStatement()) {
             statement.executeUpdate(
-                    "CREATE TABLE "
-                            + SCHEMA_TABLE
-                            + " (singleton INTEGER PRIMARY KEY CHECK (singleton = 1), "
+                    "CREATE TABLE local_identity_schema ("
+                            + "singleton INTEGER PRIMARY KEY CHECK (singleton = 1), "
                             + "version INTEGER NOT NULL CHECK (version >= 1))");
             statement.executeUpdate(
-                    "INSERT INTO " + SCHEMA_TABLE + " (singleton, version) VALUES (1, " + 1 + ")");
+                    "INSERT INTO local_identity_schema (singleton, version) VALUES (1, 1)");
             statement.executeUpdate(
-                    "CREATE TABLE "
-                            + BINDINGS_TABLE
-                            + " (handle TEXT PRIMARY KEY NOT NULL, player_id TEXT NOT NULL) "
+                    "CREATE TABLE local_handle_bindings ("
+                            + "handle TEXT PRIMARY KEY NOT NULL, player_id TEXT NOT NULL) "
                             + "WITHOUT ROWID");
             statement.executeUpdate(
-                    "CREATE TABLE "
-                            + AUDIT_TABLE
-                            + " (sequence INTEGER PRIMARY KEY, occurred_at TEXT NOT NULL, "
+                    "CREATE TABLE local_handle_audit ("
+                            + "sequence INTEGER PRIMARY KEY, occurred_at TEXT NOT NULL, "
                             + "administrator_id TEXT NOT NULL, action TEXT NOT NULL, "
                             + "handle TEXT NOT NULL, previous_player_id TEXT, new_player_id TEXT, "
                             + "reason TEXT NOT NULL, "
@@ -367,17 +374,13 @@ public final class SqliteLocalHandleAdministrationStore implements LocalHandleAd
                             + "AND new_player_id IS NOT NULL "
                             + "AND previous_player_id <> new_player_id)))");
             statement.executeUpdate(
-                    "CREATE TRIGGER "
-                            + AUDIT_UPDATE_TRIGGER
-                            + " BEFORE UPDATE ON "
-                            + AUDIT_TABLE
-                            + " BEGIN SELECT RAISE(ABORT, 'local identity audit is append-only'); END");
+                    "CREATE TRIGGER local_handle_audit_no_update "
+                            + "BEFORE UPDATE ON local_handle_audit BEGIN "
+                            + "SELECT RAISE(ABORT, 'local identity audit is append-only'); END");
             statement.executeUpdate(
-                    "CREATE TRIGGER "
-                            + AUDIT_DELETE_TRIGGER
-                            + " BEFORE DELETE ON "
-                            + AUDIT_TABLE
-                            + " BEGIN SELECT RAISE(ABORT, 'local identity audit is append-only'); END");
+                    "CREATE TRIGGER local_handle_audit_no_delete "
+                            + "BEFORE DELETE ON local_handle_audit BEGIN "
+                            + "SELECT RAISE(ABORT, 'local identity audit is append-only'); END");
         }
     }
 
@@ -389,49 +392,64 @@ public final class SqliteLocalHandleAdministrationStore implements LocalHandleAd
                 || !objectExists(connection, "trigger", AUDIT_DELETE_TRIGGER)) {
             throw new SQLException("SQLite local identity schema is incomplete");
         }
-        int rowCount = 0;
-        int version = 0;
-        try (PreparedStatement statement =
-                        connection.prepareStatement(
-                                "SELECT singleton, version FROM " + SCHEMA_TABLE);
-                ResultSet result = statement.executeQuery()) {
-            while (result.next()) {
-                rowCount++;
-                if (result.getInt(1) != 1) {
-                    throw new SQLException("SQLite local identity schema metadata is invalid");
-                }
-                version = result.getInt(2);
-            }
-        }
-        if (rowCount != 1) {
-            throw new SQLException("SQLite local identity schema metadata is incomplete");
-        }
+        int version = readSchemaVersion(connection);
         if (version > SCHEMA_VERSION) {
             throw new SQLException("SQLite local identity schema is newer than this server");
         }
         if (version < 1) {
             throw new SQLException("SQLite local identity schema version is unsupported");
         }
-        validateRequiredColumns(connection);
+        if (version >= 2
+                && (!objectExists(connection, "table", BANS_TABLE)
+                        || !objectExists(connection, "table", BAN_AUDIT_TABLE)
+                        || !objectExists(connection, "trigger", BAN_AUDIT_UPDATE_TRIGGER)
+                        || !objectExists(connection, "trigger", BAN_AUDIT_DELETE_TRIGGER))) {
+            throw new SQLException("SQLite schema v2 player ban objects are incomplete");
+        }
+        if (version >= 3
+                && (!objectExists(connection, "table", DISPLAY_NAMES_TABLE)
+                        || !objectExists(connection, "table", DISPLAY_NAME_AUDIT_TABLE)
+                        || !objectExists(connection, "trigger", DISPLAY_NAME_AUDIT_UPDATE_TRIGGER)
+                        || !objectExists(
+                                connection, "trigger", DISPLAY_NAME_AUDIT_DELETE_TRIGGER))) {
+            throw new SQLException("SQLite schema v3 display name objects are incomplete");
+        }
+        try (PreparedStatement bindings =
+                        connection.prepareStatement(
+                                "SELECT handle, player_id FROM local_handle_bindings WHERE 0");
+                PreparedStatement audit =
+                        connection.prepareStatement(
+                                "SELECT sequence, occurred_at, administrator_id, action, handle, "
+                                        + "previous_player_id, new_player_id, reason "
+                                        + "FROM local_handle_audit WHERE 0")) {
+            bindings.executeQuery().close();
+            audit.executeQuery().close();
+        }
         if (countBindings(connection) > maximumBindings
                 || countAuditEvents(connection) > maximumAuditEvents) {
             throw new SQLException("SQLite local identity data exceeds configured capacity");
         }
     }
 
-    private static void validateRequiredColumns(Connection connection) throws SQLException {
-        try (PreparedStatement bindings =
+    private static int readSchemaVersion(Connection connection) throws SQLException {
+        int rows = 0;
+        int version = 0;
+        try (PreparedStatement statement =
                         connection.prepareStatement(
-                                "SELECT handle, player_id FROM " + BINDINGS_TABLE + " WHERE 0");
-                PreparedStatement audit =
-                        connection.prepareStatement(
-                                "SELECT sequence, occurred_at, administrator_id, action, handle, "
-                                        + "previous_player_id, new_player_id, reason FROM "
-                                        + AUDIT_TABLE
-                                        + " WHERE 0")) {
-            bindings.executeQuery().close();
-            audit.executeQuery().close();
+                                "SELECT singleton, version FROM local_identity_schema");
+                ResultSet result = statement.executeQuery()) {
+            while (result.next()) {
+                rows++;
+                if (result.getInt(1) != 1) {
+                    throw new SQLException("SQLite local identity schema metadata is invalid");
+                }
+                version = result.getInt(2);
+            }
         }
+        if (rows != 1) {
+            throw new SQLException("SQLite local identity schema metadata is incomplete");
+        }
+        return version;
     }
 
     private static void requireIntegrity(Connection connection) throws SQLException {
@@ -577,14 +595,6 @@ public final class SqliteLocalHandleAdministrationStore implements LocalHandleAd
                 new LocalHandleAdministrationReason(result.getString(8)));
     }
 
-    private boolean hasBindingAndAuditCapacity(Connection connection) throws SQLException {
-        return countBindings(connection) < maximumBindings && hasAuditCapacity(connection);
-    }
-
-    private boolean hasAuditCapacity(Connection connection) throws SQLException {
-        return countAuditEvents(connection) < maximumAuditEvents;
-    }
-
     private static long countBindings(Connection connection) throws SQLException {
         try (Statement statement = connection.createStatement();
                 ResultSet result =
@@ -616,7 +626,7 @@ public final class SqliteLocalHandleAdministrationStore implements LocalHandleAd
         try (Statement statement = connection.createStatement();
                 ResultSet result =
                         statement.executeQuery(
-                                "SELECT COALESCE(MAX(sequence), 0) FROM " + AUDIT_TABLE)) {
+                                "SELECT COALESCE(MAX(sequence), 0) FROM local_handle_audit")) {
             if (!result.next()) {
                 throw new SQLException("SQLite audit sequence query returned no row");
             }
