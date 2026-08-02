@@ -24,7 +24,7 @@ opening a graphics device.
 | `client` | jMonkeyEngine rendering, input, prediction, interpolation, identity profile and UI | core modules, jMonkeyEngine |
 | `map-studio` | jMonkeyEngine-based authoring UI | `shared`, `map-format`, jMonkeyEngine |
 | `bot-client` | Headless integration and load-test behavior | core modules, SLF4J |
-| `transport-bctls` | TLS 1.3, server pinning, RFC 9266 binding and strict reliable framing | `protocol`, Bouncy Castle TLS |
+| `transport-bctls` | TLS 1.3, server pinning, RFC 9266 binding, strict framing and bounded async reliable I/O | `protocol`, Bouncy Castle TLS |
 
 Core modules must never import `com.jme3`, LWJGL, desktop UI toolkits, concrete
 socket libraries, SQLite, GitHub SDKs, HTTP clients, or server persistence
@@ -101,11 +101,18 @@ all envelopes to one logical session UUID, assigns outbound sequence numbers,
 requires gap-free inbound sequences, serializes writers independently from
 readers, and closes TLS after malformed or cross-session input. It remains a
 blocking primitive and must never execute on the fixed-tick simulation thread.
-See ADR 0005, ADR 0006, issue #34, and issue #46.
 
-Asynchronous `ReliableChannel` adaptation, runtime socket ownership,
-certificate/key provisioning, public-PKI validation, reconnect, realtime
-DTLS/UDP, and realtime session tokens remain separate adapters and work items.
+`AsyncTlsReliableChannel` implements the renderer-independent `ReliableChannel`
+contract above that blocking stream. The channel owns named Java 21 virtual
+threads, applies hard pending-send count and byte limits, permits exactly one
+active receive, moves to a terminal state before publishing EOF or failures, and
+returns an asynchronous close stage only after TLS and the owned executor have
+terminated. It never uses a common pool. See ADR 0005, ADR 0006, ADR 0007, issue
+#34, and issue #48.
+
+Runtime socket ownership, handshake admission, certificate/key provisioning,
+public-PKI validation, reconnect, realtime DTLS/UDP, and realtime session tokens
+remain separate adapters and work items.
 
 ## Fixed-tick simulation
 
@@ -143,8 +150,9 @@ and issue #33.
 
 ## Decisions intentionally deferred
 
-- Asynchronous `ReliableChannel`, executor ownership and runtime TLS integration.
+- Runtime listener/connector ownership, handshake admission and connection limits.
 - Public-PKI certificate validation as a separate trust adapter.
+- Reconnect and authentication-flow orchestration above `ReliableChannel`.
 - Realtime DTLS/UDP transport and replay-resistant realtime session tokens.
 - Global registry repository and signed snapshot pipeline: issue #30.
 - Persistent player/server trust stores and production key provisioning.
