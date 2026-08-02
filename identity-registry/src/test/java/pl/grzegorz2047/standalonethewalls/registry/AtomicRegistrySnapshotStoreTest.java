@@ -5,12 +5,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
+import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import org.junit.jupiter.api.Test;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.IdentityException;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerIdentity;
 
 class AtomicRegistrySnapshotStoreTest {
+    private static final Instant GENERATED_AT = Instant.parse("2026-08-02T00:00:00Z");
+
     @Test
     void activatesHigherSequencesAndTreatsIdenticalReloadAsIdempotent()
             throws GeneralSecurityException, IdentityException, RegistrySnapshotException {
@@ -44,6 +49,41 @@ class AtomicRegistrySnapshotStoreTest {
         assertThat(store.active()).containsSame(active);
     }
 
+    @Test
+    void reportsAbsentFreshBoundaryAndStaleWithoutDroppingTheSnapshot()
+            throws GeneralSecurityException, IdentityException, RegistrySnapshotException {
+        KeyPair root = RegistryTestFixtures.rootKeyPair();
+        PlayerIdentity player = RegistryTestFixtures.playerIdentity();
+        VerifiedRegistrySnapshot active = verified(root, player, 30L, (byte) 6);
+        AtomicRegistrySnapshotStore store = new AtomicRegistrySnapshotStore();
+        RegistrySnapshotPolicy policy =
+                new RegistrySnapshotPolicy(
+                        0L, Duration.ofHours(2), Duration.ZERO, 1024, 1);
+
+        RegistrySnapshotAvailability absent =
+                store.availability(Clock.fixed(GENERATED_AT, ZoneOffset.UTC), policy);
+        assertThat(absent.state()).isEqualTo(RegistrySnapshotAvailability.State.ABSENT);
+        assertThat(absent.snapshot()).isEmpty();
+
+        store.activate(active);
+        RegistrySnapshotAvailability boundary =
+                store.availability(
+                        Clock.fixed(GENERATED_AT.plus(Duration.ofHours(2)), ZoneOffset.UTC),
+                        policy);
+        assertThat(boundary.state()).isEqualTo(RegistrySnapshotAvailability.State.FRESH);
+        assertThat(boundary.snapshot()).containsSame(active);
+
+        RegistrySnapshotAvailability stale =
+                store.availability(
+                        Clock.fixed(
+                                GENERATED_AT.plus(Duration.ofHours(2)).plusNanos(1),
+                                ZoneOffset.UTC),
+                        policy);
+        assertThat(stale.state()).isEqualTo(RegistrySnapshotAvailability.State.STALE);
+        assertThat(stale.snapshot()).containsSame(active);
+        assertThat(store.active()).containsSame(active);
+    }
+
     private static VerifiedRegistrySnapshot verified(
             KeyPair root, PlayerIdentity player, long sequence, byte digestByte)
             throws RegistrySnapshotException {
@@ -51,7 +91,7 @@ class AtomicRegistrySnapshotStoreTest {
                 RegistryTestFixtures.payload(
                         root,
                         sequence,
-                        Instant.parse("2026-08-02T00:00:00Z"),
+                        GENERATED_AT,
                         "player_one",
                         player,
                         RegistryEntryStatus.ACTIVE);
