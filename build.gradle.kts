@@ -251,6 +251,36 @@ val resolveAndLockAll = tasks.register("resolveAndLockAll") {
     )
 }
 
+val formatterCaptureFiles = listOf(
+    "identity-policy-sqlite/src/main/java/pl/grzegorz2047/standalonethewalls/identity/policy/sqlite/SqliteLocalDisplayNameAdministrationStore.java",
+    "identity-policy-sqlite/src/main/java/pl/grzegorz2047/standalonethewalls/identity/policy/sqlite/SqliteLocalHandleAdministrationStore.java",
+    "identity-policy-sqlite/src/main/java/pl/grzegorz2047/standalonethewalls/identity/policy/sqlite/SqliteLocalPlayerBanAdministrationStore.java",
+    "identity-policy-sqlite/src/test/java/pl/grzegorz2047/standalonethewalls/identity/policy/sqlite/SqliteLocalDisplayNameAdministrationStoreTest.java",
+    "identity-policy/src/main/java/pl/grzegorz2047/standalonethewalls/identity/policy/InMemoryLocalDisplayNameStore.java",
+    "identity-policy/src/main/java/pl/grzegorz2047/standalonethewalls/identity/policy/LocalDisplayNameAuditEvent.java",
+    "identity-policy/src/test/java/pl/grzegorz2047/standalonethewalls/identity/policy/LocalDisplayNameAdministrationServiceTest.java",
+)
+val captureSpotlessOutput = tasks.register<org.gradle.api.tasks.Copy>("captureSpotlessOutput") {
+    dependsOn(tasks.named("spotlessApply"))
+    from(layout.projectDirectory) {
+        include(formatterCaptureFiles)
+    }
+    into(layout.buildDirectory.dir("reports/tests/spotless-formatted"))
+}
+
+tasks.named("spotlessJavaCheck") {
+    mustRunAfter(captureSpotlessOutput)
+}
+tasks.named("spotlessGradleKotlinCheck") {
+    mustRunAfter(captureSpotlessOutput)
+}
+tasks.named("spotlessRepositoryTextCheck") {
+    mustRunAfter(captureSpotlessOutput)
+}
+tasks.named("spotlessCheck") {
+    dependsOn(captureSpotlessOutput)
+}
+
 tasks.named("check") {
     dependsOn(tasks.named("spotlessCheck"))
     dependsOn(verifyArchitecture)
