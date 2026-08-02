@@ -13,13 +13,14 @@ A player connection may reach the future lobby only through this sequence:
 2. The TLS bootstrap agrees one session UUID.
 3. Identity Proof V2 verifies possession of the player Ed25519 private key using
    the transport-derived server ID, session ID, and RFC 9266 channel binding.
-4. `TlsIdentityAdmissionGateway` calls the existing
+4. `TlsIdentityAdmissionGateway` reserves bounded pre-lobby queue capacity.
+5. The gateway calls the existing
    `LocalIdentityRuntime.admit(canonicalHandle, playerId)`.
-5. The runtime checks the stable player-ID ban before evaluating the selected
+6. The runtime checks the stable player-ID ban before evaluating the selected
    `LOCAL_TOFU`, `GLOBAL_ONLY`, or `HYBRID` handle policy.
-6. The gateway reserves bounded pre-lobby queue capacity.
 7. The server sends one `SESSION_ADMISSION_RESULT`.
-8. An accepted `AuthorizedPlayerSession` is committed to the reserved queue slot.
+8. An accepted `AuthorizedPlayerSession` is committed to the reserved queue slot;
+   every rejection cancels the reservation.
 9. A future lobby poll or drain transfers ownership from the queue.
 
 `IDENTITY_RESULT=ACCEPTED` means only that the cryptographic proof succeeded. It
@@ -49,10 +50,13 @@ remain separate work under the secure transport epic.
 `AuthorizedPlayerSessionQueue` is a bounded, non-blocking ownership boundary.
 Capacity must be between 1 and 10,000.
 
-Admission reserves a slot before sending an accepted status. A reservation counts
-toward capacity and can be committed or cancelled exactly once. A full queue
-returns `SERVER_CAPACITY_EXCEEDED`; it never blocks a transport worker waiting for
-the simulation or lobby.
+Admission reserves a slot after Identity Proof but before the SQLite-backed policy.
+The reservation represents capacity only and is cancelled for every policy
+rejection. This prevents a full queue from creating a `LOCAL_TOFU` binding for a
+session that cannot be handed off. A reservation counts toward capacity and can be
+committed or cancelled exactly once. A full queue returns
+`SERVER_CAPACITY_EXCEEDED`; it never blocks a transport worker waiting for the
+simulation or lobby.
 
 The queue owns committed sessions until `poll()` or `drain(maximumSessions)`
 returns them. The caller then owns every returned session and must close it when
@@ -120,8 +124,8 @@ result is followed by channel close.
 ## Lifecycle and shutdown
 
 `TlsIdentityAdmissionGateway` owns named virtual worker threads for bootstrap,
-proof, policy, result send, and handoff. The listener accept thread only transfers
-an already authenticated TLS lease to the gateway.
+proof, capacity reservation, policy, result send, and handoff. The listener accept
+thread only transfers an already authenticated TLS lease to the gateway.
 
 On close, the gateway:
 
@@ -137,8 +141,9 @@ slot to a concurrent queue close. If the TLS lease is closed before result send
 completes, the send fails and the reservation is cancelled.
 
 The gateway checks lifecycle after bootstrap and after Identity Proof, before
-calling the SQLite-backed runtime. No new policy mutation begins after close has
-claimed ownership.
+reserving capacity or invoking the SQLite-backed runtime. No new admission
+operation begins after close has claimed ownership. An operation that already
+reserved capacity is treated as in flight and resolved during bounded shutdown.
 
 Connection and channel close operations are idempotent. Closing a rejected or
 failed session releases the listener active permit exactly once through the
@@ -166,6 +171,9 @@ The integration test uses a real loopback TLS 1.3 listener and client and covers
 - bounded pre-lobby queue overflow;
 - gateway shutdown closing queued leases and releasing listener capacity.
 
+The coordinator tests prove that a full queue rejects before identity policy is
+called, a policy rejection releases its reservation, an accepted policy retains
+capacity until explicit commit, and an exception cannot leak a reservation.
 Existing policy tests retain the complete matrix for missing, stale, revoked,
-mismatched, and capacity-limited identity decisions. The new typed mapping test
-proves that every existing semantic decision has one stable wire status.
+mismatched, and capacity-limited identity decisions. The typed mapping test proves
+that every existing semantic decision has one stable wire status.
