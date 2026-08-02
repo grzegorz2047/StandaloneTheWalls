@@ -53,8 +53,7 @@ class ReliableTlsProcessConfigurationLoaderTest {
         Files.write(
                 temporaryDirectory.resolve("server-key.pk8"),
                 first.keyPair().getPrivate().getEncoded());
-        Files.write(
-                temporaryDirectory.resolve("server-certificate.der"), second.certificateDer());
+        Files.write(temporaryDirectory.resolve("server-certificate.der"), second.certificateDer());
         ServerConfiguration server = new ServerConfiguration("Test", 20, 27420, 27421, 10);
 
         Path mismatch =
