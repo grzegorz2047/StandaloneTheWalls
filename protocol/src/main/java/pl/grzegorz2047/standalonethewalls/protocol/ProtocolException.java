@@ -1,6 +1,6 @@
 package pl.grzegorz2047.standalonethewalls.protocol;
 
-/** Bounded decoder failure. Raw payload content is deliberately excluded. */
+/** Bounded protocol failure. Raw payload content is deliberately excluded. */
 public final class ProtocolException extends Exception {
     private static final long serialVersionUID = 1L;
 
@@ -23,6 +23,10 @@ public final class ProtocolException extends Exception {
         INVALID_SEQUENCE,
         INVALID_LENGTH,
         TRUNCATED_MESSAGE,
-        TRAILING_BYTES
+        TRAILING_BYTES,
+        SESSION_MISMATCH,
+        OUT_OF_ORDER_SEQUENCE,
+        SEQUENCE_EXHAUSTED,
+        WRONG_CHANNEL
     }
 }

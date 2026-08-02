@@ -2,6 +2,7 @@ package pl.grzegorz2047.standalonethewalls.protocol;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -33,6 +34,26 @@ public final class ProtocolCodec {
         return buffer.array();
     }
 
+    /**
+     * Validates one exact fixed header and returns the complete frame size before payload
+     * allocation.
+     */
+    public static int frameBytesFromHeader(byte[] header) throws ProtocolException {
+        Objects.requireNonNull(header, "header");
+        if (header.length < HEADER_BYTES) {
+            throw new ProtocolException(
+                    ProtocolException.Code.TRUNCATED_MESSAGE,
+                    "message is shorter than the fixed header");
+        }
+        if (header.length > HEADER_BYTES) {
+            throw new ProtocolException(
+                    ProtocolException.Code.TRAILING_BYTES,
+                    "header input contains bytes after the fixed header");
+        }
+        DecodedHeader decoded = parseHeader(ByteBuffer.wrap(header).order(ByteOrder.BIG_ENDIAN));
+        return HEADER_BYTES + decoded.payloadLength();
+    }
+
     public static ProtocolEnvelope decode(byte[] encoded) throws ProtocolException {
         Objects.requireNonNull(encoded, "encoded");
         if (encoded.length < HEADER_BYTES) {
@@ -41,7 +62,31 @@ public final class ProtocolCodec {
                     "message is shorter than the fixed header");
         }
 
-        ByteBuffer buffer = ByteBuffer.wrap(encoded).order(ByteOrder.BIG_ENDIAN);
+        ByteBuffer headerBuffer =
+                ByteBuffer.wrap(encoded, 0, HEADER_BYTES).slice().order(ByteOrder.BIG_ENDIAN);
+        DecodedHeader header = parseHeader(headerBuffer);
+        int expectedFrameBytes = HEADER_BYTES + header.payloadLength();
+        if (encoded.length < expectedFrameBytes) {
+            throw new ProtocolException(
+                    ProtocolException.Code.TRUNCATED_MESSAGE,
+                    "declared payload is not fully available");
+        }
+        if (encoded.length > expectedFrameBytes) {
+            throw new ProtocolException(
+                    ProtocolException.Code.TRAILING_BYTES,
+                    "message contains bytes after the declared payload");
+        }
+
+        byte[] payload = Arrays.copyOfRange(encoded, HEADER_BYTES, expectedFrameBytes);
+        return new ProtocolEnvelope(
+                header.version(),
+                header.messageType(),
+                header.sessionId(),
+                header.sequence(),
+                payload);
+    }
+
+    private static DecodedHeader parseHeader(ByteBuffer buffer) throws ProtocolException {
         if (buffer.getInt() != MAGIC) {
             throw new ProtocolException(
                     ProtocolException.Code.INVALID_MAGIC, "invalid protocol magic");
@@ -79,20 +124,7 @@ public final class ProtocolCodec {
 
         int payloadLength = buffer.getInt();
         validateLength(messageType, payloadLength);
-        if (buffer.remaining() < payloadLength) {
-            throw new ProtocolException(
-                    ProtocolException.Code.TRUNCATED_MESSAGE,
-                    "declared payload is not fully available");
-        }
-        if (buffer.remaining() > payloadLength) {
-            throw new ProtocolException(
-                    ProtocolException.Code.TRAILING_BYTES,
-                    "message contains bytes after the declared payload");
-        }
-
-        byte[] payload = new byte[payloadLength];
-        buffer.get(payload);
-        return new ProtocolEnvelope(version, messageType, sessionId, sequence, payload);
+        return new DecodedHeader(version, messageType, sessionId, sequence, payloadLength);
     }
 
     private static void validateLength(MessageType messageType, int payloadLength)
@@ -118,4 +150,11 @@ public final class ProtocolCodec {
         buffer.putLong(value.getMostSignificantBits());
         buffer.putLong(value.getLeastSignificantBits());
     }
+
+    private record DecodedHeader(
+            ProtocolVersion version,
+            MessageType messageType,
+            UUID sessionId,
+            long sequence,
+            int payloadLength) {}
 }
