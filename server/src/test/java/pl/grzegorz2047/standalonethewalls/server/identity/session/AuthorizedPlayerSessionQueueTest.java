@@ -21,7 +21,7 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerId;
 
 class AuthorizedPlayerSessionQueueTest {
     @Test
-    void reservationBoundsCapacityAndPollTransfersOwnership() {
+    void reservationBoundsCapacityAndLeaseTransfersOwnershipWithoutReleasingCapacity() {
         AuthorizedPlayerSessionQueue queue =
                 new AuthorizedPlayerSessionQueue(1, Duration.ofSeconds(1));
         AuthorizedPlayerSessionQueue.Reservation reservation = queue.tryReserve().orElseThrow();
@@ -34,11 +34,39 @@ class AuthorizedPlayerSessionQueueTest {
         assertThat(queue.reservedSlotCount()).isZero();
         assertThat(queue.size()).isEqualTo(1);
 
-        assertThat(queue.poll()).containsSame(authorized);
-        queue.close();
+        AuthorizedPlayerSessionLease lease = queue.poll().orElseThrow();
+        assertThat(lease.session()).isSameAs(authorized);
+        assertThat(queue.size()).isZero();
+        assertThat(queue.activeLeaseCount()).isEqualTo(1);
+        assertThat(queue.tryReserve()).isEmpty();
 
+        queue.close();
         assertThat(transport.closeCount()).isZero();
         assertThat(queue.isClosed()).isTrue();
+
+        lease.closeAsync().toCompletableFuture().join();
+        lease.closeAsync().toCompletableFuture().join();
+        assertThat(transport.closeCount()).isEqualTo(1);
+        assertThat(queue.activeLeaseCount()).isZero();
+    }
+
+    @Test
+    void releasingLeaseReturnsCapacityToAnOpenQueue() {
+        AuthorizedPlayerSessionQueue queue =
+                new AuthorizedPlayerSessionQueue(1, Duration.ofSeconds(1));
+        TestSession transport = new TestSession(1);
+        try (AuthorizedPlayerSessionQueue.Reservation reservation =
+                queue.tryReserve().orElseThrow()) {
+            assertThat(reservation.commit(authorized(transport))).isTrue();
+        }
+        AuthorizedPlayerSessionLease lease = queue.poll().orElseThrow();
+
+        assertThat(queue.tryReserve()).isEmpty();
+        lease.closeAsync().toCompletableFuture().join();
+
+        assertThat(queue.activeLeaseCount()).isZero();
+        assertThat(queue.tryReserve()).isPresent();
+        queue.close();
     }
 
     @Test
