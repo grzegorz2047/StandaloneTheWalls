@@ -7,6 +7,7 @@ dependencies {
     implementation(project(":game-domain"))
     implementation(project(":protocol"))
     implementation(project(":map-format"))
+    implementation(project(":identity-registry"))
     implementation(project(":identity-policy"))
 
     implementation(libs.slf4j.api)
