@@ -95,11 +95,7 @@ public final class TlsEnvelopeStream implements AutoCloseable {
                 int frameBytes = ProtocolCodec.frameBytesFromHeader(header);
                 byte[] encoded = new byte[frameBytes];
                 System.arraycopy(header, 0, encoded, 0, header.length);
-                readFully(
-                        encoded,
-                        header.length,
-                        frameBytes - header.length,
-                        "protocol payload");
+                readFully(encoded, header.length, frameBytes - header.length, "protocol payload");
 
                 ProtocolEnvelope envelope = ProtocolCodec.decode(encoded);
                 validateInboundEnvelope(envelope);

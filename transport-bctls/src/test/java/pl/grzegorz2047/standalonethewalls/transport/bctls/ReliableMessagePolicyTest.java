@@ -19,10 +19,7 @@ class ReliableMessagePolicyTest {
 
     @Test
     void rejectsRealtimeOnlyMessages() {
-        assertThatThrownBy(
-                        () ->
-                                ReliableMessagePolicy.requireAllowed(
-                                        MessageType.Channel.REALTIME))
+        assertThatThrownBy(() -> ReliableMessagePolicy.requireAllowed(MessageType.Channel.REALTIME))
                 .isInstanceOfSatisfying(
                         ProtocolException.class,
                         exception ->

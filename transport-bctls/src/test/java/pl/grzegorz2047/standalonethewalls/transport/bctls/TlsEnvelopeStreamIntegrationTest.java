@@ -38,8 +38,7 @@ class TlsEnvelopeStreamIntegrationTest {
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
     private static final ServerReference REFERENCE = new ServerReference("localhost:25570");
     private static final Provider CRYPTO_PROVIDER = new BouncyCastleProvider();
-    private static final UUID SESSION_ID =
-            UUID.fromString("11111111-2222-3333-4444-555555555555");
+    private static final UUID SESSION_ID = UUID.fromString("11111111-2222-3333-4444-555555555555");
 
     @Test
     void roundTripsMultipleEnvelopesWithConcurrentWriters()
@@ -69,9 +68,7 @@ class TlsEnvelopeStreamIntegrationTest {
                                     () ->
                                             new Sent(
                                                     MessageType.PING,
-                                                    stream.send(
-                                                            MessageType.PING,
-                                                            new byte[] {1})));
+                                                    stream.send(MessageType.PING, new byte[] {1})));
                     Future<Sent> hello =
                             writers.submit(
                                     () ->
@@ -283,9 +280,9 @@ class TlsEnvelopeStreamIntegrationTest {
                     () -> {
                         Socket socket = acceptSocket();
                         Tls13Connection connection =
-                                Tls13ServerAcceptor.accept(
-                                        socket, credentials, new SecureRandom());
-                        try (TlsEnvelopeStream stream = new TlsEnvelopeStream(connection, sessionId)) {
+                                Tls13ServerAcceptor.accept(socket, credentials, new SecureRandom());
+                        try (TlsEnvelopeStream stream =
+                                new TlsEnvelopeStream(connection, sessionId)) {
                             ProtocolEnvelope first = stream.receive().orElseThrow();
                             ProtocolEnvelope second = stream.receive().orElseThrow();
                             assertThat(stream.send(MessageType.PONG, new byte[] {9})).isZero();

@@ -35,7 +35,8 @@ public final class ProtocolCodec {
     }
 
     /**
-     * Validates one exact fixed header and returns the complete frame size before payload allocation.
+     * Validates one exact fixed header and returns the complete frame size before payload
+     * allocation.
      */
     public static int frameBytesFromHeader(byte[] header) throws ProtocolException {
         Objects.requireNonNull(header, "header");

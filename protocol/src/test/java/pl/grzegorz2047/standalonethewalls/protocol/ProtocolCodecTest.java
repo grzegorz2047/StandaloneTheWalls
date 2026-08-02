@@ -11,8 +11,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class ProtocolCodecTest {
-    private static final UUID SESSION_ID =
-            UUID.fromString("00000000-0000-0000-0000-000000000123");
+    private static final UUID SESSION_ID = UUID.fromString("00000000-0000-0000-0000-000000000123");
 
     @Test
     void roundTripsAnEnvelopeWithoutExposingMutablePayloadState() throws ProtocolException {
@@ -36,19 +35,14 @@ class ProtocolCodecTest {
 
         assertThat(ProtocolCodec.frameBytesFromHeader(header)).isEqualTo(encoded.length);
         assertHeaderCode(
-                Arrays.copyOf(header, header.length - 1),
-                ProtocolException.Code.TRUNCATED_MESSAGE);
+                Arrays.copyOf(header, header.length - 1), ProtocolException.Code.TRUNCATED_MESSAGE);
         assertHeaderCode(
                 Arrays.copyOf(header, header.length + 1), ProtocolException.Code.TRAILING_BYTES);
         assertHeaderCode(mutateInt(header.clone(), 0, 0), ProtocolException.Code.INVALID_MAGIC);
         assertHeaderCode(
-                mutateShort(header.clone(), 8, 999),
-                ProtocolException.Code.UNKNOWN_MESSAGE_TYPE);
+                mutateShort(header.clone(), 8, 999), ProtocolException.Code.UNKNOWN_MESSAGE_TYPE);
         assertHeaderCode(
-                mutateInt(
-                        header.clone(),
-                        36,
-                        MessageType.CLIENT_HELLO.maximumPayloadBytes() + 1),
+                mutateInt(header.clone(), 36, MessageType.CLIENT_HELLO.maximumPayloadBytes() + 1),
                 ProtocolException.Code.INVALID_LENGTH);
     }
 

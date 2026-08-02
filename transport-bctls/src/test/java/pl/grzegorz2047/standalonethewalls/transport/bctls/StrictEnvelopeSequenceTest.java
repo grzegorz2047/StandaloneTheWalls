@@ -28,16 +28,14 @@ class StrictEnvelopeSequenceTest {
                         ProtocolException.class,
                         exception ->
                                 assertThat(exception.code())
-                                        .isEqualTo(
-                                                ProtocolException.Code.OUT_OF_ORDER_SEQUENCE));
+                                        .isEqualTo(ProtocolException.Code.OUT_OF_ORDER_SEQUENCE));
     }
 
     @Test
     void rejectsAGapWithoutAdvancingTheExpectedValue() throws ProtocolException {
         StrictEnvelopeSequence sequence = new StrictEnvelopeSequence();
 
-        assertThatThrownBy(() -> sequence.accept(1L))
-                .isInstanceOf(ProtocolException.class);
+        assertThatThrownBy(() -> sequence.accept(1L)).isInstanceOf(ProtocolException.class);
         sequence.accept(0L);
     }
 
@@ -57,7 +55,6 @@ class StrictEnvelopeSequenceTest {
 
     @Test
     void rejectsANegativeInitialExpectedValue() {
-        assertThatIllegalArgumentException()
-                .isThrownBy(() -> new StrictEnvelopeSequence(-1L));
+        assertThatIllegalArgumentException().isThrownBy(() -> new StrictEnvelopeSequence(-1L));
     }
 }
