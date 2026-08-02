@@ -228,8 +228,7 @@ public final class LocalIdentityProcessConfigurationLoader {
             Map<String, String> values, String key, long defaultSeconds) {
         long seconds = longValue(values, key, defaultSeconds);
         try {
-            Math.multiplyExact(seconds, NANOS_PER_SECOND);
-            return Duration.ofSeconds(seconds);
+            return Duration.ofNanos(Math.multiplyExact(seconds, NANOS_PER_SECOND));
         } catch (ArithmeticException exception) {
             throw new IllegalArgumentException(
                     key + " overflows nanosecond unit conversion", exception);
