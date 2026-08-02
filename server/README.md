@@ -26,10 +26,10 @@ capacities above the current product target fail closed.
 
 ## Identity admission boundary
 
-`SessionIdentityAdmissionService` is the mandatory semantic gate between a
-successful cryptographic player handshake and future lobby admission. It accepts
-only the already-derived stable `playerId`, canonical handle, selected handle
-policy, and the explicit registry availability state.
+Issue #65 adds `SessionIdentityAdmissionService` as the mandatory semantic gate
+between a successful cryptographic player handshake and future lobby admission.
+It accepts only the already-derived stable `playerId`, canonical handle, selected
+handle policy, and the explicit registry availability state.
 
 The ordering is intentional and must not be reversed:
 
