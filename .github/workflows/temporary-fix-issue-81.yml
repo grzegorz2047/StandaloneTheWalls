@@ -35,37 +35,36 @@ jobs:
 
           launcher = Path("server/src/main/java/pl/grzegorz2047/standalonethewalls/server/ServerLauncher.java")
           source = launcher.read_text()
-          old = '''                                Objects.requireNonNull(
-                                          identityRuntime,
-                                          "reliable TLS requires local identity runtime"),
-                                  Clock.systemUTC());'''
-          new = '''                                Objects.requireNonNull(
-                                          identityRuntime,
-                                          "reliable TLS requires local identity runtime"),
-                                  Clock.systemUTC(),
-                                  runtime::close);'''
-          if source.count(old) != 1:
-              raise SystemExit("expected one launcher composition site")
-          launcher.write_text(source.replace(old, new))
+          anchor = source.index("ReliableTlsAdmissionRuntime.open(")
+          target = "Clock.systemUTC());"
+          position = source.index(target, anchor)
+          source = (
+              source[:position]
+              + "Clock.systemUTC(),\n                                runtime::close);"
+              + source[position + len(target):]
+          )
+          launcher.write_text(source)
 
           test = Path("server/src/test/java/pl/grzegorz2047/standalonethewalls/server/config/transport/ReliableTlsProcessConfigurationLoaderTest.java")
           source = test.read_text()
-          old = '''        Files.write(
-                  temporaryDirectory.resolve("server-key.pk8"),
-                  new byte[ReliableTlsProcessConfigurationLoader.MAXIMUM_PRIVATE_KEY_BYTES + 1]);
-          assertThatThrownBy(() -> ReliableTlsProcessConfigurationLoader.load(configuration, server))'''
-          new = '''        configuration =
+          array_anchor = "new byte[ReliableTlsProcessConfigurationLoader.MAXIMUM_PRIVATE_KEY_BYTES + 1]);"
+          array_position = source.index(array_anchor)
+          write_position = source.rfind("        Files.write(", 0, array_position)
+          oversized = '''        Path oversized =
                   writeConfiguration(
                           "transport.schema=1\\n"
                                   + "transport.reliable.private-key-pkcs8-path=server-key.pk8\\n"
                                   + "transport.reliable.certificate-x509-path=server-certificate.der\\n");
-          Files.write(
-                  temporaryDirectory.resolve("server-key.pk8"),
-                  new byte[ReliableTlsProcessConfigurationLoader.MAXIMUM_PRIVATE_KEY_BYTES + 1]);
-          assertThatThrownBy(() -> ReliableTlsProcessConfigurationLoader.load(configuration, server))'''
-          if source.count(old) != 1:
-              raise SystemExit("expected one oversized credential assertion")
-          test.write_text(source.replace(old, new))
+'''
+          source = source[:write_position] + oversized + source[write_position:]
+          load_target = "ReliableTlsProcessConfigurationLoader.load(configuration, server)"
+          load_position = source.index(load_target, write_position + len(oversized))
+          source = (
+              source[:load_position]
+              + "ReliableTlsProcessConfigurationLoader.load(oversized, server)"
+              + source[load_position + len(load_target):]
+          )
+          test.write_text(source)
           PY
 
       - name: Apply repository Java formatting
