@@ -70,9 +70,7 @@ class ServerLauncherRegistrySchedulerModeTest {
         byte[] publicKey =
                 KeyPairGenerator.getInstance("Ed25519").generateKeyPair().getPublic().getEncoded();
         Files.writeString(
-                roots,
-                HexFormat.of().formatHex(publicKey) + '\n',
-                StandardCharsets.UTF_8);
+                roots, HexFormat.of().formatHex(publicKey) + '\n', StandardCharsets.UTF_8);
         Files.writeString(
                 configuration,
                 "identity.sqlite-path="
