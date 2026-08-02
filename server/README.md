@@ -43,6 +43,33 @@ results never carry a verification level. Accepted local identities are marked
 The gate does not own sockets, TLS, private keys, IP addresses, SQLite lifecycle,
 or lobby membership.
 
+## Local identity administration commands
+
+Issue #66 defines a strict typed command boundary for future console, RCON, HTTP,
+or GUI adapters. `IdentityAdministrationCommandParser` accepts an already-split
+list of tokens; it does not evaluate a shell or tokenize raw text.
+
+Supported shapes are:
+
+```text
+identity list handles
+identity list bans
+identity inspect handle <canonicalHandle>
+identity inspect ban <playerId>
+identity reserve <handle> <playerId> <reason>
+identity unbind <handle> <expectedPlayerId> <reason>
+identity rebind <handle> <expectedPlayerId> <replacementPlayerId> <reason>
+identity ban-player-id <playerId> <reason>
+identity unban-player-id <playerId> <reason>
+```
+
+The adapter supplies a quoted multi-word reason as one token. The executor checks
+one of three independent capabilities before touching a service: view identity,
+manage handle bindings, or manage player bans. Permission denial happens before
+any binding, ban, or audit mutation. Successful commands delegate to the existing
+atomic audited policy services and return typed results rather than log strings.
+Registry reload and snapshot verification are separate work.
+
 ## Smoke mode
 
 A bounded headless run is available for CI and packaging checks:
