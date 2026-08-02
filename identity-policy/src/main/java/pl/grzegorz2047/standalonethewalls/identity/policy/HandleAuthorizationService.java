@@ -30,28 +30,24 @@ public final class HandleAuthorizationService {
         return switch (selectedMode) {
             case LOCAL_TOFU -> authorizeLocal(canonicalHandle, identity);
             case GLOBAL_ONLY ->
-                    snapshot
-                            .map(value -> authorizeGlobal(value, canonicalHandle, identity))
+                    snapshot.map(value -> authorizeGlobal(value, canonicalHandle, identity))
                             .orElse(HandleAuthorizationDecision.REGISTRY_UNAVAILABLE);
             case HYBRID ->
-                    snapshot
-                            .map(value -> authorizeHybrid(value, canonicalHandle, identity))
+                    snapshot.map(value -> authorizeHybrid(value, canonicalHandle, identity))
                             .orElse(HandleAuthorizationDecision.REGISTRY_UNAVAILABLE);
         };
     }
 
     private HandleAuthorizationDecision authorizeHybrid(
             VerifiedRegistrySnapshot snapshot, CanonicalHandle handle, PlayerId playerId) {
-        return snapshot
-                .find(handle)
+        return snapshot.find(handle)
                 .map(entry -> authorizeGlobalEntry(entry, playerId))
                 .orElseGet(() -> authorizeLocal(handle, playerId));
     }
 
     private static HandleAuthorizationDecision authorizeGlobal(
             VerifiedRegistrySnapshot snapshot, CanonicalHandle handle, PlayerId playerId) {
-        return snapshot
-                .find(handle)
+        return snapshot.find(handle)
                 .map(entry -> authorizeGlobalEntry(entry, playerId))
                 .orElse(HandleAuthorizationDecision.UNKNOWN_GLOBAL_HANDLE);
     }
@@ -66,8 +62,7 @@ public final class HandleAuthorizationService {
                 : HandleAuthorizationDecision.GLOBAL_PLAYER_MISMATCH;
     }
 
-    private HandleAuthorizationDecision authorizeLocal(
-            CanonicalHandle handle, PlayerId playerId) {
+    private HandleAuthorizationDecision authorizeLocal(CanonicalHandle handle, PlayerId playerId) {
         return switch (localBindings.bindOrVerify(handle, playerId)) {
             case BOUND -> HandleAuthorizationDecision.LOCAL_FIRST_USE_ACCEPTED;
             case MATCHED -> HandleAuthorizationDecision.LOCAL_RETURNING_ACCEPTED;
