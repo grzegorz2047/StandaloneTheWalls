@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
@@ -19,11 +20,13 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.CanonicalHandle;
+import pl.grzegorz2047.standalonethewalls.protocol.identity.IdentityException;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerIdentity;
 import pl.grzegorz2047.standalonethewalls.registry.RegistryEntryStatus;
 import pl.grzegorz2047.standalonethewalls.registry.RegistryRootId;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotArtifact;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotEntry;
+import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotException;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotJsonCodec;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotPayload;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotPolicy;
@@ -167,7 +170,8 @@ class RegistrySnapshotBundleFileTest {
         return changed;
     }
 
-    private static Fixture fixture(long sequence) throws Exception {
+    private static Fixture fixture(long sequence)
+            throws GeneralSecurityException, IdentityException, RegistrySnapshotException {
         KeyPairGenerator rootGenerator = KeyPairGenerator.getInstance("Ed25519");
         KeyPair root = rootGenerator.generateKeyPair();
         PlayerIdentity player = PlayerIdentity.generate(new SecureRandom());
