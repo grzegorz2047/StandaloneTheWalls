@@ -40,11 +40,15 @@ public final class TlsSessionBootstrap {
                     sessionId,
                     connection.security(),
                     new AsyncTlsReliableChannel(stream));
-        } catch (SocketTimeoutException exception) {
-            TlsSessionBootstrapException failure = timeout(exception);
-            closeWithSuppressed(connection, failure);
-            throw failure;
-        } catch (IOException | TlsSessionBootstrapException | RuntimeException exception) {
+        } catch (IOException exception) {
+            if (containsSocketTimeout(exception)) {
+                TlsSessionBootstrapException failure = timeout(exception);
+                closeWithSuppressed(connection, failure);
+                throw failure;
+            }
+            closeWithSuppressed(connection, exception);
+            throw exception;
+        } catch (TlsSessionBootstrapException | RuntimeException exception) {
             closeWithSuppressed(connection, exception);
             throw exception;
         }
@@ -66,11 +70,15 @@ public final class TlsSessionBootstrap {
                     sessionId,
                     connection.security(),
                     new AsyncTlsReliableChannel(stream));
-        } catch (SocketTimeoutException exception) {
-            TlsSessionBootstrapException failure = timeout(exception);
-            closeWithSuppressed(connection, failure);
-            throw failure;
-        } catch (IOException | TlsSessionBootstrapException | RuntimeException exception) {
+        } catch (IOException exception) {
+            if (containsSocketTimeout(exception)) {
+                TlsSessionBootstrapException failure = timeout(exception);
+                closeWithSuppressed(connection, failure);
+                throw failure;
+            }
+            closeWithSuppressed(connection, exception);
+            throw exception;
+        } catch (TlsSessionBootstrapException | RuntimeException exception) {
             closeWithSuppressed(connection, exception);
             throw exception;
         }
@@ -113,7 +121,18 @@ public final class TlsSessionBootstrap {
         output.flush();
     }
 
-    private static TlsSessionBootstrapException timeout(SocketTimeoutException cause) {
+    private static boolean containsSocketTimeout(Throwable failure) {
+        Throwable current = failure;
+        while (current != null) {
+            if (current instanceof SocketTimeoutException) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private static TlsSessionBootstrapException timeout(IOException cause) {
         return new TlsSessionBootstrapException(
                 TlsSessionBootstrapException.Code.TIMEOUT,
                 "TLS session bootstrap exceeded its configured timeout",
