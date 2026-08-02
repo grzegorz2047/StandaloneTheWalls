@@ -242,7 +242,8 @@ public final class TlsIdentityAdmissionGateway
             try (AuthenticatedPlayerAdmissionCoordinator.PreparedAdmission prepared =
                     admissionCoordinator.prepare(session)) {
                 if (prepared
-                        instanceof AuthenticatedPlayerAdmissionCoordinator.PreparedAdmission.Rejected
+                        instanceof
+                        AuthenticatedPlayerAdmissionCoordinator.PreparedAdmission.Rejected
                                 rejected) {
                     sendAdmissionResult(session, rejected.status());
                     publish(TlsIdentityAdmissionEvent.admission(rejected.status()));
