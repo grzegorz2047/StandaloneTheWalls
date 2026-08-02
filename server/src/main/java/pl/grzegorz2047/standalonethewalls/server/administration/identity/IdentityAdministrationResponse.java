@@ -97,4 +97,16 @@ public sealed interface IdentityAdministrationResponse {
             return IdentityAdministrationResponseCode.BAN_MUTATION_COMPLETED;
         }
     }
+
+    record RegistryOperation(RegistryAdministrationResult result)
+            implements IdentityAdministrationResponse {
+        public RegistryOperation {
+            result = Objects.requireNonNull(result, "result");
+        }
+
+        @Override
+        public IdentityAdministrationResponseCode code() {
+            return IdentityAdministrationResponseCode.REGISTRY_OPERATION_COMPLETED;
+        }
+    }
 }
