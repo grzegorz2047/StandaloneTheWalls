@@ -26,12 +26,13 @@ val prohibitedAssetExtensions = setOf(
 val maximumRepositoryFileBytes = 5L * 1024L * 1024L
 val maximumFixtureBytes = 256L * 1024L
 val fixturePrefix = "asset-pack/src/test/resources/fixtures/"
+val repositoryRootDirectory = rootProject.rootDir
 
 val verifyAssetSourcePolicy = tasks.register("verifyAssetSourcePolicy") {
     group = "verification"
     description = "Rejects large or runtime-asset binaries from ordinary Git history."
 
-    val repositoryFiles = rootProject.fileTree(rootProject.rootDir) {
+    val repositoryFiles = rootProject.fileTree(repositoryRootDirectory) {
         exclude(
             ".asset-cache/**",
             ".git/**",
@@ -44,12 +45,12 @@ val verifyAssetSourcePolicy = tasks.register("verifyAssetSourcePolicy") {
 
     doLast {
         val violations = mutableListOf<String>()
-        repositoryFiles.files
+        inputs.files.files
             .filter { file -> file.isFile }
             .sortedBy { file -> file.invariantSeparatorsPath }
             .forEach { file ->
                 val relative =
-                    rootProject.rootDir
+                    repositoryRootDirectory
                         .toPath()
                         .relativize(file.toPath())
                         .toString()
