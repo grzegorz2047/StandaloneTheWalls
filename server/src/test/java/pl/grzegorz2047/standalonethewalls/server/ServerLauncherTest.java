@@ -280,8 +280,7 @@ class ServerLauncherTest {
                 ServerId.fromPublicKey(material.keyPair().getPublic().getEncoded()));
     }
 
-    private static Tls13Connection connectWithRetry(
-            int port, PinnedServerTrustManager trustManager)
+    private static Tls13Connection connectWithRetry(int port, PinnedServerTrustManager trustManager)
             throws IOException, TlsTransportException, InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(NETWORK_TIMEOUT_SECONDS);
         IOException lastConnectionFailure = null;
@@ -294,7 +293,8 @@ class ServerLauncherTest {
                                 InetAddress.getByAddress(new byte[] {127, 0, 0, 1}), port),
                         250);
                 connected = true;
-                socket.setSoTimeout(Math.toIntExact(TimeUnit.SECONDS.toMillis(NETWORK_TIMEOUT_SECONDS)));
+                socket.setSoTimeout(
+                        Math.toIntExact(TimeUnit.SECONDS.toMillis(NETWORK_TIMEOUT_SECONDS)));
                 return Tls13ClientConnector.connect(socket, trustManager, new SecureRandom());
             } catch (IOException failure) {
                 try {
@@ -339,8 +339,10 @@ class ServerLauncherTest {
             } else if (connection != null) {
                 connection.close();
             }
-        } catch (IOException | InterruptedException | ExecutionException | TimeoutException ignored) {
+        } catch (InterruptedException ignored) {
             Thread.currentThread().interrupt();
+        } catch (IOException | ExecutionException | TimeoutException ignored) {
+            // Cleanup must preserve the primary test failure.
         }
     }
 
@@ -354,8 +356,7 @@ class ServerLauncherTest {
         }
     }
 
-    private record ProcessConfiguration(
-            Path server, Path identity, Path tls, ServerId serverId) {}
+    private record ProcessConfiguration(Path server, Path identity, Path tls, ServerId serverId) {}
 
     private static final class EmptyServerTrustStore implements ServerTrustStore {
         @Override
