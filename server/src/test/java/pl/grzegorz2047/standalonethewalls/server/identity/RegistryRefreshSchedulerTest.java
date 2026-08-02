@@ -7,10 +7,12 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
@@ -151,7 +153,8 @@ class RegistryRefreshSchedulerTest {
     }
 
     @Test
-    void duplicateTaskDispatchCannotOverlapAttemptsOrScheduleFromNominalStart() throws Exception {
+    void duplicateTaskDispatchCannotOverlapAttemptsOrScheduleFromNominalStart()
+            throws InterruptedException, ExecutionException, TimeoutException {
         ManualTaskScheduler manual = new ManualTaskScheduler();
         AtomicInteger calls = new AtomicInteger();
         AtomicInteger active = new AtomicInteger();
