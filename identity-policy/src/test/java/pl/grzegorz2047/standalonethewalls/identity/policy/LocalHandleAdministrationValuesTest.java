@@ -40,10 +40,11 @@ class LocalHandleAdministrationValuesTest {
         assertThatThrownBy(
                         () ->
                                 new LocalHandleAdministrationReason(
-                                        "x".repeat(
-                                                LocalHandleAdministrationReason
-                                                                .MAXIMUM_CODE_POINTS
-                                                        + 1)))
+                                        "x"
+                                                .repeat(
+                                                        LocalHandleAdministrationReason
+                                                                        .MAXIMUM_CODE_POINTS
+                                                                + 1)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
