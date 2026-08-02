@@ -15,9 +15,6 @@ class AsyncReliableChannelConfigTest {
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> new AsyncReliableChannelConfig(1, 1L, Duration.ZERO));
         assertThatIllegalArgumentException()
-                .isThrownBy(
-                        () ->
-                                new AsyncReliableChannelConfig(
-                                        1, 1L, Duration.ofSeconds(31)));
+                .isThrownBy(() -> new AsyncReliableChannelConfig(1, 1L, Duration.ofSeconds(31)));
     }
 }

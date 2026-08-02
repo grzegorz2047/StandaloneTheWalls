@@ -37,8 +37,7 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerTrustStoreExce
 
 class AsyncTlsReliableChannelIntegrationTest {
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
-    private static final UUID SESSION_ID =
-            UUID.fromString("77777777-8888-9999-aaaa-bbbbbbbbbbbb");
+    private static final UUID SESSION_ID = UUID.fromString("77777777-8888-9999-aaaa-bbbbbbbbbbbb");
     private static final ServerReference REFERENCE = new ServerReference("localhost:25570");
     private static final Provider CRYPTO_PROVIDER = new BouncyCastleProvider();
 
@@ -236,7 +235,9 @@ class AsyncTlsReliableChannelIntegrationTest {
                         try {
                             ProtocolEnvelope first = await(channel.receive()).orElseThrow();
                             ProtocolEnvelope second = await(channel.receive()).orElseThrow();
-                            assertThat(await(channel.send(MessageType.PONG, new byte[] {9})).sequence())
+                            assertThat(
+                                            await(channel.send(MessageType.PONG, new byte[] {9}))
+                                                    .sequence())
                                     .isZero();
                             assertThat(
                                             await(

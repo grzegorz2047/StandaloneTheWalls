@@ -34,8 +34,7 @@ class AsyncTlsReliableChannelCancellationTest {
                         executor,
                         Thread.ofPlatform().name("test-cancellation-close").factory());
 
-        CompletionStage<ReliableSendResult> sent =
-                channel.send(MessageType.PING, new byte[] {7});
+        CompletionStage<ReliableSendResult> sent = channel.send(MessageType.PING, new byte[] {7});
         stream.awaitStarted();
         CompletableFuture<ReliableSendResult> callerView = sent.toCompletableFuture();
         assertThat(callerView.cancel(true)).isTrue();

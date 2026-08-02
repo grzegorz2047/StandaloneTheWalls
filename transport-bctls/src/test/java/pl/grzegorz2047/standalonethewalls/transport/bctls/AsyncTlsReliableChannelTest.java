@@ -89,8 +89,7 @@ class AsyncTlsReliableChannelTest {
 
         CompletionStage<Optional<ProtocolEnvelope>> first = channel.receive();
         stream.awaitReceiveStarted();
-        assertChannelFailure(
-                channel.receive(), ReliableChannelException.Code.RECEIVE_IN_PROGRESS);
+        assertChannelFailure(channel.receive(), ReliableChannelException.Code.RECEIVE_IN_PROGRESS);
 
         CompletionStage<Void> closed = channel.close();
         assertChannelFailure(first, ReliableChannelException.Code.CLOSED);

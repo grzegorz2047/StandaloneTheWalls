@@ -51,8 +51,7 @@ public final class AsyncTlsReliableChannel implements ReliableChannel {
         this(stream, AsyncReliableChannelConfig.DEFAULT);
     }
 
-    public AsyncTlsReliableChannel(
-            TlsEnvelopeStream stream, AsyncReliableChannelConfig config) {
+    public AsyncTlsReliableChannel(TlsEnvelopeStream stream, AsyncReliableChannelConfig config) {
         this(stream, config, createOwnedResources());
     }
 
@@ -92,8 +91,7 @@ public final class AsyncTlsReliableChannel implements ReliableChannel {
                 return failedStage(unavailable);
             }
             if (pendingSends.size() >= config.maximumPendingSends()
-                    || payloadCopy.length
-                            > config.maximumPendingSendBytes() - pendingSendBytes) {
+                    || payloadCopy.length > config.maximumPendingSendBytes() - pendingSendBytes) {
                 return failedStage(
                         new ReliableChannelException(
                                 ReliableChannelException.Code.SEND_LIMIT_EXCEEDED,
@@ -380,8 +378,7 @@ public final class AsyncTlsReliableChannel implements ReliableChannel {
         }
     }
 
-    private record OwnedResources(
-            ExecutorService ioExecutor, ThreadFactory closeThreadFactory) {}
+    private record OwnedResources(ExecutorService ioExecutor, ThreadFactory closeThreadFactory) {}
 
     private enum State {
         OPEN,
