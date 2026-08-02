@@ -20,10 +20,11 @@ import pl.grzegorz2047.standalonethewalls.protocol.ProtocolVersion;
  * are serialized independently. The class must not be called from the simulation thread.
  */
 public final class TlsEnvelopeStream implements AutoCloseable, ReliableEnvelopeStream {
-    private final Tls13Connection connection;
     private final UUID sessionId;
     private final InputStream input;
     private final OutputStream output;
+    private final Tls13SessionSecurity security;
+    private final IoCloseAction closeAction;
     private final Object readLock = new Object();
     private final Object writeLock = new Object();
     private final StrictEnvelopeSequence inboundSequence = new StrictEnvelopeSequence();
@@ -31,10 +32,34 @@ public final class TlsEnvelopeStream implements AutoCloseable, ReliableEnvelopeS
     private final AtomicBoolean closed = new AtomicBoolean();
 
     public TlsEnvelopeStream(Tls13Connection connection, UUID sessionId) {
-        this.connection = Objects.requireNonNull(connection, "connection");
+        this(
+                Objects.requireNonNull(connection, "connection").inputStream(),
+                connection.outputStream(),
+                connection.security(),
+                connection::close,
+                sessionId);
+    }
+
+    TlsEnvelopeStream(AcceptedTlsConnection connection, UUID sessionId) {
+        this(
+                Objects.requireNonNull(connection, "connection").inputStream(),
+                connection.outputStream(),
+                connection.security(),
+                connection::close,
+                sessionId);
+    }
+
+    private TlsEnvelopeStream(
+            InputStream input,
+            OutputStream output,
+            Tls13SessionSecurity security,
+            IoCloseAction closeAction,
+            UUID sessionId) {
+        this.input = Objects.requireNonNull(input, "input");
+        this.output = Objects.requireNonNull(output, "output");
+        this.security = Objects.requireNonNull(security, "security");
+        this.closeAction = Objects.requireNonNull(closeAction, "closeAction");
         this.sessionId = Objects.requireNonNull(sessionId, "sessionId");
-        this.input = connection.inputStream();
-        this.output = connection.outputStream();
     }
 
     public UUID sessionId() {
@@ -42,7 +67,7 @@ public final class TlsEnvelopeStream implements AutoCloseable, ReliableEnvelopeS
     }
 
     public Tls13SessionSecurity security() {
-        return connection.security();
+        return security;
     }
 
     @Override
@@ -113,7 +138,7 @@ public final class TlsEnvelopeStream implements AutoCloseable, ReliableEnvelopeS
     @Override
     public void close() throws IOException {
         if (closed.compareAndSet(false, true)) {
-            connection.close();
+            closeAction.close();
         }
     }
 
@@ -174,5 +199,10 @@ public final class TlsEnvelopeStream implements AutoCloseable, ReliableEnvelopeS
         return new ProtocolException(
                 ProtocolException.Code.TRUNCATED_MESSAGE,
                 "the TLS stream ended inside the " + part);
+    }
+
+    @FunctionalInterface
+    private interface IoCloseAction {
+        void close() throws IOException;
     }
 }
