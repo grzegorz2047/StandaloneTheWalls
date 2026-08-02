@@ -172,14 +172,12 @@ class TlsSessionBootstrapIntegrationTest {
                     new UUID(
                             offered.getMostSignificantBits(),
                             offered.getLeastSignificantBits() ^ 1L);
-            maliciousClient.outputStream().write(
-                    TlsSessionBootstrapCodec.encodeAccept(changed));
+            maliciousClient.outputStream().write(TlsSessionBootstrapCodec.encodeAccept(changed));
             maliciousClient.outputStream().flush();
 
-            Throwable mismatch = take(failures, "session mismatch failure");
-            assertThat(mismatch).isInstanceOf(TlsSessionBootstrapException.class);
-            assertThat(((TlsSessionBootstrapException) mismatch).code())
-                    .isEqualTo(TlsSessionBootstrapException.Code.SESSION_MISMATCH);
+            requireBootstrapFailure(
+                    take(failures, "session mismatch failure"),
+                    TlsSessionBootstrapException.Code.SESSION_MISMATCH);
             waitUntil(() -> listener.activeConnectionCount() == 0, "mismatch lease release");
             closeForCleanup(maliciousClient);
             maliciousClient = null;
@@ -239,10 +237,9 @@ class TlsSessionBootstrapIntegrationTest {
         BootstrappedReliableSession validServer = null;
         try {
             silentClient = connectTls(listener, setup.trustManager());
-            Throwable timeout = take(failures, "session bootstrap timeout");
-            assertThat(timeout).isInstanceOf(TlsSessionBootstrapException.class);
-            assertThat(((TlsSessionBootstrapException) timeout).code())
-                    .isEqualTo(TlsSessionBootstrapException.Code.TIMEOUT);
+            requireBootstrapFailure(
+                    take(failures, "session bootstrap timeout"),
+                    TlsSessionBootstrapException.Code.TIMEOUT);
             waitUntil(() -> listener.activeConnectionCount() == 0, "timeout lease release");
             closeForCleanup(silentClient);
             silentClient = null;
@@ -324,9 +321,27 @@ class TlsSessionBootstrapIntegrationTest {
             if (read < 0) {
                 throw new IOException("session offer ended early");
             }
-            offset += read;
+            if (read == 0) {
+                int value = input.read();
+                if (value < 0) {
+                    throw new IOException("session offer ended early");
+                }
+                record[offset] = (byte) value;
+                offset++;
+            } else {
+                offset += read;
+            }
         }
         return record;
+    }
+
+    private static TlsSessionBootstrapException requireBootstrapFailure(
+            Throwable failure, TlsSessionBootstrapException.Code expectedCode) {
+        if (!(failure instanceof TlsSessionBootstrapException bootstrapFailure)) {
+            throw new AssertionError("expected a TLS session bootstrap failure", failure);
+        }
+        assertThat(bootstrapFailure.code()).isEqualTo(expectedCode);
+        return bootstrapFailure;
     }
 
     private static <T> T take(BlockingQueue<T> queue, String operation)
