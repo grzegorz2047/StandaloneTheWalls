@@ -24,6 +24,52 @@ Supported properties:
 Unknown properties, malformed numbers, invalid ports, unsafe tick rates, and
 capacities above the current product target fail closed.
 
+## Local identity process configuration
+
+Issue #69 adds a separate strict configuration file for the inputs required by
+`LocalIdentityRuntime`. Copy `identity.properties.example` and replace every path
+and authorization choice intentionally. The file is not yet connected to
+`ServerLauncher`; launcher ownership is a later step.
+
+Required literal `key=value` properties are:
+
+```text
+identity.sqlite-path=<file>
+identity.registry-bundle-path=<file>
+identity.authorization-mode=LOCAL_TOFU|GLOBAL_ONLY|HYBRID
+identity.trust-roots-path=<file>
+```
+
+Optional bounded policy overrides are:
+
+```text
+identity.registry.minimum-sequence=<unsigned integer>
+identity.registry.maximum-age-seconds=<unsigned integer>
+identity.registry.maximum-future-skew-seconds=<unsigned integer>
+identity.registry.maximum-json-bytes=<unsigned integer>
+identity.registry.maximum-entries=<unsigned integer>
+```
+
+Omitted policy values use `RegistrySnapshotPolicy.DEFAULT` exactly. Relative paths
+are resolved from the identity configuration file's directory, not the process
+working directory. The SQLite, registry bundle, and trust-root paths must be three
+different files.
+
+The parser reads at most 64 KiB of strict UTF-8. It rejects symlinks, non-regular
+files, malformed UTF-8, escapes, edge whitespace, controls, unknown properties,
+duplicate keys, and malformed numeric values. Missing paths or authorization mode
+are errors; there is no implicit identity mode.
+
+The trust-root file is separate, at most 16 KiB, and contains 1–64 non-empty lines.
+Every line must be lowercase hexadecimal X.509 DER for an Ed25519 public key.
+Whitespace, comments, uppercase hex, duplicate roots, private-key DER, and other
+key algorithms are rejected. Error messages never include the raw key line.
+
+`registry-trust-roots.hex.example` intentionally contains an invalid placeholder,
+not a production or test trust root. Replace it with an explicitly provisioned
+public registry root before loading the identity configuration. Private keys and
+credentials do not belong in either configuration file.
+
 ## Identity admission boundary
 
 Issue #65 adds `SessionIdentityAdmissionService` as the mandatory semantic gate
@@ -68,9 +114,8 @@ operate without registry data only when explicitly selected. `GLOBAL_ONLY` and
 Registry availability is computed dynamically from the shared store, clock, and
 policy. A later authorized `reload-registry` command is therefore immediately
 visible to the next admission call. Bindings and player bans survive reopening via
-the shared SQLite file. Trust-root parsing and process configuration are still
-outside this composition, as are sockets, TLS, refresh scheduling, and lobby
-membership.
+the shared SQLite file. Process launcher ownership, sockets, TLS, refresh
+scheduling, and lobby membership remain outside this composition.
 
 ## Local identity administration commands
 
