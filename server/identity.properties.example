@@ -16,6 +16,14 @@ identity.registry.refresh-source=LOCAL_BUNDLE
 # identity.registry.https.connect-timeout-seconds=10
 # identity.registry.https.request-timeout-seconds=30
 
+# Automatic refresh is valid only with HTTPS and defaults to disabled. Values use seconds.
+# identity.registry.scheduler.enabled=false
+# identity.registry.scheduler.initial-delay-seconds=60
+# identity.registry.scheduler.success-interval-seconds=3600
+# identity.registry.scheduler.initial-failure-backoff-seconds=30
+# identity.registry.scheduler.maximum-failure-backoff-seconds=1800
+# identity.registry.scheduler.maximum-jitter-seconds=5
+
 # Optional bounded registry policy overrides. Remove these lines to use exact defaults.
 identity.registry.minimum-sequence=0
 identity.registry.maximum-age-seconds=2592000
