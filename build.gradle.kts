@@ -90,7 +90,7 @@ spotless {
             ".gitattributes",
             ".gitignore",
         )
-        targetExclude("**/build/**", ".gradle/**")
+        targetExclude("**/build/**", ".gradle/**", "assets/assets.lock.json")
         trimTrailingWhitespace()
         endWithNewline()
     }
