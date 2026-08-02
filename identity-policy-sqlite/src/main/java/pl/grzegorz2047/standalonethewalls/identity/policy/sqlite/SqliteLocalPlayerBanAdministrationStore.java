@@ -275,8 +275,7 @@ public final class SqliteLocalPlayerBanAdministrationStore
         if (version == LATEST_SUPPORTED_SCHEMA_VERSION
                 && (!objectExists(connection, "table", DISPLAY_NAMES_TABLE)
                         || !objectExists(connection, "table", DISPLAY_NAME_AUDIT_TABLE)
-                        || !objectExists(
-                                connection, "trigger", DISPLAY_NAME_AUDIT_UPDATE_TRIGGER)
+                        || !objectExists(connection, "trigger", DISPLAY_NAME_AUDIT_UPDATE_TRIGGER)
                         || !objectExists(
                                 connection, "trigger", DISPLAY_NAME_AUDIT_DELETE_TRIGGER))) {
             throw new SQLException("SQLite schema v3 display name objects are incomplete");

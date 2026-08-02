@@ -52,10 +52,7 @@ public final class SqliteLocalDisplayNameAdministrationStore
     }
 
     public SqliteLocalDisplayNameAdministrationStore(
-            Path path,
-            int maximumDisplayNames,
-            int maximumAuditEvents,
-            int busyTimeoutMillis) {
+            Path path, int maximumDisplayNames, int maximumAuditEvents, int busyTimeoutMillis) {
         this.path = Objects.requireNonNull(path, "path").toAbsolutePath().normalize();
         if (this.path.getFileName() == null || this.path.getParent() == null) {
             throw new IllegalArgumentException("path must identify a SQLite database file");
@@ -95,8 +92,7 @@ public final class SqliteLocalDisplayNameAdministrationStore
             LocalHandleAdministrationReason reason,
             Instant occurredAt) {
         PlayerId identity = Objects.requireNonNull(playerId, "playerId");
-        LocalDisplayNameExpectation expected =
-                Objects.requireNonNull(expectation, "expectation");
+        LocalDisplayNameExpectation expected = Objects.requireNonNull(expectation, "expectation");
         LocalDisplayName replacement = Objects.requireNonNull(displayName, "displayName");
         LocalIdentityAdministratorId administrator =
                 Objects.requireNonNull(administratorId, "administratorId");
@@ -143,8 +139,7 @@ public final class SqliteLocalDisplayNameAdministrationStore
             LocalHandleAdministrationReason reason,
             Instant occurredAt) {
         PlayerId identity = Objects.requireNonNull(playerId, "playerId");
-        LocalDisplayNameExpectation expected =
-                Objects.requireNonNull(expectation, "expectation");
+        LocalDisplayNameExpectation expected = Objects.requireNonNull(expectation, "expectation");
         LocalIdentityAdministratorId administrator =
                 Objects.requireNonNull(administratorId, "administratorId");
         LocalHandleAdministrationReason auditReason = Objects.requireNonNull(reason, "reason");
@@ -504,9 +499,7 @@ public final class SqliteLocalDisplayNameAdministrationStore
                 new LocalIdentityAdministratorId(result.getString(3)),
                 LocalDisplayNameAuditAction.valueOf(result.getString(4)),
                 new PlayerId(result.getString(5)),
-                previous == null
-                        ? Optional.empty()
-                        : Optional.of(new LocalDisplayName(previous)),
+                previous == null ? Optional.empty() : Optional.of(new LocalDisplayName(previous)),
                 replacement == null
                         ? Optional.empty()
                         : Optional.of(new LocalDisplayName(replacement)),
