@@ -31,19 +31,23 @@ final class AuthenticatedPlayerAdmissionCoordinator {
         }
 
         AuthorizedPlayerSessionQueue.Reservation reservation = reservationAttempt.orElseThrow();
+        boolean reservationTransferred = false;
         try {
             AuthenticatedPlayerAdmissionResult admission = admissionService.evaluate(authenticated);
             if (admission instanceof AuthenticatedPlayerAdmissionResult.Rejected rejected) {
-                reservation.close();
                 return new PreparedAdmission.Rejected(rejected.status());
             }
             AuthenticatedPlayerAdmissionResult.Accepted accepted =
                     (AuthenticatedPlayerAdmissionResult.Accepted) admission;
-            return new PreparedAdmission.Accepted(
-                    accepted.status(), accepted.session(), reservation);
-        } catch (RuntimeException exception) {
-            reservation.close();
-            throw exception;
+            PreparedAdmission.Accepted prepared =
+                    new PreparedAdmission.Accepted(
+                            accepted.status(), accepted.session(), reservation);
+            reservationTransferred = true;
+            return prepared;
+        } finally {
+            if (!reservationTransferred) {
+                reservation.close();
+            }
         }
     }
 
