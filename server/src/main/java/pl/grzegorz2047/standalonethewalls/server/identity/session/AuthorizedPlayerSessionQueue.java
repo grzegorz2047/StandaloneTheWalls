@@ -14,10 +14,12 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Bounded non-blocking handoff queue between transport admission and the future lobby runtime.
+ * Bounded non-blocking handoff queue between transport admission and the lobby runtime.
  *
  * <p>The queue owns committed sessions until {@link #poll()} or {@link #drain(int)} transfers
- * ownership to the caller. Closing the queue closes every session that has not been transferred.
+ * session ownership through an {@link AuthorizedPlayerSessionLease}. The lease retains the global
+ * admission-capacity slot until its underlying session is closed. Closing the queue closes every
+ * session that has not been transferred; active leases remain owned by their receivers.
  */
 public final class AuthorizedPlayerSessionQueue implements AutoCloseable {
     public static final int MAXIMUM_CAPACITY = 10_000;
@@ -27,6 +29,7 @@ public final class AuthorizedPlayerSessionQueue implements AutoCloseable {
     private final Duration closeTimeout;
     private final ArrayDeque<AuthorizedPlayerSession> sessions = new ArrayDeque<>();
     private int reservedSlots;
+    private int activeLeases;
     private boolean closed;
 
     public AuthorizedPlayerSessionQueue(int capacity, Duration closeTimeout) {
@@ -44,22 +47,28 @@ public final class AuthorizedPlayerSessionQueue implements AutoCloseable {
         this.closeTimeout = timeout;
     }
 
-    public synchronized Optional<AuthorizedPlayerSession> poll() {
-        return Optional.ofNullable(sessions.pollFirst());
+    public synchronized Optional<AuthorizedPlayerSessionLease> poll() {
+        AuthorizedPlayerSession session = sessions.pollFirst();
+        if (session == null) {
+            return Optional.empty();
+        }
+        activeLeases++;
+        return Optional.of(new AuthorizedPlayerSessionLease(this, session));
     }
 
-    public synchronized List<AuthorizedPlayerSession> drain(int maximumSessions) {
+    public synchronized List<AuthorizedPlayerSessionLease> drain(int maximumSessions) {
         if (maximumSessions < 1 || maximumSessions > capacity) {
             throw new IllegalArgumentException("maximumSessions is outside the safe range");
         }
-        List<AuthorizedPlayerSession> drained =
+        List<AuthorizedPlayerSessionLease> drained =
                 new ArrayList<>(Math.min(maximumSessions, sessions.size()));
         while (drained.size() < maximumSessions) {
             AuthorizedPlayerSession session = sessions.pollFirst();
             if (session == null) {
                 break;
             }
-            drained.add(session);
+            activeLeases++;
+            drained.add(new AuthorizedPlayerSessionLease(this, session));
         }
         return List.copyOf(drained);
     }
@@ -72,6 +81,10 @@ public final class AuthorizedPlayerSessionQueue implements AutoCloseable {
         return reservedSlots;
     }
 
+    public synchronized int activeLeaseCount() {
+        return activeLeases;
+    }
+
     public synchronized int capacity() {
         return capacity;
     }
@@ -81,11 +94,19 @@ public final class AuthorizedPlayerSessionQueue implements AutoCloseable {
     }
 
     synchronized Optional<Reservation> tryReserve() {
-        if (closed || sessions.size() + reservedSlots >= capacity) {
+        if (closed || sessions.size() + reservedSlots + activeLeases >= capacity) {
             return Optional.empty();
         }
         reservedSlots++;
         return Optional.of(new Reservation(this));
+    }
+
+    synchronized void release(AuthorizedPlayerSessionLease lease) {
+        Objects.requireNonNull(lease, "lease");
+        if (activeLeases < 1) {
+            throw new IllegalStateException("authorized session lease capacity is already released");
+        }
+        activeLeases--;
     }
 
     @Override
