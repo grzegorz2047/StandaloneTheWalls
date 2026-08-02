@@ -53,9 +53,11 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
     private final Duration sendTimeout;
     private final Duration shutdownTimeout;
     private final Consumer<MinimalLobbyEvent> eventObserver;
+    private final Runnable terminalFailureAction;
     private final BlockingQueue<Command> commands;
     private final ExecutorService workers;
     private final AtomicReference<State> lifecycle = new AtomicReference<>(State.NEW);
+    private final AtomicReference<Throwable> failure = new AtomicReference<>();
     private final AtomicInteger memberCount = new AtomicInteger();
     private final AtomicLong visibleRevision = new AtomicLong();
     private final CompletableFuture<Void> terminated = new CompletableFuture<>();
@@ -69,6 +71,15 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
             Duration sendTimeout,
             Duration shutdownTimeout,
             Consumer<MinimalLobbyEvent> eventObserver) {
+        this(source, sendTimeout, shutdownTimeout, eventObserver, () -> {});
+    }
+
+    public MinimalLobbyRuntime(
+            AuthorizedPlayerSessionQueue source,
+            Duration sendTimeout,
+            Duration shutdownTimeout,
+            Consumer<MinimalLobbyEvent> eventObserver,
+            Runnable terminalFailureAction) {
         this.source = Objects.requireNonNull(source, "source");
         if (source.capacity() > LobbySnapshot.MAXIMUM_MEMBERS) {
             throw new IllegalArgumentException("source capacity exceeds minimal lobby capacity");
@@ -77,6 +88,8 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         this.shutdownTimeout =
                 requireDuration(shutdownTimeout, "shutdownTimeout", MAXIMUM_SHUTDOWN_TIMEOUT);
         this.eventObserver = Objects.requireNonNull(eventObserver, "eventObserver");
+        this.terminalFailureAction =
+                Objects.requireNonNull(terminalFailureAction, "terminalFailureAction");
         commands = new ArrayBlockingQueue<>(Math.max(16, source.capacity() * 4 + 1));
         workers =
                 Executors.newThreadPerTaskExecutor(
@@ -107,6 +120,10 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
 
     public long revision() {
         return visibleRevision.get();
+    }
+
+    public Optional<Throwable> failure() {
+        return Optional.ofNullable(failure.get());
     }
 
     @Override
@@ -187,12 +204,12 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
             try {
                 if (!workers.awaitTermination(
                         shutdownTimeout.toNanos(), TimeUnit.NANOSECONDS)) {
-                    IllegalStateException failure =
+                    IllegalStateException workerFailure =
                             new IllegalStateException("minimal lobby workers did not terminate");
                     if (terminalFailure == null) {
-                        terminalFailure = failure;
+                        terminalFailure = workerFailure;
                     } else {
-                        terminalFailure.addSuppressed(failure);
+                        terminalFailure.addSuppressed(workerFailure);
                     }
                 }
             } catch (InterruptedException exception) {
@@ -208,6 +225,12 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
             if (terminalFailure == null) {
                 terminated.complete(null);
             } else {
+                failure.compareAndSet(null, terminalFailure);
+                try {
+                    terminalFailureAction.run();
+                } catch (RuntimeException actionFailure) {
+                    terminalFailure.addSuppressed(actionFailure);
+                }
                 terminated.completeExceptionally(terminalFailure);
             }
         }
@@ -420,9 +443,9 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
                         Objects.requireNonNull(session.closeAsync(), "session close stage")
                                 .toCompletableFuture());
             } catch (RuntimeException exception) {
-                CompletableFuture<Void> failed = new CompletableFuture<>();
-                failed.completeExceptionally(exception);
-                closures.add(failed);
+                CompletableFuture<Void> failedClose = new CompletableFuture<>();
+                failedClose.completeExceptionally(exception);
+                closures.add(failedClose);
             }
         }
         awaitAll(closures, shutdownTimeout);
