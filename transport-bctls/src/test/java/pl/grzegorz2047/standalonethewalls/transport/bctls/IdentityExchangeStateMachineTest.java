@@ -6,8 +6,6 @@ import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.UUID;
@@ -171,7 +169,6 @@ class IdentityExchangeStateMachineTest {
     private static final class ScriptedChannel implements ReliableChannel {
         private final Queue<CompletionStage<Optional<ProtocolEnvelope>>> receives =
                 new ArrayDeque<>();
-        private final List<MessageType> sentTypes = new ArrayList<>();
         private final AtomicBoolean open = new AtomicBoolean(true);
         private final AtomicInteger closeCount = new AtomicInteger();
         private long nextSequence;
@@ -191,7 +188,6 @@ class IdentityExchangeStateMachineTest {
         @Override
         public CompletionStage<ReliableSendResult> send(
                 MessageType messageType, byte[] payload) {
-            sentTypes.add(messageType);
             if (!open.get()) {
                 return CompletableFuture.failedFuture(
                         new IllegalStateException("scripted channel is closed"));
