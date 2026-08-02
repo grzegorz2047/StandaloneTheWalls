@@ -18,8 +18,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.BooleanSupplier;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.operator.OperatorCreationException;
@@ -77,7 +79,8 @@ class TlsSessionBootstrapMalformedIntegrationTest {
             sendMalformedAccept(
                     listener,
                     setup.trustManager(),
-                    record -> {
+                    offered -> {
+                        byte[] record = TlsSessionBootstrapCodec.encodeAccept(offered);
                         record[0] = 0;
                         return record;
                     },
@@ -92,7 +95,8 @@ class TlsSessionBootstrapMalformedIntegrationTest {
             sendMalformedAccept(
                     listener,
                     setup.trustManager(),
-                    record -> {
+                    offered -> {
+                        byte[] record = TlsSessionBootstrapCodec.encodeAccept(offered);
                         ByteBuffer.wrap(record)
                                 .order(ByteOrder.BIG_ENDIAN)
                                 .putShort(8, (short) 2);
@@ -111,8 +115,7 @@ class TlsSessionBootstrapMalformedIntegrationTest {
             BootstrappedReliableSession serverSession = null;
             try {
                 clientSession =
-                        TlsSessionBootstrap.connectClientSession(
-                                validConnection, bootstrapConfig);
+                        TlsSessionBootstrap.connectClientSession(validConnection, bootstrapConfig);
                 serverSession = take(sessions, "valid server session");
                 assertThat(clientSession.sessionId()).isEqualTo(serverSession.sessionId());
             } finally {
@@ -129,15 +132,18 @@ class TlsSessionBootstrapMalformedIntegrationTest {
     private static void sendMalformedAccept(
             Tls13ServerListener listener,
             PinnedServerTrustManager trustManager,
-            RecordMutation mutation,
+            AcceptRecordFactory recordFactory,
             TlsSessionBootstrapException.Code expected,
             BlockingQueue<Throwable> failures)
-            throws IOException, TlsTransportException, InterruptedException, TlsSessionBootstrapException {
+            throws IOException,
+                    TlsTransportException,
+                    InterruptedException,
+                    TlsSessionBootstrapException {
         Tls13Connection connection = connectTls(listener, trustManager);
         try {
             UUID offered =
                     TlsSessionBootstrapCodec.decodeOffer(readRecord(connection.inputStream()));
-            byte[] record = mutation.mutate(TlsSessionBootstrapCodec.encodeAccept(offered));
+            byte[] record = recordFactory.create(offered);
             connection.outputStream().write(record);
             connection.outputStream().flush();
             requireFailure(take(failures, "malformed accept failure"), expected);
@@ -152,7 +158,10 @@ class TlsSessionBootstrapMalformedIntegrationTest {
             PinnedServerTrustManager trustManager,
             TlsSessionBootstrapException.Code expected,
             BlockingQueue<Throwable> failures)
-            throws IOException, TlsTransportException, InterruptedException, TlsSessionBootstrapException {
+            throws IOException,
+                    TlsTransportException,
+                    InterruptedException,
+                    TlsSessionBootstrapException {
         Tls13Connection connection = connectTls(listener, trustManager);
         try {
             UUID offered =
@@ -263,7 +272,10 @@ class TlsSessionBootstrapMalformedIntegrationTest {
             session.closeAsync()
                     .toCompletableFuture()
                     .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
-        } catch (Exception exception) {
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError("interrupted while closing a bootstrapped session", exception);
+        } catch (ExecutionException | TimeoutException exception) {
             throw new AssertionError("bootstrapped session cleanup failed", exception);
         }
     }
@@ -280,8 +292,8 @@ class TlsSessionBootstrapMalformedIntegrationTest {
     }
 
     @FunctionalInterface
-    private interface RecordMutation {
-        byte[] mutate(byte[] record);
+    private interface AcceptRecordFactory {
+        byte[] create(UUID offeredSessionId);
     }
 
     private record Setup(
