@@ -30,6 +30,10 @@ public final class IdentityChallengeService {
         };
     }
 
+    public boolean discard(UUID sessionId) {
+        return ledger.discard(sessionId);
+    }
+
     public int outstandingCount() {
         return ledger.outstandingCount();
     }
