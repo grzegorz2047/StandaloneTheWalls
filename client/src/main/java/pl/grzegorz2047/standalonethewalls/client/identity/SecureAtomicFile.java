@@ -45,6 +45,7 @@ final class SecureAtomicFile {
     }
 
     static Optional<byte[]> readIfPresent(Path path, int maximumBytes) throws IOException {
+        Objects.requireNonNull(path, "path");
         if (!Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
             return Optional.empty();
         }
@@ -75,9 +76,11 @@ final class SecureAtomicFile {
     }
 
     static <T> T withExclusiveLock(Path target, IoOperation<T> operation) throws IOException {
+        Objects.requireNonNull(target, "target");
         Objects.requireNonNull(operation, "operation");
         ensureParent(target);
-        Path lockPath = target.resolveSibling('.' + target.getFileName().toString() + ".lock");
+        Path fileName = Objects.requireNonNull(target.getFileName(), "target file name");
+        Path lockPath = target.resolveSibling('.' + fileName.toString() + ".lock");
         ReentrantLock processLock =
                 PROCESS_LOCKS.computeIfAbsent(lockPath, ignored -> new ReentrantLock());
         processLock.lock();
@@ -99,11 +102,12 @@ final class SecureAtomicFile {
     }
 
     static void replaceAtomically(Path target, byte[] content) throws IOException {
+        Objects.requireNonNull(target, "target");
         Objects.requireNonNull(content, "content");
         ensureParent(target);
+        Path fileName = Objects.requireNonNull(target.getFileName(), "target file name");
         Path temporary =
-                target.resolveSibling(
-                        '.' + target.getFileName().toString() + '.' + UUID.randomUUID() + ".tmp");
+                target.resolveSibling('.' + fileName.toString() + '.' + UUID.randomUUID() + ".tmp");
         try {
             try (FileChannel channel =
                     FileChannel.open(
@@ -135,7 +139,7 @@ final class SecureAtomicFile {
     }
 
     private static void ensureParent(Path target) throws IOException {
-        Path parent = target.getParent();
+        Path parent = Objects.requireNonNull(target.getParent(), "target parent");
         Files.createDirectories(parent);
         if (Files.isSymbolicLink(parent) || !Files.isDirectory(parent, LinkOption.NOFOLLOW_LINKS)) {
             throw new IOException("persistent state parent is not a regular directory");
