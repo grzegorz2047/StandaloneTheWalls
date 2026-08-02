@@ -41,6 +41,7 @@ public final class RegistrySnapshotBundleFile implements RegistrySnapshotProvide
                     + RegistrySnapshotArtifact.SIGNATURE_BYTES;
 
     private final Path path;
+    private final Path parent;
     private final int maximumJsonBytes;
 
     public RegistrySnapshotBundleFile(Path path) {
@@ -48,14 +49,17 @@ public final class RegistrySnapshotBundleFile implements RegistrySnapshotProvide
     }
 
     public RegistrySnapshotBundleFile(Path path, int maximumJsonBytes) {
-        this.path = Objects.requireNonNull(path, "path").toAbsolutePath().normalize();
-        if (this.path.getFileName() == null) {
+        Path normalizedPath = Objects.requireNonNull(path, "path").toAbsolutePath().normalize();
+        Path parentPath = normalizedPath.getParent();
+        if (normalizedPath.getFileName() == null || parentPath == null) {
             throw new IllegalArgumentException("path must identify a bundle file");
         }
         if (maximumJsonBytes < 1
                 || maximumJsonBytes > RegistrySnapshotPolicy.ABSOLUTE_MAXIMUM_JSON_BYTES) {
             throw new IllegalArgumentException("maximumJsonBytes is outside the safe range");
         }
+        this.path = normalizedPath;
+        this.parent = parentPath;
         this.maximumJsonBytes = maximumJsonBytes;
     }
 
@@ -88,7 +92,6 @@ public final class RegistrySnapshotBundleFile implements RegistrySnapshotProvide
                     "registry snapshot JSON exceeds the configured file limit");
         }
 
-        Path parent = path.getParent();
         Path temporary = null;
         try {
             Files.createDirectories(parent);
@@ -107,7 +110,6 @@ public final class RegistrySnapshotBundleFile implements RegistrySnapshotProvide
                 throw new IOException(
                         "registry snapshot cache requires an atomic filesystem move", exception);
             }
-            temporary = null;
         } catch (IOException | SecurityException | UnsupportedOperationException exception) {
             deleteAfterFailure(temporary, exception);
             throw new RegistrySnapshotProviderException(
