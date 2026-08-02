@@ -133,8 +133,7 @@ public final class RegistrySnapshotBundleFile implements RegistrySnapshotProvide
 
         try (SeekableByteChannel channel =
                         Files.newByteChannel(
-                                path,
-                                Set.of(StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS));
+                                path, Set.of(StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS));
                 DataInputStream input = new DataInputStream(Channels.newInputStream(channel))) {
             byte[] magic = readExactly(input, MAGIC.length);
             if (!Arrays.equals(magic, MAGIC)) {
