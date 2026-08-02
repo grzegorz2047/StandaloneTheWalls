@@ -141,9 +141,10 @@ class AsyncTlsReliableChannelIntegrationTest {
             AsyncTlsReliableChannel client = connect(server, setup.trustManager());
 
             Throwable receiveFailure = failure(client.receive());
-            assertThat(receiveFailure).isInstanceOf(ProtocolException.class);
-            assertThat(((ProtocolException) receiveFailure).code())
-                    .isEqualTo(ProtocolException.Code.INVALID_MAGIC);
+            if (!(receiveFailure instanceof ProtocolException protocolFailure)) {
+                throw new AssertionError("expected a protocol failure", receiveFailure);
+            }
+            assertThat(protocolFailure.code()).isEqualTo(ProtocolException.Code.INVALID_MAGIC);
             assertThat(failure(client.close())).isSameAs(receiveFailure);
             assertThat(client.isOpen()).isFalse();
             sender.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
@@ -183,8 +184,9 @@ class AsyncTlsReliableChannelIntegrationTest {
             CompletionStage<?> stage, ReliableChannelException.Code expectedCode)
             throws InterruptedException, TimeoutException {
         Throwable failure = failure(stage);
-        assertThat(failure).isInstanceOf(ReliableChannelException.class);
-        ReliableChannelException channelFailure = (ReliableChannelException) failure;
+        if (!(failure instanceof ReliableChannelException channelFailure)) {
+            throw new AssertionError("expected a reliable channel failure", failure);
+        }
         assertThat(channelFailure.code()).isEqualTo(expectedCode);
         return channelFailure;
     }
