@@ -87,7 +87,10 @@ final class SecureAtomicFile {
                                 StandardOpenOption.CREATE,
                                 StandardOpenOption.WRITE,
                                 LinkOption.NOFOLLOW_LINKS);
-                FileLock ignored = lockChannel.lock()) {
+                FileLock fileLock = lockChannel.lock()) {
+            if (!fileLock.isValid()) {
+                throw new IOException("persistent state lock is not valid");
+            }
             restrictFile(lockPath);
             return operation.run();
         } finally {
