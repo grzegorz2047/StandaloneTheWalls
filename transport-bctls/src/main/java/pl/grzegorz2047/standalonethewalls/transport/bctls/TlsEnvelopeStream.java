@@ -7,9 +7,11 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import pl.grzegorz2047.standalonethewalls.protocol.MessageType;
 import pl.grzegorz2047.standalonethewalls.protocol.ProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.ProtocolEnvelope;
 import pl.grzegorz2047.standalonethewalls.protocol.ProtocolException;
+import pl.grzegorz2047.standalonethewalls.protocol.ProtocolVersion;
 
 /**
  * Blocking, ordered protocol-envelope stream over one authenticated TLS connection.
@@ -47,14 +49,28 @@ public final class TlsEnvelopeStream implements AutoCloseable {
         return !closed.get();
     }
 
-    public void send(ProtocolEnvelope envelope) throws IOException, ProtocolException {
-        Objects.requireNonNull(envelope, "envelope");
+    /** Atomically assigns and returns the next outbound sequence number. */
+    public long send(MessageType messageType, byte[] payload)
+            throws IOException, ProtocolException {
+        Objects.requireNonNull(messageType, "messageType");
+        byte[] payloadCopy = Objects.requireNonNull(payload, "payload").clone();
+        validatePayloadLength(messageType, payloadCopy.length);
+
         synchronized (writeLock) {
             ensureOpen();
             try {
-                validateEnvelope(envelope, outboundSequence);
+                ReliableMessagePolicy.requireAllowed(messageType);
+                long sequence = outboundSequence.claim();
+                ProtocolEnvelope envelope =
+                        new ProtocolEnvelope(
+                                ProtocolVersion.CURRENT,
+                                messageType,
+                                sessionId,
+                                sequence,
+                                payloadCopy);
                 output.write(ProtocolCodec.encode(envelope));
                 output.flush();
+                return sequence;
             } catch (IOException | ProtocolException exception) {
                 closeAfterFailure(exception);
                 throw exception;
@@ -86,7 +102,7 @@ public final class TlsEnvelopeStream implements AutoCloseable {
                         "protocol payload");
 
                 ProtocolEnvelope envelope = ProtocolCodec.decode(encoded);
-                validateEnvelope(envelope, inboundSequence);
+                validateInboundEnvelope(envelope);
                 return Optional.of(envelope);
             } catch (IOException | ProtocolException exception) {
                 closeAfterFailure(exception);
@@ -102,16 +118,14 @@ public final class TlsEnvelopeStream implements AutoCloseable {
         }
     }
 
-    private void validateEnvelope(
-            ProtocolEnvelope envelope, StrictEnvelopeSequence sequence)
-            throws ProtocolException {
+    private void validateInboundEnvelope(ProtocolEnvelope envelope) throws ProtocolException {
         if (!sessionId.equals(envelope.sessionId())) {
             throw new ProtocolException(
                     ProtocolException.Code.SESSION_MISMATCH,
                     "the envelope belongs to a different transport session");
         }
         ReliableMessagePolicy.requireAllowed(envelope.messageType());
-        sequence.accept(envelope.sequence());
+        inboundSequence.accept(envelope.sequence());
     }
 
     private void readFully(byte[] target, int offset, int length, String part)
@@ -121,16 +135,12 @@ public final class TlsEnvelopeStream implements AutoCloseable {
         while (remaining > 0) {
             int read = input.read(target, position, remaining);
             if (read < 0) {
-                throw new ProtocolException(
-                        ProtocolException.Code.TRUNCATED_MESSAGE,
-                        "the TLS stream ended inside the " + part);
+                throw truncated(part);
             }
             if (read == 0) {
                 int value = input.read();
                 if (value < 0) {
-                    throw new ProtocolException(
-                            ProtocolException.Code.TRUNCATED_MESSAGE,
-                            "the TLS stream ended inside the " + part);
+                    throw truncated(part);
                 }
                 target[position] = (byte) value;
                 read = 1;
@@ -152,5 +162,18 @@ public final class TlsEnvelopeStream implements AutoCloseable {
         } catch (IOException closeFailure) {
             failure.addSuppressed(closeFailure);
         }
+    }
+
+    private static void validatePayloadLength(MessageType messageType, int payloadLength) {
+        if (payloadLength > ProtocolCodec.MAXIMUM_PAYLOAD_BYTES
+                || payloadLength > messageType.maximumPayloadBytes()) {
+            throw new IllegalArgumentException("payload exceeds the allowed message limit");
+        }
+    }
+
+    private static ProtocolException truncated(String part) {
+        return new ProtocolException(
+                ProtocolException.Code.TRUNCATED_MESSAGE,
+                "the TLS stream ended inside the " + part);
     }
 }
