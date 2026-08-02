@@ -22,8 +22,7 @@ public enum SessionIdentityAdmissionDecision {
     private final boolean accepted;
     private final HandleVerificationLevel verificationLevel;
 
-    SessionIdentityAdmissionDecision(
-            boolean accepted, HandleVerificationLevel verificationLevel) {
+    SessionIdentityAdmissionDecision(boolean accepted, HandleVerificationLevel verificationLevel) {
         this.accepted = accepted;
         this.verificationLevel = verificationLevel;
     }
