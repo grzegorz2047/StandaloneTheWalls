@@ -266,9 +266,7 @@ class RegistrySnapshotCachingRefreshServiceTest {
                 signer.initSign(root.getPrivate());
                 signer.update(canonicalJson);
                 return new RegistrySnapshotArtifact(canonicalJson, digest, signer.sign());
-            } catch (GeneralSecurityException
-                    | IdentityException
-                    | RegistrySnapshotException exception) {
+            } catch (GeneralSecurityException | RegistrySnapshotException exception) {
                 throw new AssertionError("could not create signed registry artifact", exception);
             }
         }
