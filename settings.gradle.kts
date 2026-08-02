@@ -11,4 +11,5 @@ include(
     "bot-client",
     "transport-bctls",
     "identity-registry",
+    "identity-registry-file",
 )
