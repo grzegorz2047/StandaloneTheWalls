@@ -14,8 +14,7 @@ public final class IdentityAdministrationCliRenderer {
         throw new AssertionError("No instances");
     }
 
-    public static IdentityAdministrationCliOutput render(
-            IdentityAdministrationResponse response) {
+    public static IdentityAdministrationCliOutput render(IdentityAdministrationResponse response) {
         IdentityAdministrationResponse result = Objects.requireNonNull(response, "response");
         List<String> lines = new ArrayList<>();
         lines.add("response=" + result.code().name());
@@ -46,7 +45,8 @@ public final class IdentityAdministrationCliRenderer {
                     case IdentityAdministrationResponse.HandleInspection inspection -> {
                         lines.add("handle=" + inspection.handle().value());
                         lines.add("found=" + inspection.playerId().isPresent());
-                        inspection.playerId()
+                        inspection
+                                .playerId()
                                 .ifPresent(playerId -> lines.add("playerId=" + playerId.value()));
                         yield true;
                     }
@@ -83,8 +83,7 @@ public final class IdentityAdministrationCliRenderer {
                         + ban.reason().value());
     }
 
-    private static boolean renderRegistry(
-            List<String> lines, RegistryAdministrationResult result) {
+    private static boolean renderRegistry(List<String> lines, RegistryAdministrationResult result) {
         lines.add("result=" + result.code().name());
         result.snapshot()
                 .ifPresent(
@@ -95,8 +94,7 @@ public final class IdentityAdministrationCliRenderer {
                             lines.add("sha256=" + snapshot.sha256());
                             lines.add("entries=" + snapshot.entries());
                         });
-        result.rejectionCode()
-                .ifPresent(rejection -> lines.add("rejection=" + rejection.name()));
+        result.rejectionCode().ifPresent(rejection -> lines.add("rejection=" + rejection.name()));
         return switch (result.code()) {
             case VERIFIED, ACTIVATED, UNCHANGED -> true;
             case PROVIDER_FAILURE, SNAPSHOT_REJECTED -> false;

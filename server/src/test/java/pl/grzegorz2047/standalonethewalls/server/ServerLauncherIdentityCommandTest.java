@@ -24,8 +24,7 @@ class ServerLauncherIdentityCommandTest {
 
     @Test
     void requiresIdentityConfigurationAndRejectsConflictingModes() {
-        CommandRun missingConfiguration =
-                run("--identity-command", "identity", "list", "handles");
+        CommandRun missingConfiguration = run("--identity-command", "identity", "list", "handles");
         CommandRun missingTokens = run("--identity-command");
         CommandRun validationConflict =
                 run(
@@ -49,12 +48,10 @@ class ServerLauncherIdentityCommandTest {
 
         assertThat(missingConfiguration.exitCode())
                 .isEqualTo(ServerLauncher.EXIT_USAGE_OR_CONFIGURATION);
-        assertThat(missingTokens.exitCode())
-                .isEqualTo(ServerLauncher.EXIT_USAGE_OR_CONFIGURATION);
+        assertThat(missingTokens.exitCode()).isEqualTo(ServerLauncher.EXIT_USAGE_OR_CONFIGURATION);
         assertThat(validationConflict.exitCode())
                 .isEqualTo(ServerLauncher.EXIT_USAGE_OR_CONFIGURATION);
-        assertThat(smokeConflict.exitCode())
-                .isEqualTo(ServerLauncher.EXIT_USAGE_OR_CONFIGURATION);
+        assertThat(smokeConflict.exitCode()).isEqualTo(ServerLauncher.EXIT_USAGE_OR_CONFIGURATION);
         assertThat(missingConfiguration.lines()).isEmpty();
         assertThat(missingTokens.lines()).isEmpty();
         assertThat(validationConflict.lines()).isEmpty();
@@ -97,8 +94,7 @@ class ServerLauncherIdentityCommandTest {
 
         assertThat(reserve.exitCode()).isEqualTo(ServerLauncher.EXIT_OK);
         assertThat(reserve.lines())
-                .containsExactly(
-                        "response=HANDLE_MUTATION_COMPLETED", "result=RESERVED");
+                .containsExactly("response=HANDLE_MUTATION_COMPLETED", "result=RESERVED");
         assertThat(inspect.exitCode()).isEqualTo(ServerLauncher.EXIT_OK);
         assertThat(inspect.lines())
                 .containsExactly(
@@ -108,8 +104,7 @@ class ServerLauncherIdentityCommandTest {
                         "playerId=" + FIRST_PLAYER);
         assertThat(conflict.exitCode()).isEqualTo(ServerLauncher.EXIT_ADMINISTRATION_REJECTED);
         assertThat(conflict.lines())
-                .containsExactly(
-                        "response=HANDLE_MUTATION_COMPLETED", "result=CONFLICT");
+                .containsExactly("response=HANDLE_MUTATION_COMPLETED", "result=CONFLICT");
         assertThat(files.sqlite()).isRegularFile();
         assertThat(files.bundle()).doesNotExist();
     }

@@ -97,11 +97,7 @@ class IdentityAdministrationCliRendererTest {
     void rendersSafeRegistrySummaryAndRejection() {
         RegistrySnapshotSummary summary =
                 new RegistrySnapshotSummary(
-                        12L,
-                        NOW,
-                        new RegistryRootId("sfr1_" + "c".repeat(52)),
-                        "d".repeat(64),
-                        42);
+                        12L, NOW, new RegistryRootId("sfr1_" + "c".repeat(52)), "d".repeat(64), 42);
         IdentityAdministrationCliOutput activated =
                 IdentityAdministrationCliRenderer.render(
                         new IdentityAdministrationResponse.RegistryOperation(
