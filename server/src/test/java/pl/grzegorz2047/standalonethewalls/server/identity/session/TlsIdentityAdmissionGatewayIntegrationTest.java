@@ -395,7 +395,9 @@ class TlsIdentityAdmissionGatewayIntegrationTest {
 
     private LocalIdentityRuntime openRuntime(
             String name, HandleAuthorizationMode mode, List<RegistrySnapshotEntry> registryEntries)
-            throws Exception {
+            throws GeneralSecurityException,
+                    RegistrySnapshotException,
+                    RegistrySnapshotProviderException {
         KeyPair registryRoot = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
         LocalIdentityRuntimeConfiguration configuration =
                 new LocalIdentityRuntimeConfiguration(
@@ -497,24 +499,11 @@ class TlsIdentityAdmissionGatewayIntegrationTest {
             Tls13ServerListener listener)
             implements AutoCloseable {
         @Override
-        public void close() {
-            RuntimeException failure = null;
-            try {
-                gateway.close();
-            } catch (RuntimeException exception) {
-                failure = exception;
-            }
+        public void close() throws IOException {
             try {
                 listener.close();
-            } catch (IOException exception) {
-                if (failure == null) {
-                    failure = new IllegalStateException("TLS listener close failed", exception);
-                } else {
-                    failure.addSuppressed(exception);
-                }
-            }
-            if (failure != null) {
-                throw failure;
+            } finally {
+                gateway.close();
             }
         }
     }
