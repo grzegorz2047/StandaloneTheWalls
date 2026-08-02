@@ -33,8 +33,8 @@ import java.util.function.Supplier;
 /**
  * Owns one bounded TLS server endpoint and delivers authenticated connection leases.
  *
- * <p>The accept loop uses one named platform thread. TLS handshakes use owned named virtual
- * threads. No operation runs on the caller or fixed-tick simulation thread.
+ * <p>The accept loop uses one named platform thread. TLS handshakes use owned named virtual threads.
+ * No operation runs on the caller or fixed-tick simulation thread.
  */
 public final class Tls13ServerListener implements AutoCloseable {
     private static final AtomicLong LISTENER_IDS = new AtomicLong();
@@ -121,7 +121,12 @@ public final class Tls13ServerListener implements AutoCloseable {
             }
             Thread thread = acceptThreadFactory.newThread(this::runAcceptLoop);
             acceptThread = thread;
-            thread.start();
+            try {
+                thread.start();
+            } catch (RuntimeException exception) {
+                initiateClose(exception);
+                throw exception;
+            }
         }
     }
 
@@ -161,8 +166,7 @@ public final class Tls13ServerListener implements AutoCloseable {
             Thread.currentThread().interrupt();
             throw new IOException("interrupted while closing the TLS listener", exception);
         } catch (TimeoutException exception) {
-            throw new IOException(
-                    "TLS listener close did not complete within its bounded wait", exception);
+            throw new IOException("TLS listener close did not complete within its bounded wait", exception);
         } catch (ExecutionException exception) {
             Throwable cause = exception.getCause();
             if (cause instanceof IOException ioException) {
@@ -177,7 +181,7 @@ public final class Tls13ServerListener implements AutoCloseable {
             while (state.get() == State.RUNNING) {
                 Socket socket = serverSocket.accept();
                 if (state.get() != State.RUNNING) {
-                    closeQuietly(socket);
+                    closeDuringShutdown(socket);
                     break;
                 }
                 admit(socket);
@@ -186,14 +190,18 @@ public final class Tls13ServerListener implements AutoCloseable {
             if (state.get() == State.RUNNING) {
                 publish(
                         Tls13ServerListenerEvent.failed(
-                                Tls13ServerListenerEvent.Code.ACCEPT_LOOP_FAILED, null, exception));
+                                Tls13ServerListenerEvent.Code.ACCEPT_LOOP_FAILED,
+                                null,
+                                exception));
                 initiateClose(exception);
             }
         } catch (IOException | RuntimeException exception) {
             if (state.get() == State.RUNNING) {
                 publish(
                         Tls13ServerListenerEvent.failed(
-                                Tls13ServerListenerEvent.Code.ACCEPT_LOOP_FAILED, null, exception));
+                                Tls13ServerListenerEvent.Code.ACCEPT_LOOP_FAILED,
+                                null,
+                                exception));
                 initiateClose(exception);
             }
         }
@@ -205,7 +213,7 @@ public final class Tls13ServerListener implements AutoCloseable {
             socket.setSoTimeout(config.handshakeTimeoutMillis());
             socket.setTcpNoDelay(true);
         } catch (SocketException exception) {
-            closeQuietly(socket);
+            closeWithSuppressed(socket, exception);
             publish(
                     Tls13ServerListenerEvent.failed(
                             Tls13ServerListenerEvent.Code.HANDSHAKE_FAILED,
@@ -215,15 +223,16 @@ public final class Tls13ServerListener implements AutoCloseable {
         }
 
         if (!activeConnectionPermits.tryAcquire()) {
-            closeQuietly(socket);
+            closeRejectedSocket(socket, remoteAddress);
             publish(
                     Tls13ServerListenerEvent.rejected(
-                            Tls13ServerListenerEvent.Code.ACTIVE_CONNECTION_LIMIT, remoteAddress));
+                            Tls13ServerListenerEvent.Code.ACTIVE_CONNECTION_LIMIT,
+                            remoteAddress));
             return;
         }
         if (!handshakePermits.tryAcquire()) {
             activeConnectionPermits.release();
-            closeQuietly(socket);
+            closeRejectedSocket(socket, remoteAddress);
             publish(
                     Tls13ServerListenerEvent.rejected(
                             Tls13ServerListenerEvent.Code.CONCURRENT_HANDSHAKE_LIMIT,
@@ -238,7 +247,7 @@ public final class Tls13ServerListener implements AutoCloseable {
             handshakeSockets.remove(socket);
             handshakePermits.release();
             activeConnectionPermits.release();
-            closeQuietly(socket);
+            closeWithSuppressed(socket, exception);
             publish(
                     Tls13ServerListenerEvent.failed(
                             Tls13ServerListenerEvent.Code.HANDSHAKE_EXECUTOR_REJECTED,
@@ -258,7 +267,7 @@ public final class Tls13ServerListener implements AutoCloseable {
                             secureRandomSupplier.get(), "secureRandomSupplier returned null");
             connection = Tls13ServerAcceptor.accept(socket, credentials, secureRandom);
         } catch (IOException | TlsTransportException | RuntimeException exception) {
-            closeQuietly(socket);
+            closeWithSuppressed(socket, exception);
             activeConnectionPermits.release();
             publish(
                     Tls13ServerListenerEvent.failed(
@@ -280,14 +289,14 @@ public final class Tls13ServerListener implements AutoCloseable {
                         () -> releaseActiveConnection(connectionId));
         activeConnections.put(connectionId, accepted);
         if (state.get() != State.RUNNING) {
-            closeQuietly(accepted);
+            closeDuringShutdown(accepted);
             return;
         }
 
         try {
             handler.onAccepted(accepted);
         } catch (RuntimeException exception) {
-            closeQuietly(accepted);
+            closeWithSuppressed(accepted, exception);
             publish(
                     Tls13ServerListenerEvent.failed(
                             Tls13ServerListenerEvent.Code.HANDLER_FAILED,
@@ -385,6 +394,26 @@ public final class Tls13ServerListener implements AutoCloseable {
         }
     }
 
+    private void closeRejectedSocket(Socket socket, SocketAddress remoteAddress) {
+        try {
+            socket.close();
+        } catch (IOException exception) {
+            publish(
+                    Tls13ServerListenerEvent.failed(
+                            Tls13ServerListenerEvent.Code.HANDSHAKE_FAILED,
+                            remoteAddress,
+                            exception));
+        }
+    }
+
+    private void closeDuringShutdown(AutoCloseable resource) {
+        try {
+            resource.close();
+        } catch (Exception exception) {
+            initiateClose(exception);
+        }
+    }
+
     private void publish(Tls13ServerListenerEvent event) {
         try {
             eventObserver.accept(event);
@@ -401,11 +430,11 @@ public final class Tls13ServerListener implements AutoCloseable {
         }
     }
 
-    private static void closeQuietly(AutoCloseable resource) {
+    private static void closeWithSuppressed(AutoCloseable resource, Throwable primary) {
         try {
             resource.close();
-        } catch (Exception ignored) {
-            // The primary event or shutdown path already records the meaningful failure.
+        } catch (Exception closeFailure) {
+            primary.addSuppressed(closeFailure);
         }
     }
 
