@@ -20,10 +20,19 @@ public final class RegistrySnapshotService {
         this.store = Objects.requireNonNull(store, "store");
     }
 
-    public RegistryActivationResult refresh(RegistrySnapshotProvider provider)
+    public VerifiedRegistrySnapshot verify(RegistrySnapshotProvider provider)
             throws RegistrySnapshotProviderException, RegistrySnapshotException {
         RegistrySnapshotArtifact artifact = Objects.requireNonNull(provider, "provider").load();
-        VerifiedRegistrySnapshot verified = verifier.verify(artifact, trustBundle, policy);
-        return store.activate(verified);
+        return verifier.verify(artifact, trustBundle, policy);
+    }
+
+    public RegistryActivationResult activate(VerifiedRegistrySnapshot snapshot)
+            throws RegistrySnapshotException {
+        return store.activate(Objects.requireNonNull(snapshot, "snapshot"));
+    }
+
+    public RegistryActivationResult refresh(RegistrySnapshotProvider provider)
+            throws RegistrySnapshotProviderException, RegistrySnapshotException {
+        return activate(verify(provider));
     }
 }
