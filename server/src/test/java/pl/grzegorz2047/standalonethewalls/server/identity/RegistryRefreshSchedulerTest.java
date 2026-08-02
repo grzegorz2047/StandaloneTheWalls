@@ -69,16 +69,10 @@ class RegistryRefreshSchedulerTest {
                 Duration.ofSeconds(2));
         manual.runNext();
         assertStatus(
-                scheduler,
-                AutomaticRegistryRefreshResult.ACTIVATED,
-                0,
-                Duration.ofSeconds(20));
+                scheduler, AutomaticRegistryRefreshResult.ACTIVATED, 0, Duration.ofSeconds(20));
         manual.runNext();
         assertStatus(
-                scheduler,
-                AutomaticRegistryRefreshResult.UNCHANGED,
-                0,
-                Duration.ofSeconds(20));
+                scheduler, AutomaticRegistryRefreshResult.UNCHANGED, 0, Duration.ofSeconds(20));
         scheduler.close();
     }
 
@@ -107,16 +101,10 @@ class RegistryRefreshSchedulerTest {
         }
         manual.runNext();
         assertStatus(
-                scheduler,
-                AutomaticRegistryRefreshResult.ACTIVATED,
-                0,
-                Duration.ofSeconds(30));
+                scheduler, AutomaticRegistryRefreshResult.ACTIVATED, 0, Duration.ofSeconds(30));
         manual.runNext();
         assertStatus(
-                scheduler,
-                AutomaticRegistryRefreshResult.CACHE_FAILURE,
-                1,
-                Duration.ofSeconds(2));
+                scheduler, AutomaticRegistryRefreshResult.CACHE_FAILURE, 1, Duration.ofSeconds(2));
         scheduler.close();
     }
 
@@ -163,8 +151,7 @@ class RegistryRefreshSchedulerTest {
     }
 
     @Test
-    void duplicateTaskDispatchCannotOverlapAttemptsOrScheduleFromNominalStart()
-            throws Exception {
+    void duplicateTaskDispatchCannotOverlapAttemptsOrScheduleFromNominalStart() throws Exception {
         ManualTaskScheduler manual = new ManualTaskScheduler();
         AtomicInteger calls = new AtomicInteger();
         AtomicInteger active = new AtomicInteger();
