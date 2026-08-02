@@ -9,4 +9,5 @@ include(
     "server",
     "map-studio",
     "bot-client",
+    "transport-bctls",
 )

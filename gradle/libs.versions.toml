@@ -1,5 +1,6 @@
 [versions]
 assertj = "3.27.3"
+bouncycastle = "1.84"
 google-java-format = "1.35.0"
 jacoco = "0.8.15"
 jme = "3.9.0-stable"
@@ -10,6 +11,9 @@ spotbugs-plugin = "6.5.9"
 spotless = "8.9.0"
 
 [libraries]
+bouncycastle-pkix = { module = "org.bouncycastle:bcpkix-jdk18on", version.ref = "bouncycastle" }
+bouncycastle-provider = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
+bouncycastle-tls = { module = "org.bouncycastle:bctls-jdk18on", version.ref = "bouncycastle" }
 assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 jme3-core = { module = "org.jmonkeyengine:jme3-core", version.ref = "jme" }
 jme3-desktop = { module = "org.jmonkeyengine:jme3-desktop", version.ref = "jme" }
