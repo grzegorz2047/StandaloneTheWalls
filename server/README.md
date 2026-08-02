@@ -13,7 +13,19 @@ Copy `server.properties.example` and pass the resulting path explicitly:
 ./gradlew :server:run --args="--config /path/to/server.properties --validate-config"
 ```
 
-Supported properties:
+To validate server and local identity configuration together without creating or
+migrating SQLite, pass both files:
+
+```bash
+./gradlew :server:run --args="--config /path/to/server.properties --identity-config /path/to/identity.properties --validate-config"
+```
+
+A normal process start may enable local identity with the optional single-use
+`--identity-config <path>` argument. The launcher loads trust roots and opens one
+`LocalIdentityRuntime` before the simulation thread starts. Omitting the argument
+preserves the existing identity-disabled process behavior.
+
+Supported server properties:
 
 - `server.name`
 - `server.tick-rate` — 10 through 60, default 20
@@ -28,8 +40,8 @@ capacities above the current product target fail closed.
 
 Issue #69 adds a separate strict configuration file for the inputs required by
 `LocalIdentityRuntime`. Copy `identity.properties.example` and replace every path
-and authorization choice intentionally. The file is not yet connected to
-`ServerLauncher`; launcher ownership is a later step.
+and authorization choice intentionally. Issue #70 connects the validated result to
+`ServerLauncher` through `--identity-config`.
 
 Required literal `key=value` properties are:
 
@@ -69,6 +81,18 @@ key algorithms are rejected. Error messages never include the raw key line.
 not a production or test trust root. Replace it with an explicitly provisioned
 public registry root before loading the identity configuration. Private keys and
 credentials do not belong in either configuration file.
+
+In validate-only mode the launcher parses the identity file and trust roots but
+does not open the runtime, create SQLite, migrate schema, or load the registry
+bundle through a runtime provider. In a normal start, invalid trust roots or SQLite
+open/schema failure return the configuration exit code before the tick loop.
+Missing or rejected registry bundle data remains a typed startup state rather than
+a process failure or generated default snapshot.
+
+Launcher identity logs contain only enabled/disabled state, authorization mode,
+registry startup result code, and registry availability state. They do not contain
+identity paths, trust-root material, registry digests, signatures, provider
+exception text, handles, player IDs, or addresses.
 
 ## Identity admission boundary
 
@@ -114,8 +138,9 @@ operate without registry data only when explicitly selected. `GLOBAL_ONLY` and
 Registry availability is computed dynamically from the shared store, clock, and
 policy. A later authorized `reload-registry` command is therefore immediately
 visible to the next admission call. Bindings and player bans survive reopening via
-the shared SQLite file. Process launcher ownership, sockets, TLS, refresh
-scheduling, and lobby membership remain outside this composition.
+the shared SQLite file. `ServerLauncher` owns one runtime for the process lifetime
+when `--identity-config` is supplied. Sockets, TLS, refresh scheduling, and lobby
+membership remain outside this composition.
 
 ## Local identity administration commands
 
@@ -162,6 +187,12 @@ A bounded headless run is available for CI and packaging checks:
 
 ```bash
 ./gradlew :server:run --args="--run-for-ticks 20"
+```
+
+The same bounded run can open local identity before the scheduler:
+
+```bash
+./gradlew :server:run --args="--identity-config /path/to/identity.properties --run-for-ticks 20"
 ```
 
 The value must be between 1 and 1,000,000. Smoke mode starts the same simulation
