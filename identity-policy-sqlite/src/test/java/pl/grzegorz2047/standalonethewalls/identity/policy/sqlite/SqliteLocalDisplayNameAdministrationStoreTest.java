@@ -224,7 +224,8 @@ class SqliteLocalDisplayNameAdministrationStoreTest {
             return latch.await(timeout, unit);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            throw new AssertionError("concurrent display-name coordination was interrupted", exception);
+            throw new AssertionError(
+                    "concurrent display-name coordination was interrupted", exception);
         }
     }
 
