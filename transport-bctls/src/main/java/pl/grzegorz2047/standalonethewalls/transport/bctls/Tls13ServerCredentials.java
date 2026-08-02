@@ -50,9 +50,7 @@ public final class Tls13ServerCredentials {
         try {
             leaf.checkValidity();
             return new Tls13ServerCredentials(
-                    privateKey,
-                    copy,
-                    ServerId.fromPublicKey(leaf.getPublicKey().getEncoded()));
+                    privateKey, copy, ServerId.fromPublicKey(leaf.getPublicKey().getEncoded()));
         } catch (java.security.cert.CertificateException | IdentityException exception) {
             throw new TlsTransportException(
                     TlsTransportException.Code.SERVER_CREDENTIALS_INVALID,

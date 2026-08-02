@@ -48,8 +48,7 @@ final class Tls13ProtocolPolicy {
     static String cipherSuiteName(int cipherSuite) {
         return switch (cipherSuite) {
             case CipherSuite.TLS_AES_128_GCM_SHA256 -> "TLS_AES_128_GCM_SHA256";
-            case CipherSuite.TLS_CHACHA20_POLY1305_SHA256 ->
-                    "TLS_CHACHA20_POLY1305_SHA256";
+            case CipherSuite.TLS_CHACHA20_POLY1305_SHA256 -> "TLS_CHACHA20_POLY1305_SHA256";
             case CipherSuite.TLS_AES_256_GCM_SHA384 -> "TLS_AES_256_GCM_SHA384";
             default -> "UNKNOWN_0x" + Integer.toHexString(cipherSuite);
         };

@@ -98,8 +98,7 @@ class Tls13LoopbackIntegrationTest {
         InMemoryServerTrustStore store = new InMemoryServerTrustStore();
         ServerTrustService trustService = new ServerTrustService(store);
         ServerId trustedId = ServerId.fromPublicKey(trusted.keyPair().getPublic().getEncoded());
-        trustService.confirmFirstUse(
-                REFERENCE, trustedId, Optional.empty(), "loopback test");
+        trustService.confirmFirstUse(REFERENCE, trustedId, Optional.empty(), "loopback test");
         PinnedServerTrustManager trustManager =
                 new PinnedServerTrustManager(trustService, REFERENCE, Optional.empty());
 
@@ -144,8 +143,7 @@ class Tls13LoopbackIntegrationTest {
                                                             .SOCKET_CONFIGURATION_INVALID));
         }
 
-        try (ServerSocket listener =
-                        new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
+        try (ServerSocket listener = new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
                 Socket socket =
                         new Socket(InetAddress.getLoopbackAddress(), listener.getLocalPort())) {
             assertThat(socket.getSoTimeout()).isZero();
@@ -190,8 +188,7 @@ class Tls13LoopbackIntegrationTest {
 
         private LoopbackServer(Tls13ServerCredentials credentials) throws IOException {
             this.credentials = credentials;
-            serverSocket =
-                    new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
+            serverSocket = new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
             serverSocket.setSoTimeout((int) TIMEOUT.toMillis());
             executor = Executors.newSingleThreadExecutor();
         }

@@ -22,8 +22,7 @@ import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 
-record TestCertificateMaterial(
-        KeyPair keyPair, java.security.cert.X509Certificate certificate) {
+record TestCertificateMaterial(KeyPair keyPair, java.security.cert.X509Certificate certificate) {
     static TestCertificateMaterial create(Provider provider, long serial)
             throws GeneralSecurityException, OperatorCreationException, IOException {
         KeyPairGenerator generator = KeyPairGenerator.getInstance("Ed25519", provider);

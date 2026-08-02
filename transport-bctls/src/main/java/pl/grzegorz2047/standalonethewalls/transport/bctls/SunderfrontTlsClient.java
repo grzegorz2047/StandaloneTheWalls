@@ -62,8 +62,7 @@ final class SunderfrontTlsClient extends DefaultTlsClient {
         super.notifyHandshakeComplete();
         if (serverId == null) {
             throw new TlsFatalAlert(
-                    AlertDescription.internal_error,
-                    "the verified server identity is unavailable");
+                    AlertDescription.internal_error, "the verified server identity is unavailable");
         }
         security = Tls13SecurityCapture.capture(context, serverId);
     }
@@ -95,8 +94,7 @@ final class SunderfrontTlsClient extends DefaultTlsClient {
                                         new ByteArrayInputStream(tlsCertificate.getEncoded()));
             }
             trustManager.checkServerTrusted(certificates, "Ed25519");
-            serverId =
-                    ServerId.fromPublicKey(certificates[0].getPublicKey().getEncoded());
+            serverId = ServerId.fromPublicKey(certificates[0].getPublicKey().getEncoded());
         } catch (GeneralSecurityException | IdentityException exception) {
             throw new TlsFatalAlert(AlertDescription.bad_certificate, exception);
         }

@@ -21,8 +21,7 @@ final class Tls13SecurityCapture {
         SecurityParameters parameters = context.getSecurityParametersConnection();
         if (!ProtocolVersion.TLSv13.equals(parameters.getNegotiatedVersion())) {
             throw new TlsFatalAlert(
-                    AlertDescription.protocol_version,
-                    "Sunderfront requires TLS 1.3");
+                    AlertDescription.protocol_version, "Sunderfront requires TLS 1.3");
         }
 
         int cipherSuite = parameters.getCipherSuite();
