@@ -223,7 +223,5 @@ class HandleAuthorizationServiceTest {
     }
 
     private record RegistryFixture(
-            VerifiedRegistrySnapshot snapshot,
-            PlayerId activePlayerId,
-            PlayerId revokedPlayerId) {}
+            VerifiedRegistrySnapshot snapshot, PlayerId activePlayerId, PlayerId revokedPlayerId) {}
 }
