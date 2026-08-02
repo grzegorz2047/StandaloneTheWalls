@@ -114,7 +114,7 @@ public final class Tls13ServerListener implements AutoCloseable {
         return (InetSocketAddress) serverSocket.getLocalSocketAddress();
     }
 
-    public void start() {
+    public void start() throws IOException {
         synchronized (lifecycleLock) {
             if (!state.compareAndSet(State.NEW, State.RUNNING)) {
                 throw new IllegalStateException("TLS listener can be started only once");
@@ -125,7 +125,7 @@ public final class Tls13ServerListener implements AutoCloseable {
                 thread.start();
             } catch (RuntimeException exception) {
                 initiateClose(exception);
-                throw exception;
+                throw new IOException("unable to start the TLS accept thread", exception);
             }
         }
     }
