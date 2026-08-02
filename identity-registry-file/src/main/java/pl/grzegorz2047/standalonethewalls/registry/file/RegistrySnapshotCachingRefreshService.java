@@ -6,21 +6,29 @@ import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotException;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotProvider;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotProviderException;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotService;
+import pl.grzegorz2047.standalonethewalls.registry.VerifiedRegistrySnapshotCommit;
 
 /** Verifies one provider artifact, atomically caches it, and only then publishes activation. */
 public final class RegistrySnapshotCachingRefreshService {
     private final RegistrySnapshotService snapshotService;
-    private final RegistrySnapshotBundleFile bundleFile;
+    private final VerifiedRegistrySnapshotCommit commit;
 
     public RegistrySnapshotCachingRefreshService(
             RegistrySnapshotService snapshotService, RegistrySnapshotBundleFile bundleFile) {
+        this(
+                snapshotService,
+                Objects.requireNonNull(bundleFile, "bundleFile")::storeVerified);
+    }
+
+    RegistrySnapshotCachingRefreshService(
+            RegistrySnapshotService snapshotService, VerifiedRegistrySnapshotCommit commit) {
         this.snapshotService = Objects.requireNonNull(snapshotService, "snapshotService");
-        this.bundleFile = Objects.requireNonNull(bundleFile, "bundleFile");
+        this.commit = Objects.requireNonNull(commit, "commit");
     }
 
     public RegistryActivationResult refresh(RegistrySnapshotProvider provider)
             throws RegistrySnapshotProviderException, RegistrySnapshotException {
         return snapshotService.refreshAndCommit(
-                Objects.requireNonNull(provider, "provider"), bundleFile::storeVerified);
+                Objects.requireNonNull(provider, "provider"), commit);
     }
 }
