@@ -127,9 +127,14 @@ On close, the gateway:
 
 1. changes state to closing and rejects new leases;
 2. interrupts workers and closes every tracked in-flight TLS connection;
-3. closes every queued, untransferred authorized session;
-4. waits for its executor for the configured bounded timeout;
+3. waits for the workers for the configured bounded timeout, allowing each queue
+   reservation to commit or cancel exactly once;
+4. closes every queued, untransferred authorized session;
 5. becomes closed.
+
+This order prevents a completed accepted result from losing its reserved handoff
+slot to a concurrent queue close. If the TLS lease is closed before result send
+completes, the send fails and the reservation is cancelled.
 
 The gateway checks lifecycle after bootstrap and after Identity Proof, before
 calling the SQLite-backed runtime. No new policy mutation begins after close has
