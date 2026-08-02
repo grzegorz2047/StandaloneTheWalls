@@ -25,8 +25,7 @@ class InMemoryLocalHandleBindingStoreTest {
 
         assertThat(store.bindOrVerify(HANDLE, FIRST)).isEqualTo(LocalHandleBindingResult.BOUND);
         assertThat(store.bindOrVerify(HANDLE, FIRST)).isEqualTo(LocalHandleBindingResult.MATCHED);
-        assertThat(store.bindOrVerify(HANDLE, SECOND))
-                .isEqualTo(LocalHandleBindingResult.CONFLICT);
+        assertThat(store.bindOrVerify(HANDLE, SECOND)).isEqualTo(LocalHandleBindingResult.CONFLICT);
         assertThat(store.find(HANDLE)).contains(FIRST);
         assertThat(store.size()).isEqualTo(1);
     }
