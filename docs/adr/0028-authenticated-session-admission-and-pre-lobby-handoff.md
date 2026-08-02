@@ -117,9 +117,15 @@ Shutdown order is:
 1. change gateway state from open to closing;
 2. reject new accepted connections;
 3. interrupt owned workers and close tracked TLS leases;
-4. close every queued, untransferred authorized session;
-5. wait for the executor for a bounded duration;
+4. wait for the workers for a bounded duration so every outstanding queue
+   reservation is committed or cancelled;
+5. close every queued, untransferred authorized session;
 6. mark the gateway closed.
+
+Waiting for workers before closing the queue prevents a completed accepted result
+from losing its reserved handoff slot to a concurrent queue close. If shutdown
+closes the TLS lease before the result send completes, the send fails and the
+reservation is cancelled instead.
 
 The gateway checks lifecycle after bootstrap and again after cryptographic proof,
 before invoking SQLite-backed policy. It never begins new admission side effects
