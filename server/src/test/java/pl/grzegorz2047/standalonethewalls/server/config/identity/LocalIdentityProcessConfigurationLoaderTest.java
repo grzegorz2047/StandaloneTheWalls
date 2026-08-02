@@ -87,9 +87,7 @@ class LocalIdentityProcessConfigurationLoaderTest {
         KeyPair root = root();
         writeTrustRoots(temporaryDirectory.resolve("roots.hex"), root.getPublic().getEncoded());
 
-        assertRejected(
-                validPrefix()
-                        + "identity.authorization-mode=LOCAL_TOFU\n");
+        assertRejected(validPrefix() + "identity.authorization-mode=LOCAL_TOFU\n");
         assertRejected(validPrefix() + "identity.unknown=value\n");
         assertRejected(
                 "identity.sqlite-path=identity.sqlite\n"
@@ -102,8 +100,7 @@ class LocalIdentityProcessConfigurationLoaderTest {
     }
 
     @Test
-    void rejectsSharedTrustStateAndRuntimePaths()
-            throws IOException, NoSuchAlgorithmException {
+    void rejectsSharedTrustStateAndRuntimePaths() throws IOException, NoSuchAlgorithmException {
         KeyPair root = root();
         writeTrustRoots(temporaryDirectory.resolve("registry.sfrb"), root.getPublic().getEncoded());
         String configuration =
@@ -155,8 +152,7 @@ class LocalIdentityProcessConfigurationLoaderTest {
         KeyPair root = root();
         Path roots = temporaryDirectory.resolve("roots.hex");
         writeTrustRoots(roots, root.getPublic().getEncoded());
-        Path realConfiguration =
-                writeConfiguration(temporaryDirectory, validPrefix());
+        Path realConfiguration = writeConfiguration(temporaryDirectory, validPrefix());
         Path configurationLink = temporaryDirectory.resolve("identity-link.properties");
         Files.createSymbolicLink(configurationLink, realConfiguration.getFileName());
         Path rootsLink = temporaryDirectory.resolve("roots-link.hex");

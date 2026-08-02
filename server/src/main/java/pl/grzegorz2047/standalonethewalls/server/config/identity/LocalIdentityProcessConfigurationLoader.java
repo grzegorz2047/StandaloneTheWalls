@@ -21,8 +21,7 @@ public final class LocalIdentityProcessConfigurationLoader {
     private static final String AUTHORIZATION_MODE = "identity.authorization-mode";
     private static final String TRUST_ROOTS_PATH = "identity.trust-roots-path";
     private static final String MINIMUM_SEQUENCE = "identity.registry.minimum-sequence";
-    private static final String MAXIMUM_AGE_SECONDS =
-            "identity.registry.maximum-age-seconds";
+    private static final String MAXIMUM_AGE_SECONDS = "identity.registry.maximum-age-seconds";
     private static final String MAXIMUM_FUTURE_SKEW_SECONDS =
             "identity.registry.maximum-future-skew-seconds";
     private static final String MAXIMUM_JSON_BYTES = "identity.registry.maximum-json-bytes";
@@ -47,8 +46,7 @@ public final class LocalIdentityProcessConfigurationLoader {
 
     public static LocalIdentityProcessConfiguration load(Path path)
             throws IOException, RegistrySnapshotException {
-        Path configurationPath =
-                Objects.requireNonNull(path, "path").toAbsolutePath().normalize();
+        Path configurationPath = Objects.requireNonNull(path, "path").toAbsolutePath().normalize();
         Path baseDirectory = configurationPath.getParent();
         if (baseDirectory == null || configurationPath.getFileName() == null) {
             throw new IllegalArgumentException("identity configuration path must identify a file");
@@ -63,10 +61,7 @@ public final class LocalIdentityProcessConfigurationLoader {
 
         Path sqlitePath = resolve(baseDirectory, properties.get(SQLITE_PATH), SQLITE_PATH);
         Path registryBundlePath =
-                resolve(
-                        baseDirectory,
-                        properties.get(REGISTRY_BUNDLE_PATH),
-                        REGISTRY_BUNDLE_PATH);
+                resolve(baseDirectory, properties.get(REGISTRY_BUNDLE_PATH), REGISTRY_BUNDLE_PATH);
         Path trustRootsPath =
                 resolve(baseDirectory, properties.get(TRUST_ROOTS_PATH), TRUST_ROOTS_PATH);
         HandleAuthorizationMode mode = mode(properties.get(AUTHORIZATION_MODE));
@@ -125,8 +120,7 @@ public final class LocalIdentityProcessConfigurationLoader {
                 throw new IllegalArgumentException("unknown identity configuration key: " + key);
             }
             if (properties.putIfAbsent(key, value) != null) {
-                throw new IllegalArgumentException(
-                        "duplicate identity configuration key: " + key);
+                throw new IllegalArgumentException("duplicate identity configuration key: " + key);
             }
         }
         return Map.copyOf(properties);
@@ -148,8 +142,7 @@ public final class LocalIdentityProcessConfigurationLoader {
             return HandleAuthorizationMode.valueOf(value);
         } catch (IllegalArgumentException exception) {
             throw new IllegalArgumentException(
-                    AUTHORIZATION_MODE + " must be LOCAL_TOFU, GLOBAL_ONLY, or HYBRID",
-                    exception);
+                    AUTHORIZATION_MODE + " must be LOCAL_TOFU, GLOBAL_ONLY, or HYBRID", exception);
         }
     }
 
@@ -162,7 +155,8 @@ public final class LocalIdentityProcessConfigurationLoader {
         try {
             return Long.parseLong(value);
         } catch (NumberFormatException exception) {
-            throw new IllegalArgumentException(key + " is outside the base-10 integer range", exception);
+            throw new IllegalArgumentException(
+                    key + " is outside the base-10 integer range", exception);
         }
     }
 
