@@ -75,13 +75,24 @@ separate Sunderfront identity.
 
 ### Channel binding
 
-After a completed BCJSSE handshake, the adapter obtains
-`BCSSLConnection.getChannelBinding("tls-exporter")`. Bouncy Castle maps this to
-the RFC 9266 TLS exporter channel binding. The result must be exactly 32 bytes
-and is wrapped in ADR 0004's non-logging `SecureChannelBinding` value.
+Bouncy Castle 1.84 intentionally exposes TLS 1.3 exporter material only while it
+invokes `notifyHandshakeComplete()`. The exporter master secret is cleared after
+the callback. Reading `BCSSLConnection.getChannelBinding("tls-exporter")` later
+from an otherwise completed socket fails and must not be worked around with a
+sleep, retry loop, reflection, or retention of provider internals.
 
-A missing provider extension, incomplete handshake, null exporter, or wrong
-length fails closed before the application creates or accepts an identity proof.
+`Tls13Handshake` therefore registers a standard JSSE handshake-completed
+listener before starting the handshake. Inside that callback it obtains the
+BCJSSE connection and captures `tls-exporter`. Bouncy Castle maps this value to
+the RFC 9266 TLS exporter channel binding. The captured result must be exactly 32
+bytes and is immediately wrapped in ADR 0004's defensively copied, non-logging
+`SecureChannelBinding` value. The listener is removed after the handshake and no
+exporter secret or provider context is retained.
+
+A missing callback, missing provider extension, incomplete handshake, null
+exporter, wrong length, rejected TLS policy, or use of a non-BCJSSE socket fails
+closed before the application creates or accepts an identity proof. A channel
+whose exporter cannot be captured is closed before the error is returned.
 
 ### Certificate checks in pinned mode
 
@@ -96,11 +107,12 @@ It does not silently turn a local pin into public-PKI validation or vice versa.
 The module must include a real loopback TLS integration test that proves:
 
 - TLS 1.3 and `sunderfront/1` are negotiated;
-- both peers derive the same 32-byte `tls-exporter` binding;
+- both peers capture the same 32-byte `tls-exporter` value during their own
+  handshake-completed callbacks;
 - encrypted application data can make a bounded round trip;
 - the inspected peer `ServerId` matches the certificate key;
 - a different certificate key for an existing local reference aborts the
-  handshake;
+  handshake with the semantic `CHANGED_IDENTITY` cause preserved;
 - first-use inspection does not persist trust automatically;
 - an unsupported JSSE socket cannot masquerade as a channel-bound connection.
 
@@ -112,6 +124,8 @@ quality gate.
 
 - Java 21 clients and servers can use a standard TLS 1.3 implementation with the
   exact exporter required by the identity transcript.
+- The exporter is captured only during the supported BCJSSE callback and then
+  represented by an independent immutable 32-byte value.
 - The first adapter is pure Java and does not add Netty, OpenSSL, BoringSSL, JNI,
   or platform-specific binaries.
 - LAN/private servers can operate offline after explicit first-use confirmation.
@@ -125,6 +139,9 @@ quality gate.
 
 - **Java 21 SunJSSE only:** TLS 1.3 is available, but the public exporter API
   required for RFC 9266 channel binding is not.
+- **Post-handshake exporter polling:** BCJSSE clears the TLS 1.3 exporter secret
+  after its completion callback; polling is racy and cannot restore erased key
+  material.
 - **Certificate hash as channel binding:** binds a certificate rather than the
   exact secure connection and breaks legitimate certificate rotation.
 - **Custom nonce/hash substitute:** not a standard exporter and does not provide
@@ -142,6 +159,8 @@ quality gate.
 - Bouncy Castle Java 1.84 release notes and release announcement.
 - Bouncy Castle `BCSSLConnection#getChannelBinding` implementation for
   `tls-exporter`.
+- Bouncy Castle mock TLS peers exporting channel bindings from
+  `notifyHandshakeComplete()`.
 - RFC 8446: TLS 1.3.
 - RFC 9266: `tls-exporter` channel binding.
 - RFC 7301: ALPN.
