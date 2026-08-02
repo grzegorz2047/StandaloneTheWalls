@@ -2,6 +2,8 @@ package pl.grzegorz2047.standalonethewalls.protocol.identity;
 
 /** Safe semantic failure while decoding one identity payload. */
 public final class IdentityPayloadException extends Exception {
+    private static final long serialVersionUID = 1L;
+
     private final Code code;
 
     public IdentityPayloadException(Code code, String message) {
