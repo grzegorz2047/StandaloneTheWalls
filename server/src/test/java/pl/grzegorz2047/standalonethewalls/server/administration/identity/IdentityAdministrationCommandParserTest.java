@@ -22,6 +22,10 @@ class IdentityAdministrationCommandParserTest {
                 .isEqualTo(new IdentityAdministrationCommand.ListHandles());
         assertThat(parse("identity", "list", "bans"))
                 .isEqualTo(new IdentityAdministrationCommand.ListBans());
+        assertThat(parse("identity", "verify-snapshot"))
+                .isEqualTo(new IdentityAdministrationCommand.VerifySnapshot());
+        assertThat(parse("identity", "reload-registry"))
+                .isEqualTo(new IdentityAdministrationCommand.ReloadRegistry());
         assertThat(parse("identity", "inspect", "handle", HANDLE.value()))
                 .isEqualTo(new IdentityAdministrationCommand.InspectHandle(HANDLE));
         assertThat(parse("identity", "inspect", "ban", FIRST.value()))
@@ -55,6 +59,10 @@ class IdentityAdministrationCommandParserTest {
         assertThatThrownBy(() -> parse("identity", "unknown"))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> parse("identity", "list", "handles", "extra"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> parse("identity", "verify-snapshot", "extra"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> parse("identity", "reload-registry", "extra"))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> parse("identity", "inspect", "unknown", FIRST.value()))
                 .isInstanceOf(IllegalArgumentException.class);
