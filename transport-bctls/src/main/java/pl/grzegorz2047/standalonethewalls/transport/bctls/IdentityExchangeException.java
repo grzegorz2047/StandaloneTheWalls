@@ -6,6 +6,8 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.IdentityResultStatus
 
 /** Safe terminal failure for one bounded identity exchange. */
 public final class IdentityExchangeException extends Exception {
+    private static final long serialVersionUID = 1L;
+
     private final Code code;
     private final Optional<IdentityResultStatus> resultStatus;
 
