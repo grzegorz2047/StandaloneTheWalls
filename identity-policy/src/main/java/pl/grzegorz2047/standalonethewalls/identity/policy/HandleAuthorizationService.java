@@ -5,6 +5,7 @@ import java.util.Optional;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.CanonicalHandle;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
 import pl.grzegorz2047.standalonethewalls.registry.RegistryEntryStatus;
+import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotAvailability;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotEntry;
 import pl.grzegorz2047.standalonethewalls.registry.VerifiedRegistrySnapshot;
 
@@ -21,31 +22,69 @@ public final class HandleAuthorizationService {
             CanonicalHandle handle,
             PlayerId playerId,
             Optional<VerifiedRegistrySnapshot> activeSnapshot) {
+        Optional<VerifiedRegistrySnapshot> snapshot =
+                Objects.requireNonNull(activeSnapshot, "activeSnapshot");
+        RegistrySnapshotAvailability availability =
+                snapshot.map(RegistrySnapshotAvailability::fresh)
+                        .orElseGet(RegistrySnapshotAvailability::absent);
+        return authorize(mode, handle, playerId, availability);
+    }
+
+    public HandleAuthorizationDecision authorize(
+            HandleAuthorizationMode mode,
+            CanonicalHandle handle,
+            PlayerId playerId,
+            RegistrySnapshotAvailability registryAvailability) {
         HandleAuthorizationMode selectedMode = Objects.requireNonNull(mode, "mode");
         CanonicalHandle canonicalHandle = Objects.requireNonNull(handle, "handle");
         PlayerId identity = Objects.requireNonNull(playerId, "playerId");
-        Optional<VerifiedRegistrySnapshot> snapshot =
-                Objects.requireNonNull(activeSnapshot, "activeSnapshot");
+        RegistrySnapshotAvailability availability =
+                Objects.requireNonNull(registryAvailability, "registryAvailability");
 
         return switch (selectedMode) {
             case LOCAL_TOFU -> authorizeLocal(canonicalHandle, identity);
-            case GLOBAL_ONLY ->
-                    snapshot.map(value -> authorizeGlobal(value, canonicalHandle, identity))
-                            .orElse(HandleAuthorizationDecision.REGISTRY_UNAVAILABLE);
-            case HYBRID ->
-                    snapshot.map(value -> authorizeHybrid(value, canonicalHandle, identity))
-                            .orElse(HandleAuthorizationDecision.REGISTRY_UNAVAILABLE);
+            case GLOBAL_ONLY -> authorizeGlobal(availability, canonicalHandle, identity);
+            case HYBRID -> authorizeHybrid(availability, canonicalHandle, identity);
         };
     }
 
     private HandleAuthorizationDecision authorizeHybrid(
+            RegistrySnapshotAvailability availability,
+            CanonicalHandle handle,
+            PlayerId playerId) {
+        return switch (availability.state()) {
+            case ABSENT -> HandleAuthorizationDecision.REGISTRY_UNAVAILABLE;
+            case FRESH -> authorizeHybridFresh(availability.requireSnapshot(), handle, playerId);
+            case STALE -> authorizeHybridStale(availability.requireSnapshot(), handle, playerId);
+        };
+    }
+
+    private HandleAuthorizationDecision authorizeHybridFresh(
             VerifiedRegistrySnapshot snapshot, CanonicalHandle handle, PlayerId playerId) {
         return snapshot.find(handle)
                 .map(entry -> authorizeGlobalEntry(entry, playerId))
                 .orElseGet(() -> authorizeLocal(handle, playerId));
     }
 
+    private HandleAuthorizationDecision authorizeHybridStale(
+            VerifiedRegistrySnapshot snapshot, CanonicalHandle handle, PlayerId playerId) {
+        return snapshot.find(handle).isPresent()
+                ? HandleAuthorizationDecision.REGISTRY_STALE
+                : authorizeLocal(handle, playerId);
+    }
+
     private static HandleAuthorizationDecision authorizeGlobal(
+            RegistrySnapshotAvailability availability,
+            CanonicalHandle handle,
+            PlayerId playerId) {
+        return switch (availability.state()) {
+            case ABSENT -> HandleAuthorizationDecision.REGISTRY_UNAVAILABLE;
+            case STALE -> HandleAuthorizationDecision.REGISTRY_STALE;
+            case FRESH -> authorizeGlobalFresh(availability.requireSnapshot(), handle, playerId);
+        };
+    }
+
+    private static HandleAuthorizationDecision authorizeGlobalFresh(
             VerifiedRegistrySnapshot snapshot, CanonicalHandle handle, PlayerId playerId) {
         return snapshot.find(handle)
                 .map(entry -> authorizeGlobalEntry(entry, playerId))
