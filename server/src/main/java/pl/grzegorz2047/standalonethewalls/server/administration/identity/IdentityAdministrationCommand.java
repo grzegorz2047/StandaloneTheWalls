@@ -24,9 +24,7 @@ public sealed interface IdentityAdministrationCommand {
     }
 
     record ReserveHandle(
-            CanonicalHandle handle,
-            PlayerId playerId,
-            LocalHandleAdministrationReason reason)
+            CanonicalHandle handle, PlayerId playerId, LocalHandleAdministrationReason reason)
             implements IdentityAdministrationCommand {
         public ReserveHandle {
             handle = Objects.requireNonNull(handle, "handle");
@@ -56,7 +54,8 @@ public sealed interface IdentityAdministrationCommand {
         public RebindHandle {
             handle = Objects.requireNonNull(handle, "handle");
             expectedPlayerId = Objects.requireNonNull(expectedPlayerId, "expectedPlayerId");
-            replacementPlayerId = Objects.requireNonNull(replacementPlayerId, "replacementPlayerId");
+            replacementPlayerId =
+                    Objects.requireNonNull(replacementPlayerId, "replacementPlayerId");
             reason = Objects.requireNonNull(reason, "reason");
         }
     }

@@ -10,20 +10,17 @@ public final class IdentityAdministrationCommandService {
     private final LocalPlayerBanAdministrationService bans;
 
     public IdentityAdministrationCommandService(
-            LocalHandleAdministrationService handles,
-            LocalPlayerBanAdministrationService bans) {
+            LocalHandleAdministrationService handles, LocalPlayerBanAdministrationService bans) {
         this.handles = Objects.requireNonNull(handles, "handles");
         this.bans = Objects.requireNonNull(bans, "bans");
     }
 
     public IdentityAdministrationResponse execute(
             IdentityAdministrationCommand command, IdentityAdministrationPrincipal principal) {
-        IdentityAdministrationCommand requestedCommand =
-                Objects.requireNonNull(command, "command");
+        IdentityAdministrationCommand requestedCommand = Objects.requireNonNull(command, "command");
         IdentityAdministrationPrincipal authenticatedPrincipal =
                 Objects.requireNonNull(principal, "principal");
-        IdentityAdministrationPermission requiredPermission =
-                requiredPermission(requestedCommand);
+        IdentityAdministrationPermission requiredPermission = requiredPermission(requestedCommand);
         if (!authenticatedPrincipal.has(requiredPermission)) {
             return new IdentityAdministrationResponse.PermissionDenied(requiredPermission);
         }

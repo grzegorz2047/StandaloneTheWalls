@@ -25,8 +25,9 @@ public final class IdentityAdministrationCommandParser {
             case "rebind" -> parseRebind(tokens);
             case "ban-player-id" -> parseBan(tokens);
             case "unban-player-id" -> parseUnban(tokens);
-            default -> throw new IllegalArgumentException(
-                    "unknown identity command: " + tokens.get(1));
+            default ->
+                    throw new IllegalArgumentException(
+                            "unknown identity command: " + tokens.get(1));
         };
     }
 
@@ -35,8 +36,9 @@ public final class IdentityAdministrationCommandParser {
         return switch (tokens.get(2)) {
             case "handles" -> new IdentityAdministrationCommand.ListHandles();
             case "bans" -> new IdentityAdministrationCommand.ListBans();
-            default -> throw new IllegalArgumentException(
-                    "identity list target must be 'handles' or 'bans'");
+            default ->
+                    throw new IllegalArgumentException(
+                            "identity list target must be 'handles' or 'bans'");
         };
     }
 
@@ -46,10 +48,10 @@ public final class IdentityAdministrationCommandParser {
             case "handle" ->
                     new IdentityAdministrationCommand.InspectHandle(
                             new CanonicalHandle(tokens.get(3)));
-            case "ban" ->
-                    new IdentityAdministrationCommand.InspectBan(new PlayerId(tokens.get(3)));
-            default -> throw new IllegalArgumentException(
-                    "identity inspect target must be 'handle' or 'ban'");
+            case "ban" -> new IdentityAdministrationCommand.InspectBan(new PlayerId(tokens.get(3)));
+            default ->
+                    throw new IllegalArgumentException(
+                            "identity inspect target must be 'handle' or 'ban'");
         };
     }
 
@@ -81,15 +83,13 @@ public final class IdentityAdministrationCommandParser {
     private static IdentityAdministrationCommand parseBan(List<String> tokens) {
         requireSize(tokens, 4);
         return new IdentityAdministrationCommand.BanPlayer(
-                new PlayerId(tokens.get(2)),
-                new LocalHandleAdministrationReason(tokens.get(3)));
+                new PlayerId(tokens.get(2)), new LocalHandleAdministrationReason(tokens.get(3)));
     }
 
     private static IdentityAdministrationCommand parseUnban(List<String> tokens) {
         requireSize(tokens, 4);
         return new IdentityAdministrationCommand.UnbanPlayer(
-                new PlayerId(tokens.get(2)),
-                new LocalHandleAdministrationReason(tokens.get(3)));
+                new PlayerId(tokens.get(2)), new LocalHandleAdministrationReason(tokens.get(3)));
     }
 
     private static void requireSize(List<String> tokens, int expected) {

@@ -26,26 +26,10 @@ class IdentityAdministrationCommandParserTest {
                 .isEqualTo(new IdentityAdministrationCommand.InspectHandle(HANDLE));
         assertThat(parse("identity", "inspect", "ban", FIRST.value()))
                 .isEqualTo(new IdentityAdministrationCommand.InspectBan(FIRST));
-        assertThat(
-                        parse(
-                                "identity",
-                                "reserve",
-                                HANDLE.value(),
-                                FIRST.value(),
-                                REASON.value()))
-                .isEqualTo(
-                        new IdentityAdministrationCommand.ReserveHandle(
-                                HANDLE, FIRST, REASON));
-        assertThat(
-                        parse(
-                                "identity",
-                                "unbind",
-                                HANDLE.value(),
-                                FIRST.value(),
-                                REASON.value()))
-                .isEqualTo(
-                        new IdentityAdministrationCommand.UnbindHandle(
-                                HANDLE, FIRST, REASON));
+        assertThat(parse("identity", "reserve", HANDLE.value(), FIRST.value(), REASON.value()))
+                .isEqualTo(new IdentityAdministrationCommand.ReserveHandle(HANDLE, FIRST, REASON));
+        assertThat(parse("identity", "unbind", HANDLE.value(), FIRST.value(), REASON.value()))
+                .isEqualTo(new IdentityAdministrationCommand.UnbindHandle(HANDLE, FIRST, REASON));
         assertThat(
                         parse(
                                 "identity",
@@ -65,8 +49,7 @@ class IdentityAdministrationCommandParserTest {
 
     @Test
     void rejectsUnknownShapesAndInvalidBoundedArguments() {
-        assertThatThrownBy(() -> parse())
-                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> parse()).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> parse("server", "list", "handles"))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> parse("identity", "unknown"))
@@ -85,12 +68,7 @@ class IdentityAdministrationCommandParserTest {
                                         REASON.value()))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(
-                        () ->
-                                parse(
-                                        "identity",
-                                        "ban-player-id",
-                                        "not-a-player-id",
-                                        REASON.value()))
+                        () -> parse("identity", "ban-player-id", "not-a-player-id", REASON.value()))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(
                         () ->

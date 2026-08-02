@@ -88,7 +88,8 @@ class IdentityAdministrationCommandServiceTest {
                                 HANDLE, Optional.of(FIRST)));
         assertThat(
                         fixture.service()
-                                .execute(new IdentityAdministrationCommand.ListHandles(), principal))
+                                .execute(
+                                        new IdentityAdministrationCommand.ListHandles(), principal))
                 .isEqualTo(
                         new IdentityAdministrationResponse.Handles(
                                 java.util.List.of(new LocalHandleBinding(HANDLE, FIRST))));
@@ -153,7 +154,8 @@ class IdentityAdministrationCommandServiceTest {
         assertThat(
                         fixture.service()
                                 .execute(
-                                        new IdentityAdministrationCommand.UnbanPlayer(FIRST, REASON),
+                                        new IdentityAdministrationCommand.UnbanPlayer(
+                                                FIRST, REASON),
                                         principal))
                 .isEqualTo(
                         new IdentityAdministrationResponse.BanMutation(

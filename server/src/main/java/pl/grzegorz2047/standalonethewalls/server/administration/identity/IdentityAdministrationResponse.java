@@ -17,8 +17,7 @@ public sealed interface IdentityAdministrationResponse {
     record PermissionDenied(IdentityAdministrationPermission requiredPermission)
             implements IdentityAdministrationResponse {
         public PermissionDenied {
-            requiredPermission =
-                    Objects.requireNonNull(requiredPermission, "requiredPermission");
+            requiredPermission = Objects.requireNonNull(requiredPermission, "requiredPermission");
         }
 
         @Override
