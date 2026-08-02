@@ -42,16 +42,12 @@ public final class JdkHttpsAssetPackProvider implements AssetPackProvider {
             throw new IOException("interrupted while downloading the locked asset pack", exception);
         }
         if (response.statusCode() != 200) {
-            try (InputStream body = response.body()) {
-                // Closing the bounded response body is sufficient; error bodies are never logged.
-            }
+            response.body().close();
             throw new IOException("asset provider returned a non-success status");
         }
         long contentLength = response.headers().firstValueAsLong("Content-Length").orElse(-1L);
         if (contentLength >= 0L && contentLength != locked.size()) {
-            try (InputStream body = response.body()) {
-                // The caller must never consume a body whose declared size disagrees with the lock.
-            }
+            response.body().close();
             throw new IOException("asset provider content length differs from the lock");
         }
         return response.body();
