@@ -5,10 +5,10 @@ import java.util.Objects;
 
 /** Bounded timeout for the fixed pre-envelope TLS session exchange. */
 public record TlsSessionBootstrapConfig(Duration timeout) {
+    private static final Duration MAXIMUM_TIMEOUT = Duration.ofSeconds(30);
+
     public static final TlsSessionBootstrapConfig DEFAULT =
             new TlsSessionBootstrapConfig(Duration.ofSeconds(5));
-
-    private static final Duration MAXIMUM_TIMEOUT = Duration.ofSeconds(30);
 
     public TlsSessionBootstrapConfig {
         timeout = Objects.requireNonNull(timeout, "timeout");
