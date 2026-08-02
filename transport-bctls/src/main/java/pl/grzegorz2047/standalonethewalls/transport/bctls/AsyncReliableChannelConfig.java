@@ -6,12 +6,12 @@ import java.util.Objects;
 /** Hard admission and shutdown limits for one asynchronous reliable channel. */
 public record AsyncReliableChannelConfig(
         int maximumPendingSends, long maximumPendingSendBytes, Duration closeTimeout) {
-    public static final AsyncReliableChannelConfig DEFAULT =
-            new AsyncReliableChannelConfig(256, 1024L * 1024L, Duration.ofSeconds(5));
-
     private static final int MAXIMUM_SEND_OPERATIONS = 4096;
     private static final long MAXIMUM_SEND_BYTES = 64L * 1024L * 1024L;
     private static final Duration MAXIMUM_CLOSE_TIMEOUT = Duration.ofSeconds(30);
+
+    public static final AsyncReliableChannelConfig DEFAULT =
+            new AsyncReliableChannelConfig(256, 1024L * 1024L, Duration.ofSeconds(5));
 
     public AsyncReliableChannelConfig {
         if (maximumPendingSends < 1 || maximumPendingSends > MAXIMUM_SEND_OPERATIONS) {
