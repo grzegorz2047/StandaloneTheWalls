@@ -1,6 +1,8 @@
 package pl.grzegorz2047.standalonethewalls.registry;
 
 import java.security.MessageDigest;
+import java.time.Clock;
+import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -34,5 +36,18 @@ public final class AtomicRegistrySnapshotStore {
 
     public synchronized Optional<VerifiedRegistrySnapshot> active() {
         return Optional.ofNullable(active);
+    }
+
+    public synchronized RegistrySnapshotAvailability availability(
+            Clock clock, RegistrySnapshotPolicy policy) {
+        Clock timeSource = Objects.requireNonNull(clock, "clock");
+        RegistrySnapshotPolicy acceptance = Objects.requireNonNull(policy, "policy");
+        if (active == null) {
+            return RegistrySnapshotAvailability.absent();
+        }
+        Duration age = Duration.between(active.generatedAt(), timeSource.instant());
+        return age.compareTo(acceptance.maximumAge()) > 0
+                ? RegistrySnapshotAvailability.stale(active)
+                : RegistrySnapshotAvailability.fresh(active);
     }
 }
