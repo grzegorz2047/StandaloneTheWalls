@@ -20,8 +20,7 @@ final class RegistryCrypto {
         byte[] copy = Objects.requireNonNull(encoded, "encoded").clone();
         try {
             PublicKey key =
-                    KeyFactory.getInstance("Ed25519")
-                            .generatePublic(new X509EncodedKeySpec(copy));
+                    KeyFactory.getInstance("Ed25519").generatePublic(new X509EncodedKeySpec(copy));
             if (!Arrays.equals(copy, key.getEncoded())) {
                 throw new RegistrySnapshotException(
                         RegistrySnapshotException.Code.INVALID_PUBLIC_KEY,

@@ -22,8 +22,7 @@ public final class RegistrySnapshotService {
 
     public RegistryActivationResult refresh(RegistrySnapshotProvider provider)
             throws RegistrySnapshotProviderException, RegistrySnapshotException {
-        RegistrySnapshotArtifact artifact =
-                Objects.requireNonNull(provider, "provider").load();
+        RegistrySnapshotArtifact artifact = Objects.requireNonNull(provider, "provider").load();
         VerifiedRegistrySnapshot verified = verifier.verify(artifact, trustBundle, policy);
         return store.activate(verified);
     }

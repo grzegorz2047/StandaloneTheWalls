@@ -33,8 +33,7 @@ class RegistrySnapshotVerifierTest {
                         player,
                         RegistryEntryStatus.ACTIVE);
         RegistrySnapshotArtifact artifact = RegistryTestFixtures.sign(payload, root);
-        RegistryTrustBundle trust =
-                RegistryTrustBundle.of(List.of(root.getPublic().getEncoded()));
+        RegistryTrustBundle trust = RegistryTrustBundle.of(List.of(root.getPublic().getEncoded()));
 
         VerifiedRegistrySnapshot verified =
                 new RegistrySnapshotVerifier(CLOCK)
@@ -57,12 +56,7 @@ class RegistrySnapshotVerifierTest {
         PlayerIdentity player = RegistryTestFixtures.playerIdentity();
         RegistrySnapshotPayload payload =
                 RegistryTestFixtures.payload(
-                        root,
-                        1L,
-                        NOW,
-                        "player_one",
-                        player,
-                        RegistryEntryStatus.ACTIVE);
+                        root, 1L, NOW, "player_one", player, RegistryEntryStatus.ACTIVE);
         RegistrySnapshotArtifact valid = RegistryTestFixtures.sign(payload, root);
         byte[] wrongDigest = valid.digest();
         wrongDigest[0] ^= 1;
@@ -76,21 +70,15 @@ class RegistrySnapshotVerifierTest {
 
         assertCode(
                 verifier,
-                new RegistrySnapshotArtifact(
-                        valid.canonicalJson(), wrongDigest, valid.signature()),
+                new RegistrySnapshotArtifact(valid.canonicalJson(), wrongDigest, valid.signature()),
                 trustedRoot,
                 RegistrySnapshotException.Code.DIGEST_MISMATCH);
         assertCode(
                 verifier,
-                new RegistrySnapshotArtifact(
-                        valid.canonicalJson(), valid.digest(), wrongSignature),
+                new RegistrySnapshotArtifact(valid.canonicalJson(), valid.digest(), wrongSignature),
                 trustedRoot,
                 RegistrySnapshotException.Code.INVALID_SIGNATURE);
-        assertCode(
-                verifier,
-                valid,
-                unknownRoot,
-                RegistrySnapshotException.Code.UNKNOWN_ROOT_KEY);
+        assertCode(verifier, valid, unknownRoot, RegistrySnapshotException.Code.UNKNOWN_ROOT_KEY);
     }
 
     @Test
@@ -98,8 +86,7 @@ class RegistrySnapshotVerifierTest {
             throws GeneralSecurityException, IdentityException, RegistrySnapshotException {
         KeyPair root = RegistryTestFixtures.rootKeyPair();
         PlayerIdentity player = RegistryTestFixtures.playerIdentity();
-        RegistryTrustBundle trust =
-                RegistryTrustBundle.of(List.of(root.getPublic().getEncoded()));
+        RegistryTrustBundle trust = RegistryTrustBundle.of(List.of(root.getPublic().getEncoded()));
         RegistrySnapshotVerifier verifier = new RegistrySnapshotVerifier(CLOCK);
 
         RegistrySnapshotPolicy minimumSequence =
@@ -140,12 +127,7 @@ class RegistrySnapshotVerifierTest {
         RegistrySnapshotArtifact valid =
                 RegistryTestFixtures.sign(
                         RegistryTestFixtures.payload(
-                                root,
-                                10L,
-                                NOW,
-                                "player_one",
-                                player,
-                                RegistryEntryStatus.ACTIVE),
+                                root, 10L, NOW, "player_one", player, RegistryEntryStatus.ACTIVE),
                         root);
         RegistrySnapshotPolicy tooSmall =
                 new RegistrySnapshotPolicy(
@@ -165,11 +147,7 @@ class RegistrySnapshotVerifierTest {
                 new RegistrySnapshotPolicy(
                         0L, Duration.ofDays(1), Duration.ofMinutes(5), 1_000_000, 0);
         assertCode(
-                verifier,
-                valid,
-                trust,
-                noEntries,
-                RegistrySnapshotException.Code.TOO_MANY_ENTRIES);
+                verifier, valid, trust, noEntries, RegistrySnapshotException.Code.TOO_MANY_ENTRIES);
     }
 
     @Test
@@ -184,10 +162,7 @@ class RegistrySnapshotVerifierTest {
                                                 root.getPublic().getEncoded(),
                                                 root.getPublic().getEncoded())))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(
-                        () ->
-                                RegistryTrustBundle.of(
-                                        List.of(new byte[] {1, 2, 3, 4})))
+        assertThatThrownBy(() -> RegistryTrustBundle.of(List.of(new byte[] {1, 2, 3, 4})))
                 .isInstanceOfSatisfying(
                         RegistrySnapshotException.class,
                         failure ->

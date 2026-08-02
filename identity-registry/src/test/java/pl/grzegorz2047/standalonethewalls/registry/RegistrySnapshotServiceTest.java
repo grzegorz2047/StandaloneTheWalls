@@ -27,16 +27,10 @@ class RegistrySnapshotServiceTest {
         RegistrySnapshotArtifact artifact =
                 RegistryTestFixtures.sign(
                         RegistryTestFixtures.payload(
-                                root,
-                                7L,
-                                NOW,
-                                "player_one",
-                                player,
-                                RegistryEntryStatus.ACTIVE),
+                                root, 7L, NOW, "player_one", player, RegistryEntryStatus.ACTIVE),
                         root);
         AtomicRegistrySnapshotStore store = new AtomicRegistrySnapshotStore();
-        RegistrySnapshotService service =
-                service(root, store, RegistrySnapshotPolicy.DEFAULT);
+        RegistrySnapshotService service = service(root, store, RegistrySnapshotPolicy.DEFAULT);
         RegistrySnapshotProvider localMirror = () -> artifact;
         RegistrySnapshotProvider secondMirror =
                 () ->
@@ -60,12 +54,7 @@ class RegistrySnapshotServiceTest {
         RegistrySnapshotArtifact valid =
                 RegistryTestFixtures.sign(
                         RegistryTestFixtures.payload(
-                                root,
-                                8L,
-                                NOW,
-                                "player_one",
-                                player,
-                                RegistryEntryStatus.ACTIVE),
+                                root, 8L, NOW, "player_one", player, RegistryEntryStatus.ACTIVE),
                         root);
         byte[] damagedSignature = valid.signature();
         damagedSignature[0] ^= 1;
@@ -73,8 +62,7 @@ class RegistrySnapshotServiceTest {
                 new RegistrySnapshotArtifact(
                         valid.canonicalJson(), valid.digest(), damagedSignature);
         AtomicRegistrySnapshotStore store = new AtomicRegistrySnapshotStore();
-        RegistrySnapshotService service =
-                service(root, store, RegistrySnapshotPolicy.DEFAULT);
+        RegistrySnapshotService service = service(root, store, RegistrySnapshotPolicy.DEFAULT);
         service.refresh(() -> valid);
         VerifiedRegistrySnapshot active = store.active().orElseThrow();
 
@@ -99,16 +87,10 @@ class RegistrySnapshotServiceTest {
         RegistrySnapshotArtifact valid =
                 RegistryTestFixtures.sign(
                         RegistryTestFixtures.payload(
-                                root,
-                                9L,
-                                NOW,
-                                "player_one",
-                                player,
-                                RegistryEntryStatus.ACTIVE),
+                                root, 9L, NOW, "player_one", player, RegistryEntryStatus.ACTIVE),
                         root);
         AtomicRegistrySnapshotStore store = new AtomicRegistrySnapshotStore();
-        RegistrySnapshotService service =
-                service(root, store, RegistrySnapshotPolicy.DEFAULT);
+        RegistrySnapshotService service = service(root, store, RegistrySnapshotPolicy.DEFAULT);
         service.refresh(() -> valid);
         VerifiedRegistrySnapshot active = store.active().orElseThrow();
 
@@ -124,9 +106,7 @@ class RegistrySnapshotServiceTest {
     }
 
     private static RegistrySnapshotService service(
-            KeyPair root,
-            AtomicRegistrySnapshotStore store,
-            RegistrySnapshotPolicy policy)
+            KeyPair root, AtomicRegistrySnapshotStore store, RegistrySnapshotPolicy policy)
             throws RegistrySnapshotException {
         return new RegistrySnapshotService(
                 new RegistrySnapshotVerifier(Clock.fixed(NOW, ZoneOffset.UTC)),

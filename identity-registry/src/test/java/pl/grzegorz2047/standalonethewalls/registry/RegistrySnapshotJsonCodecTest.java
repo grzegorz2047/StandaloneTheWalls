@@ -44,14 +44,10 @@ class RegistrySnapshotJsonCodecTest {
 
         assertThat(new String(encoded, StandardCharsets.UTF_8)).isEqualTo(CANONICAL_JSON);
         assertThat(encoded).hasSize(333);
-        assertThat(
-                        HexFormat.of()
-                                .formatHex(
-                                        MessageDigest.getInstance("SHA-256").digest(encoded)))
+        assertThat(HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(encoded)))
                 .isEqualTo("f160bf701d0e1291d50f958ac55941cc2fb63a4e9807ef9c847582affd9e3899");
         RegistrySnapshotPayload decoded =
-                RegistrySnapshotJsonCodec.decodeCanonical(
-                        encoded, RegistrySnapshotPolicy.DEFAULT);
+                RegistrySnapshotJsonCodec.decodeCanonical(encoded, RegistrySnapshotPolicy.DEFAULT);
         assertThat(decoded.sequence()).isEqualTo(7L);
         assertThat(decoded.generatedAt()).isEqualTo(Instant.parse("2026-08-02T00:00:00Z"));
         assertThat(decoded.rootKeyId()).isEqualTo(new RegistryRootId(ROOT_ID));
@@ -109,7 +105,8 @@ class RegistrySnapshotJsonCodecTest {
                                         1L,
                                         Instant.parse("2026-08-02T00:00:00Z"),
                                         new RegistryRootId(ROOT_ID),
-                                        List.of(vectorEntry("same_name", PLAYER_ID),
+                                        List.of(
+                                                vectorEntry("same_name", PLAYER_ID),
                                                 vectorEntry("same_name", PLAYER_ID))))
                 .isInstanceOfSatisfying(
                         RegistrySnapshotException.class,
@@ -135,10 +132,12 @@ class RegistrySnapshotJsonCodecTest {
     @Test
     void rejectsNonCanonicalTimestampAndUnsupportedStatus() {
         byte[] timestamp =
-                CANONICAL_JSON.replace("2026-08-02T00:00:00Z", "2026-08-02T00:00:00.000Z")
+                CANONICAL_JSON
+                        .replace("2026-08-02T00:00:00Z", "2026-08-02T00:00:00.000Z")
                         .getBytes(StandardCharsets.UTF_8);
         byte[] status =
-                CANONICAL_JSON.replace("\"ACTIVE\"", "\"UNKNOWN\"")
+                CANONICAL_JSON
+                        .replace("\"ACTIVE\"", "\"UNKNOWN\"")
                         .getBytes(StandardCharsets.UTF_8);
 
         assertCode(timestamp, RegistrySnapshotException.Code.INVALID_TIMESTAMP);

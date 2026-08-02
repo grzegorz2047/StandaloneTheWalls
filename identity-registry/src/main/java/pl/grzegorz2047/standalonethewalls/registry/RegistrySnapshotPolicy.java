@@ -14,11 +14,7 @@ public record RegistrySnapshotPolicy(
     public static final int ABSOLUTE_MAXIMUM_ENTRIES = 250_000;
     public static final RegistrySnapshotPolicy DEFAULT =
             new RegistrySnapshotPolicy(
-                    0L,
-                    Duration.ofDays(30),
-                    Duration.ofMinutes(5),
-                    8 * 1024 * 1024,
-                    100_000);
+                    0L, Duration.ofDays(30), Duration.ofMinutes(5), 8 * 1024 * 1024, 100_000);
 
     public RegistrySnapshotPolicy {
         maximumAge = requireDuration(maximumAge, "maximumAge", Duration.ofDays(365));
@@ -35,8 +31,7 @@ public record RegistrySnapshotPolicy(
         }
     }
 
-    private static Duration requireDuration(
-            Duration value, String field, Duration maximum) {
+    private static Duration requireDuration(Duration value, String field, Duration maximum) {
         Duration duration = Objects.requireNonNull(value, field);
         if (duration.isNegative() || duration.compareTo(maximum) > 0) {
             throw new IllegalArgumentException(field + " is outside the safe range");

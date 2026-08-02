@@ -36,8 +36,7 @@ public final class RegistrySnapshotJsonCodec {
         throw new AssertionError("No instances");
     }
 
-    public static byte[] encode(RegistrySnapshotPayload payload)
-            throws RegistrySnapshotException {
+    public static byte[] encode(RegistrySnapshotPayload payload) throws RegistrySnapshotException {
         StringBuilder json = new StringBuilder(256 + payload.entries().size() * 256);
         json.append("{\"entries\":[");
         boolean first = true;
@@ -298,12 +297,10 @@ public final class RegistrySnapshotJsonCodec {
         }
     }
 
-    private static void requireUnset(Object value, String field)
-            throws RegistrySnapshotException {
+    private static void requireUnset(Object value, String field) throws RegistrySnapshotException {
         if (value != null) {
             throw new RegistrySnapshotException(
-                    RegistrySnapshotException.Code.MALFORMED_JSON,
-                    "registry JSON repeats a field");
+                    RegistrySnapshotException.Code.MALFORMED_JSON, "registry JSON repeats a field");
         }
     }
 

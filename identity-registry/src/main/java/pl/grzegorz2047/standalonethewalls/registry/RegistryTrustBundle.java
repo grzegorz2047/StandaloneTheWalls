@@ -26,7 +26,8 @@ public final class RegistryTrustBundle {
             PublicKey key = RegistryCrypto.decodeEd25519(encoded);
             RegistryRootId id = RegistryRootId.fromPublicKey(key.getEncoded());
             if (decoded.putIfAbsent(id, key) != null) {
-                throw new IllegalArgumentException("registry trust bundle contains a duplicate root");
+                throw new IllegalArgumentException(
+                        "registry trust bundle contains a duplicate root");
             }
         }
         return new RegistryTrustBundle(decoded);

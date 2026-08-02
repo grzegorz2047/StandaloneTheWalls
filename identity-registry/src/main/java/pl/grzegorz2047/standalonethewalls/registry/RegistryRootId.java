@@ -17,6 +17,7 @@ public record RegistryRootId(String value) {
     public static RegistryRootId fromPublicKey(byte[] subjectPublicKeyInfo)
             throws RegistrySnapshotException {
         byte[] canonical = RegistryCrypto.decodeEd25519(subjectPublicKeyInfo).getEncoded();
-        return new RegistryRootId("sfr1_" + RegistryCrypto.base32(RegistryCrypto.sha256(canonical)));
+        return new RegistryRootId(
+                "sfr1_" + RegistryCrypto.base32(RegistryCrypto.sha256(canonical)));
     }
 }
