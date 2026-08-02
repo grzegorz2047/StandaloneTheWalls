@@ -93,7 +93,8 @@ class RegistrySnapshotCachingRefreshClassificationTest {
                     snapshots, new RegistrySnapshotBundleFile(temporaryDirectory.resolve(name)));
         }
 
-        private RegistrySnapshotArtifact artifact(long sequence) throws Exception {
+        private RegistrySnapshotArtifact artifact(long sequence)
+                throws GeneralSecurityException, RegistrySnapshotException {
             RegistrySnapshotPayload payload =
                     new RegistrySnapshotPayload(
                             sequence,
