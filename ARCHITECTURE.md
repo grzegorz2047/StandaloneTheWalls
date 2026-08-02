@@ -24,7 +24,7 @@ opening a graphics device.
 | `client` | jMonkeyEngine rendering, input, prediction, interpolation, identity profile and UI | core modules, jMonkeyEngine |
 | `map-studio` | jMonkeyEngine-based authoring UI | `shared`, `map-format`, jMonkeyEngine |
 | `bot-client` | Headless integration and load-test behavior | core modules, SLF4J |
-| `transport-bctls` | TLS 1.3, server pinning, RFC 9266 binding, strict framing and bounded async reliable I/O | `protocol`, Bouncy Castle TLS |
+| `transport-bctls` | TLS 1.3, server pinning, RFC 9266 binding, bounded listener admission, strict framing and async reliable I/O | `protocol`, Bouncy Castle TLS |
 
 Core modules must never import `com.jme3`, LWJGL, desktop UI toolkits, concrete
 socket libraries, SQLite, GitHub SDKs, HTTP clients, or server persistence
@@ -85,8 +85,7 @@ mirror can replace GitHub without changing the claim or handshake formats. See
 
 Concrete networking libraries live outside the core modules. The first reliable
 adapter is `transport-bctls`. It uses the public, low-level Bouncy Castle TLS API
-over an already connected blocking socket; it does not depend on JSSE socket
-callbacks.
+and does not depend on JSSE socket callbacks.
 
 The adapter enforces TLS 1.3, ALPN `sunderfront/1`, a bounded TLS 1.3 AEAD cipher
 allowlist, an Ed25519 leaf certificate, explicit server pinning/TOFU, and the RFC
@@ -95,24 +94,39 @@ finite timeout before the handshake begins. Exporter bytes are copied
 synchronously inside the low-level peer's `notifyHandshakeComplete()` callback,
 before Bouncy Castle clears the exporter secret.
 
+`Tls13ServerListener` owns one bound endpoint, a dedicated accept thread and
+named virtual handshake threads. Independent hard limits bound concurrent TLS
+handshakes and authenticated active leases. The active permit is reserved before
+TLS so successful handshakes cannot oversubscribe admission between completion
+and registration. Stalled handshakes have a finite timeout. Shutdown closes the
+listener socket, in-flight handshake sockets and every tracked active lease
+before awaiting owned threads. The handler receives an `AcceptedTlsConnection`
+lease outside the accept and simulation threads. See ADR 0008 and issue #51.
+
+The listener deliberately stops at authenticated TLS. It does not create
+`TlsEnvelopeStream` because both peers must first agree on the logical session
+UUID carried by every envelope. Session bootstrap requires a separate versioned
+protocol decision.
+
 `TlsEnvelopeStream` adds strict framing for the fixed 40-byte protocol header and
-bounded payload. It validates the header before allocating payload memory, binds
-all envelopes to one logical session UUID, assigns outbound sequence numbers,
-requires gap-free inbound sequences, serializes writers independently from
-readers, and closes TLS after malformed or cross-session input. It remains a
-blocking primitive and must never execute on the fixed-tick simulation thread.
+bounded payload after a session UUID is known. It validates the header before
+allocating payload memory, binds all envelopes to one logical session UUID,
+assigns outbound sequence numbers, requires gap-free inbound sequences,
+serializes writers independently from readers, and closes TLS after malformed or
+cross-session input. It remains a blocking primitive and must never execute on
+the fixed-tick simulation thread.
 
 `AsyncTlsReliableChannel` implements the renderer-independent `ReliableChannel`
 contract above that blocking stream. The channel owns named Java 21 virtual
 threads, applies hard pending-send count and byte limits, permits exactly one
 active receive, moves to a terminal state before publishing EOF or failures, and
 returns an asynchronous close stage only after TLS and the owned executor have
-terminated. It never uses a common pool. See ADR 0005, ADR 0006, ADR 0007, issue
-#34, and issue #48.
+terminated. It never uses a common pool. See ADR 0005, ADR 0006, ADR 0007 and
+issue #34.
 
-Runtime socket ownership, handshake admission, certificate/key provisioning,
-public-PKI validation, reconnect, realtime DTLS/UDP, and realtime session tokens
-remain separate adapters and work items.
+Session bootstrap, integration with the server command queue, client dialing,
+certificate/key provisioning, public-PKI validation, reconnect, realtime
+DTLS/UDP, and realtime session tokens remain separate adapters and work items.
 
 ## Fixed-tick simulation
 
@@ -150,9 +164,11 @@ and issue #33.
 
 ## Decisions intentionally deferred
 
-- Runtime listener/connector ownership, handshake admission and connection limits.
+- Versioned session UUID bootstrap over authenticated TLS.
+- Integration of accepted channels with the fixed-tick command queue.
+- Client connection ownership, DNS resolution and reconnect policy.
 - Public-PKI certificate validation as a separate trust adapter.
-- Reconnect and authentication-flow orchestration above `ReliableChannel`.
+- Authentication-flow orchestration above `ReliableChannel`.
 - Realtime DTLS/UDP transport and replay-resistant realtime session tokens.
 - Global registry repository and signed snapshot pipeline: issue #30.
 - Persistent player/server trust stores and production key provisioning.
