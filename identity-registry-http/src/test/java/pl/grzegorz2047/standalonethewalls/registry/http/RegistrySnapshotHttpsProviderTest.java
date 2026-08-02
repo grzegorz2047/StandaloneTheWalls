@@ -14,7 +14,6 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
@@ -247,7 +246,10 @@ class RegistrySnapshotHttpsProviderTest {
 
         @SafeVarargs
         private ScriptedClient(HttpResponse<InputStream>... responses) {
-            this.responses = new ArrayDeque<>(Arrays.asList(responses));
+            this.responses = new ArrayDeque<>(responses.length);
+            for (HttpResponse<InputStream> response : responses) {
+                this.responses.addLast(response);
+            }
         }
 
         @Override
