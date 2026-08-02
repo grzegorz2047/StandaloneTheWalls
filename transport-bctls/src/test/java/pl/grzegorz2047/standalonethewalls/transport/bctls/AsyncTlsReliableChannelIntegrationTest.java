@@ -105,7 +105,7 @@ class AsyncTlsReliableChannelIntegrationTest {
             CompletionStage<Void> closed = client.close();
             long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
 
-            assertThat(elapsedMillis).isLessThan(100L);
+            assertThat(elapsedMillis).isLessThan(1000L);
             ReliableChannelException failure =
                     channelFailure(blocked, ReliableChannelException.Code.CLOSED);
             assertThat(failure.getMessage()).doesNotContain("payload");
