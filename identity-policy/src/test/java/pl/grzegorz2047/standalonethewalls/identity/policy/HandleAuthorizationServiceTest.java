@@ -70,6 +70,28 @@ class HandleAuthorizationServiceTest {
     }
 
     @Test
+    void localCapacityIsADistinctFailClosedDecision() {
+        InMemoryLocalHandleBindingStore store = new InMemoryLocalHandleBindingStore(1, 1);
+        HandleAuthorizationService service = new HandleAuthorizationService(store);
+        assertThat(store.bindOrVerify(ACTIVE_HANDLE, OTHER_PLAYER))
+                .isEqualTo(LocalHandleBindingResult.BOUND);
+
+        assertThat(
+                        service.authorize(
+                                HandleAuthorizationMode.LOCAL_TOFU,
+                                LOCAL_HANDLE,
+                                LOCAL_PLAYER,
+                                Optional.empty()))
+                .isEqualTo(HandleAuthorizationDecision.LOCAL_BINDING_CAPACITY_EXCEEDED);
+        assertThat(HandleAuthorizationDecision.LOCAL_BINDING_CAPACITY_EXCEEDED.isAccepted())
+                .isFalse();
+        assertThat(
+                        HandleAuthorizationDecision.LOCAL_BINDING_CAPACITY_EXCEEDED
+                                .verificationLevel())
+                .isEmpty();
+    }
+
+    @Test
     void globalOnlyReturnsDistinctFailClosedDecisions() {
         RegistryFixture fixture = registryFixture();
         HandleAuthorizationService service =
