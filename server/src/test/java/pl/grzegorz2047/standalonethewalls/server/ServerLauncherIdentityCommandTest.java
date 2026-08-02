@@ -180,7 +180,8 @@ class ServerLauncherIdentityCommandTest {
                         + "identity.authorization-mode=LOCAL_TOFU\n"
                         + "identity.trust-roots-path="
                         + fileName(roots)
-                        + '\n',
+                        + '\n'
+                        + "identity.registry.refresh-source=LOCAL_BUNDLE\n",
                 StandardCharsets.UTF_8);
         return new ProcessFiles(configuration, sqlite, bundle);
     }
