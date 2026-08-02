@@ -24,7 +24,7 @@ opening a graphics device.
 | `client` | jMonkeyEngine rendering, input, prediction, interpolation, identity profile and UI | core modules, jMonkeyEngine |
 | `map-studio` | jMonkeyEngine-based authoring UI | `shared`, `map-format`, jMonkeyEngine |
 | `bot-client` | Headless integration and load-test behavior | core modules, SLF4J |
-| `transport-bctls` | TLS 1.3, server pinning and RFC 9266 channel binding | `protocol`, Bouncy Castle |
+| `transport-bctls` | TLS 1.3, server pinning and RFC 9266 channel binding | `protocol`, Bouncy Castle TLS |
 
 Core modules must never import `com.jme3`, LWJGL, desktop UI toolkits, concrete
 socket libraries, SQLite, GitHub SDKs, HTTP clients, or server persistence
@@ -41,7 +41,7 @@ shared
   +-- map-format
           ^
           |
-client / server / map-studio / bot-client
+client / server / map-studio / bot-client / transport adapters
 ```
 
 There is no dependency from the domain to the client, server runtime, transport,
@@ -83,11 +83,22 @@ mirror can replace GitHub without changing the claim or handshake formats. See
 
 ## Secure transport adapters
 
-Concrete networking libraries live outside the core modules. The first reliable adapter is
-`transport-bctls`, which enforces TLS 1.3, ALPN `sunderfront/1`, explicit server
-pinning/TOFU, and the RFC 9266 `tls-exporter` binding required by player identity.
-Protocol framing, runtime socket ownership, realtime DTLS/UDP and reconnect remain separate
-adapters and work items. See ADR 0005 and issue #34.
+Concrete networking libraries live outside the core modules. The first reliable
+adapter is `transport-bctls`. It uses the public, low-level Bouncy Castle TLS API
+over an already connected blocking socket; it does not depend on JSSE socket
+callbacks.
+
+The adapter enforces TLS 1.3, ALPN `sunderfront/1`, a bounded TLS 1.3 AEAD cipher
+allowlist, an Ed25519 leaf certificate, explicit server pinning/TOFU, and the RFC
+9266 `tls-exporter` binding required by player identity. Socket reads must have a
+finite timeout before the handshake begins. Exporter bytes are copied
+synchronously inside the low-level peer's `notifyHandshakeComplete()` callback,
+before Bouncy Castle clears the exporter secret.
+
+Protocol-envelope framing, runtime socket ownership, certificate/key
+provisioning, public-PKI validation, reconnect, realtime DTLS/UDP, and realtime
+session tokens remain separate adapters and work items. See ADR 0005 and issue
+#34.
 
 ## Fixed-tick simulation
 
@@ -125,10 +136,8 @@ and issue #33.
 
 ## Decisions intentionally deferred
 
-- Concrete TCP/UDP transport implementation: issue #22 defines the boundary first.
-- Match state machine: issue #21.
-- Fixed-tick server runtime: issue #25.
-- First graphical client screen: issue #26.
-- `.twmap` v1 manifest: issue #23.
-- Cryptographic identity implementation: issue #29.
+- Protocol framing and runtime integration for the reliable TLS connection.
+- Public-PKI certificate validation as a separate trust adapter.
+- Realtime DTLS/UDP transport and replay-resistant realtime session tokens.
 - Global registry repository and signed snapshot pipeline: issue #30.
+- Persistent player/server trust stores and production key provisioning.
