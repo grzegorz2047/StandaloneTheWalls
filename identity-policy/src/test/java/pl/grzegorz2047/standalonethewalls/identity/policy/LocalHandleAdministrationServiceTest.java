@@ -49,22 +49,22 @@ class LocalHandleAdministrationServiceTest {
         assertThat(service.unbind(ALPHA, SECOND, ADMINISTRATOR, REASON))
                 .isEqualTo(LocalHandleAdministrationResult.UNBOUND);
 
-        assertThat(service.bindings())
-                .containsExactly(new LocalHandleBinding(BETA, THIRD));
+        assertThat(service.bindings()).containsExactly(new LocalHandleBinding(BETA, THIRD));
         assertThat(service.inspect(ALPHA)).isEmpty();
         assertThat(service.inspect(BETA)).contains(THIRD);
 
         List<LocalHandleAuditEvent> events = service.auditEvents();
-        assertThat(events).extracting(LocalHandleAuditEvent::sequence)
+        assertThat(events)
+                .extracting(LocalHandleAuditEvent::sequence)
                 .containsExactly(1L, 2L, 3L, 4L);
-        assertThat(events).extracting(LocalHandleAuditEvent::action)
+        assertThat(events)
+                .extracting(LocalHandleAuditEvent::action)
                 .containsExactly(
                         LocalHandleAuditAction.RESERVE,
                         LocalHandleAuditAction.RESERVE,
                         LocalHandleAuditAction.REBIND,
                         LocalHandleAuditAction.UNBIND);
-        assertThat(events).extracting(LocalHandleAuditEvent::occurredAt)
-                .containsOnly(NOW);
+        assertThat(events).extracting(LocalHandleAuditEvent::occurredAt).containsOnly(NOW);
         assertThat(events.get(0).previousPlayerId()).isEmpty();
         assertThat(events.get(0).newPlayerId()).contains(FIRST);
         assertThat(events.get(2).previousPlayerId()).contains(FIRST);
@@ -121,10 +121,7 @@ class LocalHandleAdministrationServiceTest {
             assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
             start.countDown();
 
-            assertThat(
-                            List.of(
-                                    second.get(5, TimeUnit.SECONDS),
-                                    third.get(5, TimeUnit.SECONDS)))
+            assertThat(List.of(second.get(5, TimeUnit.SECONDS), third.get(5, TimeUnit.SECONDS)))
                     .containsExactlyInAnyOrder(
                             LocalHandleAdministrationResult.REBOUND,
                             LocalHandleAdministrationResult.EXPECTATION_MISMATCH);
