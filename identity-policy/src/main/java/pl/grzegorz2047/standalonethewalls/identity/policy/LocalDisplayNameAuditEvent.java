@@ -23,8 +23,7 @@ public record LocalDisplayNameAuditEvent(
         administratorId = Objects.requireNonNull(administratorId, "administratorId");
         action = Objects.requireNonNull(action, "action");
         playerId = Objects.requireNonNull(playerId, "playerId");
-        previousDisplayName =
-                Objects.requireNonNull(previousDisplayName, "previousDisplayName");
+        previousDisplayName = Objects.requireNonNull(previousDisplayName, "previousDisplayName");
         newDisplayName = Objects.requireNonNull(newDisplayName, "newDisplayName");
         reason = Objects.requireNonNull(reason, "reason");
 
