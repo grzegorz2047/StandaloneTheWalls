@@ -24,8 +24,7 @@ class AuthorizedPlayerSessionQueueTest {
     void reservationBoundsCapacityAndPollTransfersOwnership() {
         AuthorizedPlayerSessionQueue queue =
                 new AuthorizedPlayerSessionQueue(1, Duration.ofSeconds(1));
-        AuthorizedPlayerSessionQueue.Reservation reservation =
-                queue.tryReserve().orElseThrow();
+        AuthorizedPlayerSessionQueue.Reservation reservation = queue.tryReserve().orElseThrow();
         TestSession transport = new TestSession(1);
         AuthorizedPlayerSession authorized = authorized(transport);
 
@@ -68,12 +67,10 @@ class AuthorizedPlayerSessionQueueTest {
     void cancelledReservationReturnsCapacityAndCannotCommitTwice() {
         AuthorizedPlayerSessionQueue queue =
                 new AuthorizedPlayerSessionQueue(1, Duration.ofSeconds(1));
-        AuthorizedPlayerSessionQueue.Reservation cancelled =
-                queue.tryReserve().orElseThrow();
+        AuthorizedPlayerSessionQueue.Reservation cancelled = queue.tryReserve().orElseThrow();
         cancelled.close();
 
-        AuthorizedPlayerSessionQueue.Reservation replacement =
-                queue.tryReserve().orElseThrow();
+        AuthorizedPlayerSessionQueue.Reservation replacement = queue.tryReserve().orElseThrow();
         TestSession transport = new TestSession(1);
         AuthorizedPlayerSession authorized = authorized(transport);
 
@@ -87,8 +84,7 @@ class AuthorizedPlayerSessionQueueTest {
     void reservationCannotCommitAfterQueueShutdown() {
         AuthorizedPlayerSessionQueue queue =
                 new AuthorizedPlayerSessionQueue(1, Duration.ofSeconds(1));
-        AuthorizedPlayerSessionQueue.Reservation reservation =
-                queue.tryReserve().orElseThrow();
+        AuthorizedPlayerSessionQueue.Reservation reservation = queue.tryReserve().orElseThrow();
         TestSession transport = new TestSession(1);
 
         queue.close();
@@ -99,8 +95,7 @@ class AuthorizedPlayerSessionQueueTest {
     }
 
     private static AuthorizedPlayerSession authorized(TestSession session) {
-        return new AuthorizedPlayerSession(
-                session, HandleVerificationLevel.LOCAL_UNVERIFIED);
+        return new AuthorizedPlayerSession(session, HandleVerificationLevel.LOCAL_UNVERIFIED);
     }
 
     private static final class TestSession implements AuthenticatedPlayerSession {
@@ -161,8 +156,7 @@ class AuthorizedPlayerSessionQueueTest {
         private final AtomicBoolean open = new AtomicBoolean(true);
 
         @Override
-        public CompletionStage<ReliableSendResult> send(
-                MessageType messageType, byte[] payload) {
+        public CompletionStage<ReliableSendResult> send(MessageType messageType, byte[] payload) {
             return CompletableFuture.completedFuture(new ReliableSendResult(0L));
         }
 

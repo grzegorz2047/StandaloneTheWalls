@@ -60,8 +60,7 @@ public final class TlsIdentityAdmissionGateway
     private final Consumer<TlsIdentityAdmissionEvent> eventObserver;
     private final Supplier<SecureRandom> secureRandomSupplier;
     private final ExecutorService executor;
-    private final ConcurrentMap<Long, AcceptedTlsConnection> inFlight =
-            new ConcurrentHashMap<>();
+    private final ConcurrentMap<Long, AcceptedTlsConnection> inFlight = new ConcurrentHashMap<>();
     private final AtomicReference<State> state = new AtomicReference<>(State.OPEN);
     private final Object lifecycleLock = new Object();
 
@@ -101,15 +100,11 @@ public final class TlsIdentityAdmissionGateway
         this.bootstrapConfig = Objects.requireNonNull(bootstrapConfig, "bootstrapConfig");
         this.exchangeConfig = Objects.requireNonNull(exchangeConfig, "exchangeConfig");
         this.resultSendTimeout =
-                requireDuration(
-                        resultSendTimeout, "resultSendTimeout", MAXIMUM_OPERATION_TIMEOUT);
+                requireDuration(resultSendTimeout, "resultSendTimeout", MAXIMUM_OPERATION_TIMEOUT);
         this.shutdownTimeout =
                 requireDuration(shutdownTimeout, "shutdownTimeout", MAXIMUM_SHUTDOWN_TIMEOUT);
         this.identityWaitTimeout =
-                exchangeConfig
-                        .overallTimeout()
-                        .plus(exchangeConfig.closeTimeout())
-                        .plusSeconds(1L);
+                exchangeConfig.overallTimeout().plus(exchangeConfig.closeTimeout()).plusSeconds(1L);
         this.authorizedSessions =
                 new AuthorizedPlayerSessionQueue(queueCapacity, exchangeConfig.closeTimeout());
         this.eventObserver = Objects.requireNonNull(eventObserver, "eventObserver");
@@ -194,8 +189,7 @@ public final class TlsIdentityAdmissionGateway
         try {
             if (!executor.awaitTermination(shutdownTimeout.toNanos(), TimeUnit.NANOSECONDS)) {
                 failures.add(
-                        new IllegalStateException(
-                                "identity admission executor did not terminate"));
+                        new IllegalStateException("identity admission executor did not terminate"));
             }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
@@ -267,8 +261,7 @@ public final class TlsIdentityAdmissionGateway
             try (AuthorizedPlayerSessionQueue.Reservation reservation =
                     reservationAttempt.orElseThrow()) {
                 if (state.get() != State.OPEN) {
-                    sendAdmissionResult(
-                            session, PlayerSessionAdmissionStatus.SERVER_SHUTTING_DOWN);
+                    sendAdmissionResult(session, PlayerSessionAdmissionStatus.SERVER_SHUTTING_DOWN);
                     publish(
                             TlsIdentityAdmissionEvent.admission(
                                     PlayerSessionAdmissionStatus.SERVER_SHUTTING_DOWN));

@@ -36,10 +36,8 @@ public final class AuthenticatedPlayerAdmissionService {
     private static PlayerSessionAdmissionStatus status(SessionIdentityAdmissionDecision decision) {
         return switch (Objects.requireNonNull(decision, "decision")) {
             case GLOBAL_ACCEPTED -> PlayerSessionAdmissionStatus.GLOBAL_ACCEPTED;
-            case LOCAL_FIRST_USE_ACCEPTED ->
-                    PlayerSessionAdmissionStatus.LOCAL_FIRST_USE_ACCEPTED;
-            case LOCAL_RETURNING_ACCEPTED ->
-                    PlayerSessionAdmissionStatus.LOCAL_RETURNING_ACCEPTED;
+            case LOCAL_FIRST_USE_ACCEPTED -> PlayerSessionAdmissionStatus.LOCAL_FIRST_USE_ACCEPTED;
+            case LOCAL_RETURNING_ACCEPTED -> PlayerSessionAdmissionStatus.LOCAL_RETURNING_ACCEPTED;
             case PLAYER_BANNED -> PlayerSessionAdmissionStatus.PLAYER_BANNED;
             case REGISTRY_UNAVAILABLE -> PlayerSessionAdmissionStatus.REGISTRY_UNAVAILABLE;
             case REGISTRY_STALE -> PlayerSessionAdmissionStatus.REGISTRY_STALE;

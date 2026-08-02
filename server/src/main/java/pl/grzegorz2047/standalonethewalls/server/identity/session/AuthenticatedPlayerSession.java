@@ -7,9 +7,7 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.CanonicalHandle;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerId;
 
-/**
- * Server-internal view that may be created only after cryptographic identity proof succeeds.
- */
+/** Server-internal view that may be created only after cryptographic identity proof succeeds. */
 public interface AuthenticatedPlayerSession {
     UUID sessionId();
 

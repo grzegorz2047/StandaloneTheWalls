@@ -102,8 +102,7 @@ public final class AuthorizedPlayerSessionQueue implements AutoCloseable {
         closeSessions(pending);
     }
 
-    private synchronized boolean commit(
-            Reservation reservation, AuthorizedPlayerSession session) {
+    private synchronized boolean commit(Reservation reservation, AuthorizedPlayerSession session) {
         if (!reservation.claim()) {
             return false;
         }
@@ -131,8 +130,7 @@ public final class AuthorizedPlayerSessionQueue implements AutoCloseable {
                         .map(CompletionStageSupport::toCompletableFuture)
                         .toArray(CompletableFuture<?>[]::new);
         try {
-            CompletableFuture.allOf(closures)
-                    .get(closeTimeout.toNanos(), TimeUnit.NANOSECONDS);
+            CompletableFuture.allOf(closures).get(closeTimeout.toNanos(), TimeUnit.NANOSECONDS);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException(

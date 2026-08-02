@@ -15,7 +15,8 @@ public sealed interface AuthenticatedPlayerAdmissionResult
             status = Objects.requireNonNull(status, "status");
             session = Objects.requireNonNull(session, "session");
             if (!status.isAccepted()) {
-                throw new IllegalArgumentException("accepted admission requires an accepted status");
+                throw new IllegalArgumentException(
+                        "accepted admission requires an accepted status");
             }
         }
     }

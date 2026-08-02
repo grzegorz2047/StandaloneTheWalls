@@ -100,8 +100,7 @@ class TlsIdentityAdmissionGatewayIntegrationTest {
     private static final Instant NOW = Instant.parse("2026-08-02T16:00:00Z");
     private static final Clock CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
     private static final Provider CRYPTO_PROVIDER = new BouncyCastleProvider();
-    private static final ServerReference SERVER_REFERENCE =
-            new ServerReference("localhost:27420");
+    private static final ServerReference SERVER_REFERENCE = new ServerReference("localhost:27420");
     private static final TlsSessionBootstrapConfig BOOTSTRAP_CONFIG =
             new TlsSessionBootstrapConfig(Duration.ofSeconds(2));
     private static final IdentityExchangeConfig EXCHANGE_CONFIG =
@@ -111,8 +110,7 @@ class TlsIdentityAdmissionGatewayIntegrationTest {
     @TempDir java.nio.file.Path temporaryDirectory;
 
     @Test
-    void localTofuAdmitsFirstUseAndReturningIdentityButRejectsConflictingKey()
-            throws Exception {
+    void localTofuAdmitsFirstUseAndReturningIdentityButRejectsConflictingKey() throws Exception {
         PlayerIdentity identity = PlayerIdentity.generate(new SecureRandom());
         PlayerIdentity conflicting = PlayerIdentity.generate(new SecureRandom());
         CanonicalHandle handle = new CanonicalHandle("player_one");
@@ -164,8 +162,7 @@ class TlsIdentityAdmissionGatewayIntegrationTest {
         LocalIdentityRuntime globalRuntime =
                 openRuntime("global", HandleAuthorizationMode.GLOBAL_ONLY, List.of(globalEntry));
         try (Setup setup = setup(globalRuntime, 2, 702L)) {
-            ClientAdmission accepted =
-                    connectAndAuthenticate(setup, globalIdentity, globalHandle);
+            ClientAdmission accepted = connectAndAuthenticate(setup, globalIdentity, globalHandle);
             assertThat(accepted.status()).isEqualTo(PlayerSessionAdmissionStatus.GLOBAL_ACCEPTED);
             AuthorizedPlayerSession server = takeAuthorized(setup.gateway());
             assertThat(server.verificationLevel())
@@ -188,8 +185,7 @@ class TlsIdentityAdmissionGatewayIntegrationTest {
         LocalIdentityRuntime hybridRuntime =
                 openRuntime("hybrid", HandleAuthorizationMode.HYBRID, List.of(globalEntry));
         try (Setup setup = setup(hybridRuntime, 3, 703L)) {
-            ClientAdmission global =
-                    connectAndAuthenticate(setup, globalIdentity, globalHandle);
+            ClientAdmission global = connectAndAuthenticate(setup, globalIdentity, globalHandle);
             assertThat(global.status()).isEqualTo(PlayerSessionAdmissionStatus.GLOBAL_ACCEPTED);
             AuthorizedPlayerSession globalServer = takeAuthorized(setup.gateway());
             close(global.client());
@@ -198,8 +194,7 @@ class TlsIdentityAdmissionGatewayIntegrationTest {
 
             PlayerIdentity localGuest = PlayerIdentity.generate(new SecureRandom());
             ClientAdmission local =
-                    connectAndAuthenticate(
-                            setup, localGuest, new CanonicalHandle("local_guest"));
+                    connectAndAuthenticate(setup, localGuest, new CanonicalHandle("local_guest"));
             assertThat(local.status())
                     .isEqualTo(PlayerSessionAdmissionStatus.LOCAL_FIRST_USE_ACCEPTED);
             AuthorizedPlayerSession localServer = takeAuthorized(setup.gateway());
@@ -212,8 +207,7 @@ class TlsIdentityAdmissionGatewayIntegrationTest {
     }
 
     @Test
-    void bannedFirstUseIsRejectedBeforeBindingAndListenerAdmissionIsReleased()
-            throws Exception {
+    void bannedFirstUseIsRejectedBeforeBindingAndListenerAdmissionIsReleased() throws Exception {
         PlayerIdentity banned = PlayerIdentity.generate(new SecureRandom());
         PlayerIdentity replacement = PlayerIdentity.generate(new SecureRandom());
         CanonicalHandle handle = new CanonicalHandle("player_one");
@@ -245,8 +239,7 @@ class TlsIdentityAdmissionGatewayIntegrationTest {
     }
 
     @Test
-    void fullPreLobbyQueueRejectsWithoutBlockingAndShutdownClosesQueuedLease()
-            throws Exception {
+    void fullPreLobbyQueueRejectsWithoutBlockingAndShutdownClosesQueuedLease() throws Exception {
         LocalIdentityRuntime runtime =
                 openRuntime("capacity", HandleAuthorizationMode.LOCAL_TOFU, List.of());
 
@@ -293,8 +286,7 @@ class TlsIdentityAdmissionGatewayIntegrationTest {
                     IdentityException,
                     ServerTrustStoreException,
                     TlsTransportException {
-        TestCertificateMaterial material =
-                TestCertificateMaterial.create(CRYPTO_PROVIDER, serial);
+        TestCertificateMaterial material = TestCertificateMaterial.create(CRYPTO_PROVIDER, serial);
         Tls13ServerCredentials credentials =
                 Tls13ServerCredentials.create(
                         material.keyPair().getPrivate(), List.of(material.certificate()));
@@ -306,15 +298,10 @@ class TlsIdentityAdmissionGatewayIntegrationTest {
                 Optional.empty(),
                 "identity admission integration test");
         PinnedServerTrustManager trustManager =
-                new PinnedServerTrustManager(
-                        trustService, SERVER_REFERENCE, Optional.empty());
+                new PinnedServerTrustManager(trustService, SERVER_REFERENCE, Optional.empty());
         IdentityChallengeService challengeService =
                 new IdentityChallengeService(
-                        new ChallengeLedger(
-                                CLOCK,
-                                new SecureRandom(),
-                                Duration.ofSeconds(5),
-                                32));
+                        new ChallengeLedger(CLOCK, new SecureRandom(), Duration.ofSeconds(5), 32));
         TlsIdentityAdmissionGateway gateway =
                 new TlsIdentityAdmissionGateway(
                         runtime,
@@ -354,15 +341,10 @@ class TlsIdentityAdmissionGatewayIntegrationTest {
         BootstrappedReliableSession bootstrapped = null;
         AuthenticatedReliableSession authenticated = null;
         try {
-            bootstrapped =
-                    TlsSessionBootstrap.connectClientSession(connection, BOOTSTRAP_CONFIG);
+            bootstrapped = TlsSessionBootstrap.connectClientSession(connection, BOOTSTRAP_CONFIG);
             authenticated =
                     IdentityExchange.authenticateClient(
-                                    bootstrapped,
-                                    identity,
-                                    handle,
-                                    CLOCK,
-                                    EXCHANGE_CONFIG)
+                                    bootstrapped, identity, handle, CLOCK, EXCHANGE_CONFIG)
                             .toCompletableFuture()
                             .get(TIMEOUT.toNanos(), TimeUnit.NANOSECONDS);
             ProtocolEnvelope envelope =
@@ -372,8 +354,7 @@ class TlsIdentityAdmissionGatewayIntegrationTest {
                             .toCompletableFuture()
                             .get(TIMEOUT.toNanos(), TimeUnit.NANOSECONDS)
                             .orElseThrow();
-            assertThat(envelope.messageType())
-                    .isEqualTo(MessageType.SESSION_ADMISSION_RESULT);
+            assertThat(envelope.messageType()).isEqualTo(MessageType.SESSION_ADMISSION_RESULT);
             PlayerSessionAdmissionStatus status =
                     PlayerSessionAdmissionCodec.decode(envelope.payload());
             return new ClientAdmission(authenticated, status);
@@ -414,9 +395,7 @@ class TlsIdentityAdmissionGatewayIntegrationTest {
     }
 
     private LocalIdentityRuntime openRuntime(
-            String name,
-            HandleAuthorizationMode mode,
-            List<RegistrySnapshotEntry> registryEntries)
+            String name, HandleAuthorizationMode mode, List<RegistrySnapshotEntry> registryEntries)
             throws Exception {
         KeyPair registryRoot = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
         LocalIdentityRuntimeConfiguration configuration =
@@ -427,19 +406,14 @@ class TlsIdentityAdmissionGatewayIntegrationTest {
         RegistryTrustBundle trustBundle =
                 RegistryTrustBundle.of(List.of(registryRoot.getPublic().getEncoded()));
         if (!registryEntries.isEmpty()) {
-            storeRegistryBundle(
-                    configuration.registryBundlePath(),
-                    registryRoot,
-                    registryEntries);
+            storeRegistryBundle(configuration.registryBundlePath(), registryRoot, registryEntries);
         }
         return LocalIdentityRuntime.open(
                 configuration, trustBundle, RegistrySnapshotPolicy.DEFAULT, CLOCK);
     }
 
     private static void storeRegistryBundle(
-            java.nio.file.Path path,
-            KeyPair root,
-            List<RegistrySnapshotEntry> entries)
+            java.nio.file.Path path, KeyPair root, List<RegistrySnapshotEntry> entries)
             throws RegistrySnapshotException,
                     GeneralSecurityException,
                     RegistrySnapshotProviderException {
@@ -489,23 +463,17 @@ class TlsIdentityAdmissionGatewayIntegrationTest {
 
     private static void close(AuthenticatedReliableSession session)
             throws InterruptedException, ExecutionException, TimeoutException {
-        session.closeAsync()
-                .toCompletableFuture()
-                .get(TIMEOUT.toNanos(), TimeUnit.NANOSECONDS);
+        session.closeAsync().toCompletableFuture().get(TIMEOUT.toNanos(), TimeUnit.NANOSECONDS);
     }
 
     private static void close(BootstrappedReliableSession session)
             throws InterruptedException, ExecutionException, TimeoutException {
-        session.closeAsync()
-                .toCompletableFuture()
-                .get(TIMEOUT.toNanos(), TimeUnit.NANOSECONDS);
+        session.closeAsync().toCompletableFuture().get(TIMEOUT.toNanos(), TimeUnit.NANOSECONDS);
     }
 
     private static void close(AuthorizedPlayerSession session)
             throws InterruptedException, ExecutionException, TimeoutException {
-        session.closeAsync()
-                .toCompletableFuture()
-                .get(TIMEOUT.toNanos(), TimeUnit.NANOSECONDS);
+        session.closeAsync().toCompletableFuture().get(TIMEOUT.toNanos(), TimeUnit.NANOSECONDS);
     }
 
     private static void closeNullable(ClientAdmission admission) {
@@ -553,8 +521,7 @@ class TlsIdentityAdmissionGatewayIntegrationTest {
     }
 
     private static final class InMemoryServerTrustStore implements ServerTrustStore {
-        private final Map<ServerReference, ServerTrustRecord> records =
-                new ConcurrentHashMap<>();
+        private final Map<ServerReference, ServerTrustRecord> records = new ConcurrentHashMap<>();
 
         @Override
         public Optional<ServerTrustRecord> find(ServerReference reference) {
@@ -587,10 +554,8 @@ class TlsIdentityAdmissionGatewayIntegrationTest {
                             Date.from(NOW.plus(Duration.ofDays(30))),
                             subject,
                             keyPair.getPublic());
-            builder.addExtension(
-                    Extension.basicConstraints, true, new BasicConstraints(false));
-            builder.addExtension(
-                    Extension.keyUsage, true, new KeyUsage(KeyUsage.digitalSignature));
+            builder.addExtension(Extension.basicConstraints, true, new BasicConstraints(false));
+            builder.addExtension(Extension.keyUsage, true, new KeyUsage(KeyUsage.digitalSignature));
             builder.addExtension(
                     Extension.extendedKeyUsage,
                     false,
@@ -601,9 +566,7 @@ class TlsIdentityAdmissionGatewayIntegrationTest {
                             .build(keyPair.getPrivate());
             X509CertificateHolder holder = builder.build(signer);
             java.security.cert.X509Certificate certificate =
-                    new JcaX509CertificateConverter()
-                            .setProvider(provider)
-                            .getCertificate(holder);
+                    new JcaX509CertificateConverter().setProvider(provider).getCertificate(holder);
             certificate.verify(keyPair.getPublic(), provider);
             return new TestCertificateMaterial(keyPair, certificate);
         }

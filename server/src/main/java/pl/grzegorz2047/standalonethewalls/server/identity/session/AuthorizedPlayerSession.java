@@ -17,8 +17,7 @@ public final class AuthorizedPlayerSession {
     AuthorizedPlayerSession(
             AuthenticatedPlayerSession session, HandleVerificationLevel verificationLevel) {
         this.session = Objects.requireNonNull(session, "session");
-        this.verificationLevel =
-                Objects.requireNonNull(verificationLevel, "verificationLevel");
+        this.verificationLevel = Objects.requireNonNull(verificationLevel, "verificationLevel");
     }
 
     public UUID sessionId() {

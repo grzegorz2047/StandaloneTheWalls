@@ -37,8 +37,7 @@ class AuthenticatedPlayerAdmissionServiceTest {
 
             assertThat(result.status()).isEqualTo(expectedStatus(decision));
             if (decision.isAccepted()) {
-                assertThat(result)
-                        .isInstanceOf(AuthenticatedPlayerAdmissionResult.Accepted.class);
+                assertThat(result).isInstanceOf(AuthenticatedPlayerAdmissionResult.Accepted.class);
                 AuthenticatedPlayerAdmissionResult.Accepted accepted =
                         (AuthenticatedPlayerAdmissionResult.Accepted) result;
                 assertThat(accepted.session().sessionId()).isEqualTo(session.sessionId());
@@ -48,8 +47,7 @@ class AuthenticatedPlayerAdmissionServiceTest {
                 assertThat(accepted.session().verificationLevel())
                         .isEqualTo(decision.verificationLevel().orElseThrow());
             } else {
-                assertThat(result)
-                        .isInstanceOf(AuthenticatedPlayerAdmissionResult.Rejected.class);
+                assertThat(result).isInstanceOf(AuthenticatedPlayerAdmissionResult.Rejected.class);
             }
         }
     }
@@ -80,10 +78,8 @@ class AuthenticatedPlayerAdmissionServiceTest {
             SessionIdentityAdmissionDecision decision) {
         return switch (decision) {
             case GLOBAL_ACCEPTED -> PlayerSessionAdmissionStatus.GLOBAL_ACCEPTED;
-            case LOCAL_FIRST_USE_ACCEPTED ->
-                    PlayerSessionAdmissionStatus.LOCAL_FIRST_USE_ACCEPTED;
-            case LOCAL_RETURNING_ACCEPTED ->
-                    PlayerSessionAdmissionStatus.LOCAL_RETURNING_ACCEPTED;
+            case LOCAL_FIRST_USE_ACCEPTED -> PlayerSessionAdmissionStatus.LOCAL_FIRST_USE_ACCEPTED;
+            case LOCAL_RETURNING_ACCEPTED -> PlayerSessionAdmissionStatus.LOCAL_RETURNING_ACCEPTED;
             case PLAYER_BANNED -> PlayerSessionAdmissionStatus.PLAYER_BANNED;
             case REGISTRY_UNAVAILABLE -> PlayerSessionAdmissionStatus.REGISTRY_UNAVAILABLE;
             case REGISTRY_STALE -> PlayerSessionAdmissionStatus.REGISTRY_STALE;
@@ -140,8 +136,7 @@ class AuthenticatedPlayerAdmissionServiceTest {
         private final AtomicBoolean open = new AtomicBoolean(true);
 
         @Override
-        public CompletionStage<ReliableSendResult> send(
-                MessageType messageType, byte[] payload) {
+        public CompletionStage<ReliableSendResult> send(MessageType messageType, byte[] payload) {
             return CompletableFuture.completedFuture(new ReliableSendResult(0L));
         }
 
