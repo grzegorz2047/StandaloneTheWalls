@@ -141,12 +141,16 @@ public final class TlsIdentityAdmissionGateway
         synchronized (lifecycleLock) {
             if (state.get() != State.OPEN) {
                 closeConnection(accepted);
-                publish(TlsIdentityAdmissionEvent.failure(TlsIdentityAdmissionEvent.Code.GATEWAY_CLOSED));
+                publish(
+                        TlsIdentityAdmissionEvent.failure(
+                                TlsIdentityAdmissionEvent.Code.GATEWAY_CLOSED));
                 return;
             }
             if (inFlight.putIfAbsent(accepted.connectionId(), accepted) != null) {
                 closeConnection(accepted);
-                publish(TlsIdentityAdmissionEvent.failure(TlsIdentityAdmissionEvent.Code.INTERNAL_FAILURE));
+                publish(
+                        TlsIdentityAdmissionEvent.failure(
+                                TlsIdentityAdmissionEvent.Code.INTERNAL_FAILURE));
                 return;
             }
             try {
@@ -154,7 +158,9 @@ public final class TlsIdentityAdmissionGateway
             } catch (RejectedExecutionException exception) {
                 inFlight.remove(accepted.connectionId(), accepted);
                 closeConnection(accepted);
-                publish(TlsIdentityAdmissionEvent.failure(TlsIdentityAdmissionEvent.Code.GATEWAY_CLOSED));
+                publish(
+                        TlsIdentityAdmissionEvent.failure(
+                                TlsIdentityAdmissionEvent.Code.GATEWAY_CLOSED));
             }
         }
     }
@@ -186,9 +192,10 @@ public final class TlsIdentityAdmissionGateway
             failures.add(exception);
         }
         try {
-            if (!executor.awaitTermination(
-                    shutdownTimeout.toNanos(), TimeUnit.NANOSECONDS)) {
-                failures.add(new IllegalStateException("identity admission executor did not terminate"));
+            if (!executor.awaitTermination(shutdownTimeout.toNanos(), TimeUnit.NANOSECONDS)) {
+                failures.add(
+                        new IllegalStateException(
+                                "identity admission executor did not terminate"));
             }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
@@ -217,7 +224,9 @@ public final class TlsIdentityAdmissionGateway
                                     secureRandomSupplier.get(),
                                     "secureRandomSupplier returned null"));
             if (state.get() != State.OPEN) {
-                publish(TlsIdentityAdmissionEvent.failure(TlsIdentityAdmissionEvent.Code.GATEWAY_CLOSED));
+                publish(
+                        TlsIdentityAdmissionEvent.failure(
+                                TlsIdentityAdmissionEvent.Code.GATEWAY_CLOSED));
                 closeWithin(bootstrapped.closeAsync());
                 return;
             }
@@ -226,6 +235,12 @@ public final class TlsIdentityAdmissionGateway
                             IdentityExchange.authenticateServer(
                                     bootstrapped, challengeService, exchangeConfig),
                             identityWaitTimeout);
+            if (state.get() != State.OPEN) {
+                publish(
+                        TlsIdentityAdmissionEvent.failure(
+                                TlsIdentityAdmissionEvent.Code.GATEWAY_CLOSED));
+                return;
+            }
             BctlsAuthenticatedPlayerSession session =
                     new BctlsAuthenticatedPlayerSession(authenticated);
             AuthenticatedPlayerAdmissionResult admission = admissionService.evaluate(session);
@@ -270,20 +285,26 @@ public final class TlsIdentityAdmissionGateway
                 publish(TlsIdentityAdmissionEvent.admission(accepted.status()));
             }
         } catch (IOException | TlsSessionBootstrapException exception) {
-            publish(TlsIdentityAdmissionEvent.failure(TlsIdentityAdmissionEvent.Code.BOOTSTRAP_FAILED));
+            publish(
+                    TlsIdentityAdmissionEvent.failure(
+                            TlsIdentityAdmissionEvent.Code.BOOTSTRAP_FAILED));
         } catch (TimeoutException | ExecutionException exception) {
             publish(
                     TlsIdentityAdmissionEvent.failure(
                             TlsIdentityAdmissionEvent.Code.IDENTITY_EXCHANGE_FAILED));
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            publish(TlsIdentityAdmissionEvent.failure(TlsIdentityAdmissionEvent.Code.GATEWAY_CLOSED));
+            publish(
+                    TlsIdentityAdmissionEvent.failure(
+                            TlsIdentityAdmissionEvent.Code.GATEWAY_CLOSED));
         } catch (AdmissionResultSendException exception) {
             publish(
                     TlsIdentityAdmissionEvent.failure(
                             TlsIdentityAdmissionEvent.Code.ADMISSION_RESULT_SEND_FAILED));
         } catch (RuntimeException exception) {
-            publish(TlsIdentityAdmissionEvent.failure(TlsIdentityAdmissionEvent.Code.INTERNAL_FAILURE));
+            publish(
+                    TlsIdentityAdmissionEvent.failure(
+                            TlsIdentityAdmissionEvent.Code.INTERNAL_FAILURE));
         } finally {
             inFlight.remove(connection.connectionId(), connection);
             if (!transferred) {
