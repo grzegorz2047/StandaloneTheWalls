@@ -7,16 +7,19 @@ import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.IdentityException;
+import pl.grzegorz2047.standalonethewalls.protocol.identity.SecureChannelBinding;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerId;
 
-/** Validates a completed socket and extracts the identity and RFC 9266 channel binding. */
+/** Validates a completed client socket and combines peer identity with captured TLS metadata. */
 public final class Tls13SessionInspector {
     private Tls13SessionInspector() {
         throw new AssertionError("No instances");
     }
 
-    public static Tls13SessionSecurity inspect(SSLSocket socket) throws TlsTransportException {
+    public static Tls13SessionSecurity inspectClient(
+            SSLSocket socket, SecureChannelBinding channelBinding) throws TlsTransportException {
         Objects.requireNonNull(socket, "socket");
+        Objects.requireNonNull(channelBinding, "channelBinding");
         Tls13Policy.verifyNegotiated(socket);
         SSLSession session = socket.getSession();
         try {
@@ -30,7 +33,7 @@ public final class Tls13SessionInspector {
             ServerId serverId = ServerId.fromPublicKey(leaf.getPublicKey().getEncoded());
             return new Tls13SessionSecurity(
                     serverId,
-                    TlsChannelBindingExporter.export(socket),
+                    channelBinding,
                     session.getCipherSuite(),
                     socket.getApplicationProtocol());
         } catch (SSLPeerUnverifiedException | IdentityException exception) {
