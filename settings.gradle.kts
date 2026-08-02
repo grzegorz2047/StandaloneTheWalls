@@ -10,4 +10,5 @@ include(
     "map-studio",
     "bot-client",
     "transport-bctls",
+    "identity-registry",
 )
