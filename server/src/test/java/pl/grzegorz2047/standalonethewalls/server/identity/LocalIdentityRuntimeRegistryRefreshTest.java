@@ -378,8 +378,7 @@ class LocalIdentityRuntimeRegistryRefreshTest {
                         Duration.ZERO));
     }
 
-    private static RegistryTrustBundle trustBundle(KeyPair root)
-            throws RegistrySnapshotException {
+    private static RegistryTrustBundle trustBundle(KeyPair root) throws RegistrySnapshotException {
         return RegistryTrustBundle.of(List.of(root.getPublic().getEncoded()));
     }
 
