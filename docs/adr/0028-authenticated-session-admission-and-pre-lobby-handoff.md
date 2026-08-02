@@ -30,11 +30,12 @@ TLS connection:
 1. complete the existing TLS session bootstrap;
 2. complete the existing Identity Proof V2 exchange;
 3. stop immediately if gateway shutdown has begun;
-4. call the one process-owned `LocalIdentityRuntime.admit(handle, playerId)`;
-5. map the semantic result to a stable post-authentication wire status;
-6. for an accepted policy result, reserve one slot in the bounded pre-lobby queue;
+4. reserve one slot in the bounded pre-lobby queue;
+5. call the one process-owned `LocalIdentityRuntime.admit(handle, playerId)`;
+6. map the semantic result to a stable post-authentication wire status;
 7. send exactly one `SESSION_ADMISSION_RESULT` message;
-8. commit the accepted `AuthorizedPlayerSession` into the reserved slot;
+8. commit an accepted `AuthorizedPlayerSession` into the reserved slot, or cancel
+   the reservation for every rejection;
 9. transfer ownership to the future lobby only when the lobby polls or drains the
    queue.
 
@@ -96,10 +97,12 @@ bytes, IP addresses, or mutable registry state.
 ### Bounded handoff and ownership
 
 The queue has a configured positive capacity no greater than 10,000. Admission
-reserves a slot before telling the client that it was accepted. A reservation
-counts against capacity and can be committed or cancelled exactly once. Therefore
-two concurrent successful policy evaluations cannot both receive acceptance for
-one remaining slot.
+reserves a slot after cryptographic proof but before the SQLite-backed identity
+policy. A reservation is capacity ownership, not lobby admission, and is cancelled
+for every policy rejection. This order prevents a capacity-rejected `LOCAL_TOFU`
+attempt from creating a binding. A reservation counts against capacity and can be
+committed or cancelled exactly once. Therefore two concurrent attempts cannot both
+receive acceptance for one remaining slot.
 
 The queue owns committed sessions until `poll` or `drain` transfers ownership to
 the caller. Closing the queue closes every session that has not been transferred.
@@ -128,8 +131,9 @@ closes the TLS lease before the result send completes, the send fails and the
 reservation is cancelled instead.
 
 The gateway checks lifecycle after bootstrap and again after cryptographic proof,
-before invoking SQLite-backed policy. It never begins new admission side effects
-after shutdown ownership has started.
+before reserving capacity or invoking SQLite-backed policy. It never begins a new
+admission operation after shutdown ownership has started. An operation that already
+reserved capacity is treated as in flight and is resolved during bounded shutdown.
 
 Diagnostic observers receive only a bounded event code and, for a completed policy
 or capacity decision, the stable admission status. Observer failures cannot affect
@@ -141,6 +145,8 @@ security or lifecycle.
 - A valid player proof does not bypass player bans or handle policy.
 - A banned first-use attempt cannot create a local binding because the shared
   runtime keeps ban evaluation before handle authorization.
+- A capacity-rejected first-use attempt cannot create a local binding because
+  capacity is reserved before the SQLite-backed policy runs.
 - Queue pressure is explicit and bounded instead of accumulating open sessions.
 - The future lobby consumes an already authorized session without reopening
   SQLite or duplicating registry state.
@@ -163,6 +169,11 @@ accepted.
 
 Rejected because SQLite and registry access can block and would violate the
 simulation-thread boundary.
+
+### Evaluate `LOCAL_TOFU` before reserving queue capacity
+
+Rejected because a full queue could then persist a first-use binding for a session
+that the server explicitly rejects with `SERVER_CAPACITY_EXCEEDED`.
 
 ### Send acceptance before checking queue capacity
 
