@@ -8,6 +8,7 @@ public enum HandleAuthorizationDecision {
     LOCAL_FIRST_USE_ACCEPTED(true, HandleVerificationLevel.LOCAL_UNVERIFIED),
     LOCAL_RETURNING_ACCEPTED(true, HandleVerificationLevel.LOCAL_UNVERIFIED),
     REGISTRY_UNAVAILABLE(false, null),
+    REGISTRY_STALE(false, null),
     UNKNOWN_GLOBAL_HANDLE(false, null),
     REVOKED_GLOBAL_HANDLE(false, null),
     GLOBAL_PLAYER_MISMATCH(false, null),
