@@ -2,6 +2,8 @@ package pl.grzegorz2047.standalonethewalls.server.identity;
 
 import java.time.Clock;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Supplier;
 import pl.grzegorz2047.standalonethewalls.identity.policy.HandleAuthorizationService;
 import pl.grzegorz2047.standalonethewalls.identity.policy.LocalHandleAdministrationService;
 import pl.grzegorz2047.standalonethewalls.identity.policy.LocalPlayerBanAdministrationService;
@@ -42,6 +44,7 @@ public final class LocalIdentityRuntime {
     private final SessionIdentityAdmissionService admission;
     private final IdentityAdministrationCommandService administration;
     private final RegistryAdministrationResult startupRegistryResult;
+    private final Optional<CachingRegistryAdministrationService> automaticRegistryRefresh;
 
     private LocalIdentityRuntime(
             LocalIdentityRuntimeConfiguration configuration,
@@ -50,7 +53,8 @@ public final class LocalIdentityRuntime {
             AtomicRegistrySnapshotStore registryStore,
             SessionIdentityAdmissionService admission,
             IdentityAdministrationCommandService administration,
-            RegistryAdministrationResult startupRegistryResult) {
+            RegistryAdministrationResult startupRegistryResult,
+            Optional<CachingRegistryAdministrationService> automaticRegistryRefresh) {
         this.configuration = configuration;
         this.clock = clock;
         this.registryPolicy = registryPolicy;
@@ -58,6 +62,7 @@ public final class LocalIdentityRuntime {
         this.admission = admission;
         this.administration = administration;
         this.startupRegistryResult = startupRegistryResult;
+        this.automaticRegistryRefresh = automaticRegistryRefresh;
     }
 
     public static LocalIdentityRuntime open(
@@ -127,7 +132,7 @@ public final class LocalIdentityRuntime {
                 new RegistryAdministrationService(registrySnapshots, bundleFile);
         RegistryAdministrationResult startupRegistryResult =
                 localRegistryAdministration.reloadRegistry();
-        RegistryAdministrationOperations registryAdministration =
+        RegistryAdministrationComposition registryAdministration =
                 registryAdministration(
                         refreshSource,
                         refreshProviders,
@@ -146,7 +151,9 @@ public final class LocalIdentityRuntime {
                         new HandleAuthorizationService(handleStore));
         IdentityAdministrationCommandService administration =
                 new IdentityAdministrationCommandService(
-                        handleAdministration, banAdministration, registryAdministration);
+                        handleAdministration,
+                        banAdministration,
+                        registryAdministration.operations());
 
         return new LocalIdentityRuntime(
                 localConfiguration,
@@ -155,7 +162,8 @@ public final class LocalIdentityRuntime {
                 registryStore,
                 admission,
                 administration,
-                startupRegistryResult);
+                startupRegistryResult,
+                registryAdministration.automaticRefresh());
     }
 
     public LocalIdentityRuntimeConfiguration configuration() {
@@ -185,7 +193,35 @@ public final class LocalIdentityRuntime {
                 Objects.requireNonNull(principal, "principal"));
     }
 
-    private static RegistryAdministrationOperations registryAdministration(
+    public RegistryRefreshScheduler startAutomaticRegistryRefresh() {
+        if (!(configuration.registryRefreshConfiguration()
+                instanceof RegistryRefreshConfiguration.Https https)) {
+            return RegistryRefreshScheduler.disabled();
+        }
+        CachingRegistryAdministrationService refresh =
+                automaticRegistryRefresh.orElseThrow(
+                        () -> new IllegalStateException("HTTPS registry refresh is not configured"));
+        return RegistryRefreshScheduler.start(https.schedule(), refresh::refreshAutomatically);
+    }
+
+    RegistryRefreshScheduler startAutomaticRegistryRefresh(
+            Supplier<RegistryRefreshScheduler.TaskScheduler> taskSchedulerFactory,
+            RegistryRefreshScheduler.JitterSource jitterSource) {
+        if (!(configuration.registryRefreshConfiguration()
+                instanceof RegistryRefreshConfiguration.Https https)) {
+            return RegistryRefreshScheduler.disabled();
+        }
+        CachingRegistryAdministrationService refresh =
+                automaticRegistryRefresh.orElseThrow(
+                        () -> new IllegalStateException("HTTPS registry refresh is not configured"));
+        return RegistryRefreshScheduler.start(
+                https.schedule(),
+                refresh::refreshAutomatically,
+                taskSchedulerFactory,
+                jitterSource);
+    }
+
+    private static RegistryAdministrationComposition registryAdministration(
             RegistryRefreshConfiguration refreshConfiguration,
             RegistryRefreshProviderFactory providerFactory,
             RegistrySnapshotService snapshots,
@@ -193,15 +229,27 @@ public final class LocalIdentityRuntime {
             RegistrySnapshotBundleFile bundleFile,
             RegistryAdministrationService localAdministration) {
         if (refreshConfiguration instanceof RegistryRefreshConfiguration.LocalBundle) {
-            return localAdministration;
+            return new RegistryAdministrationComposition(localAdministration, Optional.empty());
         }
         RegistryRefreshConfiguration.Https https =
                 (RegistryRefreshConfiguration.Https) refreshConfiguration;
         RegistrySnapshotProvider provider = providerFactory.create(https.configuration());
-        return new CachingRegistryAdministrationService(
-                snapshots,
-                Objects.requireNonNull(provider, "HTTPS registry provider"),
-                new RegistrySnapshotCachingRefreshService(snapshots, bundleFile),
-                store);
+        CachingRegistryAdministrationService remoteAdministration =
+                new CachingRegistryAdministrationService(
+                        snapshots,
+                        Objects.requireNonNull(provider, "HTTPS registry provider"),
+                        new RegistrySnapshotCachingRefreshService(snapshots, bundleFile),
+                        store);
+        return new RegistryAdministrationComposition(
+                remoteAdministration, Optional.of(remoteAdministration));
+    }
+
+    private record RegistryAdministrationComposition(
+            RegistryAdministrationOperations operations,
+            Optional<CachingRegistryAdministrationService> automaticRefresh) {
+        private RegistryAdministrationComposition {
+            operations = Objects.requireNonNull(operations, "operations");
+            automaticRefresh = Objects.requireNonNull(automaticRefresh, "automaticRefresh");
+        }
     }
 }
