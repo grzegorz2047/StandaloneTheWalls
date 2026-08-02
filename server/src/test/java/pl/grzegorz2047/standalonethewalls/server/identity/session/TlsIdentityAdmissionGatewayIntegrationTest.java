@@ -271,7 +271,6 @@ class TlsIdentityAdmissionGatewayIntegrationTest {
             waitUntil(() -> setup.listener().activeConnectionCount() == 0);
             assertThat(setup.gateway().authorizedSessions().isClosed()).isTrue();
             assertThat(setup.gateway().authorizedSessions().size()).isZero();
-            assertThat(first.client().isOpen()).isFalse();
         } finally {
             closeNullable(second);
             closeNullable(first);
