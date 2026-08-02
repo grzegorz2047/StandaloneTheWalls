@@ -85,9 +85,7 @@ class HandleAuthorizationServiceTest {
                 .isEqualTo(HandleAuthorizationDecision.LOCAL_BINDING_CAPACITY_EXCEEDED);
         assertThat(HandleAuthorizationDecision.LOCAL_BINDING_CAPACITY_EXCEEDED.isAccepted())
                 .isFalse();
-        assertThat(
-                        HandleAuthorizationDecision.LOCAL_BINDING_CAPACITY_EXCEEDED
-                                .verificationLevel())
+        assertThat(HandleAuthorizationDecision.LOCAL_BINDING_CAPACITY_EXCEEDED.verificationLevel())
                 .isEmpty();
     }
 
