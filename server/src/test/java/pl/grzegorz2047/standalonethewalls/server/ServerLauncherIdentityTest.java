@@ -37,11 +37,7 @@ class ServerLauncherIdentityTest {
                 .isEqualTo(ServerLauncher.EXIT_USAGE_OR_CONFIGURATION);
         assertThat(ServerLauncher.run(new String[] {"--unknown"}))
                 .isEqualTo(ServerLauncher.EXIT_USAGE_OR_CONFIGURATION);
-        assertThat(
-                        ServerLauncher.run(
-                                new String[] {
-                                    "--validate-config", "--run-for-ticks", "1"
-                                }))
+        assertThat(ServerLauncher.run(new String[] {"--validate-config", "--run-for-ticks", "1"}))
                 .isEqualTo(ServerLauncher.EXIT_USAGE_OR_CONFIGURATION);
     }
 
@@ -135,10 +131,7 @@ class ServerLauncherIdentityTest {
         Path roots = temporaryDirectory.resolve(prefix + "-roots.hex");
         Path configuration = temporaryDirectory.resolve(prefix + ".properties");
         byte[] publicKey =
-                KeyPairGenerator.getInstance("Ed25519")
-                        .generateKeyPair()
-                        .getPublic()
-                        .getEncoded();
+                KeyPairGenerator.getInstance("Ed25519").generateKeyPair().getPublic().getEncoded();
         Files.writeString(
                 roots, HexFormat.of().formatHex(publicKey) + '\n', StandardCharsets.UTF_8);
         Files.writeString(
