@@ -45,9 +45,9 @@ or lobby membership.
 
 ## Local identity administration commands
 
-Issue #66 defines a strict typed command boundary for future console, RCON, HTTP,
-or GUI adapters. `IdentityAdministrationCommandParser` accepts an already-split
-list of tokens; it does not evaluate a shell or tokenize raw text.
+Issues #66 and #67 define a strict typed command boundary for future console,
+RCON, HTTP, or GUI adapters. `IdentityAdministrationCommandParser` accepts an
+already-split list of tokens; it does not evaluate a shell or tokenize raw text.
 
 Supported shapes are:
 
@@ -61,14 +61,26 @@ identity unbind <handle> <expectedPlayerId> <reason>
 identity rebind <handle> <expectedPlayerId> <replacementPlayerId> <reason>
 identity ban-player-id <playerId> <reason>
 identity unban-player-id <playerId> <reason>
+identity verify-snapshot
+identity reload-registry
 ```
 
 The adapter supplies a quoted multi-word reason as one token. The executor checks
-one of three independent capabilities before touching a service: view identity,
-manage handle bindings, or manage player bans. Permission denial happens before
-any binding, ban, or audit mutation. Successful commands delegate to the existing
-atomic audited policy services and return typed results rather than log strings.
-Registry reload and snapshot verification are separate work.
+one of four independent capabilities before touching a service: view identity,
+manage handle bindings, manage player bans, or manage the registry provider.
+Permission denial happens before any mutation or provider I/O. Successful binding
+and ban commands delegate to the existing atomic audited policy services.
+
+`verify-snapshot` loads and cryptographically verifies the configured provider
+artifact without changing the active snapshot. `reload-registry` verifies first
+and then activates only a monotonic higher sequence; an identical artifact returns
+`UNCHANGED`. Provider, signature, rollback, and equivocation failures preserve the
+last known good active snapshot.
+
+Registry responses contain only sequence, generation time, registry root ID,
+SHA-256 digest, entry count, and stable semantic result codes. They never contain
+canonical JSON, signature bytes, provider exception text, private keys, IP
+addresses, credentials, or sockets.
 
 ## Smoke mode
 
