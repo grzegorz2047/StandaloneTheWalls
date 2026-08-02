@@ -13,6 +13,7 @@ import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.MessageDigest;
 import java.security.PrivateKey;
+import java.security.Provider;
 import java.security.Signature;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
@@ -25,6 +26,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import pl.grzegorz2047.standalonethewalls.server.config.ServerConfiguration;
+import pl.grzegorz2047.standalonethewalls.transport.bctls.BouncyCastleTlsCryptoFactory;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.IdentityExchangeConfig;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.Tls13ServerCredentials;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.Tls13ServerListenerConfig;
@@ -75,6 +77,8 @@ public final class ReliableTlsProcessConfigurationLoader {
                     GATEWAY_SHUTDOWN_TIMEOUT_SECONDS);
     private static final Set<String> REQUIRED_KEYS =
             Set.of(SCHEMA, PRIVATE_KEY_PATH, CERTIFICATE_PATH);
+    private static final Provider CRYPTO_PROVIDER = BouncyCastleTlsCryptoFactory.provider();
+
     private static final byte[] CREDENTIAL_MATCH_PROBE =
             "SUNDERFRONT-SERVER-CREDENTIAL-MATCH-V1"
                     .getBytes(java.nio.charset.StandardCharsets.US_ASCII);
@@ -175,7 +179,7 @@ public final class ReliableTlsProcessConfigurationLoader {
                 readBoundedRegularFile(path, MAXIMUM_PRIVATE_KEY_BYTES, "TLS private-key file");
         try {
             PrivateKey privateKey =
-                    KeyFactory.getInstance("Ed25519")
+                    KeyFactory.getInstance("Ed25519", CRYPTO_PROVIDER)
                             .generatePrivate(new PKCS8EncodedKeySpec(encoded));
             byte[] canonical = privateKey.getEncoded();
             if (canonical == null || !MessageDigest.isEqual(encoded, canonical)) {
@@ -193,7 +197,7 @@ public final class ReliableTlsProcessConfigurationLoader {
         byte[] encoded =
                 readBoundedRegularFile(path, MAXIMUM_CERTIFICATE_BYTES, "TLS certificate file");
         try {
-            CertificateFactory factory = CertificateFactory.getInstance("X.509");
+            CertificateFactory factory = CertificateFactory.getInstance("X.509", CRYPTO_PROVIDER);
             ByteArrayInputStream input = new ByteArrayInputStream(encoded);
             X509Certificate certificate = (X509Certificate) factory.generateCertificate(input);
             if (input.available() != 0
@@ -213,12 +217,12 @@ public final class ReliableTlsProcessConfigurationLoader {
             throw new IllegalArgumentException("TLS certificate leaf public key must use Ed25519");
         }
         try {
-            Signature signer = Signature.getInstance("Ed25519");
+            Signature signer = Signature.getInstance("Ed25519", CRYPTO_PROVIDER);
             signer.initSign(privateKey);
             signer.update(CREDENTIAL_MATCH_PROBE);
             byte[] signature = signer.sign();
 
-            Signature verifier = Signature.getInstance("Ed25519");
+            Signature verifier = Signature.getInstance("Ed25519", CRYPTO_PROVIDER);
             verifier.initVerify(certificate.getPublicKey());
             verifier.update(CREDENTIAL_MATCH_PROBE);
             if (!verifier.verify(signature)) {

@@ -117,10 +117,15 @@ class ReliableTlsProcessConfigurationLoaderTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("duplicate TLS configuration key");
 
+        Path oversized =
+                writeConfiguration(
+                        "transport.schema=1\n"
+                                + "transport.reliable.private-key-pkcs8-path=server-key.pk8\n"
+                                + "transport.reliable.certificate-x509-path=server-certificate.der\n");
         Files.write(
                 temporaryDirectory.resolve("server-key.pk8"),
                 new byte[ReliableTlsProcessConfigurationLoader.MAXIMUM_PRIVATE_KEY_BYTES + 1]);
-        assertThatThrownBy(() -> ReliableTlsProcessConfigurationLoader.load(configuration, server))
+        assertThatThrownBy(() -> ReliableTlsProcessConfigurationLoader.load(oversized, server))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("maximum byte size");
     }

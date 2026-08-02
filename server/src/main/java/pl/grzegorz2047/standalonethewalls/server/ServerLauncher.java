@@ -215,7 +215,8 @@ public final class ServerLauncher {
                                 Objects.requireNonNull(
                                         identityRuntime,
                                         "reliable TLS requires local identity runtime"),
-                                Clock.systemUTC());
+                                Clock.systemUTC(),
+                                runtime::close);
             }
             registryRefreshScheduler =
                     identityRuntime == null
