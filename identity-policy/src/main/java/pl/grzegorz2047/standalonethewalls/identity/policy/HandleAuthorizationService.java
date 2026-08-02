@@ -49,9 +49,7 @@ public final class HandleAuthorizationService {
     }
 
     private HandleAuthorizationDecision authorizeHybrid(
-            RegistrySnapshotAvailability availability,
-            CanonicalHandle handle,
-            PlayerId playerId) {
+            RegistrySnapshotAvailability availability, CanonicalHandle handle, PlayerId playerId) {
         return switch (availability.state()) {
             case ABSENT -> HandleAuthorizationDecision.REGISTRY_UNAVAILABLE;
             case FRESH -> authorizeHybridFresh(availability.requireSnapshot(), handle, playerId);
@@ -74,9 +72,7 @@ public final class HandleAuthorizationService {
     }
 
     private static HandleAuthorizationDecision authorizeGlobal(
-            RegistrySnapshotAvailability availability,
-            CanonicalHandle handle,
-            PlayerId playerId) {
+            RegistrySnapshotAvailability availability, CanonicalHandle handle, PlayerId playerId) {
         return switch (availability.state()) {
             case ABSENT -> HandleAuthorizationDecision.REGISTRY_UNAVAILABLE;
             case STALE -> HandleAuthorizationDecision.REGISTRY_STALE;
