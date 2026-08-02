@@ -2,13 +2,18 @@ package pl.grzegorz2047.standalonethewalls.server;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotException;
 import pl.grzegorz2047.standalonethewalls.server.config.ServerConfiguration;
 import pl.grzegorz2047.standalonethewalls.server.config.ServerConfigurationLoader;
+import pl.grzegorz2047.standalonethewalls.server.config.identity.LocalIdentityProcessConfiguration;
+import pl.grzegorz2047.standalonethewalls.server.config.identity.LocalIdentityProcessConfigurationLoader;
+import pl.grzegorz2047.standalonethewalls.server.identity.LocalIdentityRuntime;
 import pl.grzegorz2047.standalonethewalls.server.runtime.FixedTickLoop;
 import pl.grzegorz2047.standalonethewalls.server.runtime.ServerRuntime;
 import pl.grzegorz2047.standalonethewalls.server.runtime.SystemNanoSleeper;
@@ -34,16 +39,32 @@ public final class ServerLauncher {
                     options.configurationPath() == null
                             ? ServerConfiguration.defaults()
                             : ServerConfigurationLoader.load(options.configurationPath());
+            LocalIdentityProcessConfiguration identityConfiguration =
+                    options.identityConfigurationPath() == null
+                            ? null
+                            : LocalIdentityProcessConfigurationLoader.load(
+                                    options.identityConfigurationPath());
             if (options.validateOnly()) {
-                LOGGER.info(
-                        "Configuration valid for server '{}' ({} Hz, max {} players).",
-                        configuration.name(),
-                        configuration.tickRate(),
-                        configuration.maximumPlayers());
+                if (identityConfiguration == null) {
+                    LOGGER.info(
+                            "Configuration valid for server '{}' ({} Hz, max {} players).",
+                            configuration.name(),
+                            configuration.tickRate(),
+                            configuration.maximumPlayers());
+                } else {
+                    LOGGER.info(
+                            "Configuration valid for server '{}' ({} Hz, max {} players) with local identity mode {}.",
+                            configuration.name(),
+                            configuration.tickRate(),
+                            configuration.maximumPlayers(),
+                            identityConfiguration.runtimeConfiguration().authorizationMode());
+                }
                 return EXIT_OK;
             }
-            return runServer(configuration, options.runForTicks());
-        } catch (IllegalArgumentException | IOException exception) {
+
+            LocalIdentityRuntime identityRuntime = openIdentityRuntime(identityConfiguration);
+            return runServer(configuration, options.runForTicks(), identityRuntime);
+        } catch (IllegalArgumentException | IOException | RegistrySnapshotException exception) {
             LOGGER.error("Server configuration or command-line error: {}", exception.getMessage());
             return EXIT_USAGE_OR_CONFIGURATION;
         } catch (InterruptedException exception) {
@@ -53,7 +74,29 @@ public final class ServerLauncher {
         }
     }
 
-    private static int runServer(ServerConfiguration configuration, Long runForTicks)
+    private static LocalIdentityRuntime openIdentityRuntime(
+            LocalIdentityProcessConfiguration identityConfiguration) {
+        if (identityConfiguration == null) {
+            return null;
+        }
+        LocalIdentityRuntime runtime =
+                LocalIdentityRuntime.open(
+                        identityConfiguration.runtimeConfiguration(),
+                        identityConfiguration.trustBundle(),
+                        identityConfiguration.registryPolicy(),
+                        Clock.systemUTC());
+        LOGGER.info(
+                "Local identity runtime opened in {} mode; registry startup {}, availability {}.",
+                runtime.configuration().authorizationMode(),
+                runtime.startupRegistryResult().code(),
+                runtime.registryAvailability().state());
+        return runtime;
+    }
+
+    private static int runServer(
+            ServerConfiguration configuration,
+            Long runForTicks,
+            LocalIdentityRuntime identityRuntime)
             throws InterruptedException {
         AtomicLong executedTicks = new AtomicLong();
         FixedTickLoop loop =
@@ -83,13 +126,14 @@ public final class ServerLauncher {
             }
             runtime.start();
             LOGGER.info(
-                    "{} dedicated server '{}' started at {} Hz; reliable port {}, realtime port {}, max {} players.",
+                    "{} dedicated server '{}' started at {} Hz; reliable port {}, realtime port {}, max {} players; local identity {}.",
                     BuildInfo.PRODUCT_NAME,
                     configuration.name(),
                     configuration.tickRate(),
                     configuration.reliablePort(),
                     configuration.realtimePort(),
-                    configuration.maximumPlayers());
+                    configuration.maximumPlayers(),
+                    identityRuntime == null ? "disabled" : "enabled");
 
             boolean terminated;
             if (runForTicks == null) {
@@ -126,9 +170,14 @@ public final class ServerLauncher {
         }
     }
 
-    private record LaunchOptions(Path configurationPath, boolean validateOnly, Long runForTicks) {
+    private record LaunchOptions(
+            Path configurationPath,
+            Path identityConfigurationPath,
+            boolean validateOnly,
+            Long runForTicks) {
         private static LaunchOptions parse(String[] arguments) {
             Path configuration = null;
+            Path identityConfiguration = null;
             boolean validate = false;
             Long ticks = null;
             for (int index = 0; index < arguments.length; index++) {
@@ -140,6 +189,14 @@ public final class ServerLauncher {
                                     "--config may be supplied only once");
                         }
                         configuration = Path.of(requireValue(arguments, ++index, "--config"));
+                    }
+                    case "--identity-config" -> {
+                        if (identityConfiguration != null) {
+                            throw new IllegalArgumentException(
+                                    "--identity-config may be supplied only once");
+                        }
+                        identityConfiguration =
+                                Path.of(requireValue(arguments, ++index, "--identity-config"));
                     }
                     case "--validate-config" -> {
                         if (validate) {
@@ -172,7 +229,7 @@ public final class ServerLauncher {
                 throw new IllegalArgumentException(
                         "--validate-config cannot be combined with --run-for-ticks");
             }
-            return new LaunchOptions(configuration, validate, ticks);
+            return new LaunchOptions(configuration, identityConfiguration, validate, ticks);
         }
 
         private static String requireValue(String[] arguments, int index, String option) {
