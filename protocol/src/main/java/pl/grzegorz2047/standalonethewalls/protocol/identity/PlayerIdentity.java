@@ -10,6 +10,7 @@ import java.security.SecureRandom;
 import java.security.Signature;
 import java.security.spec.NamedParameterSpec;
 import java.util.Objects;
+import java.util.Optional;
 
 /** Application-specific Ed25519 identity. Private material is never included in toString. */
 public final class PlayerIdentity {
@@ -57,13 +58,31 @@ public final class PlayerIdentity {
             throws IdentityException {
         Objects.requireNonNull(store, "store");
         Objects.requireNonNull(random, "random");
-        var loaded = store.load();
+        Optional<KeyPair> loaded = store.load();
         if (loaded.isPresent()) {
             return new PlayerIdentity(loaded.orElseThrow());
         }
         PlayerIdentity generated = generate(random);
-        store.save(new KeyPair(generated.publicKeyObject(), generated.privateKey));
-        return generated;
+        try {
+            store.save(new KeyPair(generated.publicKeyObject(), generated.privateKey));
+            return generated;
+        } catch (IdentityException conflict) {
+            if (conflict.code() != IdentityException.Code.KEY_STORE_CONFLICT) {
+                throw conflict;
+            }
+            try {
+                Optional<KeyPair> winner = store.load();
+                if (winner.isEmpty()) {
+                    throw conflict;
+                }
+                return new PlayerIdentity(winner.orElseThrow());
+            } catch (IdentityException winnerFailure) {
+                if (winnerFailure != conflict) {
+                    winnerFailure.addSuppressed(conflict);
+                }
+                throw winnerFailure;
+            }
+        }
     }
 
     public PlayerId playerId() {
