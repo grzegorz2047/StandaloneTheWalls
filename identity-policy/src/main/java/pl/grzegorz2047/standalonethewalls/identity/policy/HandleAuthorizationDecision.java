@@ -12,7 +12,8 @@ public enum HandleAuthorizationDecision {
     UNKNOWN_GLOBAL_HANDLE(false, null),
     REVOKED_GLOBAL_HANDLE(false, null),
     GLOBAL_PLAYER_MISMATCH(false, null),
-    LOCAL_BINDING_CONFLICT(false, null);
+    LOCAL_BINDING_CONFLICT(false, null),
+    LOCAL_BINDING_CAPACITY_EXCEEDED(false, null);
 
     private final boolean accepted;
     private final HandleVerificationLevel verificationLevel;
