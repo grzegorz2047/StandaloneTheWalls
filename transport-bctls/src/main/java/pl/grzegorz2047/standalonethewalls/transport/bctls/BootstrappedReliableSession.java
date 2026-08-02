@@ -3,6 +3,7 @@ package pl.grzegorz2047.standalonethewalls.transport.bctls;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.atomic.AtomicBoolean;
 import pl.grzegorz2047.standalonethewalls.protocol.ReliableChannel;
 
 /** Authenticated TLS security metadata and reliable channel after UUID agreement. */
@@ -10,6 +11,7 @@ public final class BootstrappedReliableSession {
     private final UUID sessionId;
     private final Tls13SessionSecurity security;
     private final ReliableChannel reliableChannel;
+    private final AtomicBoolean identityExchangeClaimed = new AtomicBoolean();
 
     BootstrappedReliableSession(
             UUID sessionId, Tls13SessionSecurity security, ReliableChannel reliableChannel) {
@@ -39,6 +41,10 @@ public final class BootstrappedReliableSession {
 
     public CompletionStage<Void> closeAsync() {
         return reliableChannel.close();
+    }
+
+    boolean claimIdentityExchange() {
+        return identityExchangeClaimed.compareAndSet(false, true);
     }
 
     @Override
