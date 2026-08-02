@@ -136,7 +136,8 @@ class SqliteLocalPlayerBanAdministrationStoreTest {
         Path database = temporaryDirectory.resolve("rollback.sqlite");
         SqliteLocalPlayerBanAdministrationStore store =
                 new SqliteLocalPlayerBanAdministrationStore(database, 10, 10, 5_000);
-        try (Connection connection = connect(database); Statement statement = connection.createStatement()) {
+        try (Connection connection = connect(database);
+                Statement statement = connection.createStatement()) {
             statement.executeUpdate(
                     "CREATE TRIGGER fail_player_ban_audit BEFORE INSERT "
                             + "ON local_player_ban_audit BEGIN "
@@ -175,9 +176,7 @@ class SqliteLocalPlayerBanAdministrationStoreTest {
         }
 
         assertThatThrownBy(
-                        () ->
-                                new SqliteLocalPlayerBanAdministrationStore(
-                                        database, 10, 10, 5_000))
+                        () -> new SqliteLocalPlayerBanAdministrationStore(database, 10, 10, 5_000))
                 .isInstanceOf(SqliteLocalHandleStoreException.class);
         assertThat(schemaVersion(database)).isEqualTo(3);
     }
@@ -190,14 +189,14 @@ class SqliteLocalPlayerBanAdministrationStoreTest {
         assertThat(store.ban(FIRST, ADMINISTRATOR, REASON, NOW))
                 .isEqualTo(LocalPlayerBanAdministrationResult.BANNED);
 
-        try (Connection connection = connect(database); Statement statement = connection.createStatement()) {
+        try (Connection connection = connect(database);
+                Statement statement = connection.createStatement()) {
             assertThatThrownBy(
                             () ->
                                     statement.executeUpdate(
                                             "UPDATE local_player_ban_audit SET reason = 'changed'"))
                     .isInstanceOf(SQLException.class);
-            assertThatThrownBy(
-                            () -> statement.executeUpdate("DELETE FROM local_player_ban_audit"))
+            assertThatThrownBy(() -> statement.executeUpdate("DELETE FROM local_player_ban_audit"))
                     .isInstanceOf(SQLException.class);
         }
         assertThat(store.banAuditEvents()).hasSize(1);
