@@ -6,7 +6,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
@@ -49,7 +48,7 @@ public final class TlsIdentityAdmissionGateway
     private static final Duration MAXIMUM_OPERATION_TIMEOUT = Duration.ofMinutes(2);
     private static final Duration MAXIMUM_SHUTDOWN_TIMEOUT = Duration.ofSeconds(30);
 
-    private final AuthenticatedPlayerAdmissionService admissionService;
+    private final AuthenticatedPlayerAdmissionCoordinator admissionCoordinator;
     private final IdentityChallengeService challengeService;
     private final TlsSessionBootstrapConfig bootstrapConfig;
     private final IdentityExchangeConfig exchangeConfig;
@@ -95,7 +94,6 @@ public final class TlsIdentityAdmissionGateway
             Duration shutdownTimeout,
             Consumer<TlsIdentityAdmissionEvent> eventObserver,
             Supplier<SecureRandom> secureRandomSupplier) {
-        this.admissionService = Objects.requireNonNull(admissionService, "admissionService");
         this.challengeService = Objects.requireNonNull(challengeService, "challengeService");
         this.bootstrapConfig = Objects.requireNonNull(bootstrapConfig, "bootstrapConfig");
         this.exchangeConfig = Objects.requireNonNull(exchangeConfig, "exchangeConfig");
@@ -107,6 +105,10 @@ public final class TlsIdentityAdmissionGateway
                 exchangeConfig.overallTimeout().plus(exchangeConfig.closeTimeout()).plusSeconds(1L);
         this.authorizedSessions =
                 new AuthorizedPlayerSessionQueue(queueCapacity, exchangeConfig.closeTimeout());
+        this.admissionCoordinator =
+                new AuthenticatedPlayerAdmissionCoordinator(
+                        Objects.requireNonNull(admissionService, "admissionService"),
+                        authorizedSessions);
         this.eventObserver = Objects.requireNonNull(eventObserver, "eventObserver");
         this.secureRandomSupplier =
                 Objects.requireNonNull(secureRandomSupplier, "secureRandomSupplier");
@@ -237,42 +239,23 @@ public final class TlsIdentityAdmissionGateway
             }
             BctlsAuthenticatedPlayerSession session =
                     new BctlsAuthenticatedPlayerSession(authenticated);
-            AuthenticatedPlayerAdmissionResult admission = admissionService.evaluate(session);
-            if (admission instanceof AuthenticatedPlayerAdmissionResult.Rejected rejected) {
-                sendAdmissionResult(session, rejected.status());
-                publish(TlsIdentityAdmissionEvent.admission(rejected.status()));
-                return;
-            }
-
-            AuthenticatedPlayerAdmissionResult.Accepted accepted =
-                    (AuthenticatedPlayerAdmissionResult.Accepted) admission;
-            Optional<AuthorizedPlayerSessionQueue.Reservation> reservationAttempt =
-                    authorizedSessions.tryReserve();
-            if (reservationAttempt.isEmpty()) {
-                PlayerSessionAdmissionStatus status =
-                        authorizedSessions.isClosed() || state.get() != State.OPEN
-                                ? PlayerSessionAdmissionStatus.SERVER_SHUTTING_DOWN
-                                : PlayerSessionAdmissionStatus.SERVER_CAPACITY_EXCEEDED;
-                sendAdmissionResult(session, status);
-                publish(TlsIdentityAdmissionEvent.admission(status));
-                return;
-            }
-
-            try (AuthorizedPlayerSessionQueue.Reservation reservation =
-                    reservationAttempt.orElseThrow()) {
-                if (state.get() != State.OPEN) {
-                    sendAdmissionResult(session, PlayerSessionAdmissionStatus.SERVER_SHUTTING_DOWN);
-                    publish(
-                            TlsIdentityAdmissionEvent.admission(
-                                    PlayerSessionAdmissionStatus.SERVER_SHUTTING_DOWN));
+            try (AuthenticatedPlayerAdmissionCoordinator.PreparedAdmission prepared =
+                    admissionCoordinator.prepare(session)) {
+                if (prepared
+                        instanceof AuthenticatedPlayerAdmissionCoordinator.PreparedAdmission.Rejected
+                                rejected) {
+                    sendAdmissionResult(session, rejected.status());
+                    publish(TlsIdentityAdmissionEvent.admission(rejected.status()));
                     return;
                 }
+
+                AuthenticatedPlayerAdmissionCoordinator.PreparedAdmission.Accepted accepted =
+                        (AuthenticatedPlayerAdmissionCoordinator.PreparedAdmission.Accepted)
+                                prepared;
                 sendAdmissionResult(session, accepted.status());
-                if (!reservation.commit(accepted.session())) {
-                    publish(
-                            TlsIdentityAdmissionEvent.admission(
-                                    PlayerSessionAdmissionStatus.SERVER_SHUTTING_DOWN));
-                    return;
+                if (!accepted.commit()) {
+                    throw new IllegalStateException(
+                            "reserved authorized player session could not be committed");
                 }
                 transferred = true;
                 publish(TlsIdentityAdmissionEvent.admission(accepted.status()));
