@@ -46,10 +46,7 @@ class InMemoryLocalHandleBindingStoreTest {
             assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
             start.countDown();
 
-            assertThat(
-                            List.of(
-                                    first.get(5, TimeUnit.SECONDS),
-                                    second.get(5, TimeUnit.SECONDS)))
+            assertThat(List.of(first.get(5, TimeUnit.SECONDS), second.get(5, TimeUnit.SECONDS)))
                     .containsExactlyInAnyOrder(
                             LocalHandleBindingResult.BOUND, LocalHandleBindingResult.CONFLICT);
             assertThat(store.size()).isEqualTo(1);
