@@ -41,8 +41,7 @@ class LocalIdentityProcessScheduleConfigurationTest {
     }
 
     @Test
-    void loadsExplicitEnabledScheduleInSeconds()
-            throws IOException, RegistrySnapshotException {
+    void loadsExplicitEnabledScheduleInSeconds() throws IOException, RegistrySnapshotException {
         LocalIdentityProcessConfiguration configuration =
                 load(
                         httpsPrefix()
