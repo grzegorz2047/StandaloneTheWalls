@@ -10,63 +10,6 @@ permissions:
   contents: read
 
 jobs:
-  apply-final-asset-fix:
-    if: github.event_name == 'pull_request' && github.head_ref == 'agent/issue-82-asset-lock-cache'
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Check out pull request branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-
-      - name: Set up Java 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Validate cache target parent explicitly
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path("asset-pack/src/main/java/pl/grzegorz2047/standalonethewalls/assets/AssetPackSynchronizer.java")
-          text = path.read_text()
-          old = '''            Path target = targetDirectory(locked);
-            prepareDirectory(target.getParent());
-'''
-          new = '''            Path target = targetDirectory(locked);
-            Path targetParent = target.getParent();
-            if (targetParent == null) {
-                throw new AssetPackSyncException(
-                        AssetPackSyncException.Code.CACHE_IO,
-                        "asset cache target has no parent directory");
-            }
-            prepareDirectory(targetParent);
-'''
-          if old in text:
-              path.write_text(text.replace(old, new, 1))
-          elif "Path targetParent = target.getParent();" not in text:
-              raise SystemExit("expected asset target parent site")
-          PY
-          ./gradlew --no-daemon spotlessApply
-
-      - name: Commit fix
-        run: |
-          if git diff --quiet -- asset-pack/src; then
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add asset-pack/src
-          git commit -m "Validate asset cache target parent explicitly"
-          git push origin HEAD:${{ github.head_ref }}
-
   verify-linux:
     runs-on: ubuntu-latest
     timeout-minutes: 25
