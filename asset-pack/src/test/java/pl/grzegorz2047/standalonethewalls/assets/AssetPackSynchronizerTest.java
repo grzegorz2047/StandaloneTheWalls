@@ -6,13 +6,14 @@ import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
 import java.io.IOException;
 import java.net.URI;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -303,23 +304,16 @@ class AssetPackSynchronizerTest {
     }
 
     private static void writeZip(Path path, Map<String, byte[]> entries) throws IOException {
+        List<Map.Entry<String, byte[]>> orderedEntries = new ArrayList<>(entries.entrySet());
+        orderedEntries.sort(Map.Entry.comparingByKey());
         try (ZipOutputStream output = new ZipOutputStream(Files.newOutputStream(path))) {
-            entries.entrySet().stream()
-                    .sorted(Comparator.comparing(Map.Entry::getKey))
-                    .forEach(
-                            entry -> {
-                                try {
-                                    ZipEntry zipEntry = new ZipEntry(entry.getKey());
-                                    zipEntry.setTime(0L);
-                                    output.putNextEntry(zipEntry);
-                                    output.write(entry.getValue());
-                                    output.closeEntry();
-                                } catch (IOException exception) {
-                                    throw new ZipWriteException(exception);
-                                }
-                            });
-        } catch (ZipWriteException exception) {
-            throw exception.ioException();
+            for (Map.Entry<String, byte[]> entry : orderedEntries) {
+                ZipEntry zipEntry = new ZipEntry(entry.getKey());
+                zipEntry.setTime(0L);
+                output.putNextEntry(zipEntry);
+                output.write(entry.getValue());
+                output.closeEntry();
+            }
         }
     }
 
@@ -331,9 +325,9 @@ class AssetPackSynchronizerTest {
         }
         bytes[central + 5] = 3;
         int external = 0120777 << 16;
-        for (int index = 0; index < 4; index++) {
-            bytes[central + 38 + index] = (byte) (external >>> (index * 8));
-        }
+        ByteBuffer.wrap(bytes, central + 38, Integer.BYTES)
+                .order(ByteOrder.LITTLE_ENDIAN)
+                .putInt(external);
         Files.write(archive, bytes);
     }
 
@@ -397,17 +391,5 @@ class AssetPackSynchronizerTest {
     @FunctionalInterface
     private interface ThrowingOperation {
         void run() throws AssetPackSyncException;
-    }
-
-    private static final class ZipWriteException extends RuntimeException {
-        private static final long serialVersionUID = 1L;
-
-        private ZipWriteException(IOException cause) {
-            super(cause);
-        }
-
-        private IOException ioException() {
-            return (IOException) getCause();
-        }
     }
 }
