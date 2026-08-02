@@ -25,6 +25,8 @@ public final class IdentityAdministrationCommandParser {
             case "rebind" -> parseRebind(tokens);
             case "ban-player-id" -> parseBan(tokens);
             case "unban-player-id" -> parseUnban(tokens);
+            case "verify-snapshot" -> parseVerifySnapshot(tokens);
+            case "reload-registry" -> parseReloadRegistry(tokens);
             default ->
                     throw new IllegalArgumentException(
                             "unknown identity command: " + tokens.get(1));
@@ -90,6 +92,16 @@ public final class IdentityAdministrationCommandParser {
         requireSize(tokens, 4);
         return new IdentityAdministrationCommand.UnbanPlayer(
                 new PlayerId(tokens.get(2)), new LocalHandleAdministrationReason(tokens.get(3)));
+    }
+
+    private static IdentityAdministrationCommand parseVerifySnapshot(List<String> tokens) {
+        requireSize(tokens, 2);
+        return new IdentityAdministrationCommand.VerifySnapshot();
+    }
+
+    private static IdentityAdministrationCommand parseReloadRegistry(List<String> tokens) {
+        requireSize(tokens, 2);
+        return new IdentityAdministrationCommand.ReloadRegistry();
     }
 
     private static void requireSize(List<String> tokens, int expected) {
