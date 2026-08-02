@@ -42,10 +42,11 @@ final class PostIdentityReliableChannel implements ReliableChannel {
                                 return;
                             }
                             if (message == null) {
-                                result.completeExceptionally(
+                                closeThenComplete(
                                         new IdentityExchangeException(
                                                 IdentityExchangeException.Code.INTERNAL_ERROR,
-                                                "reliable channel returned a null receive result"));
+                                                "reliable channel returned a null receive result"),
+                                        result);
                                 return;
                             }
                             if (message.isPresent()
