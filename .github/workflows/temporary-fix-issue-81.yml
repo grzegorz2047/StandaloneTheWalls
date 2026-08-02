@@ -36,44 +36,82 @@ jobs:
           launcher = Path("server/src/main/java/pl/grzegorz2047/standalonethewalls/server/ServerLauncher.java")
           source = launcher.read_text()
           anchor = source.index("ReliableTlsAdmissionRuntime.open(")
-          target = "Clock.systemUTC());"
-          position = source.index(target, anchor)
-          source = (
-              source[:position]
-              + "Clock.systemUTC(),\n                                runtime::close);"
-              + source[position + len(target):]
-          )
-          launcher.write_text(source)
+          segment = source[anchor:anchor + 700]
+          if "runtime::close);" not in segment:
+              target = "Clock.systemUTC());"
+              position = source.index(target, anchor)
+              source = (
+                  source[:position]
+                  + "Clock.systemUTC(),\n                                runtime::close);"
+                  + source[position + len(target):]
+              )
+              launcher.write_text(source)
+
+          loader = Path("server/src/main/java/pl/grzegorz2047/standalonethewalls/server/config/transport/ReliableTlsProcessConfigurationLoader.java")
+          source = loader.read_text()
+          if "BouncyCastleProvider" not in source:
+              source = source.replace(
+                  "import java.security.PrivateKey;\n",
+                  "import java.security.PrivateKey;\nimport java.security.Provider;\n",
+                  1,
+              )
+              source = source.replace(
+                  "import java.util.Set;\n",
+                  "import java.util.Set;\nimport org.bouncycastle.jce.provider.BouncyCastleProvider;\n",
+                  1,
+              )
+              source = source.replace(
+                  "    private static final byte[] CREDENTIAL_MATCH_PROBE =",
+                  "    private static final Provider CRYPTO_PROVIDER = new BouncyCastleProvider();\n\n    private static final byte[] CREDENTIAL_MATCH_PROBE =",
+                  1,
+              )
+              source = source.replace(
+                  'KeyFactory.getInstance("Ed25519")',
+                  'KeyFactory.getInstance("Ed25519", CRYPTO_PROVIDER)',
+              )
+              source = source.replace(
+                  'CertificateFactory.getInstance("X.509")',
+                  'CertificateFactory.getInstance("X.509", CRYPTO_PROVIDER)',
+              )
+              source = source.replace(
+                  'Signature.getInstance("Ed25519")',
+                  'Signature.getInstance("Ed25519", CRYPTO_PROVIDER)',
+              )
+              loader.write_text(source)
 
           test = Path("server/src/test/java/pl/grzegorz2047/standalonethewalls/server/config/transport/ReliableTlsProcessConfigurationLoaderTest.java")
           source = test.read_text()
-          array_anchor = "new byte[ReliableTlsProcessConfigurationLoader.MAXIMUM_PRIVATE_KEY_BYTES + 1]);"
-          array_position = source.index(array_anchor)
-          write_position = source.rfind("        Files.write(", 0, array_position)
-          oversized = '''        Path oversized =
+          if "Path oversized =" not in source:
+              array_anchor = "new byte[ReliableTlsProcessConfigurationLoader.MAXIMUM_PRIVATE_KEY_BYTES + 1]);"
+              array_position = source.index(array_anchor)
+              write_position = source.rfind("        Files.write(", 0, array_position)
+              oversized = '''        Path oversized =
                   writeConfiguration(
                           "transport.schema=1\\n"
                                   + "transport.reliable.private-key-pkcs8-path=server-key.pk8\\n"
                                   + "transport.reliable.certificate-x509-path=server-certificate.der\\n");
 '''
-          source = source[:write_position] + oversized + source[write_position:]
-          load_target = "ReliableTlsProcessConfigurationLoader.load(configuration, server)"
-          load_position = source.index(load_target, write_position + len(oversized))
-          source = (
-              source[:load_position]
-              + "ReliableTlsProcessConfigurationLoader.load(oversized, server)"
-              + source[load_position + len(load_target):]
-          )
-          test.write_text(source)
+              source = source[:write_position] + oversized + source[write_position:]
+              load_target = "ReliableTlsProcessConfigurationLoader.load(configuration, server)"
+              load_position = source.index(load_target, write_position + len(oversized))
+              source = (
+                  source[:load_position]
+                  + "ReliableTlsProcessConfigurationLoader.load(oversized, server)"
+                  + source[load_position + len(load_target):]
+              )
+              test.write_text(source)
           PY
 
-      - name: Apply repository Java formatting
+      - name: Apply repository formatting
         run: ./gradlew --no-daemon spotlessApply
 
       - name: Commit review fixes
         run: |
+          if git diff --quiet -- server/src; then
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add server/src
-          git commit -m "Apply final TLS composition review fixes"
+          git commit -m "Apply TLS credential and lifecycle review fixes"
           git push origin HEAD:agent/issue-81-production-tls-listener
