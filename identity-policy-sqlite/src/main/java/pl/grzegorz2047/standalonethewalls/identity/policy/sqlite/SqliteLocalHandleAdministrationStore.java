@@ -59,8 +59,7 @@ public final class SqliteLocalHandleAdministrationStore implements LocalHandleAd
             throw new IllegalArgumentException("path must identify a SQLite database file");
         }
         if (maximumBindings < 1
-                || maximumBindings
-                        > InMemoryLocalHandleBindingStore.ABSOLUTE_MAXIMUM_BINDINGS) {
+                || maximumBindings > InMemoryLocalHandleBindingStore.ABSOLUTE_MAXIMUM_BINDINGS) {
             throw new IllegalArgumentException("maximumBindings is outside the safe range");
         }
         if (maximumAuditEvents < 1
@@ -241,7 +240,8 @@ public final class SqliteLocalHandleAdministrationStore implements LocalHandleAd
                             ResultSet result = statement.executeQuery()) {
                         while (result.next()) {
                             if (values.size() >= maximumBindings) {
-                                throw new SQLException("binding result exceeds configured capacity");
+                                throw new SQLException(
+                                        "binding result exceeds configured capacity");
                             }
                             values.add(
                                     new LocalHandleBinding(
@@ -322,8 +322,7 @@ public final class SqliteLocalHandleAdministrationStore implements LocalHandleAd
                     boolean auditExists = objectExists(connection, "table", AUDIT_TABLE);
                     if (!schemaExists) {
                         if (bindingsExist || auditExists) {
-                            throw new SQLException(
-                                    "identity tables exist without schema metadata");
+                            throw new SQLException("identity tables exist without schema metadata");
                         }
                         createSchema(connection);
                     }
@@ -485,9 +484,7 @@ public final class SqliteLocalHandleAdministrationStore implements LocalHandleAd
             Connection connection, CanonicalHandle handle, PlayerId playerId) throws SQLException {
         try (PreparedStatement statement =
                 connection.prepareStatement(
-                        "INSERT INTO "
-                                + BINDINGS_TABLE
-                                + " (handle, player_id) VALUES (?, ?)")) {
+                        "INSERT INTO " + BINDINGS_TABLE + " (handle, player_id) VALUES (?, ?)")) {
             statement.setString(1, handle.value());
             statement.setString(2, playerId.value());
             requireOneRow(statement.executeUpdate(), "local binding insert");
@@ -499,9 +496,7 @@ public final class SqliteLocalHandleAdministrationStore implements LocalHandleAd
             throws SQLException {
         try (PreparedStatement statement =
                 connection.prepareStatement(
-                        "DELETE FROM "
-                                + BINDINGS_TABLE
-                                + " WHERE handle = ? AND player_id = ?")) {
+                        "DELETE FROM " + BINDINGS_TABLE + " WHERE handle = ? AND player_id = ?")) {
             statement.setString(1, handle.value());
             statement.setString(2, expectedPlayerId.value());
             requireOneRow(statement.executeUpdate(), "local binding delete");
@@ -577,9 +572,7 @@ public final class SqliteLocalHandleAdministrationStore implements LocalHandleAd
                 LocalHandleAuditAction.valueOf(result.getString(4)),
                 new CanonicalHandle(result.getString(5)),
                 previous == null ? Optional.empty() : Optional.of(new PlayerId(previous)),
-                replacement == null
-                        ? Optional.empty()
-                        : Optional.of(new PlayerId(replacement)),
+                replacement == null ? Optional.empty() : Optional.of(new PlayerId(replacement)),
                 new LocalHandleAdministrationReason(result.getString(8)));
     }
 

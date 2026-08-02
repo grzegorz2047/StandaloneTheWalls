@@ -62,8 +62,7 @@ class SqliteLocalHandleAdministrationStoreTest {
         assertThat(reopened.find(BETA)).contains(FIRST);
         assertThat(reopened.bindings())
                 .containsExactly(
-                        new LocalHandleBinding(ALPHA, THIRD),
-                        new LocalHandleBinding(BETA, FIRST));
+                        new LocalHandleBinding(ALPHA, THIRD), new LocalHandleBinding(BETA, FIRST));
         assertThat(reopened.auditEvents())
                 .extracting(event -> event.action())
                 .containsExactly(LocalHandleAuditAction.RESERVE, LocalHandleAuditAction.REBIND);
@@ -73,8 +72,10 @@ class SqliteLocalHandleAdministrationStoreTest {
 
         try (Connection connection = connect(database)) {
             assertThat(schemaVersion(connection)).isEqualTo(1);
-            assertThat(objectExists(connection, "trigger", "local_handle_audit_no_update")).isTrue();
-            assertThat(objectExists(connection, "trigger", "local_handle_audit_no_delete")).isTrue();
+            assertThat(objectExists(connection, "trigger", "local_handle_audit_no_update"))
+                    .isTrue();
+            assertThat(objectExists(connection, "trigger", "local_handle_audit_no_delete"))
+                    .isTrue();
         }
     }
 
@@ -121,11 +122,9 @@ class SqliteLocalHandleAdministrationStoreTest {
 
         try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
             Future<LocalHandleAdministrationResult> second =
-                    executor.submit(
-                            () -> raceRebind(firstStore, SECOND, ready, start));
+                    executor.submit(() -> raceRebind(firstStore, SECOND, ready, start));
             Future<LocalHandleAdministrationResult> third =
-                    executor.submit(
-                            () -> raceRebind(secondStore, THIRD, ready, start));
+                    executor.submit(() -> raceRebind(secondStore, THIRD, ready, start));
             assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
             start.countDown();
 
@@ -148,22 +147,15 @@ class SqliteLocalHandleAdministrationStoreTest {
         SqliteLocalHandleAdministrationStore store =
                 new SqliteLocalHandleAdministrationStore(database, 10, 10, 5_000);
         assertThat(store.bindOrVerify(ALPHA, FIRST)).isEqualTo(LocalHandleBindingResult.BOUND);
-        try (Connection connection = connect(database); Statement statement = connection.createStatement()) {
+        try (Connection connection = connect(database);
+                Statement statement = connection.createStatement()) {
             statement.executeUpdate(
                     "CREATE TRIGGER fail_rebind_audit BEFORE INSERT ON local_handle_audit "
                             + "WHEN NEW.action = 'REBIND' BEGIN "
                             + "SELECT RAISE(ABORT, 'forced audit failure'); END");
         }
 
-        assertThatThrownBy(
-                        () ->
-                                store.rebind(
-                                        ALPHA,
-                                        FIRST,
-                                        SECOND,
-                                        ADMINISTRATOR,
-                                        REASON,
-                                        NOW))
+        assertThatThrownBy(() -> store.rebind(ALPHA, FIRST, SECOND, ADMINISTRATOR, REASON, NOW))
                 .isInstanceOf(SqliteLocalHandleStoreException.class);
         assertThat(store.find(ALPHA)).contains(FIRST);
         assertThat(store.auditEvents()).isEmpty();
@@ -199,10 +191,7 @@ class SqliteLocalHandleAdministrationStoreTest {
             assertThat(statement.executeUpdate()).isEqualTo(1);
         }
 
-        assertThatThrownBy(
-                        () ->
-                                new SqliteLocalHandleAdministrationStore(
-                                        database, 10, 10, 5_000))
+        assertThatThrownBy(() -> new SqliteLocalHandleAdministrationStore(database, 10, 10, 5_000))
                 .isInstanceOf(SqliteLocalHandleStoreException.class)
                 .hasMessage("SQLite local identity transaction failed");
         try (Connection connection = connect(database)) {
@@ -219,14 +208,14 @@ class SqliteLocalHandleAdministrationStoreTest {
         assertThat(store.reserve(ALPHA, FIRST, ADMINISTRATOR, REASON, NOW))
                 .isEqualTo(LocalHandleAdministrationResult.RESERVED);
 
-        try (Connection connection = connect(database); Statement statement = connection.createStatement()) {
+        try (Connection connection = connect(database);
+                Statement statement = connection.createStatement()) {
             assertThatThrownBy(
                             () ->
                                     statement.executeUpdate(
                                             "UPDATE local_handle_audit SET reason = 'changed'"))
                     .isInstanceOf(SQLException.class);
-            assertThatThrownBy(
-                            () -> statement.executeUpdate("DELETE FROM local_handle_audit"))
+            assertThatThrownBy(() -> statement.executeUpdate("DELETE FROM local_handle_audit"))
                     .isInstanceOf(SQLException.class);
         }
         assertThat(store.auditEvents()).hasSize(1);
