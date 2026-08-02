@@ -1,15 +1,27 @@
 package pl.grzegorz2047.standalonethewalls.server;
 
 import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import pl.grzegorz2047.standalonethewalls.identity.policy.LocalIdentityAdministratorId;
 import pl.grzegorz2047.standalonethewalls.identity.policy.sqlite.SqliteLocalHandleStoreException;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotException;
+import pl.grzegorz2047.standalonethewalls.server.administration.identity.IdentityAdministrationCliOutput;
+import pl.grzegorz2047.standalonethewalls.server.administration.identity.IdentityAdministrationCliRenderer;
+import pl.grzegorz2047.standalonethewalls.server.administration.identity.IdentityAdministrationCommand;
+import pl.grzegorz2047.standalonethewalls.server.administration.identity.IdentityAdministrationCommandParser;
+import pl.grzegorz2047.standalonethewalls.server.administration.identity.IdentityAdministrationPermission;
+import pl.grzegorz2047.standalonethewalls.server.administration.identity.IdentityAdministrationPrincipal;
+import pl.grzegorz2047.standalonethewalls.server.administration.identity.IdentityAdministrationResponse;
 import pl.grzegorz2047.standalonethewalls.server.config.ServerConfiguration;
 import pl.grzegorz2047.standalonethewalls.server.config.ServerConfigurationLoader;
 import pl.grzegorz2047.standalonethewalls.server.config.identity.LocalIdentityProcessConfiguration;
@@ -25,15 +37,25 @@ public final class ServerLauncher {
     public static final int EXIT_OK = 0;
     public static final int EXIT_RUNTIME_FAILURE = 1;
     public static final int EXIT_USAGE_OR_CONFIGURATION = 2;
+    public static final int EXIT_ADMINISTRATION_REJECTED = 3;
     private static final Logger LOGGER = LoggerFactory.getLogger(ServerLauncher.class);
     private static final Duration SMOKE_TIMEOUT = Duration.ofSeconds(30);
+    private static final IdentityAdministrationPrincipal LOCAL_CLI_PRINCIPAL =
+            new IdentityAdministrationPrincipal(
+                    new LocalIdentityAdministratorId("local-cli"),
+                    EnumSet.allOf(IdentityAdministrationPermission.class));
 
     private ServerLauncher() {
         throw new AssertionError("No instances");
     }
 
     public static int run(String[] arguments) {
+        return run(arguments, System.out);
+    }
+
+    static int run(String[] arguments, PrintStream standardOutput) {
         Objects.requireNonNull(arguments, "arguments");
+        PrintStream output = Objects.requireNonNull(standardOutput, "standardOutput");
         try {
             LaunchOptions options = LaunchOptions.parse(arguments);
             ServerConfiguration configuration =
@@ -44,6 +66,10 @@ public final class ServerLauncher {
                     options.identityConfigurationPath() == null
                             ? null
                             : loadIdentityConfiguration(options.identityConfigurationPath());
+            if (options.identityCommandTokens() != null) {
+                return runIdentityCommand(
+                        identityConfiguration, options.identityCommandTokens(), output);
+            }
             if (options.validateOnly()) {
                 if (identityConfiguration == null) {
                     LOGGER.info(
@@ -72,6 +98,24 @@ public final class ServerLauncher {
             LOGGER.error("Server launcher interrupted.");
             return EXIT_RUNTIME_FAILURE;
         }
+    }
+
+    private static int runIdentityCommand(
+            LocalIdentityProcessConfiguration identityConfiguration,
+            List<String> commandTokens,
+            PrintStream output) {
+        if (identityConfiguration == null) {
+            throw new IllegalArgumentException("--identity-command requires --identity-config");
+        }
+        LocalIdentityRuntime runtime = openIdentityRuntime(identityConfiguration);
+        IdentityAdministrationCommand command =
+                IdentityAdministrationCommandParser.parse(commandTokens);
+        IdentityAdministrationResponse response = runtime.execute(command, LOCAL_CLI_PRINCIPAL);
+        IdentityAdministrationCliOutput rendered =
+                IdentityAdministrationCliRenderer.render(response);
+        rendered.lines().forEach(output::println);
+        output.flush();
+        return rendered.successful() ? EXIT_OK : EXIT_ADMINISTRATION_REJECTED;
     }
 
     private static LocalIdentityProcessConfiguration loadIdentityConfiguration(Path path) {
@@ -188,12 +232,14 @@ public final class ServerLauncher {
             Path configurationPath,
             Path identityConfigurationPath,
             boolean validateOnly,
-            Long runForTicks) {
+            Long runForTicks,
+            List<String> identityCommandTokens) {
         private static LaunchOptions parse(String[] arguments) {
             Path configuration = null;
             Path identityConfiguration = null;
             boolean validate = false;
             Long ticks = null;
+            List<String> commandTokens = null;
             for (int index = 0; index < arguments.length; index++) {
                 String argument = Objects.requireNonNull(arguments[index], "argument");
                 switch (argument) {
@@ -236,6 +282,21 @@ public final class ServerLauncher {
                                     "--run-for-ticks must be between 1 and 1000000");
                         }
                     }
+                    case "--identity-command" -> {
+                        int commandStart = index + 1;
+                        if (commandStart >= arguments.length) {
+                            throw new IllegalArgumentException(
+                                    "--identity-command requires command tokens");
+                        }
+                        commandTokens =
+                                List.copyOf(
+                                        Arrays.asList(
+                                                Arrays.copyOfRange(
+                                                        arguments,
+                                                        commandStart,
+                                                        arguments.length)));
+                        index = arguments.length;
+                    }
                     default -> throw new IllegalArgumentException("unknown argument: " + argument);
                 }
             }
@@ -243,7 +304,22 @@ public final class ServerLauncher {
                 throw new IllegalArgumentException(
                         "--validate-config cannot be combined with --run-for-ticks");
             }
-            return new LaunchOptions(configuration, identityConfiguration, validate, ticks);
+            if (commandTokens != null) {
+                if (identityConfiguration == null) {
+                    throw new IllegalArgumentException(
+                            "--identity-command requires --identity-config");
+                }
+                if (validate) {
+                    throw new IllegalArgumentException(
+                            "--identity-command cannot be combined with --validate-config");
+                }
+                if (ticks != null) {
+                    throw new IllegalArgumentException(
+                            "--identity-command cannot be combined with --run-for-ticks");
+                }
+            }
+            return new LaunchOptions(
+                    configuration, identityConfiguration, validate, ticks, commandTokens);
         }
 
         private static String requireValue(String[] arguments, int index, String option) {
