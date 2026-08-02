@@ -57,7 +57,8 @@ class AtomicRegistrySnapshotStoreTest {
                         RegistryEntryStatus.ACTIVE);
         byte[] digest = new byte[RegistrySnapshotArtifact.DIGEST_BYTES];
         digest[0] = digestByte;
-        return new VerifiedRegistrySnapshot(payload, digest);
+        byte[] signature = new byte[RegistrySnapshotArtifact.SIGNATURE_BYTES];
+        return new VerifiedRegistrySnapshot(payload, digest, signature);
     }
 
     private static void assertCode(
