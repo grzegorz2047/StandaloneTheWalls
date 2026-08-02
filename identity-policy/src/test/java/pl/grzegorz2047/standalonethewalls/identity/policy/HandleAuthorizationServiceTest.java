@@ -21,6 +21,7 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerIdentity;
 import pl.grzegorz2047.standalonethewalls.registry.RegistryEntryStatus;
 import pl.grzegorz2047.standalonethewalls.registry.RegistryRootId;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotArtifact;
+import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotAvailability;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotEntry;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotException;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotJsonCodec;
@@ -177,6 +178,49 @@ class HandleAuthorizationServiceTest {
                                 OTHER_PLAYER,
                                 Optional.of(fixture.snapshot())))
                 .isEqualTo(HandleAuthorizationDecision.LOCAL_BINDING_CONFLICT);
+    }
+
+    @Test
+    void staleSnapshotOnlyReservesKnownHandlesForHybrid() {
+        RegistryFixture fixture = registryFixture();
+        RegistrySnapshotAvailability stale = RegistrySnapshotAvailability.stale(fixture.snapshot());
+        InMemoryLocalHandleBindingStore store = new InMemoryLocalHandleBindingStore();
+        HandleAuthorizationService service = new HandleAuthorizationService(store);
+        assertThat(store.bindOrVerify(ACTIVE_HANDLE, OTHER_PLAYER))
+                .isEqualTo(LocalHandleBindingResult.BOUND);
+
+        assertThat(
+                        service.authorize(
+                                HandleAuthorizationMode.GLOBAL_ONLY,
+                                ACTIVE_HANDLE,
+                                fixture.activePlayerId(),
+                                stale))
+                .isEqualTo(HandleAuthorizationDecision.REGISTRY_STALE);
+        assertThat(
+                        service.authorize(
+                                HandleAuthorizationMode.HYBRID,
+                                ACTIVE_HANDLE,
+                                fixture.activePlayerId(),
+                                stale))
+                .isEqualTo(HandleAuthorizationDecision.REGISTRY_STALE);
+        assertThat(
+                        service.authorize(
+                                HandleAuthorizationMode.HYBRID,
+                                REVOKED_HANDLE,
+                                fixture.revokedPlayerId(),
+                                stale))
+                .isEqualTo(HandleAuthorizationDecision.REGISTRY_STALE);
+        assertThat(store.find(ACTIVE_HANDLE)).contains(OTHER_PLAYER);
+
+        assertThat(
+                        service.authorize(
+                                HandleAuthorizationMode.HYBRID,
+                                LOCAL_HANDLE,
+                                LOCAL_PLAYER,
+                                stale))
+                .isEqualTo(HandleAuthorizationDecision.LOCAL_FIRST_USE_ACCEPTED);
+        assertThat(store.find(LOCAL_HANDLE)).contains(LOCAL_PLAYER);
+        assertThat(HandleAuthorizationDecision.REGISTRY_STALE.verificationLevel()).isEmpty();
     }
 
     private static RegistryFixture registryFixture() {
