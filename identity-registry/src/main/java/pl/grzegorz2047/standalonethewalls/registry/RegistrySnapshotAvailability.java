@@ -16,7 +16,8 @@ public record RegistrySnapshotAvailability(
         state = Objects.requireNonNull(state, "state");
         snapshot = Objects.requireNonNull(snapshot, "snapshot");
         if (state == State.ABSENT && snapshot.isPresent()) {
-            throw new IllegalArgumentException("absent registry availability cannot contain a snapshot");
+            throw new IllegalArgumentException(
+                    "absent registry availability cannot contain a snapshot");
         }
         if (state != State.ABSENT && snapshot.isEmpty()) {
             throw new IllegalArgumentException("present registry availability requires a snapshot");
@@ -39,6 +40,8 @@ public record RegistrySnapshotAvailability(
 
     public VerifiedRegistrySnapshot requireSnapshot() {
         return snapshot.orElseThrow(
-                () -> new IllegalStateException("registry availability does not contain a snapshot"));
+                () ->
+                        new IllegalStateException(
+                                "registry availability does not contain a snapshot"));
     }
 }
