@@ -9,32 +9,28 @@ public final class IdentityExchangeException extends Exception {
     private static final long serialVersionUID = 1L;
 
     private final Code code;
-    private final Optional<IdentityResultStatus> resultStatus;
+    private final IdentityResultStatus resultStatus;
 
     public IdentityExchangeException(Code code, String message) {
-        this(code, message, null, Optional.empty());
+        this(code, message, null, null);
     }
 
     public IdentityExchangeException(Code code, String message, Throwable cause) {
-        this(code, message, cause, Optional.empty());
+        this(code, message, cause, null);
     }
 
     public IdentityExchangeException(Code code, String message, IdentityResultStatus resultStatus) {
-        this(
-                code,
-                message,
-                null,
-                Optional.of(Objects.requireNonNull(resultStatus, "resultStatus")));
+        this(code, message, null, Objects.requireNonNull(resultStatus, "resultStatus"));
     }
 
     private IdentityExchangeException(
             Code code,
             String message,
             Throwable cause,
-            Optional<IdentityResultStatus> resultStatus) {
+            IdentityResultStatus resultStatus) {
         super(message, cause);
         this.code = Objects.requireNonNull(code, "code");
-        this.resultStatus = Objects.requireNonNull(resultStatus, "resultStatus");
+        this.resultStatus = resultStatus;
     }
 
     public Code code() {
@@ -42,7 +38,7 @@ public final class IdentityExchangeException extends Exception {
     }
 
     public Optional<IdentityResultStatus> resultStatus() {
-        return resultStatus;
+        return Optional.ofNullable(resultStatus);
     }
 
     public enum Code {
