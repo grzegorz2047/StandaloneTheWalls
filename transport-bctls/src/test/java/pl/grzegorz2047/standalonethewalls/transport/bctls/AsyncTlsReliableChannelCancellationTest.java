@@ -13,6 +13,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import pl.grzegorz2047.standalonethewalls.protocol.MessageType;
 import pl.grzegorz2047.standalonethewalls.protocol.ProtocolEnvelope;
@@ -55,8 +56,8 @@ class AsyncTlsReliableChannelCancellationTest {
         private final CountDownLatch started = new CountDownLatch(1);
         private final CountDownLatch release = new CountDownLatch(1);
         private final CountDownLatch completed = new CountDownLatch(1);
+        private final AtomicReference<byte[]> payload = new AtomicReference<>(new byte[0]);
         private volatile boolean open = true;
-        private volatile byte[] payload;
 
         private void awaitStarted() throws InterruptedException {
             await(started, "send start");
@@ -71,7 +72,7 @@ class AsyncTlsReliableChannelCancellationTest {
         }
 
         private byte[] payload() {
-            return payload.clone();
+            return payload.get().clone();
         }
 
         @Override
@@ -88,7 +89,7 @@ class AsyncTlsReliableChannelCancellationTest {
             if (!open) {
                 throw new IOException("stream is closed");
             }
-            payload = sentPayload.clone();
+            payload.set(sentPayload.clone());
             completed.countDown();
             return 0L;
         }
