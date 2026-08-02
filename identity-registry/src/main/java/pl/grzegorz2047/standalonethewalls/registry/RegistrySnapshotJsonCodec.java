@@ -8,11 +8,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
-import org.webpki.jcs.JsonCanonicalizer;
+import org.webpki.json.JsonCanonicalizer;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.CanonicalHandle;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
 import tools.jackson.core.JsonParser;
 import tools.jackson.core.JsonToken;
+import tools.jackson.core.ObjectReadContext;
 import tools.jackson.core.StreamReadConstraints;
 import tools.jackson.core.StreamReadFeature;
 import tools.jackson.core.json.JsonFactory;
@@ -76,7 +77,7 @@ public final class RegistrySnapshotJsonCodec {
                     RegistrySnapshotException.Code.NON_CANONICAL_JSON,
                     "registry snapshot JSON is not canonical RFC 8785 bytes");
         }
-        try (JsonParser parser = JSON_FACTORY.createParser(json)) {
+        try (JsonParser parser = JSON_FACTORY.createParser(ObjectReadContext.empty(), json)) {
             requireToken(parser.nextToken(), JsonToken.START_OBJECT, "snapshot object");
             Long sequence = null;
             Instant generatedAt = null;
