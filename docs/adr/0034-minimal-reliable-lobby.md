@@ -130,6 +130,16 @@ Diagnostics expose only a bounded event code, member count, and revision. They d
 not expose addresses, key material, proof payloads, registry records, exception
 text, or control over lifecycle.
 
+### Validation boundary
+
+The repository quality gate must compile the full server/process composition,
+run protocol and ownership tests, and execute a real loopback path from
+`ServerLauncher` through TLS, Identity Proof V2, policy admission,
+`LOBBY_JOINED`, and the initial `LOBBY_SNAPSHOT`. The release workflow in #91
+must repeat that path from unpacked distributions rather than from test-only
+classpaths. A successful admission result alone is not sufficient evidence that
+the first milestone can enter a lobby.
+
 ## Consequences
 
 ### Positive
