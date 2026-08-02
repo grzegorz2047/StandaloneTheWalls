@@ -11,7 +11,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class ProtocolCodecTest {
-    private static final UUID SESSION_ID = UUID.fromString("00000000-0000-0000-0000-000000000123");
+    private static final UUID SESSION_ID =
+            UUID.fromString("00000000-0000-0000-0000-000000000123");
 
     @Test
     void roundTripsAnEnvelopeWithoutExposingMutablePayloadState() throws ProtocolException {
@@ -26,6 +27,29 @@ class ProtocolCodecTest {
         assertThat(decoded).isEqualTo(original);
         assertThat(decoded.payload()).containsExactly(1, 2, 3);
         assertThat(decoded.toString()).contains("payloadBytes=3").doesNotContain("1, 2, 3");
+    }
+
+    @Test
+    void validatesAnExactHeaderBeforePayloadAllocation() throws ProtocolException {
+        byte[] encoded = validBytes();
+        byte[] header = Arrays.copyOf(encoded, ProtocolCodec.HEADER_BYTES);
+
+        assertThat(ProtocolCodec.frameBytesFromHeader(header)).isEqualTo(encoded.length);
+        assertHeaderCode(
+                Arrays.copyOf(header, header.length - 1),
+                ProtocolException.Code.TRUNCATED_MESSAGE);
+        assertHeaderCode(
+                Arrays.copyOf(header, header.length + 1), ProtocolException.Code.TRAILING_BYTES);
+        assertHeaderCode(mutateInt(header.clone(), 0, 0), ProtocolException.Code.INVALID_MAGIC);
+        assertHeaderCode(
+                mutateShort(header.clone(), 8, 999),
+                ProtocolException.Code.UNKNOWN_MESSAGE_TYPE);
+        assertHeaderCode(
+                mutateInt(
+                        header.clone(),
+                        36,
+                        MessageType.CLIENT_HELLO.maximumPayloadBytes() + 1),
+                ProtocolException.Code.INVALID_LENGTH);
     }
 
     @Test
@@ -108,6 +132,13 @@ class ProtocolCodecTest {
 
     private static void assertDecodeCode(byte[] encoded, ProtocolException.Code expectedCode) {
         assertThatThrownBy(() -> ProtocolCodec.decode(encoded))
+                .isInstanceOfSatisfying(
+                        ProtocolException.class,
+                        exception -> assertThat(exception.code()).isEqualTo(expectedCode));
+    }
+
+    private static void assertHeaderCode(byte[] header, ProtocolException.Code expectedCode) {
+        assertThatThrownBy(() -> ProtocolCodec.frameBytesFromHeader(header))
                 .isInstanceOfSatisfying(
                         ProtocolException.class,
                         exception -> assertThat(exception.code()).isEqualTo(expectedCode));
