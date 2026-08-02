@@ -18,7 +18,7 @@ A pack is downloaded to a temporary file with a hard byte limit. Size and archiv
 
 Extraction occurs in a fresh staging directory. The canonical manifest is verified against the lock, its license must be explicitly redistributable, and every non-manifest file must have an exact size and SHA-256 entry. Missing and orphan files fail closed.
 
-Verified versions are stored under a content-addressed path and are never overwritten. The staging directory is atomically moved into place, then a separate active pointer is atomically replaced. Failure before or after extraction leaves the previous pointer untouched. Offline resolution never invokes a provider and revalidates the committed marker, manifest, and file tree.
+Verified versions are stored under a content-addressed path and are never overwritten. The target must have an explicit parent directory under the normalized cache root; an impossible or malformed target hierarchy fails closed before activation. The staging directory is atomically moved into place, then a separate active pointer is atomically replaced. Failure before or after extraction leaves the previous pointer untouched. Offline resolution never invokes a provider and revalidates the committed marker, manifest, and file tree.
 
 Large runtime binaries and common asset/archive extensions are rejected from ordinary Git history, except for a bounded test-fixture location.
 
