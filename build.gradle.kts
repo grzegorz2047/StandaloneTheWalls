@@ -256,5 +256,3 @@ tasks.named("check") {
     dependsOn(verifyArchitecture)
     dependsOn(verifySourcePolicy)
 }
-
-apply(from = "gradle/capture-formatted-sources.gradle.kts")
