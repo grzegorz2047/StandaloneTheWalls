@@ -203,8 +203,7 @@ class RegistrySnapshotBundleFileTest {
                     new RegistrySnapshotVerifier(Clock.fixed(NOW, ZoneOffset.UTC))
                             .verify(
                                     artifact,
-                                    RegistryTrustBundle.of(
-                                            List.of(root.getPublic().getEncoded())),
+                                    RegistryTrustBundle.of(List.of(root.getPublic().getEncoded())),
                                     RegistrySnapshotPolicy.DEFAULT);
             return new Fixture(artifact, verified);
         } catch (GeneralSecurityException
