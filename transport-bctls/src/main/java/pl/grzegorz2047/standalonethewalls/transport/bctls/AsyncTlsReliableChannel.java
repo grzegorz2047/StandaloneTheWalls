@@ -112,8 +112,8 @@ public final class AsyncTlsReliableChannel implements ReliableChannel {
                             ReliableChannelException.Code.EXECUTOR_REJECTED,
                             "the reliable channel I/O executor rejected a send",
                             exception);
-            operation.fail(failure);
             failIfOpen(failure);
+            operation.fail(failure);
         }
         return operation.stage();
     }
@@ -145,8 +145,8 @@ public final class AsyncTlsReliableChannel implements ReliableChannel {
                             ReliableChannelException.Code.EXECUTOR_REJECTED,
                             "the reliable channel I/O executor rejected a receive",
                             exception);
-            result.completeExceptionally(failure);
             failIfOpen(failure);
+            result.completeExceptionally(failure);
         }
         return result.minimalCompletionStage();
     }
@@ -169,14 +169,14 @@ public final class AsyncTlsReliableChannel implements ReliableChannel {
         try {
             Optional<ProtocolEnvelope> received = stream.receive();
             clearActiveReceive(result);
-            result.complete(received);
             if (received.isEmpty()) {
                 initiateTermination(null, "the peer ended the reliable stream");
             }
+            result.complete(received);
         } catch (IOException | ProtocolException | RuntimeException exception) {
             clearActiveReceive(result);
-            result.completeExceptionally(exception);
             failIfOpen(exception);
+            result.completeExceptionally(exception);
         }
     }
 
@@ -372,8 +372,8 @@ public final class AsyncTlsReliableChannel implements ReliableChannel {
                 long sequence = stream.send(messageType, payload);
                 result.complete(new ReliableSendResult(sequence));
             } catch (IOException | ProtocolException | RuntimeException exception) {
-                result.completeExceptionally(exception);
                 failIfOpen(exception);
+                result.completeExceptionally(exception);
             } finally {
                 release(this);
             }
