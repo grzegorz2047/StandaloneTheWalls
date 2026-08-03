@@ -101,11 +101,8 @@ class DirectConnectUiLoopbackTest {
             var connected = controller.model().connectedLobby().orElseThrow();
             assertEquals(1, connected.lobby().totalMembers());
             assertEquals(4, connected.lobby().teamPanels().size());
-            assertEquals(
-                    "player_one", connected.lobby().ownMember().orElseThrow().handle());
-            assertEquals(
-                    LobbyTeam.UNASSIGNED,
-                    connected.lobby().ownMember().orElseThrow().team());
+            assertEquals("player_one", connected.lobby().ownMember().orElseThrow().handle());
+            assertEquals(LobbyTeam.UNASSIGNED, connected.lobby().ownMember().orElseThrow().team());
             assertTrue(connected.controlsEnabled());
             assertFalse(callbackSources.isEmpty());
             assertTrue(callbackSources.stream().noneMatch(source -> source == uiOwner));
