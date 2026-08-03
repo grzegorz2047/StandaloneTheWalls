@@ -34,19 +34,17 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
+          import re
 
           runtime = Path('server/src/main/java/pl/grzegorz2047/standalonethewalls/server/lobby/MinimalLobbyRuntime.java')
           text = runtime.read_text()
-          old = '''    private void closeMembers(LobbyState state) {
-              List<AuthorizedPlayerSession> sessions =
-                      state.members.values().stream().map(member -> member.session).toList();
-              state.members.clear();
-              memberCount.set(0);
-              if (sessions.isEmpty()) {
-                  return;
-              }
-          '''
-          new = '''    private void closeMembers(LobbyState state) {
+          pattern = re.compile(
+              r'    private void closeMembers\(LobbyState state\) \{\n'
+              r'.*?'
+              r'(?=        List<CompletableFuture<Void>> closures =)',
+              re.DOTALL,
+          )
+          replacement = '''    private void closeMembers(LobbyState state) {
               List<MemberState> members = new ArrayList<>(state.members.values());
               List<AuthorizedPlayerSession> sessions = new ArrayList<>(members.size());
               for (MemberState member : members) {
@@ -69,23 +67,28 @@ jobs:
               if (sessions.isEmpty()) {
                   return;
               }
+
           '''
-          if old not in text:
-              raise SystemExit('expected closeMembers block was not found')
-          runtime.write_text(text.replace(old, new, 1))
+          text, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'expected exactly one closeMembers replacement, got {count}')
+          runtime.write_text(text)
 
           test = Path('server/src/test/java/pl/grzegorz2047/standalonethewalls/server/identity/session/MinimalLobbyRuntimeTest.java')
           text = test.read_text()
-          old = '''        assertThat(lobby.memberCount()).isZero();
-              assertThat(first.closeCount()).isEqualTo(1);
-          '''
-          new = '''        assertThat(lobby.memberCount()).isZero();
-              assertThat(lobby.revision()).isEqualTo(4L);
-              assertThat(first.closeCount()).isEqualTo(1);
-          '''
-          if old not in text:
-              raise SystemExit('expected shutdown assertion block was not found')
-          test.write_text(text.replace(old, new, 1))
+          pattern = re.compile(
+              r'(        assertThat\(lobby\.memberCount\(\)\)\.isZero\(\);\n)'
+              r'(        assertThat\(first\.closeCount\(\)\)\.isEqualTo\(1\);)'
+          )
+          replacement = (
+              r'\1'
+              '        assertThat(lobby.revision()).isEqualTo(4L);\n'
+              r'\2'
+          )
+          text, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'expected exactly one shutdown assertion replacement, got {count}')
+          test.write_text(text)
 
       - name: Format and test server
         run: ./gradlew --no-daemon spotlessApply :server:test
