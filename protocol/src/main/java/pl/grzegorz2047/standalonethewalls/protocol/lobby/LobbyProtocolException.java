@@ -32,6 +32,11 @@ public final class LobbyProtocolException extends Exception {
         INVALID_BOOLEAN,
         INVALID_READY_STATE,
         INVALID_OUTCOME,
+        INVALID_TICK,
+        INVALID_MATCH_PHASE,
+        INVALID_ROUND_NUMBER,
+        INVALID_CANCELLATION_REASON,
+        INVALID_MATCH_STATE,
         DUPLICATE_MEMBER,
         NON_CANONICAL_ORDER,
         TRAILING_BYTES
