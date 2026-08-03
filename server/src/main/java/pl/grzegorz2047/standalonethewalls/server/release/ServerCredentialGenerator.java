@@ -19,6 +19,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HexFormat;
 import java.util.List;
@@ -81,6 +82,7 @@ public final class ServerCredentialGenerator {
         Provider provider = BouncyCastleTlsCryptoFactory.provider();
         KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("Ed25519", provider);
         KeyPair serverKeyPair = keyPairGenerator.generateKeyPair();
+        byte[] privateKeyBytes = serverKeyPair.getPrivate().getEncoded();
         byte[] certificate = createCertificate(serverKeyPair, clock.instant(), random, provider);
         KeyPair registryRoot = keyPairGenerator.generateKeyPair();
         ServerFingerprint fingerprint =
@@ -88,11 +90,7 @@ public final class ServerCredentialGenerator {
 
         List<Path> created = new ArrayList<>();
         try {
-            writeNew(
-                    directory.resolve(PRIVATE_KEY_FILE),
-                    serverKeyPair.getPrivate().getEncoded(),
-                    true,
-                    created);
+            writeNew(directory.resolve(PRIVATE_KEY_FILE), privateKeyBytes, true, created);
             writeNew(directory.resolve(CERTIFICATE_FILE), certificate, false, created);
             writeNew(
                     directory.resolve(REGISTRY_ROOTS_FILE),
@@ -117,7 +115,7 @@ public final class ServerCredentialGenerator {
             }
             throw failure;
         } finally {
-            java.util.Arrays.fill(serverKeyPair.getPrivate().getEncoded(), (byte) 0);
+            Arrays.fill(privateKeyBytes, (byte) 0);
         }
     }
 
@@ -128,7 +126,7 @@ public final class ServerCredentialGenerator {
         random.nextBytes(serialBytes);
         serialBytes[0] &= 0x7f;
         BigInteger serial = new BigInteger(1, serialBytes).max(BigInteger.ONE);
-        java.util.Arrays.fill(serialBytes, (byte) 0);
+        Arrays.fill(serialBytes, (byte) 0);
 
         JcaX509v3CertificateBuilder builder =
                 new JcaX509v3CertificateBuilder(
