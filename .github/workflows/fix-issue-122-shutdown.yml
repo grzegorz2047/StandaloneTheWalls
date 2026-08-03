@@ -88,7 +88,20 @@ jobs:
           text, count = pattern.subn(replacement, text, count=1)
           if count != 1:
               raise SystemExit(f'expected exactly one shutdown assertion replacement, got {count}')
-          test.write_text(text)
+
+          old_wait = '''            waitUntil(() -> lobby.memberCount() == 1 && alpha.closeCount() == 1);
+          '''
+          new_wait = '''            waitUntil(
+                      () ->
+                              lobby.memberCount() == 1
+                                      && alpha.closeCount() == 1
+                                      && latestSnapshotUnchecked(bravo).revision() == 4L);
+          '''
+          if text.count(old_wait) != 1:
+              raise SystemExit(
+                  f'expected exactly one replay wait replacement, got {text.count(old_wait)}'
+              )
+          test.write_text(text.replace(old_wait, new_wait, 1))
 
       - name: Format and test server
         run: ./gradlew --no-daemon spotlessApply :server:test
