@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Verify immutable Direct Connect Alpha release archives and checksums."""
+"""Verify immutable Sunderfront alpha release archives and checksums."""
 
 from __future__ import annotations
 
 import hashlib
 import json
 import pathlib
+import struct
 import sys
 import zipfile
 
@@ -31,6 +32,8 @@ PRIVATE_MARKERS = (
     b"-----BEGIN OPENSSH PRIVATE KEY-----",
 )
 EMPTY_ASSET_LOCK = {"packs": [], "schema": 1}
+FIXED_ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
+PE_MACHINE_AMD64 = 0x8664
 
 
 def digest(path: pathlib.Path) -> str:
@@ -68,7 +71,10 @@ def verify_zip(path: pathlib.Path, root: str, required: set[str], client: bool) 
         for name in names:
             normalized = name.replace("\\", "/")
             require(not normalized.startswith("/"), f"{path.name}: absolute entry")
-            require(".." not in pathlib.PurePosixPath(normalized).parts, f"{path.name}: traversal entry")
+            require(
+                ".." not in pathlib.PurePosixPath(normalized).parts,
+                f"{path.name}: traversal entry",
+            )
             require(
                 normalized == root + "/" or normalized.startswith(root + "/"),
                 f"{path.name}: unexpected archive root",
@@ -121,6 +127,100 @@ def verify_zip(path: pathlib.Path, root: str, required: set[str], client: bool) 
             )
 
 
+def require_pe_x64(payload: bytes, label: str) -> None:
+    require(len(payload) >= 64 and payload[:2] == b"MZ", f"{label}: invalid PE header")
+    pe_offset = struct.unpack_from("<I", payload, 0x3C)[0]
+    require(pe_offset + 6 <= len(payload), f"{label}: truncated PE header")
+    require(payload[pe_offset : pe_offset + 4] == b"PE\0\0", f"{label}: missing PE signature")
+    machine = struct.unpack_from("<H", payload, pe_offset + 4)[0]
+    require(machine == PE_MACHINE_AMD64, f"{label}: executable is not x64")
+
+
+def verify_windows_app_zip(path: pathlib.Path, root: str) -> None:
+    required = {
+        root + "/Sunderfront.exe",
+        root + "/README.md",
+        root + "/README-PL.txt",
+        root + "/ICON-LICENSE.md",
+        root + "/LICENSE.txt",
+        root + "/assets/assets.lock.json",
+        root + "/app/Sunderfront.cfg",
+        root + "/runtime/release",
+        root + "/runtime/bin/java.exe",
+    }
+    forbidden_tools = {
+        "javac.exe",
+        "javadoc.exe",
+        "jpackage.exe",
+        "jcmd.exe",
+        "jconsole.exe",
+    }
+    with zipfile.ZipFile(path) as archive:
+        infos = archive.infolist()
+        names = [info.filename for info in infos]
+        require(names, f"{path.name}: empty Windows app-image archive")
+        require(names == sorted(names), f"{path.name}: entries are not sorted")
+        require(len(names) == len(set(names)), f"{path.name}: duplicate entries")
+        require(names[0] == root + "/", f"{path.name}: missing canonical root entry")
+
+        for info in infos:
+            normalized = info.filename.replace("\\", "/")
+            pure = pathlib.PurePosixPath(normalized)
+            require(not normalized.startswith("/"), f"{path.name}: absolute entry")
+            require(".." not in pure.parts, f"{path.name}: traversal entry")
+            require(
+                normalized == root + "/" or normalized.startswith(root + "/"),
+                f"{path.name}: unexpected archive root",
+            )
+            require(
+                info.date_time == FIXED_ZIP_TIMESTAMP,
+                f"{path.name}: non-deterministic timestamp: {normalized}",
+            )
+            relative_parts = tuple(part.lower() for part in pure.parts[1:])
+            require(
+                not {"data", "credentials", "cache"}.intersection(relative_parts),
+                f"{path.name}: runtime data path included: {normalized}",
+            )
+            lowered = normalized.lower()
+            require(
+                not lowered.endswith(FORBIDDEN_SUFFIXES),
+                f"{path.name}: runtime or credential file included: {normalized}",
+            )
+            if info.is_dir():
+                continue
+            require(info.file_size > 0, f"{path.name}: empty file: {normalized}")
+            require(
+                pure.name.lower() not in forbidden_tools,
+                f"{path.name}: JDK tool included: {normalized}",
+            )
+            if pure.suffix.lower() not in {".jar", ".class"}:
+                payload = archive.read(info)
+                require(
+                    not any(marker in payload for marker in PRIVATE_MARKERS),
+                    f"{path.name}: private-key marker in {normalized}",
+                )
+
+        missing = sorted(required.difference(names))
+        require(not missing, f"{path.name}: missing entries: {', '.join(missing)}")
+        require(root + "/URUCHOM_KLIENTA.bat" not in names, f"{path.name}: legacy BAT exposed")
+        require(
+            any(name.startswith(root + "/app/") and name.endswith(".jar") for name in names),
+            f"{path.name}: no application jars",
+        )
+        lock = json.loads(archive.read(root + "/assets/assets.lock.json").decode("utf-8"))
+        require(lock == EMPTY_ASSET_LOCK, f"{path.name}: asset lock is not empty alpha lock")
+        runtime_release = archive.read(root + "/runtime/release").decode("utf-8")
+        require(
+            'JAVA_VERSION="21.' in runtime_release or 'JAVA_VERSION="21"' in runtime_release,
+            f"{path.name}: bundled runtime is not Java 21",
+        )
+        require_pe_x64(archive.read(root + "/Sunderfront.exe"), path.name + ": Sunderfront.exe")
+        require_pe_x64(
+            archive.read(root + "/runtime/bin/java.exe"),
+            path.name + ": runtime java.exe",
+        )
+
+
 def verify_checksums(release_dir: pathlib.Path, expected_files: list[pathlib.Path]) -> None:
     checksum_file = release_dir / "SHA256SUMS"
     require(checksum_file.is_file(), "SHA256SUMS is missing")
@@ -141,17 +241,29 @@ def verify_checksums(release_dir: pathlib.Path, expected_files: list[pathlib.Pat
 
 
 def main() -> int:
-    if len(sys.argv) != 3:
-        print("usage: verify_artifacts.py <release-dir> <version>", file=sys.stderr)
+    require_windows = False
+    if len(sys.argv) == 4:
+        require(sys.argv[3] == "--require-windows", "unknown verification option")
+        require_windows = True
+    elif len(sys.argv) != 3:
+        print(
+            "usage: verify_artifacts.py <release-dir> <version> [--require-windows]",
+            file=sys.stderr,
+        )
         return 2
+
     release_dir = pathlib.Path(sys.argv[1]).resolve()
     version = sys.argv[2]
     client_name = f"sunderfront-client-{version}.zip"
     server_name = f"sunderfront-server-{version}.zip"
+    windows_name = f"sunderfront-client-windows-x64-{version}.zip"
     client_archive = release_dir / client_name
     server_archive = release_dir / server_name
+    windows_archive = release_dir / windows_name
     require(client_archive.is_file(), f"missing {client_name}")
     require(server_archive.is_file(), f"missing {server_name}")
+    if require_windows:
+        require(windows_archive.is_file(), f"missing {windows_name}")
 
     client_root = f"sunderfront-client-{version}"
     server_root = f"sunderfront-server-{version}"
@@ -230,13 +342,18 @@ def main() -> int:
         },
     )
 
-    verify_checksums(release_dir, [client_archive, server_archive])
+    expected_archives = [client_archive, server_archive]
+    if windows_archive.is_file():
+        windows_root = f"sunderfront-client-windows-x64-{version}"
+        verify_windows_app_zip(windows_archive, windows_root)
+        expected_archives.append(windows_archive)
+    verify_checksums(release_dir, expected_archives)
     return 0
 
 
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except (OSError, ValueError, zipfile.BadZipFile, json.JSONDecodeError) as failure:
+    except (OSError, ValueError, struct.error, zipfile.BadZipFile, json.JSONDecodeError) as failure:
         print(f"release verification failed: {failure}", file=sys.stderr)
         raise SystemExit(1) from None
