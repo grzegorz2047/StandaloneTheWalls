@@ -101,6 +101,41 @@ jobs:
         shell: pwsh
         run: .\release\verify_windows_launchers.ps1
 
+  verify-windows-app-image:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Set up Java 21 x64
+        uses: actions/setup-java@d7793b545071e98d581d3bf084a51c3213318a07
+        with:
+          distribution: temurin
+          java-version: "21"
+          architecture: x64
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
+        with:
+          cache-read-only: true
+
+      - name: Build and verify Windows app image twice
+        shell: pwsh
+        run: .\release\verify_windows_app_image.ps1
+
+      - name: Upload verified Windows app image
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: sunderfront-client-windows-x64
+          path: build/windows-release/*.zip
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
   verify-windows-main:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: windows-latest
