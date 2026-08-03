@@ -10,8 +10,7 @@ public record UiRect(float left, float bottom, float width, float height) {
         if (width <= 0f || height <= 0f) {
             throw new IllegalArgumentException("UI rectangle dimensions must be positive");
         }
-        if (!Double.isFinite((double) left + width)
-                || !Double.isFinite((double) bottom + height)) {
+        if (!Double.isFinite((double) left + width) || !Double.isFinite((double) bottom + height)) {
             throw new IllegalArgumentException("UI rectangle bounds must be finite");
         }
     }
