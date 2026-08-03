@@ -1,0 +1,227 @@
+name: Wire Direct Connect progress
+
+on:
+  push:
+    branches:
+      - agent/issue-90-direct-connect-ui
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wire-direct-connect-progress
+  cancel-in-progress: false
+
+jobs:
+  wire:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: agent/issue-90-direct-connect-ui
+
+      - name: Set up Java 21
+        uses: actions/setup-java@d7793b545071e98d581d3bf084a51c3213318a07
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Add progress callbacks
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('client/src/main/java/pl/grzegorz2047/standalonethewalls/client/network/DirectConnectService.java')
+          text = path.read_text()
+
+          old_connect = '''    public DirectConnectAttempt connect(DirectConnectEndpoint endpoint, CanonicalHandle handle) {
+              Objects.requireNonNull(endpoint, "endpoint");
+              Objects.requireNonNull(handle, "handle");
+              pendingConfirmation.set(null);
+              return start(endpoint, handle, Optional.empty(), false);
+          }
+
+          public DirectConnectAttempt confirmFirstUse(FirstUseConfirmation confirmation) {
+              Objects.requireNonNull(confirmation, "confirmation");
+              if (closed.get()) {
+                  return DirectConnectAttempt.completed(DirectConnectFailureCode.SERVICE_CLOSED);
+              }
+              PendingConfirmation pending = pendingConfirmation.getAndSet(null);
+              if (pending == null || !pending.matches(confirmation)) {
+                  return DirectConnectAttempt.completed(DirectConnectFailureCode.CONFIRMATION_INVALID);
+              }
+              if (!clock.instant().isBefore(confirmation.expiresAt())) {
+                  return DirectConnectAttempt.completed(DirectConnectFailureCode.CONFIRMATION_EXPIRED);
+              }
+              return start(
+                      confirmation.endpoint(),
+                      pending.handle(),
+                      Optional.of(confirmation.serverId()),
+                      true);
+          }
+          '''
+          new_connect = '''    public DirectConnectAttempt connect(DirectConnectEndpoint endpoint, CanonicalHandle handle) {
+              return connect(endpoint, handle, DirectConnectProgressListener.NONE);
+          }
+
+          public DirectConnectAttempt connect(
+                  DirectConnectEndpoint endpoint,
+                  CanonicalHandle handle,
+                  DirectConnectProgressListener progressListener) {
+              Objects.requireNonNull(endpoint, "endpoint");
+              Objects.requireNonNull(handle, "handle");
+              pendingConfirmation.set(null);
+              return start(
+                      endpoint,
+                      handle,
+                      Optional.empty(),
+                      false,
+                      DirectConnectProgressListener.require(progressListener));
+          }
+
+          public DirectConnectAttempt confirmFirstUse(FirstUseConfirmation confirmation) {
+              return confirmFirstUse(confirmation, DirectConnectProgressListener.NONE);
+          }
+
+          public DirectConnectAttempt confirmFirstUse(
+                  FirstUseConfirmation confirmation,
+                  DirectConnectProgressListener progressListener) {
+              Objects.requireNonNull(confirmation, "confirmation");
+              DirectConnectProgressListener listener =
+                      DirectConnectProgressListener.require(progressListener);
+              if (closed.get()) {
+                  return DirectConnectAttempt.completed(DirectConnectFailureCode.SERVICE_CLOSED);
+              }
+              PendingConfirmation pending = pendingConfirmation.getAndSet(null);
+              if (pending == null || !pending.matches(confirmation)) {
+                  return DirectConnectAttempt.completed(DirectConnectFailureCode.CONFIRMATION_INVALID);
+              }
+              if (!clock.instant().isBefore(confirmation.expiresAt())) {
+                  return DirectConnectAttempt.completed(DirectConnectFailureCode.CONFIRMATION_EXPIRED);
+              }
+              return start(
+                      confirmation.endpoint(),
+                      pending.handle(),
+                      Optional.of(confirmation.serverId()),
+                      true,
+                      listener);
+          }
+
+          public void discardPendingConfirmation() {
+              pendingConfirmation.set(null);
+          }
+          '''
+          if old_connect not in text:
+              raise SystemExit('connect methods block not found')
+          text = text.replace(old_connect, new_connect)
+
+          old_start = '''    private DirectConnectAttempt start(
+              DirectConnectEndpoint endpoint,
+              CanonicalHandle handle,
+              Optional<ServerId> expectedServerId,
+              boolean persistConfirmedServer) {'''
+          new_start = '''    private DirectConnectAttempt start(
+              DirectConnectEndpoint endpoint,
+              CanonicalHandle handle,
+              Optional<ServerId> expectedServerId,
+              boolean persistConfirmedServer,
+              DirectConnectProgressListener progressListener) {'''
+          if old_start not in text:
+              raise SystemExit('start signature not found')
+          text = text.replace(old_start, new_start)
+          text = text.replace(
+              'new Operation(endpoint, handle, expectedServerId, persistConfirmedServer);',
+              'new Operation(\n                        endpoint,\n                        handle,\n                        expectedServerId,\n                        persistConfirmedServer,\n                        progressListener);')
+
+          text = text.replace(
+              '        private final boolean persistConfirmedServer;\n',
+              '        private final boolean persistConfirmedServer;\n'
+              '        private final DirectConnectProgressListener progressListener;\n')
+          old_constructor = '''        private Operation(
+                  DirectConnectEndpoint endpoint,
+                  CanonicalHandle handle,
+                  Optional<ServerId> expectedServerId,
+                  boolean persistConfirmedServer) {
+              this.endpoint = endpoint;
+              this.handle = handle;
+              this.expectedServerId = expectedServerId;
+              this.persistConfirmedServer = persistConfirmedServer;
+          }
+          '''
+          new_constructor = '''        private Operation(
+                  DirectConnectEndpoint endpoint,
+                  CanonicalHandle handle,
+                  Optional<ServerId> expectedServerId,
+                  boolean persistConfirmedServer,
+                  DirectConnectProgressListener progressListener) {
+              this.endpoint = endpoint;
+              this.handle = handle;
+              this.expectedServerId = expectedServerId;
+              this.persistConfirmedServer = persistConfirmedServer;
+              this.progressListener =
+                      DirectConnectProgressListener.require(progressListener);
+          }
+          '''
+          if old_constructor not in text:
+              raise SystemExit('operation constructor not found')
+          text = text.replace(old_constructor, new_constructor)
+
+          replacements = [
+              ('                Optional<InetAddress[]> addresses = resolveAddresses();',
+               '                emit(DirectConnectStage.RESOLVING);\n'
+               '                Optional<InetAddress[]> addresses = resolveAddresses();'),
+              ('                Socket socket = connectSocket(addresses.orElseThrow());',
+               '                emit(DirectConnectStage.CONNECTING);\n'
+               '                Socket socket = connectSocket(addresses.orElseThrow());'),
+              ('                Tls13Connection tls;\n                try {',
+               '                emit(DirectConnectStage.SECURING_TRANSPORT);\n'
+               '                Tls13Connection tls;\n                try {'),
+              ('                AuthenticatedReliableSession authenticated;\n                try {',
+               '                emit(DirectConnectStage.AUTHENTICATING);\n'
+               '                AuthenticatedReliableSession authenticated;\n                try {'),
+              ('                PlayerSessionAdmissionStatus admission = receiveAdmission(authenticated);',
+               '                emit(DirectConnectStage.WAITING_ADMISSION);\n'
+               '                PlayerSessionAdmissionStatus admission = receiveAdmission(authenticated);'),
+              ('                LobbyJoined joined = receiveJoined(authenticated, identity);',
+               '                emit(DirectConnectStage.JOINING_LOBBY);\n'
+               '                LobbyJoined joined = receiveJoined(authenticated, identity);'),
+          ]
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit(f'progress insertion target not found: {old[:40]}')
+              text = text.replace(old, new, 1)
+
+          marker = '        private boolean cancel() {'
+          emit = '''        private void emit(DirectConnectStage stage) {
+              if (cancelled.get() || closed.get()) {
+                  return;
+              }
+              try {
+                  progressListener.onStage(Objects.requireNonNull(stage, "stage"));
+              } catch (RuntimeException ignored) {
+                  // Progress observers cannot control transport ownership or lifecycle.
+              }
+          }
+
+          private boolean cancel() {'''
+          if marker not in text:
+              raise SystemExit('cancel marker not found')
+          text = text.replace(marker, emit, 1)
+          path.write_text(text)
+          PY
+
+      - name: Apply repository formatting
+        run: ./gradlew --no-daemon spotlessApply
+
+      - name: Commit and remove workflow
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git rm .github/workflows/add-direct-connect-progress.yml
+          git add client/src/main/java/pl/grzegorz2047/standalonethewalls/client/network
+          git diff --cached --quiet || git commit -m 'feat(client): publish Direct Connect progress for UI'
+          git push origin HEAD:agent/issue-90-direct-connect-ui
