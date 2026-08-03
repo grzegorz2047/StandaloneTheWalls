@@ -8,6 +8,7 @@ on:
       - completed
 
 permissions:
+  actions: write
   contents: write
 
 concurrency:
@@ -31,6 +32,7 @@ jobs:
 
       - name: Promote exact verified commit
         env:
+          GH_TOKEN: ${{ github.token }}
           VERIFIED_SHA: ${{ github.event.workflow_run.head_sha }}
         shell: bash
         run: |
@@ -48,3 +50,4 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git tag -a "$TAG" "$VERIFIED_SHA" -m "Sunderfront Direct Connect Alpha"
           git push origin "refs/tags/${TAG}"
+          gh workflow run release-alpha.yml --ref main
