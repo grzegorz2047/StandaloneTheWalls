@@ -105,9 +105,7 @@ public final class LobbyProtocolCodec {
         for (int index = 0; index < count; index++) {
             LobbyMember identity = readIdentity(input);
             LobbyMember member =
-                    schema == SNAPSHOT_SCHEMA_VERSION
-                            ? readRosterState(input, identity)
-                            : identity;
+                    schema == SNAPSHOT_SCHEMA_VERSION ? readRosterState(input, identity) : identity;
             if (!playerIds.add(member.playerId())) {
                 throw new LobbyProtocolException(
                         LobbyProtocolException.Code.DUPLICATE_MEMBER,
@@ -161,9 +159,7 @@ public final class LobbyProtocolCodec {
             throws LobbyProtocolException {
         ByteBuffer input =
                 requirePayload(
-                        payload,
-                        COMMAND_BYTES,
-                        MessageType.LOBBY_SET_READY.maximumPayloadBytes());
+                        payload, COMMAND_BYTES, MessageType.LOBBY_SET_READY.maximumPayloadBytes());
         requireSchema(input, COMMAND_SCHEMA_VERSION);
         long requestId = requireRequestId(input);
         boolean ready = readCanonicalBoolean(input);
@@ -302,8 +298,7 @@ public final class LobbyProtocolCodec {
             return true;
         }
         throw new LobbyProtocolException(
-                LobbyProtocolException.Code.INVALID_BOOLEAN,
-                "lobby boolean is not canonical");
+                LobbyProtocolException.Code.INVALID_BOOLEAN, "lobby boolean is not canonical");
     }
 
     private static byte canonicalBoolean(boolean value) {
