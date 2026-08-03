@@ -42,9 +42,7 @@ class LobbyProtocolCodecTest {
         LobbySnapshot snapshot =
                 new LobbySnapshot(
                         11L,
-                        List.of(
-                                member("a", "alpha"),
-                                member("b", "bravo", LobbyTeam.GREEN, true)));
+                        List.of(member("a", "alpha"), member("b", "bravo", LobbyTeam.GREEN, true)));
 
         byte[] payload = LobbyProtocolCodec.encodeSnapshot(snapshot);
 
@@ -54,8 +52,7 @@ class LobbyProtocolCodecTest {
     }
 
     @Test
-    void decodesLegacySchemaOneMembershipAsUnassignedAndNotReady()
-            throws LobbyProtocolException {
+    void decodesLegacySchemaOneMembershipAsUnassignedAndNotReady() throws LobbyProtocolException {
         LobbyMember member = member("a", "alpha");
         byte[] playerId = member.playerId().value().getBytes(StandardCharsets.US_ASCII);
         byte[] handle = member.handle().value().getBytes(StandardCharsets.US_ASCII);
@@ -137,10 +134,7 @@ class LobbyProtocolCodecTest {
                 IllegalArgumentException.class,
                 () ->
                         new LobbyMember(
-                                first.playerId(),
-                                first.handle(),
-                                LobbyTeam.UNASSIGNED,
-                                true));
+                                first.playerId(), first.handle(), LobbyTeam.UNASSIGNED, true));
     }
 
     @Test
@@ -267,8 +261,7 @@ class LobbyProtocolCodecTest {
                 new PlayerId("sf1_" + prefix + "a".repeat(51)), new CanonicalHandle(handle));
     }
 
-    private static LobbyMember member(
-            String prefix, String handle, LobbyTeam team, boolean ready) {
+    private static LobbyMember member(String prefix, String handle, LobbyTeam team, boolean ready) {
         return new LobbyMember(
                 new PlayerId("sf1_" + prefix + "a".repeat(51)),
                 new CanonicalHandle(handle),
