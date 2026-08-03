@@ -237,11 +237,11 @@ public final class DirectConnectService implements AutoCloseable {
                         new PinnedServerTrustManager(
                                 trustService, endpoint.serverReference(), expectedServerId);
 
-                InetAddress[] addresses = resolveAddresses();
-                if (addresses == null) {
+                Optional<InetAddress[]> addresses = resolveAddresses();
+                if (addresses.isEmpty()) {
                     return;
                 }
-                Socket socket = connectSocket(addresses);
+                Socket socket = connectSocket(addresses.orElseThrow());
                 if (socket == null) {
                     return;
                 }
@@ -332,9 +332,7 @@ public final class DirectConnectService implements AutoCloseable {
                     completeFailure(DirectConnectFailureCode.ALREADY_CONNECTED);
                     return;
                 }
-                try {
-                    lobbySession.startReceiving();
-                } catch (RuntimeException exception) {
+                if (!lobbySession.startReceiving()) {
                     connected.compareAndSet(lobbySession, null);
                     awaitClose(lobbySession.closeAsync());
                     completeFailure(DirectConnectFailureCode.INTERNAL_FAILURE);
@@ -359,13 +357,13 @@ public final class DirectConnectService implements AutoCloseable {
             }
         }
 
-        private InetAddress[] resolveAddresses() {
+        private Optional<InetAddress[]> resolveAddresses() {
             Future<InetAddress[]> resolution;
             try {
                 resolution = workers.submit(() -> addressResolver.resolve(endpoint.host()));
             } catch (RejectedExecutionException exception) {
                 completeFailure(DirectConnectFailureCode.SERVICE_CLOSED);
-                return null;
+                return Optional.empty();
             }
             try {
                 InetAddress[] resolved =
@@ -373,18 +371,18 @@ public final class DirectConnectService implements AutoCloseable {
                                 configuration.connectTimeout().toNanos(), TimeUnit.NANOSECONDS);
                 if (resolved.length == 0) {
                     completeFailure(DirectConnectFailureCode.DNS_OR_CONNECT_FAILED);
-                    return null;
+                    return Optional.empty();
                 }
-                return resolved.clone();
+                return Optional.of(resolved.clone());
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
                 resolution.cancel(true);
                 completeFailure(DirectConnectFailureCode.CANCELLED);
-                return null;
+                return Optional.empty();
             } catch (ExecutionException | TimeoutException | RuntimeException exception) {
                 resolution.cancel(true);
                 completeFailure(DirectConnectFailureCode.DNS_OR_CONNECT_FAILED);
-                return null;
+                return Optional.empty();
             }
         }
 
