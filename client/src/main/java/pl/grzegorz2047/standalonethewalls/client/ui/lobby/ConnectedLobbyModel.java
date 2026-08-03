@@ -18,8 +18,7 @@ public record ConnectedLobbyModel(
         long revision,
         List<LobbyTeamPanelModel> teamPanels,
         List<LobbyMemberRowModel> unassignedMembers,
-        Optional<LobbyMemberRowModel> ownMember,
-        LobbyPanelLayout layout) {
+        Optional<LobbyMemberRowModel> ownMember) {
     public static final List<LobbyTeam> DISPLAY_TEAM_ORDER =
             List.of(LobbyTeam.RED, LobbyTeam.BLUE, LobbyTeam.GREEN, LobbyTeam.YELLOW);
 
@@ -31,13 +30,12 @@ public record ConnectedLobbyModel(
         unassignedMembers =
                 List.copyOf(Objects.requireNonNull(unassignedMembers, "unassignedMembers"));
         ownMember = Objects.requireNonNull(ownMember, "ownMember");
-        Objects.requireNonNull(layout, "layout");
         validatePanels(teamPanels);
         validateRows(teamPanels, unassignedMembers, ownMember);
     }
 
     public static ConnectedLobbyModel from(
-            LobbySnapshot snapshot, Optional<PlayerId> ownPlayerId, float viewportWidth) {
+            LobbySnapshot snapshot, Optional<PlayerId> ownPlayerId) {
         LobbySnapshot source = Objects.requireNonNull(snapshot, "snapshot");
         Optional<PlayerId> ownIdentity = Objects.requireNonNull(ownPlayerId, "ownPlayerId");
         Map<LobbyTeam, List<LobbyMemberRowModel>> grouped = new EnumMap<>(LobbyTeam.class);
@@ -66,8 +64,7 @@ public record ConnectedLobbyModel(
                 source.revision(),
                 panels,
                 grouped.get(LobbyTeam.UNASSIGNED),
-                Optional.ofNullable(ownRow),
-                LobbyPanelLayout.forViewportWidth(viewportWidth));
+                Optional.ofNullable(ownRow));
     }
 
     public int totalMembers() {
