@@ -1,0 +1,90 @@
+name: Diagnose Alpha3 Jpackage Reproducibility
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  compare-published-alpha3:
+    if: github.head_ref == 'agent/issue-112-jpackage-reproducibility'
+    runs-on: windows-2025
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: v0.1.0-alpha.3
+      VERSION: 0.1.0-alpha.3
+    steps:
+      - name: Check out diagnostic source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Set up Java 21 x64
+        uses: actions/setup-java@d7793b545071e98d581d3bf084a51c3213318a07
+        with:
+          distribution: temurin
+          java-version: "21"
+          architecture: x64
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
+        with:
+          cache-read-only: true
+
+      - name: Compare published and rebuilt app images
+        shell: pwsh
+        run: |
+          Set-StrictMode -Version Latest
+          $ErrorActionPreference = 'Stop'
+          $root = (Resolve-Path '.').Path
+          $diagnostic = Join-Path $env:RUNNER_TEMP 'sunderfront-alpha3-diagnostic'
+          $buildRoot = Join-Path $diagnostic 'rebuilt'
+          $download = Join-Path $diagnostic 'download'
+          $expanded = Join-Path $diagnostic 'published'
+          New-Item -ItemType Directory -Force -Path $diagnostic, $download, $expanded | Out-Null
+
+          & .\gradlew.bat --no-daemon --no-configuration-cache clean :client:installDist
+          if ($LASTEXITCODE -ne 0) {
+              throw "Client build failed with exit code $LASTEXITCODE"
+          }
+          & .\release\windows\build_app_image.ps1 -Destination $buildRoot | Out-Host
+          $rebuiltImage = Join-Path $buildRoot 'image/Sunderfront'
+
+          $archiveName = "sunderfront-client-windows-x64-$env:VERSION.zip"
+          gh release download $env:TAG --repo $env:GITHUB_REPOSITORY --pattern $archiveName --dir $download
+          if ($LASTEXITCODE -ne 0) {
+              throw "Published archive download failed with exit code $LASTEXITCODE"
+          }
+          $publishedArchive = Join-Path $download $archiveName
+          Expand-Archive -LiteralPath $publishedArchive -DestinationPath $expanded
+          $publishedImage = Join-Path $expanded "sunderfront-client-windows-x64-$env:VERSION"
+
+          Write-Output '=== BUILD ENVIRONMENT ==='
+          Write-Output "ImageOS=$env:ImageOS"
+          Write-Output "ImageVersion=$env:ImageVersion"
+          & java -version 2>&1 | Out-Host
+          & "$env:JAVA_HOME\bin\jpackage.exe" --version 2>&1 | Out-Host
+          & "$env:JAVA_HOME\bin\jlink.exe" --version 2>&1 | Out-Host
+
+          Write-Output '=== RUNTIME RELEASE: PUBLISHED ==='
+          Get-Content -LiteralPath (Join-Path $publishedImage 'runtime/release')
+          Write-Output '=== RUNTIME RELEASE: REBUILT ==='
+          Get-Content -LiteralPath (Join-Path $rebuiltImage 'runtime/release')
+
+          Write-Output '=== PUBLISHED ARCHIVE ==='
+          Get-Item -LiteralPath $publishedArchive | Select-Object Name, Length | Format-List
+          Get-FileHash -LiteralPath $publishedArchive -Algorithm SHA256 | Format-List
+
+          Write-Output '=== APP IMAGE DIFFERENCES ==='
+          $previousPreference = $ErrorActionPreference
+          $ErrorActionPreference = 'Continue'
+          & python .\release\windows\compare_app_images.py $publishedImage $rebuiltImage 2>&1 | Out-Host
+          $compareExit = $LASTEXITCODE
+          $ErrorActionPreference = $previousPreference
+          Write-Output "compare_exit=$compareExit"
+          Write-Output 'Diagnostic job intentionally succeeds after reporting differences.'
