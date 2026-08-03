@@ -69,6 +69,7 @@ jobs:
         run: |
           python3 .github/scripts/patch_issue_128_ui.py
           python3 .github/scripts/patch_issue_128_phase_tests.py
+          python3 .github/scripts/patch_issue_128_refresh_tests.py
 
       - name: Format and validate UI migration
         run: |
