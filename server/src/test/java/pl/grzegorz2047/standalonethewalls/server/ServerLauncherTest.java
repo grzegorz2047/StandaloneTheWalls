@@ -209,16 +209,11 @@ class ServerLauncherTest {
                     LobbyProtocolCodec.encodeSelectTeam(
                             new LobbySelectTeamCommand(1L, LobbyTeam.GREEN)));
             LobbyCommandResult teamResult = receiveCommandResult(authenticated);
-            assertEquals(
-                    new LobbyCommandResult(1L, 2L, LobbyCommandOutcome.APPLIED), teamResult);
+            assertEquals(new LobbyCommandResult(1L, 2L, LobbyCommandOutcome.APPLIED), teamResult);
             LobbySnapshot teamSnapshot = receiveSnapshot(authenticated);
             assertEquals(
                     java.util.List.of(
-                            new LobbyMember(
-                                    identity.playerId(),
-                                    handle,
-                                    LobbyTeam.GREEN,
-                                    false)),
+                            new LobbyMember(identity.playerId(), handle, LobbyTeam.GREEN, false)),
                     teamSnapshot.members());
             assertEquals(2L, teamSnapshot.revision());
 
@@ -227,16 +222,11 @@ class ServerLauncherTest {
                     MessageType.LOBBY_SET_READY,
                     LobbyProtocolCodec.encodeSetReady(new LobbySetReadyCommand(2L, true)));
             LobbyCommandResult readyResult = receiveCommandResult(authenticated);
-            assertEquals(
-                    new LobbyCommandResult(2L, 3L, LobbyCommandOutcome.APPLIED), readyResult);
+            assertEquals(new LobbyCommandResult(2L, 3L, LobbyCommandOutcome.APPLIED), readyResult);
             LobbySnapshot readySnapshot = receiveSnapshot(authenticated);
             assertEquals(
                     java.util.List.of(
-                            new LobbyMember(
-                                    identity.playerId(),
-                                    handle,
-                                    LobbyTeam.GREEN,
-                                    true)),
+                            new LobbyMember(identity.playerId(), handle, LobbyTeam.GREEN, true)),
                     readySnapshot.members());
             assertEquals(3L, readySnapshot.revision());
 

@@ -72,8 +72,7 @@ class ConnectedLobbySessionTest {
         session.startReceiving();
         LobbySnapshot roster =
                 new LobbySnapshot(
-                        2L,
-                        List.of(new LobbyMember(PLAYER_ID, HANDLE, LobbyTeam.GREEN, true)));
+                        2L, List.of(new LobbyMember(PLAYER_ID, HANDLE, LobbyTeam.GREEN, true)));
 
         channel.deliver(snapshotEnvelope(roster, 1L));
         waitUntil(() -> session.currentSnapshot().revision() == 2L);
@@ -189,11 +188,7 @@ class ConnectedLobbySessionTest {
                         .put(handleBytes)
                         .array();
         return new ProtocolEnvelope(
-                ProtocolVersion.CURRENT,
-                MessageType.LOBBY_SNAPSHOT,
-                SESSION_ID,
-                sequence,
-                payload);
+                ProtocolVersion.CURRENT, MessageType.LOBBY_SNAPSHOT, SESSION_ID, sequence, payload);
     }
 
     private static void waitUntil(java.util.function.BooleanSupplier condition)
