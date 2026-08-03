@@ -1,0 +1,159 @@
+name: Fix issue 88 SpotBugs findings
+
+on:
+  push:
+    branches:
+      - agent/issue-88-direct-connect-service-v2
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: agent/issue-88-direct-connect-service-v2
+
+      - name: Set up Java 21
+        uses: actions/setup-java@d7793b545071e98d581d3bf084a51c3213318a07
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Replace implicit failure contracts
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          connected = Path('client/src/main/java/pl/grzegorz2047/standalonethewalls/client/network/ConnectedLobbySession.java')
+          text = connected.read_text()
+          old = '''    void startReceiving() {
+              if (!receiverStarted.compareAndSet(false, true)) {
+                  throw new IllegalStateException("lobby receiver can be started only once");
+              }
+              if (closing.get()) {
+                  return;
+              }
+              try {
+                  Thread.ofVirtual()
+                          .name("sunderfront-direct-connect-lobby-receiver")
+                          .start(this::receiveLoop);
+              } catch (RuntimeException exception) {
+                  finish(Optional.of(DirectConnectFailure.of(DirectConnectFailureCode.INTERNAL_FAILURE)));
+                  throw exception;
+              }
+          }
+          '''
+          new = '''    boolean startReceiving() {
+              if (!receiverStarted.compareAndSet(false, true) || closing.get()) {
+                  return false;
+              }
+              try {
+                  Thread.ofVirtual()
+                          .name("sunderfront-direct-connect-lobby-receiver")
+                          .start(this::receiveLoop);
+                  return true;
+              } catch (RuntimeException exception) {
+                  finish(Optional.of(DirectConnectFailure.of(DirectConnectFailureCode.INTERNAL_FAILURE)));
+                  return false;
+              }
+          }
+          '''
+          if old not in text:
+              raise SystemExit('startReceiving block not found')
+          connected.write_text(text.replace(old, new))
+
+          service = Path('client/src/main/java/pl/grzegorz2047/standalonethewalls/client/network/DirectConnectService.java')
+          text = service.read_text()
+          text = text.replace(
+              '''                InetAddress[] addresses = resolveAddresses();
+                              if (addresses == null) {
+                                  return;
+                              }
+                              Socket socket = connectSocket(addresses);
+              ''',
+              '''                Optional<InetAddress[]> addresses = resolveAddresses();
+                              if (addresses.isEmpty()) {
+                                  return;
+                              }
+                              Socket socket = connectSocket(addresses.orElseThrow());
+              ''')
+          text = text.replace(
+              '''                try {
+                                  lobbySession.startReceiving();
+                              } catch (RuntimeException exception) {
+                                  connected.compareAndSet(lobbySession, null);
+                                  awaitClose(lobbySession.closeAsync());
+                                  completeFailure(DirectConnectFailureCode.INTERNAL_FAILURE);
+                                  return;
+                              }
+              ''',
+              '''                if (!lobbySession.startReceiving()) {
+                                  connected.compareAndSet(lobbySession, null);
+                                  awaitClose(lobbySession.closeAsync());
+                                  completeFailure(DirectConnectFailureCode.INTERNAL_FAILURE);
+                                  return;
+                              }
+              ''')
+          text = text.replace(
+              '        private InetAddress[] resolveAddresses() {',
+              '        private Optional<InetAddress[]> resolveAddresses() {')
+          text = text.replace(
+              '''                completeFailure(DirectConnectFailureCode.SERVICE_CLOSED);
+                              return null;
+                          }
+                          try {
+              ''',
+              '''                completeFailure(DirectConnectFailureCode.SERVICE_CLOSED);
+                              return Optional.empty();
+                          }
+                          try {
+              ''', 1)
+          text = text.replace(
+              '''                    completeFailure(DirectConnectFailureCode.DNS_OR_CONNECT_FAILED);
+                                  return null;
+                              }
+                              return resolved.clone();
+              ''',
+              '''                    completeFailure(DirectConnectFailureCode.DNS_OR_CONNECT_FAILED);
+                                  return Optional.empty();
+                              }
+                              return Optional.of(resolved.clone());
+              ''')
+          text = text.replace(
+              '''                completeFailure(DirectConnectFailureCode.CANCELLED);
+                              return null;
+                          } catch (ExecutionException | TimeoutException | RuntimeException exception) {
+                              resolution.cancel(true);
+                              completeFailure(DirectConnectFailureCode.DNS_OR_CONNECT_FAILED);
+                              return null;
+                          }
+              ''',
+              '''                completeFailure(DirectConnectFailureCode.CANCELLED);
+                              return Optional.empty();
+                          } catch (ExecutionException | TimeoutException | RuntimeException exception) {
+                              resolution.cancel(true);
+                              completeFailure(DirectConnectFailureCode.DNS_OR_CONNECT_FAILED);
+                              return Optional.empty();
+                          }
+              ''')
+          service.write_text(text)
+          PY
+
+      - name: Apply repository formatting
+        run: ./gradlew --no-daemon spotlessApply
+
+      - name: Commit fixes and remove workflow
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git rm .github/workflows/fix-spotbugs-issue-88.yml
+          git add client/src/main/java/pl/grzegorz2047/standalonethewalls/client/network
+          git diff --cached --quiet || git commit -m 'fix(client): make Direct Connect failure contracts explicit'
+          git push origin HEAD:agent/issue-88-direct-connect-service-v2
