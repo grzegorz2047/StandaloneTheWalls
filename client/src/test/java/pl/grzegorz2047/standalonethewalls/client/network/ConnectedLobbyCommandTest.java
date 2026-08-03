@@ -34,7 +34,6 @@ import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandOutcome;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandResult;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMember;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolCodec;
-import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolException;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySelectTeamCommand;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySetReadyCommand;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
@@ -48,12 +47,10 @@ class ConnectedLobbyCommandTest {
     private static final PlayerId OTHER_PLAYER_ID = new PlayerId("sf1_" + "b".repeat(52));
     private static final CanonicalHandle HANDLE = new CanonicalHandle("alpha");
     private static final CanonicalHandle OTHER_HANDLE = new CanonicalHandle("bravo");
-    private static final UUID SESSION_ID =
-            UUID.fromString("12345678-1234-4234-8234-1234567890ab");
+    private static final UUID SESSION_ID = UUID.fromString("12345678-1234-4234-8234-1234567890ab");
 
     @Test
-    void submitsExactPayloadsWithMonotonicIdsAndOnlyOneCommandInFlight()
-            throws Exception {
+    void submitsExactPayloadsWithMonotonicIdsAndOnlyOneCommandInFlight() throws Exception {
         StubReliableChannel channel = new StubReliableChannel();
         ConnectedLobbySession session = startedSession(channel, snapshot(1L));
 
@@ -73,8 +70,7 @@ class ConnectedLobbyCommandTest {
                 new LobbySelectTeamCommand(1L, LobbyTeam.GREEN),
                 LobbyProtocolCodec.decodeSelectTeam(selectMessage.payload()));
 
-        LobbyCommandResult noChange =
-                new LobbyCommandResult(1L, 1L, LobbyCommandOutcome.NO_CHANGE);
+        LobbyCommandResult noChange = new LobbyCommandResult(1L, 1L, LobbyCommandOutcome.NO_CHANGE);
         channel.deliver(resultEnvelope(noChange, 1L));
         LobbyCommandResolution.Completed firstResolution = completed(firstHandle);
         assertEquals(noChange, firstResolution.result());
@@ -116,8 +112,7 @@ class ConnectedLobbyCommandTest {
         waitUntil(() -> session.currentSnapshot().revision() == 2L);
         assertFalse(handle.completion().toCompletableFuture().isDone());
 
-        LobbyCommandResult result =
-                new LobbyCommandResult(1L, 3L, LobbyCommandOutcome.APPLIED);
+        LobbyCommandResult result = new LobbyCommandResult(1L, 3L, LobbyCommandOutcome.APPLIED);
         channel.deliver(resultEnvelope(result, 2L));
         waitUntil(session::commandInFlight);
         assertFalse(handle.completion().toCompletableFuture().isDone());
@@ -184,8 +179,20 @@ class ConnectedLobbyCommandTest {
 
             List<LobbyCommandSubmissionStatus> statuses =
                     List.of(first.get().status(), second.get().status());
-            assertEquals(1, statuses.stream().filter(status -> status == LobbyCommandSubmissionStatus.SUBMITTED).count());
-            assertEquals(1, statuses.stream().filter(status -> status == LobbyCommandSubmissionStatus.COMMAND_IN_FLIGHT).count());
+            assertEquals(
+                    1,
+                    statuses.stream()
+                            .filter(status -> status == LobbyCommandSubmissionStatus.SUBMITTED)
+                            .count());
+            assertEquals(
+                    1,
+                    statuses.stream()
+                            .filter(
+                                    status ->
+                                            status
+                                                    == LobbyCommandSubmissionStatus
+                                                            .COMMAND_IN_FLIGHT)
+                            .count());
             assertEquals(1, channel.sent().size());
         }
         close(session);
@@ -203,8 +210,7 @@ class ConnectedLobbyCommandTest {
 
         assertTrue(session.startReceiving());
         close(session);
-        assertEquals(
-                LobbyCommandSubmissionStatus.SESSION_CLOSED, session.setReady(true).status());
+        assertEquals(LobbyCommandSubmissionStatus.SESSION_CLOSED, session.setReady(true).status());
         assertTrue(channel.sent().isEmpty());
     }
 
@@ -215,13 +221,10 @@ class ConnectedLobbyCommandTest {
         LobbyCommandHandle handle = session.setReady(true).handle().orElseThrow();
 
         channel.deliver(
-                resultEnvelope(
-                        new LobbyCommandResult(2L, 1L, LobbyCommandOutcome.NO_CHANGE), 1L));
+                resultEnvelope(new LobbyCommandResult(2L, 1L, LobbyCommandOutcome.NO_CHANGE), 1L));
 
         assertTerminalFailure(
-                session,
-                handle,
-                DirectConnectFailureCode.LOBBY_COMMAND_RESULT_UNEXPECTED);
+                session, handle, DirectConnectFailureCode.LOBBY_COMMAND_RESULT_UNEXPECTED);
         assertEquals(1, channel.closeCount());
     }
 
@@ -230,8 +233,7 @@ class ConnectedLobbyCommandTest {
         StubReliableChannel channel = new StubReliableChannel();
         ConnectedLobbySession session = startedSession(channel, snapshot(1L));
         LobbyCommandHandle handle = session.setReady(false).handle().orElseThrow();
-        LobbyCommandResult result =
-                new LobbyCommandResult(1L, 1L, LobbyCommandOutcome.NO_CHANGE);
+        LobbyCommandResult result = new LobbyCommandResult(1L, 1L, LobbyCommandOutcome.NO_CHANGE);
 
         channel.deliver(resultEnvelope(result, 1L));
         completed(handle);
@@ -259,9 +261,7 @@ class ConnectedLobbyCommandTest {
 
         LobbyCommandResolution.Failed failed =
                 assertTerminalFailure(
-                        session,
-                        handle,
-                        DirectConnectFailureCode.LOBBY_COMMAND_RESULT_MALFORMED);
+                        session, handle, DirectConnectFailureCode.LOBBY_COMMAND_RESULT_MALFORMED);
         assertTrue(failed.failure().admissionStatus().isEmpty());
         assertEquals(1, channel.closeCount());
     }
@@ -273,13 +273,10 @@ class ConnectedLobbyCommandTest {
         LobbyCommandHandle handle = session.selectTeam(LobbyTeam.GREEN).handle().orElseThrow();
 
         channel.deliver(
-                resultEnvelope(
-                        new LobbyCommandResult(1L, 7L, LobbyCommandOutcome.APPLIED), 1L));
+                resultEnvelope(new LobbyCommandResult(1L, 7L, LobbyCommandOutcome.APPLIED), 1L));
 
         assertTerminalFailure(
-                session,
-                handle,
-                DirectConnectFailureCode.LOBBY_COMMAND_REVISION_MISMATCH);
+                session, handle, DirectConnectFailureCode.LOBBY_COMMAND_REVISION_MISMATCH);
     }
 
     @Test
@@ -288,14 +285,11 @@ class ConnectedLobbyCommandTest {
         ConnectedLobbySession session = startedSession(channel, snapshot(1L));
         LobbyCommandHandle handle = session.selectTeam(LobbyTeam.GREEN).handle().orElseThrow();
         channel.deliver(
-                resultEnvelope(
-                        new LobbyCommandResult(1L, 2L, LobbyCommandOutcome.APPLIED), 1L));
+                resultEnvelope(new LobbyCommandResult(1L, 2L, LobbyCommandOutcome.APPLIED), 1L));
         channel.deliver(snapshotEnvelope(snapshot(3L, LobbyTeam.GREEN, false), 2L));
 
         assertTerminalFailure(
-                session,
-                handle,
-                DirectConnectFailureCode.LOBBY_COMMAND_REVISION_MISMATCH);
+                session, handle, DirectConnectFailureCode.LOBBY_COMMAND_REVISION_MISMATCH);
     }
 
     @Test
@@ -308,9 +302,7 @@ class ConnectedLobbyCommandTest {
 
         LobbyCommandResolution.Failed failed =
                 assertTerminalFailure(
-                        session,
-                        handle,
-                        DirectConnectFailureCode.LOBBY_COMMAND_SEND_FAILED);
+                        session, handle, DirectConnectFailureCode.LOBBY_COMMAND_SEND_FAILED);
         assertEquals(DirectConnectFailureCode.LOBBY_COMMAND_SEND_FAILED, failed.failure().code());
         assertEquals(1, channel.closeCount());
         close(session);
@@ -323,8 +315,7 @@ class ConnectedLobbyCommandTest {
         ConnectedLobbySession eofSession = startedSession(eofChannel, snapshot(1L));
         LobbyCommandHandle eofHandle = eofSession.setReady(true).handle().orElseThrow();
         eofChannel.deliverEof();
-        assertTerminalFailure(
-                eofSession, eofHandle, DirectConnectFailureCode.CONNECTION_CLOSED);
+        assertTerminalFailure(eofSession, eofHandle, DirectConnectFailureCode.CONNECTION_CLOSED);
 
         StubReliableChannel failedChannel = new StubReliableChannel();
         ConnectedLobbySession failedSession = startedSession(failedChannel, snapshot(1L));
@@ -386,7 +377,8 @@ class ConnectedLobbyCommandTest {
     }
 
     private static LobbySnapshot snapshot(long revision, LobbyTeam team, boolean ready) {
-        return new LobbySnapshot(revision, List.of(new LobbyMember(PLAYER_ID, HANDLE, team, ready)));
+        return new LobbySnapshot(
+                revision, List.of(new LobbyMember(PLAYER_ID, HANDLE, team, ready)));
     }
 
     private static ProtocolEnvelope resultEnvelope(LobbyCommandResult result, long sequence) {
@@ -447,9 +439,7 @@ class ConnectedLobbyCommandTest {
 
     private static void close(ConnectedLobbySession session)
             throws InterruptedException, ExecutionException, TimeoutException {
-        session.closeAsync()
-                .toCompletableFuture()
-                .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        session.closeAsync().toCompletableFuture().get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     private static void waitUntil(java.util.function.BooleanSupplier condition)

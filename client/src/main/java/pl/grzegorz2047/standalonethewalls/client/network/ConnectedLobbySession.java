@@ -149,8 +149,7 @@ public final class ConnectedLobbySession implements AutoCloseable {
         byte[] payload;
         synchronized (commandLock) {
             if (!isOpen()) {
-                return LobbyCommandSubmission.rejected(
-                        LobbyCommandSubmissionStatus.SESSION_CLOSED);
+                return LobbyCommandSubmission.rejected(LobbyCommandSubmissionStatus.SESSION_CLOSED);
             }
             if (pendingCommand != null) {
                 return LobbyCommandSubmission.rejected(
@@ -161,8 +160,7 @@ public final class ConnectedLobbySession implements AutoCloseable {
                         Optional.of(
                                 DirectConnectFailure.of(
                                         DirectConnectFailureCode.INTERNAL_FAILURE)));
-                return LobbyCommandSubmission.rejected(
-                        LobbyCommandSubmissionStatus.SESSION_CLOSED);
+                return LobbyCommandSubmission.rejected(LobbyCommandSubmissionStatus.SESSION_CLOSED);
             }
             long requestId = nextRequestId++;
             payload = Objects.requireNonNull(payloadFactory.apply(requestId), "command payload");
@@ -239,8 +237,7 @@ public final class ConnectedLobbySession implements AutoCloseable {
             case LOBBY_COMMAND_RESULT -> processCommandResult(envelope.payload());
             default ->
                     Optional.of(
-                            DirectConnectFailure.of(
-                                    DirectConnectFailureCode.UNEXPECTED_MESSAGE));
+                            DirectConnectFailure.of(DirectConnectFailureCode.UNEXPECTED_MESSAGE));
         };
     }
 
@@ -250,13 +247,11 @@ public final class ConnectedLobbySession implements AutoCloseable {
             next = LobbyProtocolCodec.decodeSnapshot(payload);
         } catch (LobbyProtocolException exception) {
             return Optional.of(
-                    DirectConnectFailure.of(
-                            DirectConnectFailureCode.LOBBY_SNAPSHOT_MALFORMED));
+                    DirectConnectFailure.of(DirectConnectFailureCode.LOBBY_SNAPSHOT_MALFORMED));
         }
         if (!containsExactSelf(next, playerId, handle)) {
             return Optional.of(
-                    DirectConnectFailure.of(
-                            DirectConnectFailureCode.LOBBY_IDENTITY_MISMATCH));
+                    DirectConnectFailure.of(DirectConnectFailureCode.LOBBY_IDENTITY_MISMATCH));
         }
 
         PendingCommand completed = null;
@@ -265,8 +260,7 @@ public final class ConnectedLobbySession implements AutoCloseable {
             LobbySnapshot current = snapshot.get();
             if (next.revision() <= current.revision()) {
                 return Optional.of(
-                        DirectConnectFailure.of(
-                                DirectConnectFailureCode.LOBBY_SNAPSHOT_STALE));
+                        DirectConnectFailure.of(DirectConnectFailureCode.LOBBY_SNAPSHOT_STALE));
             }
             if (pendingCommand != null && pendingCommand.result != null) {
                 if (next.revision() != pendingCommand.result.revision()) {
@@ -276,8 +270,7 @@ public final class ConnectedLobbySession implements AutoCloseable {
                 }
                 completed = pendingCommand;
                 pendingCommand = null;
-                resolution =
-                        new LobbyCommandResolution.Completed(completed.result, next);
+                resolution = new LobbyCommandResolution.Completed(completed.result, next);
             }
             snapshot.set(next);
         }
@@ -331,8 +324,7 @@ public final class ConnectedLobbySession implements AutoCloseable {
         return Optional.empty();
     }
 
-    private void failOwnedPending(
-            PendingCommand expected, DirectConnectFailureCode failureCode) {
+    private void failOwnedPending(PendingCommand expected, DirectConnectFailureCode failureCode) {
         DirectConnectFailure failure = DirectConnectFailure.of(failureCode);
         synchronized (commandLock) {
             if (pendingCommand != expected || closing.get()) {
