@@ -644,6 +644,8 @@ public final class DirectConnectService implements AutoCloseable {
         }
 
         private void complete(DirectConnectResult terminalResult) {
+            closeCurrentResource();
+            active.compareAndSet(this, null);
             result.complete(terminalResult);
         }
     }
