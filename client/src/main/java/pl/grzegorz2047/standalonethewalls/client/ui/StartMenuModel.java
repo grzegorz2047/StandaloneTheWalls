@@ -32,6 +32,10 @@ public record StartMenuModel(List<StartMenuEntry> entries, int selectedIndex) {
         return new StartMenuModel(entries, next);
     }
 
+    public StartMenuModel select(int index) {
+        return index == selectedIndex ? this : new StartMenuModel(entries, index);
+    }
+
     public StartMenuEntry selectedEntry() {
         return entries.get(selectedIndex);
     }

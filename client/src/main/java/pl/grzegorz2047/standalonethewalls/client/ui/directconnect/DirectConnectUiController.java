@@ -130,6 +130,20 @@ public final class DirectConnectUiController implements AutoCloseable {
         publish(copyWithFocus(model, focus));
     }
 
+    public boolean focus(DirectConnectUiFocus target) {
+        requireOpen();
+        Objects.requireNonNull(target, "target");
+        if (!allowedFocuses(model.phase()).contains(target)) {
+            return false;
+        }
+        if (focus == target) {
+            return true;
+        }
+        focus = target;
+        publish(copyWithFocus(model, focus));
+        return true;
+    }
+
     public void activate() {
         requireOpen();
         switch (model.phase()) {
