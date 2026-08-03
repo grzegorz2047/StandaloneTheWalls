@@ -11,7 +11,9 @@ import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -25,7 +27,10 @@ class DirectConnectServiceTest {
 
     @Test
     void rejectsAnOverlappingAttemptAndCancelsTheOwnedOperationOffRendererThread()
-            throws Exception {
+            throws DirectConnectEndpointException,
+                    InterruptedException,
+                    ExecutionException,
+                    TimeoutException {
         CountDownLatch resolverEntered = new CountDownLatch(1);
         CountDownLatch releaseResolver = new CountDownLatch(1);
         AtomicReference<String> resolverThread = new AtomicReference<>();
