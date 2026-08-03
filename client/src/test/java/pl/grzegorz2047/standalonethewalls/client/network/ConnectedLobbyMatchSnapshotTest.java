@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.Test;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerSessionAdmissionStatus;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCountdownCancellationReason;
@@ -15,7 +17,8 @@ class ConnectedLobbyMatchSnapshotTest {
     private static final Duration TIMEOUT = Duration.ofSeconds(3);
 
     @Test
-    void acceptsExactlyTheNextSynchronizedRevision() throws Exception {
+    void acceptsExactlyTheNextSynchronizedRevision()
+            throws InterruptedException, ExecutionException, TimeoutException {
         DirectConnectUiTestFixtures.ControlledLobby lobby = openLobby();
         ConnectedLobbySession session = takeSession(lobby);
         LobbyMatchPhaseSnapshot next = snapshot(2L, 1L, 2, LobbyMatchPhase.START_COUNTDOWN, 20L);
@@ -29,42 +32,48 @@ class ConnectedLobbyMatchSnapshotTest {
     }
 
     @Test
-    void closesOnAStaleRevision() throws Exception {
+    void closesOnAStaleRevision()
+            throws InterruptedException, ExecutionException, TimeoutException {
         assertTerminalFailure(
                 snapshot(0L, 1L, 2, LobbyMatchPhase.WAITING_FOR_PLAYERS, 0L),
                 DirectConnectFailureCode.LOBBY_MATCH_SNAPSHOT_STALE);
     }
 
     @Test
-    void closesOnADuplicateRevision() throws Exception {
+    void closesOnADuplicateRevision()
+            throws InterruptedException, ExecutionException, TimeoutException {
         assertTerminalFailure(
                 snapshot(1L, 1L, 2, LobbyMatchPhase.WAITING_FOR_PLAYERS, 0L),
                 DirectConnectFailureCode.LOBBY_MATCH_SNAPSHOT_DUPLICATE);
     }
 
     @Test
-    void closesOnARevisionGap() throws Exception {
+    void closesOnARevisionGap()
+            throws InterruptedException, ExecutionException, TimeoutException {
         assertTerminalFailure(
                 snapshot(3L, 1L, 2, LobbyMatchPhase.START_COUNTDOWN, 20L),
                 DirectConnectFailureCode.LOBBY_MATCH_SNAPSHOT_REVISION_GAP);
     }
 
     @Test
-    void closesWhenTheMatchSnapshotDescribesAnotherRosterRevision() throws Exception {
+    void closesWhenTheMatchSnapshotDescribesAnotherRosterRevision()
+            throws InterruptedException, ExecutionException, TimeoutException {
         assertTerminalFailure(
                 snapshot(2L, 2L, 2, LobbyMatchPhase.WAITING_FOR_PLAYERS, 0L),
                 DirectConnectFailureCode.LOBBY_MATCH_SNAPSHOT_ROSTER_MISMATCH);
     }
 
     @Test
-    void closesWhenTheMatchSnapshotDescribesAnotherPlayerCount() throws Exception {
+    void closesWhenTheMatchSnapshotDescribesAnotherPlayerCount()
+            throws InterruptedException, ExecutionException, TimeoutException {
         assertTerminalFailure(
                 snapshot(2L, 1L, 1, LobbyMatchPhase.WAITING_FOR_PLAYERS, 0L),
                 DirectConnectFailureCode.LOBBY_MATCH_SNAPSHOT_ROSTER_MISMATCH);
     }
 
     private static void assertTerminalFailure(
-            LobbyMatchPhaseSnapshot snapshot, DirectConnectFailureCode expected) throws Exception {
+            LobbyMatchPhaseSnapshot snapshot, DirectConnectFailureCode expected)
+            throws InterruptedException, ExecutionException, TimeoutException {
         DirectConnectUiTestFixtures.ControlledLobby lobby = openLobby();
         ConnectedLobbySession session = takeSession(lobby);
 
