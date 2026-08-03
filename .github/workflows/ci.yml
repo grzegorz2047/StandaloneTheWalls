@@ -91,6 +91,17 @@ jobs:
               raise SystemExit(f'unexpected={sorted(unexpected)} missing={sorted(missing)} actual={sorted(actual)}')
           PY
 
+      - name: Upload issue 128 runtime quality reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue-128-runtime-quality-reports
+          path: |
+            **/build/reports/spotbugs/**
+            **/build/reports/tests/**
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Commit validated runtime scenarios
         run: |
           set -euo pipefail
