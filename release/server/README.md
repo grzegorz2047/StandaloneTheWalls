@@ -1,8 +1,9 @@
-# Sunderfront dedicated server 0.1.0-alpha.2
+# Sunderfront dedicated server 0.1.0-alpha.3
 
-This is the second Direct Connect Alpha dedicated server. It requires a 64-bit
-Java 21 runtime. No private key, certificate, identity database, trust store, or
-registry cache is included in this archive.
+This alpha dedicated server remains a portable JVM distribution. It requires a
+separately installed 64-bit Java 21 runtime. No private key, certificate,
+identity database, trust store, or registry cache is included in this archive.
+The Java-free `Sunderfront.exe` package applies only to the Windows client.
 
 ## Windows first run
 
@@ -20,7 +21,7 @@ the normal Windows path that opens the reliable TLS listener and minimal lobby.
 
 ## Technical credential generation
 
-Linux and other compatible shells can run:
+Linux and compatible shells can run:
 
 ```bash
 bin/sunderfront-server-credentials --output credentials
@@ -101,6 +102,6 @@ Never publish the private key, SQLite database, or runtime data directory.
 
 This alpha proves secure Direct Connect and minimal lobby membership. It has no
 gameplay, realtime world transport, reconnect, public server browser, remote
-administration, final maps/assets, automatic certificate rotation, bundled Java
-runtime, executable, or platform-signed installer. The self-signed certificate
-is authenticated by explicit fingerprint pinning, not public PKI.
+administration, final maps/assets, automatic certificate rotation, bundled server
+runtime, server executable, or signed installer. The self-signed certificate is
+authenticated by explicit fingerprint pinning, not public PKI.
