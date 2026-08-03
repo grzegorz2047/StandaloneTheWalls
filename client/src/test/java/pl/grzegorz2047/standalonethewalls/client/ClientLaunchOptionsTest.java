@@ -80,6 +80,8 @@ class ClientLaunchOptionsTest {
                 () -> ClientLaunchOptions.parse(new String[] {"--unknown"}, Locale.ENGLISH, null));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> ClientLaunchOptions.parse(new String[] {"--lang", null}, Locale.ENGLISH, null));
+                () ->
+                        ClientLaunchOptions.parse(
+                                new String[] {"--lang", null}, Locale.ENGLISH, null));
     }
 }
