@@ -181,6 +181,7 @@ class MinimalLobbyRuntimeTest {
             waitUntil(
                     () ->
                             lobby.memberCount() == 1
+                                    && snapshotCount(alpha) >= 1
                                     && latestSnapshotUnchecked(alpha).revision() == 1L);
             int initialSnapshots = snapshotCount(alpha);
 
