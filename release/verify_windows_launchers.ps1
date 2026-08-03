@@ -115,6 +115,17 @@ try {
             throw "Partial credential handling created a missing file: $fileName"
         }
     }
+
+    Remove-Item -LiteralPath (Join-Path $partialDirectory "bin/sunderfront-server-credentials.bat") -Force
+    Invoke-ExpectExitCode -Path $partialLauncher -ExpectedExitCode 18
+    if ((Get-FileHash -LiteralPath $sentinelPath -Algorithm SHA256).Hash -ne $sentinelHash) {
+        throw "Mixed-package detection modified the existing private-key sentinel"
+    }
+    foreach ($fileName in $credentialFiles | Where-Object { $_ -ne "server-ed25519-key.pk8" }) {
+        if (Test-Path -LiteralPath (Join-Path $partialCredentials $fileName)) {
+            throw "Mixed-package detection created a credential file: $fileName"
+        }
+    }
 }
 finally {
     if ($null -ne $partialDirectory -and (Test-Path -LiteralPath $partialDirectory)) {
