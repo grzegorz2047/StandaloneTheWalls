@@ -34,6 +34,7 @@ import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandOutcome;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandResult;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMember;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolCodec;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolException;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySelectTeamCommand;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySetReadyCommand;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
@@ -50,7 +51,11 @@ class ConnectedLobbyCommandTest {
     private static final UUID SESSION_ID = UUID.fromString("12345678-1234-4234-8234-1234567890ab");
 
     @Test
-    void submitsExactPayloadsWithMonotonicIdsAndOnlyOneCommandInFlight() throws Exception {
+    void submitsExactPayloadsWithMonotonicIdsAndOnlyOneCommandInFlight()
+            throws InterruptedException,
+                    ExecutionException,
+                    TimeoutException,
+                    LobbyProtocolException {
         StubReliableChannel channel = new StubReliableChannel();
         ConnectedLobbySession session = startedSession(channel, snapshot(1L));
 
@@ -97,7 +102,11 @@ class ConnectedLobbyCommandTest {
     }
 
     @Test
-    void appliedResultWaitsForItsExactSnapshotAfterEarlierRosterChange() throws Exception {
+    void appliedResultWaitsForItsExactSnapshotAfterEarlierRosterChange()
+            throws InterruptedException,
+                    ExecutionException,
+                    TimeoutException,
+                    LobbyProtocolException {
         StubReliableChannel channel = new StubReliableChannel();
         ConnectedLobbySession session = startedSession(channel, snapshot(1L));
         LobbyCommandHandle handle = session.selectTeam(LobbyTeam.GREEN).handle().orElseThrow();
@@ -128,7 +137,11 @@ class ConnectedLobbyCommandTest {
     }
 
     @Test
-    void everyNonAppliedOutcomeCompletesWithoutClosingOrChangingSnapshot() throws Exception {
+    void everyNonAppliedOutcomeCompletesWithoutClosingOrChangingSnapshot()
+            throws InterruptedException,
+                    ExecutionException,
+                    TimeoutException,
+                    LobbyProtocolException {
         StubReliableChannel channel = new StubReliableChannel();
         ConnectedLobbySession session = startedSession(channel, snapshot(4L));
         List<LobbyCommandOutcome> outcomes =
@@ -158,7 +171,11 @@ class ConnectedLobbyCommandTest {
     }
 
     @Test
-    void concurrentSubmissionsProduceOneCommandAndOneBusyResult() throws Exception {
+    void concurrentSubmissionsProduceOneCommandAndOneBusyResult()
+            throws InterruptedException,
+                    ExecutionException,
+                    TimeoutException,
+                    LobbyProtocolException {
         StubReliableChannel channel = new StubReliableChannel();
         ConnectedLobbySession session = startedSession(channel, snapshot(1L));
         CountDownLatch start = new CountDownLatch(1);
@@ -199,7 +216,11 @@ class ConnectedLobbyCommandTest {
     }
 
     @Test
-    void notStartedAndClosedSessionsRejectSubmissionWithoutSending() throws Exception {
+    void notStartedAndClosedSessionsRejectSubmissionWithoutSending()
+            throws InterruptedException,
+                    ExecutionException,
+                    TimeoutException,
+                    LobbyProtocolException {
         StubReliableChannel channel = new StubReliableChannel();
         ConnectedLobbySession session = createSession(channel, snapshot(1L));
 
@@ -215,7 +236,11 @@ class ConnectedLobbyCommandTest {
     }
 
     @Test
-    void mismatchedRequestIdFailsPendingAndClosesSession() throws Exception {
+    void mismatchedRequestIdFailsPendingAndClosesSession()
+            throws InterruptedException,
+                    ExecutionException,
+                    TimeoutException,
+                    LobbyProtocolException {
         StubReliableChannel channel = new StubReliableChannel();
         ConnectedLobbySession session = startedSession(channel, snapshot(1L));
         LobbyCommandHandle handle = session.setReady(true).handle().orElseThrow();
@@ -229,7 +254,11 @@ class ConnectedLobbyCommandTest {
     }
 
     @Test
-    void duplicateResultAfterCompletionClosesSession() throws Exception {
+    void duplicateResultAfterCompletionClosesSession()
+            throws InterruptedException,
+                    ExecutionException,
+                    TimeoutException,
+                    LobbyProtocolException {
         StubReliableChannel channel = new StubReliableChannel();
         ConnectedLobbySession session = startedSession(channel, snapshot(1L));
         LobbyCommandHandle handle = session.setReady(false).handle().orElseThrow();
@@ -247,7 +276,11 @@ class ConnectedLobbyCommandTest {
     }
 
     @Test
-    void malformedResultFailsPendingWithoutExposingExceptionText() throws Exception {
+    void malformedResultFailsPendingWithoutExposingExceptionText()
+            throws InterruptedException,
+                    ExecutionException,
+                    TimeoutException,
+                    LobbyProtocolException {
         StubReliableChannel channel = new StubReliableChannel();
         ConnectedLobbySession session = startedSession(channel, snapshot(1L));
         LobbyCommandHandle handle = session.setReady(true).handle().orElseThrow();
@@ -267,7 +300,11 @@ class ConnectedLobbyCommandTest {
     }
 
     @Test
-    void inconsistentResultRevisionFailsClosed() throws Exception {
+    void inconsistentResultRevisionFailsClosed()
+            throws InterruptedException,
+                    ExecutionException,
+                    TimeoutException,
+                    LobbyProtocolException {
         StubReliableChannel channel = new StubReliableChannel();
         ConnectedLobbySession session = startedSession(channel, snapshot(5L));
         LobbyCommandHandle handle = session.selectTeam(LobbyTeam.GREEN).handle().orElseThrow();
@@ -280,7 +317,11 @@ class ConnectedLobbyCommandTest {
     }
 
     @Test
-    void snapshotSkippingAppliedRevisionFailsClosed() throws Exception {
+    void snapshotSkippingAppliedRevisionFailsClosed()
+            throws InterruptedException,
+                    ExecutionException,
+                    TimeoutException,
+                    LobbyProtocolException {
         StubReliableChannel channel = new StubReliableChannel();
         ConnectedLobbySession session = startedSession(channel, snapshot(1L));
         LobbyCommandHandle handle = session.selectTeam(LobbyTeam.GREEN).handle().orElseThrow();
@@ -293,7 +334,11 @@ class ConnectedLobbyCommandTest {
     }
 
     @Test
-    void sendFailureFailsPendingAndClosesExactlyOnce() throws Exception {
+    void sendFailureFailsPendingAndClosesExactlyOnce()
+            throws InterruptedException,
+                    ExecutionException,
+                    TimeoutException,
+                    LobbyProtocolException {
         StubReliableChannel channel = new StubReliableChannel();
         channel.failNextSend(new IllegalStateException("private transport detail"));
         ConnectedLobbySession session = startedSession(channel, snapshot(1L));
@@ -310,7 +355,11 @@ class ConnectedLobbyCommandTest {
     }
 
     @Test
-    void eofAndReceiveFailureFinishPendingCommands() throws Exception {
+    void eofAndReceiveFailureFinishPendingCommands()
+            throws InterruptedException,
+                    ExecutionException,
+                    TimeoutException,
+                    LobbyProtocolException {
         StubReliableChannel eofChannel = new StubReliableChannel();
         ConnectedLobbySession eofSession = startedSession(eofChannel, snapshot(1L));
         LobbyCommandHandle eofHandle = eofSession.setReady(true).handle().orElseThrow();
@@ -327,7 +376,11 @@ class ConnectedLobbyCommandTest {
     }
 
     @Test
-    void manualCloseCancelsPendingWithoutRecordingTerminalFailure() throws Exception {
+    void manualCloseCancelsPendingWithoutRecordingTerminalFailure()
+            throws InterruptedException,
+                    ExecutionException,
+                    TimeoutException,
+                    LobbyProtocolException {
         StubReliableChannel channel = new StubReliableChannel();
         AtomicInteger releases = new AtomicInteger();
         ConnectedLobbySession session =
@@ -400,7 +453,10 @@ class ConnectedLobbyCommandTest {
     }
 
     private static LobbyCommandResolution.Completed completed(LobbyCommandHandle handle)
-            throws Exception {
+            throws InterruptedException,
+                    ExecutionException,
+                    TimeoutException,
+                    LobbyProtocolException {
         return assertInstanceOf(
                 LobbyCommandResolution.Completed.class,
                 handle.completion()
@@ -409,7 +465,10 @@ class ConnectedLobbyCommandTest {
     }
 
     private static LobbyCommandResolution.Failed failed(LobbyCommandHandle handle)
-            throws Exception {
+            throws InterruptedException,
+                    ExecutionException,
+                    TimeoutException,
+                    LobbyProtocolException {
         return assertInstanceOf(
                 LobbyCommandResolution.Failed.class,
                 handle.completion()
@@ -421,7 +480,10 @@ class ConnectedLobbyCommandTest {
             ConnectedLobbySession session,
             LobbyCommandHandle handle,
             DirectConnectFailureCode expected)
-            throws Exception {
+            throws InterruptedException,
+                    ExecutionException,
+                    TimeoutException,
+                    LobbyProtocolException {
         LobbyCommandResolution.Failed failed = failed(handle);
         assertEquals(expected, failed.failure().code());
         assertEquals(expected, awaitTermination(session).orElseThrow().code());

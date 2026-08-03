@@ -118,10 +118,11 @@ class DirectConnectServiceLoopbackTest {
             assertEquals(
                     DirectConnectFailureCode.CONFIRMATION_INVALID,
                     failureCode(await(firstClient.confirmFirstUse(accepted))));
-            persistedPlayerId = firstConnected.session().playerId();
-            assertLobbyContainsSelf(firstConnected.session(), persistedPlayerId, handle);
-            assertIdleLobbyRemainsOpen(firstConnected.session());
-            close(firstConnected.session());
+            ConnectedLobbySession firstSession = firstConnected.takeSession();
+            persistedPlayerId = firstSession.playerId();
+            assertLobbyContainsSelf(firstSession, persistedPlayerId, handle);
+            assertIdleLobbyRemainsOpen(firstSession);
+            close(firstSession);
         }
 
         try (DirectConnectService restartedClient =
@@ -134,9 +135,10 @@ class DirectConnectServiceLoopbackTest {
             assertEquals(
                     PlayerSessionAdmissionStatus.LOCAL_RETURNING_ACCEPTED,
                     returning.admissionStatus());
-            assertEquals(persistedPlayerId, returning.session().playerId());
-            assertLobbyContainsSelf(returning.session(), persistedPlayerId, handle);
-            close(returning.session());
+            ConnectedLobbySession returningSession = returning.takeSession();
+            assertEquals(persistedPlayerId, returningSession.playerId());
+            assertLobbyContainsSelf(returningSession, persistedPlayerId, handle);
+            close(returningSession);
         }
 
         assertEquals(
