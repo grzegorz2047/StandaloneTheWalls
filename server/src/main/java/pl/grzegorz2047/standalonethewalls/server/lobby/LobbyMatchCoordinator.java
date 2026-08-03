@@ -28,7 +28,7 @@ public final class LobbyMatchCoordinator {
     private MatchState matchState;
     private Optional<CountdownCancellationReason> cancellationReason = Optional.empty();
     private long revision;
-    private long lastProcessedTick = -1L;
+    private long lastProcessedTick = LobbyMatchSnapshot.BEFORE_FIRST_TICK;
 
     public LobbyMatchCoordinator(
             LobbyConfiguration lobbyConfiguration, MatchConfiguration matchConfiguration) {
@@ -45,6 +45,7 @@ public final class LobbyMatchCoordinator {
         return new LobbyMatchSnapshot(
                 revision,
                 roster.revision(),
+                lastProcessedTick,
                 matchState.phase(),
                 matchState.ticksRemaining(),
                 matchState.connectedPlayers(),
