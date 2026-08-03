@@ -27,8 +27,14 @@ selects an enabled non-full team, and may choose only a destination that achieve
 the best currently available team-size balance. Selecting another team clears the
 participant's ready state. The lobby is ready to start only when the configured
 minimum is present, every participant has selected a team and is ready, and at
-least two teams are represented. Network messages, server integration, countdown
-wiring, class selection, and presentation remain separate follow-up work.
+least two teams are represented.
+
+The reliable minimal lobby accepts bounded team and ready intents for the already
+authenticated session, applies only the domain rules, returns a correlated result,
+and broadcasts a complete canonical roster after an actual change. Membership-
+only schema-v1 snapshots remain readable as unassigned and not ready. Client UI,
+class choice, localized command results, countdown wiring, and round start remain
+separate follow-up work.
 
 ## Preparation
 

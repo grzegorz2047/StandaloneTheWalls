@@ -3,6 +3,8 @@ package pl.grzegorz2047.standalonethewalls.server.identity.session;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Duration;
+import java.util.ArrayDeque;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -14,6 +16,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.Test;
+import pl.grzegorz2047.standalonethewalls.domain.TeamId;
+import pl.grzegorz2047.standalonethewalls.domain.lobby.LobbyConfiguration;
 import pl.grzegorz2047.standalonethewalls.identity.policy.HandleVerificationLevel;
 import pl.grzegorz2047.standalonethewalls.protocol.MessageType;
 import pl.grzegorz2047.standalonethewalls.protocol.ProtocolEnvelope;
@@ -23,10 +27,16 @@ import pl.grzegorz2047.standalonethewalls.protocol.ReliableSendResult;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.CanonicalHandle;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerId;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandOutcome;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandResult;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyJoined;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMember;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolException;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySelectTeamCommand;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySetReadyCommand;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
 import pl.grzegorz2047.standalonethewalls.server.lobby.MinimalLobbyRuntime;
 
 class MinimalLobbyRuntimeTest {
@@ -55,6 +65,8 @@ class MinimalLobbyRuntimeTest {
             assertThat(joined.self().playerId()).isEqualTo(transport.playerId());
             assertThat(snapshot.revision()).isEqualTo(1L);
             assertThat(snapshot.members()).containsExactly(joined.self());
+            assertThat(snapshot.members().getFirst().team()).isEqualTo(LobbyTeam.UNASSIGNED);
+            assertThat(snapshot.members().getFirst().ready()).isFalse();
             assertThat(lobby.memberCount()).isEqualTo(1);
             assertThat(queue.activeTransferCount()).isEqualTo(1);
 
@@ -87,18 +99,16 @@ class MinimalLobbyRuntimeTest {
                                     && latestSnapshotMessage(alpha).isPresent()
                                     && lobby.memberCount() == 2);
 
-            LobbySnapshot bravoSnapshot =
-                    LobbyProtocolCodec.decodeSnapshot(
-                            latestSnapshotMessage(bravo).orElseThrow().payload());
-            LobbySnapshot alphaSnapshot =
-                    LobbyProtocolCodec.decodeSnapshot(
-                            latestSnapshotMessage(alpha).orElseThrow().payload());
+            LobbySnapshot bravoSnapshot = latestSnapshot(bravo);
+            LobbySnapshot alphaSnapshot = latestSnapshot(alpha);
 
             assertThat(bravoSnapshot).isEqualTo(alphaSnapshot);
             assertThat(bravoSnapshot.revision()).isEqualTo(2L);
             assertThat(bravoSnapshot.members())
-                    .extracting(member -> member.playerId())
+                    .extracting(LobbyMember::playerId)
                     .containsExactly(alpha.playerId(), bravo.playerId());
+            assertThat(bravoSnapshot.members())
+                    .allMatch(member -> member.team() == LobbyTeam.UNASSIGNED && !member.ready());
             assertThat(queue.activeTransferCount()).isEqualTo(2);
         } finally {
             lobby.close();
@@ -107,6 +117,173 @@ class MinimalLobbyRuntimeTest {
         assertThat(bravo.closeCount()).isEqualTo(1);
         assertThat(alpha.closeCount()).isEqualTo(1);
         assertThat(queue.activeTransferCount()).isZero();
+    }
+
+    @Test
+    void appliesTeamAndReadyCommandsAndBroadcastsAuthoritativeRoster()
+            throws InterruptedException, LobbyProtocolException {
+        AuthorizedPlayerSessionQueue queue = queue(2);
+        TestSession alpha = new TestSession(1, playerId('a'), "alpha");
+        TestSession bravo = new TestSession(2, playerId('b'), "bravo");
+        enqueue(queue, alpha);
+        enqueue(queue, bravo);
+        MinimalLobbyRuntime lobby = lobby(queue);
+
+        try {
+            lobby.start();
+            waitUntil(() -> lobby.memberCount() == 2);
+
+            sendSelect(alpha, 1L, LobbyTeam.GREEN);
+            waitForResult(alpha, 1L);
+            assertResult(alpha, 1L, 3L, LobbyCommandOutcome.APPLIED);
+
+            sendSelect(bravo, 1L, LobbyTeam.BLUE);
+            waitForResult(bravo, 1L);
+            assertResult(bravo, 1L, 4L, LobbyCommandOutcome.APPLIED);
+
+            sendReady(alpha, 2L, true);
+            waitForResult(alpha, 2L);
+            assertResult(alpha, 2L, 5L, LobbyCommandOutcome.APPLIED);
+
+            sendReady(bravo, 2L, true);
+            waitForResult(bravo, 2L);
+            assertResult(bravo, 2L, 6L, LobbyCommandOutcome.APPLIED);
+            waitUntil(
+                    () ->
+                            latestSnapshotUnchecked(alpha).revision() == 6L
+                                    && latestSnapshotUnchecked(bravo).revision() == 6L);
+
+            LobbySnapshot snapshot = latestSnapshot(alpha);
+            assertThat(snapshot).isEqualTo(latestSnapshot(bravo));
+            assertThat(snapshot.members())
+                    .containsExactly(
+                            new LobbyMember(
+                                    alpha.playerId(), alpha.handle(), LobbyTeam.GREEN, true),
+                            new LobbyMember(
+                                    bravo.playerId(), bravo.handle(), LobbyTeam.BLUE, true));
+            assertThat(lobby.revision()).isEqualTo(6L);
+        } finally {
+            lobby.close();
+            queue.close();
+        }
+    }
+
+    @Test
+    void reportsRejectedAndIdempotentCommandsWithoutFalseRevisionOrBroadcast()
+            throws InterruptedException, LobbyProtocolException {
+        AuthorizedPlayerSessionQueue queue = queue(1);
+        TestSession alpha = new TestSession(1, playerId('a'), "alpha");
+        enqueue(queue, alpha);
+        MinimalLobbyRuntime lobby = lobby(queue);
+
+        try {
+            lobby.start();
+            waitUntil(
+                    () ->
+                            lobby.memberCount() == 1
+                                    && snapshotCount(alpha) >= 1
+                                    && latestSnapshotUnchecked(alpha).revision() == 1L);
+            int initialSnapshots = snapshotCount(alpha);
+
+            sendReady(alpha, 1L, true);
+            waitForResult(alpha, 1L);
+            assertResult(alpha, 1L, 1L, LobbyCommandOutcome.TEAM_REQUIRED);
+            assertThat(snapshotCount(alpha)).isEqualTo(initialSnapshots);
+
+            sendReady(alpha, 2L, false);
+            waitForResult(alpha, 2L);
+            assertResult(alpha, 2L, 1L, LobbyCommandOutcome.NO_CHANGE);
+            assertThat(snapshotCount(alpha)).isEqualTo(initialSnapshots);
+
+            sendSelect(alpha, 3L, LobbyTeam.GREEN);
+            waitForResult(alpha, 3L);
+            assertResult(alpha, 3L, 2L, LobbyCommandOutcome.APPLIED);
+            waitUntil(() -> latestSnapshotUnchecked(alpha).revision() == 2L);
+            int afterApplied = snapshotCount(alpha);
+
+            sendSelect(alpha, 4L, LobbyTeam.GREEN);
+            waitForResult(alpha, 4L);
+            assertResult(alpha, 4L, 2L, LobbyCommandOutcome.NO_CHANGE);
+            assertThat(snapshotCount(alpha)).isEqualTo(afterApplied);
+        } finally {
+            lobby.close();
+            queue.close();
+        }
+    }
+
+    @Test
+    void mapsDisabledFullAndImbalancedTeamsWithoutMutatingTheRoster() throws InterruptedException {
+        LobbyConfiguration configuration =
+                new LobbyConfiguration(EnumSet.of(TeamId.GREEN, TeamId.BLUE), 2, 1, 2);
+        AuthorizedPlayerSessionQueue queue = queue(2);
+        TestSession alpha = new TestSession(1, playerId('a'), "alpha");
+        TestSession bravo = new TestSession(2, playerId('b'), "bravo");
+        enqueue(queue, alpha);
+        enqueue(queue, bravo);
+        MinimalLobbyRuntime lobby = lobby(queue, configuration);
+
+        try {
+            lobby.start();
+            waitUntil(() -> lobby.memberCount() == 2);
+
+            sendSelect(alpha, 1L, LobbyTeam.RED);
+            waitForResult(alpha, 1L);
+            assertResult(alpha, 1L, 2L, LobbyCommandOutcome.TEAM_DISABLED);
+
+            sendSelect(alpha, 2L, LobbyTeam.GREEN);
+            waitForResult(alpha, 2L);
+            assertResult(alpha, 2L, 3L, LobbyCommandOutcome.APPLIED);
+
+            sendSelect(bravo, 1L, LobbyTeam.GREEN);
+            waitForResult(bravo, 1L);
+            assertResult(bravo, 1L, 3L, LobbyCommandOutcome.TEAM_FULL);
+
+            sendSelect(bravo, 2L, LobbyTeam.BLUE);
+            waitForResult(bravo, 2L);
+            assertResult(bravo, 2L, 4L, LobbyCommandOutcome.APPLIED);
+
+            sendSelect(alpha, 3L, LobbyTeam.BLUE);
+            waitForResult(alpha, 3L);
+            assertResult(alpha, 3L, 4L, LobbyCommandOutcome.TEAM_FULL);
+            assertThat(lobby.revision()).isEqualTo(4L);
+        } finally {
+            lobby.close();
+            queue.close();
+        }
+    }
+
+    @Test
+    void replayedRequestIdFailsClosedAndRemovesOnlyTheOffendingSession()
+            throws InterruptedException {
+        AuthorizedPlayerSessionQueue queue = queue(2);
+        TestSession alpha = new TestSession(1, playerId('a'), "alpha");
+        TestSession bravo = new TestSession(2, playerId('b'), "bravo");
+        enqueue(queue, alpha);
+        enqueue(queue, bravo);
+        MinimalLobbyRuntime lobby = lobby(queue);
+
+        try {
+            lobby.start();
+            waitUntil(() -> lobby.memberCount() == 2);
+            sendSelect(alpha, 1L, LobbyTeam.GREEN);
+            waitForResult(alpha, 1L);
+
+            sendReady(alpha, 1L, false);
+            waitUntil(
+                    () ->
+                            lobby.memberCount() == 1
+                                    && alpha.closeCount() == 1
+                                    && latestSnapshotUnchecked(bravo).revision() == 4L);
+
+            assertThat(bravo.closeCount()).isZero();
+            assertThat(latestSnapshotUnchecked(bravo).members())
+                    .extracting(LobbyMember::playerId)
+                    .containsExactly(bravo.playerId());
+            assertThat(lobby.revision()).isEqualTo(4L);
+        } finally {
+            lobby.close();
+            queue.close();
+        }
     }
 
     @Test
@@ -132,7 +309,7 @@ class MinimalLobbyRuntimeTest {
     }
 
     @Test
-    void anyClientMessageBeforeAProtocolIsIntroducedFailsClosed() throws InterruptedException {
+    void unexpectedClientMessageFailsClosed() throws InterruptedException {
         AuthorizedPlayerSessionQueue queue = queue(1);
         TestSession transport = new TestSession(1, playerId('a'), "alpha");
         enqueue(queue, transport);
@@ -141,13 +318,7 @@ class MinimalLobbyRuntimeTest {
         try {
             lobby.start();
             waitUntil(() -> lobby.memberCount() == 1);
-            transport.channel.completeMessage(
-                    new ProtocolEnvelope(
-                            ProtocolVersion.CURRENT,
-                            MessageType.PING,
-                            transport.sessionId(),
-                            0L,
-                            new byte[0]));
+            transport.channel.completeMessage(envelope(transport, MessageType.PING, new byte[0]));
 
             waitUntil(() -> lobby.memberCount() == 0 && queue.activeTransferCount() == 0);
 
@@ -175,6 +346,7 @@ class MinimalLobbyRuntimeTest {
 
         assertThat(lobby.isRunning()).isFalse();
         assertThat(lobby.memberCount()).isZero();
+        assertThat(lobby.revision()).isEqualTo(4L);
         assertThat(first.closeCount()).isEqualTo(1);
         assertThat(second.closeCount()).isEqualTo(1);
         assertThat(queue.activeTransferCount()).isZero();
@@ -184,6 +356,12 @@ class MinimalLobbyRuntimeTest {
     private static MinimalLobbyRuntime lobby(AuthorizedPlayerSessionQueue queue) {
         return new MinimalLobbyRuntime(
                 queue, Duration.ofSeconds(1), Duration.ofSeconds(2), ignored -> {});
+    }
+
+    private static MinimalLobbyRuntime lobby(
+            AuthorizedPlayerSessionQueue queue, LobbyConfiguration configuration) {
+        return new MinimalLobbyRuntime(
+                queue, configuration, Duration.ofSeconds(1), Duration.ofSeconds(2), ignored -> {});
     }
 
     private static AuthorizedPlayerSessionQueue queue(int capacity) {
@@ -199,6 +377,65 @@ class MinimalLobbyRuntimeTest {
                 .isTrue();
     }
 
+    private static void sendSelect(TestSession session, long requestId, LobbyTeam team) {
+        session.channel.completeMessage(
+                envelope(
+                        session,
+                        MessageType.LOBBY_SELECT_TEAM,
+                        LobbyProtocolCodec.encodeSelectTeam(
+                                new LobbySelectTeamCommand(requestId, team))));
+    }
+
+    private static void sendReady(TestSession session, long requestId, boolean ready) {
+        session.channel.completeMessage(
+                envelope(
+                        session,
+                        MessageType.LOBBY_SET_READY,
+                        LobbyProtocolCodec.encodeSetReady(
+                                new LobbySetReadyCommand(requestId, ready))));
+    }
+
+    private static ProtocolEnvelope envelope(
+            TestSession session, MessageType messageType, byte[] payload) {
+        return new ProtocolEnvelope(
+                ProtocolVersion.CURRENT, messageType, session.sessionId(), 0L, payload);
+    }
+
+    private static void waitForResult(TestSession session, long requestId)
+            throws InterruptedException {
+        waitUntil(
+                () ->
+                        commandResultsUnchecked(session).stream()
+                                .anyMatch(result -> result.requestId() == requestId));
+    }
+
+    private static void assertResult(
+            TestSession session, long requestId, long revision, LobbyCommandOutcome outcome) {
+        assertThat(commandResultsUnchecked(session))
+                .contains(new LobbyCommandResult(requestId, revision, outcome));
+    }
+
+    private static List<LobbyCommandResult> commandResultsUnchecked(TestSession session) {
+        return session.channel.sent().stream()
+                .filter(message -> message.messageType() == MessageType.LOBBY_COMMAND_RESULT)
+                .map(
+                        message -> {
+                            try {
+                                return LobbyProtocolCodec.decodeCommandResult(message.payload());
+                            } catch (LobbyProtocolException exception) {
+                                throw new AssertionError(exception);
+                            }
+                        })
+                .toList();
+    }
+
+    private static int snapshotCount(TestSession session) {
+        return Math.toIntExact(
+                session.channel.sent().stream()
+                        .filter(message -> message.messageType() == MessageType.LOBBY_SNAPSHOT)
+                        .count());
+    }
+
     private static Optional<SentMessage> latestSnapshotMessage(TestSession session) {
         List<SentMessage> snapshots =
                 session.channel.sent().stream()
@@ -207,6 +444,19 @@ class MinimalLobbyRuntimeTest {
         return snapshots.isEmpty()
                 ? Optional.empty()
                 : Optional.of(snapshots.get(snapshots.size() - 1));
+    }
+
+    private static LobbySnapshot latestSnapshot(TestSession session) throws LobbyProtocolException {
+        return LobbyProtocolCodec.decodeSnapshot(
+                latestSnapshotMessage(session).orElseThrow().payload());
+    }
+
+    private static LobbySnapshot latestSnapshotUnchecked(TestSession session) {
+        try {
+            return latestSnapshot(session);
+        } catch (LobbyProtocolException exception) {
+            throw new AssertionError(exception);
+        }
     }
 
     private static void waitUntil(BooleanSupplier condition) throws InterruptedException {
@@ -290,10 +540,11 @@ class MinimalLobbyRuntimeTest {
 
     private static final class StubReliableChannel implements ReliableChannel {
         private final CopyOnWriteArrayList<SentMessage> sent = new CopyOnWriteArrayList<>();
-        private final CompletableFuture<Optional<ProtocolEnvelope>> receive =
-                new CompletableFuture<>();
+        private final ArrayDeque<Optional<ProtocolEnvelope>> inbound = new ArrayDeque<>();
+        private final Object receiveLock = new Object();
         private final AtomicBoolean open = new AtomicBoolean(true);
         private final AtomicInteger sequences = new AtomicInteger();
+        private CompletableFuture<Optional<ProtocolEnvelope>> pendingReceive;
 
         @Override
         public CompletionStage<ReliableSendResult> send(MessageType messageType, byte[] payload) {
@@ -309,7 +560,19 @@ class MinimalLobbyRuntimeTest {
 
         @Override
         public CompletionStage<Optional<ProtocolEnvelope>> receive() {
-            return receive.minimalCompletionStage();
+            synchronized (receiveLock) {
+                if (!inbound.isEmpty()) {
+                    return CompletableFuture.completedFuture(inbound.removeFirst());
+                }
+                if (!open.get()) {
+                    return CompletableFuture.completedFuture(Optional.empty());
+                }
+                if (pendingReceive != null) {
+                    throw new IllegalStateException("only one receive may be active");
+                }
+                pendingReceive = new CompletableFuture<>();
+                return pendingReceive.minimalCompletionStage();
+            }
         }
 
         @Override
@@ -319,8 +582,16 @@ class MinimalLobbyRuntimeTest {
 
         @Override
         public CompletionStage<Void> close() {
-            open.set(false);
-            receive.complete(Optional.empty());
+            CompletableFuture<Optional<ProtocolEnvelope>> receiveToComplete;
+            synchronized (receiveLock) {
+                open.set(false);
+                receiveToComplete = pendingReceive;
+                pendingReceive = null;
+                inbound.clear();
+            }
+            if (receiveToComplete != null) {
+                receiveToComplete.complete(Optional.empty());
+            }
             return CompletableFuture.completedFuture(null);
         }
 
@@ -329,11 +600,24 @@ class MinimalLobbyRuntimeTest {
         }
 
         private void completeEof() {
-            receive.complete(Optional.empty());
+            completeInbound(Optional.empty());
         }
 
         private void completeMessage(ProtocolEnvelope message) {
-            receive.complete(Optional.of(message));
+            completeInbound(Optional.of(message));
+        }
+
+        private void completeInbound(Optional<ProtocolEnvelope> message) {
+            CompletableFuture<Optional<ProtocolEnvelope>> receiveToComplete;
+            synchronized (receiveLock) {
+                receiveToComplete = pendingReceive;
+                pendingReceive = null;
+                if (receiveToComplete == null) {
+                    inbound.addLast(message);
+                    return;
+                }
+            }
+            receiveToComplete.complete(message);
         }
     }
 }

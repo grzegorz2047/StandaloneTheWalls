@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.List;
@@ -27,6 +29,7 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMember;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.AuthenticatedReliableSession;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.AuthenticatedReliableSessionTestFactory;
 
@@ -59,6 +62,41 @@ class ConnectedLobbySessionTest {
         assertEquals(1, channel.closeCount());
         assertEquals(1, releases.get());
         assertTrue(session.terminalFailure().isEmpty());
+    }
+
+    @Test
+    void preservesAuthoritativeTeamAndReadyStateFromSchemaTwo()
+            throws InterruptedException, ExecutionException, TimeoutException {
+        StubReliableChannel channel = new StubReliableChannel();
+        ConnectedLobbySession session = createSession(channel, snapshot(1L, HANDLE));
+        session.startReceiving();
+        LobbySnapshot roster =
+                new LobbySnapshot(
+                        2L, List.of(new LobbyMember(PLAYER_ID, HANDLE, LobbyTeam.GREEN, true)));
+
+        channel.deliver(snapshotEnvelope(roster, 1L));
+        waitUntil(() -> session.currentSnapshot().revision() == 2L);
+
+        LobbyMember self = session.currentSnapshot().members().getFirst();
+        assertEquals(LobbyTeam.GREEN, self.team());
+        assertTrue(self.ready());
+        session.closeAsync().toCompletableFuture().get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+    }
+
+    @Test
+    void acceptsLegacySchemaOneAsUnassignedAndNotReady()
+            throws InterruptedException, ExecutionException, TimeoutException {
+        StubReliableChannel channel = new StubReliableChannel();
+        ConnectedLobbySession session = createSession(channel, snapshot(1L, HANDLE));
+        session.startReceiving();
+
+        channel.deliver(legacySnapshotEnvelope(2L, HANDLE, 1L));
+        waitUntil(() -> session.currentSnapshot().revision() == 2L);
+
+        LobbyMember self = session.currentSnapshot().members().getFirst();
+        assertEquals(LobbyTeam.UNASSIGNED, self.team());
+        assertFalse(self.ready());
+        session.closeAsync().toCompletableFuture().get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     @Test
@@ -134,6 +172,23 @@ class ConnectedLobbySessionTest {
                 SESSION_ID,
                 sequence,
                 LobbyProtocolCodec.encodeSnapshot(snapshot));
+    }
+
+    private static ProtocolEnvelope legacySnapshotEnvelope(
+            long revision, CanonicalHandle handle, long sequence) {
+        byte[] playerId = PLAYER_ID.value().getBytes(StandardCharsets.US_ASCII);
+        byte[] handleBytes = handle.value().getBytes(StandardCharsets.US_ASCII);
+        byte[] payload =
+                ByteBuffer.allocate(1 + Long.BYTES + 1 + playerId.length + 1 + handleBytes.length)
+                        .put((byte) 1)
+                        .putLong(revision)
+                        .put((byte) 1)
+                        .put(playerId)
+                        .put((byte) handleBytes.length)
+                        .put(handleBytes)
+                        .array();
+        return new ProtocolEnvelope(
+                ProtocolVersion.CURRENT, MessageType.LOBBY_SNAPSHOT, SESSION_ID, sequence, payload);
     }
 
     private static void waitUntil(java.util.function.BooleanSupplier condition)

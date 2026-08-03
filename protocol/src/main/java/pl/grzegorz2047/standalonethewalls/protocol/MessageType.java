@@ -14,7 +14,10 @@ public enum MessageType {
     IDENTITY_RESULT(8, 1024, Channel.RELIABLE),
     SESSION_ADMISSION_RESULT(9, 64, Channel.RELIABLE),
     LOBBY_JOINED(10, 128, Channel.RELIABLE),
-    LOBBY_SNAPSHOT(11, 4 * 1024, Channel.RELIABLE);
+    LOBBY_SNAPSHOT(11, 4 * 1024, Channel.RELIABLE),
+    LOBBY_SELECT_TEAM(12, 16, Channel.RELIABLE),
+    LOBBY_SET_READY(13, 16, Channel.RELIABLE),
+    LOBBY_COMMAND_RESULT(14, 32, Channel.RELIABLE);
 
     private final int wireId;
     private final int maximumPayloadBytes;
@@ -51,6 +54,9 @@ public enum MessageType {
             case 9 -> Optional.of(SESSION_ADMISSION_RESULT);
             case 10 -> Optional.of(LOBBY_JOINED);
             case 11 -> Optional.of(LOBBY_SNAPSHOT);
+            case 12 -> Optional.of(LOBBY_SELECT_TEAM);
+            case 13 -> Optional.of(LOBBY_SET_READY);
+            case 14 -> Optional.of(LOBBY_COMMAND_RESULT);
             default -> Optional.empty();
         };
     }
