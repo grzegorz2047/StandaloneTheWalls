@@ -1,0 +1,96 @@
+name: Fix Issue 124 Connected Ownership
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/fix-issue-124-ownership.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/issue-124-client-lobby-command-correlation
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+
+      - name: Transfer connected result ownership once
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          path = Path('client/src/main/java/pl/grzegorz2047/standalonethewalls/client/ui/directconnect/DirectConnectUiController.java')
+          text = path.read_text()
+          pattern = re.compile(
+              r'            case DirectConnectResult\.Connected connected -> \{\n'
+              r'.*?'
+              r'            \}\n'
+              r'(?=            case DirectConnectResult\.Failed failed ->)',
+              re.DOTALL,
+          )
+          replacement = '''            case DirectConnectResult.Connected connected -> {
+              ConnectedLobbySession transferred = connected.takeSession();
+              connectedSession = transferred;
+              LobbySnapshot snapshot = transferred.currentSnapshot();
+              connectedRevision.set(snapshot.revision());
+              focus = DirectConnectUiFocus.PRIMARY_ACTION;
+              publish(connectedModel(snapshot));
+              transferred
+                      .termination()
+                      .whenComplete(
+                              (terminalFailure, terminationError) ->
+                                      dispatcher.dispatch(
+                                              () ->
+                                                      handleTermination(
+                                                              attemptGeneration,
+                                                              terminalFailure,
+                                                              terminationError)));
+          }
+          '''
+          text, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'expected exactly one connected-result block, got {count}')
+
+          old = 'runLifecycle("stale-session", () -> awaitSessionClose(connected.session()));'
+          new = 'runLifecycle("stale-session", () -> awaitSessionClose(connected.takeSession()));'
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f'expected exactly one stale-session transfer, got {count}')
+          text = text.replace(old, new, 1)
+          if 'connected.session()' in text:
+              raise SystemExit('legacy connected.session() accessor remains in controller')
+          path.write_text(text)
+
+      - name: Apply canonical formatting
+        run: ./gradlew --no-daemon spotlessApply
+
+      - name: Run complete client tests and SpotBugs
+        run: ./gradlew --no-daemon :client:test :client:spotbugsMain --rerun-tasks
+
+      - name: Commit tested ownership transfer
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add client/src/main/java/pl/grzegorz2047/standalonethewalls/client/network/DirectConnectResult.java
+          git add client/src/main/java/pl/grzegorz2047/standalonethewalls/client/ui/directconnect/DirectConnectUiController.java
+          git commit -m '[P0][Client] Transfer connected lobby ownership exactly once'
+          git push origin HEAD:agent/issue-124-client-lobby-command-correlation
