@@ -6,26 +6,34 @@ The only version handled by this milestone is `v0.1.0-alpha.1`. The build reads
 ## Repository protection required once
 
 Create a GitHub tag ruleset for `v0.1.0-alpha.1` that restricts tag creation and
-deletion to repository maintainers. Keep `main` protected and require the normal
-CI check before merging the release PR. These settings are administrative and
-cannot be enforced by files inside the repository.
+deletion to repository maintainers and the repository Actions identity used by the
+promotion workflow. Keep `main` protected and require the normal CI check before
+merging release changes. These settings are administrative and cannot be enforced
+by files inside the repository.
 
-## Prepare and publish
+## Automated promotion and publication
 
-1. Merge the release PR after normal CI and distribution E2E are green.
-2. Confirm the intended release commit is on `origin/main`.
-3. Create the annotated tag exactly at that commit:
+1. Merge release changes only after PR CI and distribution E2E are green.
+2. A push to `main` starts `Promote Direct Connect Alpha Tag`.
+3. If `v0.1.0-alpha.1` already exists, promotion exits successfully without moving,
+   replacing, or rebuilding the tag.
+4. When the tag is absent, promotion independently runs:
+   - the complete Java 21 quality gate on Ubuntu;
+   - two-build reproducibility, archive policy, checksum checks, negative checksum
+     verification, and Direct Connect E2E from freshly unpacked distributions;
+   - the complete Java 21 quality gate on Windows.
+5. Only after all three gates succeed, promotion proves `origin/main` still equals
+   the exact triggering commit, rechecks tag absence, and creates annotated
+   `v0.1.0-alpha.1` on that commit.
+6. Promotion dispatches `Publish Direct Connect Alpha`. Publication checks out the
+   existing exact tag, proves it points to a commit on `main`, reruns `check` and
+   the complete release verification, and refuses to replace an existing Release.
+7. The prerelease contains exactly the client ZIP, server ZIP, `SHA256SUMS`, release
+   notes, and known alpha limitations.
 
-   ```bash
-   git tag -a v0.1.0-alpha.1 -m "Sunderfront Direct Connect Alpha"
-   git push origin v0.1.0-alpha.1
-   ```
-
-4. The tag-only workflow repeats `check`, builds each archive twice, compares the
-   bytes, verifies archive policy and checksums, and runs Direct Connect from
-   freshly unpacked distributions.
-5. Publication fails if a release with this tag already exists. It never replaces
-   existing assets silently.
+Do not create or move the release tag manually during the normal process. A missing
+tag is a fail-closed signal that one of the promotion gates has not completed
+successfully. Investigate and repair the gate; do not publish around it.
 
 ## Verify downloaded artifacts
 
