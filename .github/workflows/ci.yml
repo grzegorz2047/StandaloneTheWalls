@@ -100,3 +100,55 @@ jobs:
 
       - name: Run full quality gate
         run: .\gradlew.bat --no-daemon --no-configuration-cache check
+
+  verify-published-alpha:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.head_ref == 'agent/verify-v0.1.0-alpha.1-release'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: v0.1.0-alpha.1
+      SOURCE_COMMIT: de30dc747cc9a0a7ebf6a1a273bf3029cd28a7d6
+    steps:
+      - name: Verify release metadata and assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release view "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json tagName,targetCommitish,isDraft,isPrerelease,assets \
+            > release.json
+          jq -e --arg tag "$TAG" --arg source "$SOURCE_COMMIT" '
+            .tagName == $tag and
+            .targetCommitish == $source and
+            .isDraft == false and
+            .isPrerelease == true and
+            ([.assets[].name] | sort) == [
+              "SHA256SUMS",
+              "sunderfront-client-0.1.0-alpha.1.zip",
+              "sunderfront-server-0.1.0-alpha.1.zip"
+            ] and
+            ([.assets[].size > 0] | all)
+          ' release.json
+          jq '{tagName, targetCommitish, isDraft, isPrerelease, assets: [.assets[] | {name, size}]}' release.json
+
+      - name: Download and verify published bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir published
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir published
+          test "$(find published -maxdepth 1 -type f -printf '%f\n' | sort)" = "$(printf '%s\n' \
+            SHA256SUMS \
+            sunderfront-client-0.1.0-alpha.1.zip \
+            sunderfront-server-0.1.0-alpha.1.zip | sort)"
+          (
+            cd published
+            sha256sum --check SHA256SUMS
+            unzip -t sunderfront-client-0.1.0-alpha.1.zip
+            unzip -t sunderfront-server-0.1.0-alpha.1.zip
+          )
