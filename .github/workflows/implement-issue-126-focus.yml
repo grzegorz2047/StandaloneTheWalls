@@ -1,9 +1,9 @@
 name: Implement Issue 126 Pointer Focus
 
 on:
-  pull_request:
+  push:
     branches:
-      - main
+      - agent/issue-126-mouse-ui
     paths:
       - '.github/workflows/implement-issue-126-focus.yml'
 
