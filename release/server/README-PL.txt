@@ -9,13 +9,18 @@ klienta Windows x64.
 PIERWSZE URUCHOMIENIE
 --------------------
 
-1. Rozpakuj całe archiwum do zwykłego katalogu z prawem zapisu.
+1. Rozpakuj całe archiwum do zwykłego, nowego katalogu z prawem zapisu.
 2. Zainstaluj 64-bitową Java 21, jeżeli nie jest jeszcze dostępna.
 3. Kliknij dwukrotnie 1_GENERUJ_CREDENTIALS.bat.
 4. Zapisz kopię katalogów credentials i data w bezpiecznym miejscu.
 5. Kliknij dwukrotnie 2_URUCHOM_SERWER.bat.
 6. Przekaż graczom publiczny fingerprint z pliku
    credentials\server-fingerprint.txt. Nigdy nie przekazuj prywatnego klucza.
+
+Nie kopiuj samych numerowanych skryptów do katalogu starszej wersji. Pliki
+1_GENERUJ_CREDENTIALS.bat, 2_URUCHOM_SERWER.bat, bin, lib i config muszą
+pochodzić z tego samego kompletnego archiwum. W przeciwnym razie launcher przerwie
+pracę jako niekompletna albo mieszana paczka.
 
 Ponowne uruchomienie kroku 1 przy kompletnym zestawie jest bezpieczne: launcher
 nie generuje nowych kluczy, nie zmienia tożsamości serwera, pokazuje istniejący
@@ -79,6 +84,9 @@ CO OZNACZAJĄ KATALOGI
 ROZWIĄZYWANIE PROBLEMÓW
 -----------------------
 
+- Paczka niekompletna albo pliki z różnych wersji: nie uzupełniaj pojedynczych
+  skryptów. Rozpakuj całe archiwum serwera do nowego pustego katalogu i dopiero
+  wtedy przenieś kompletny, wcześniej zapisany katalog credentials.
 - Brak lub zła Java: uruchom ponownie odpowiedni numerowany skrypt i przeczytaj
   komunikat pozostawiony w oknie konsoli.
 - Kompletny istniejący zestaw credentials: krok 1 zakończy się sukcesem bez
