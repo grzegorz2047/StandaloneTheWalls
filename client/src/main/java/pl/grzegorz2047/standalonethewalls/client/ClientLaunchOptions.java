@@ -1,13 +1,19 @@
 package pl.grzegorz2047.standalonethewalls.client;
 
+import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Objects;
 import pl.grzegorz2047.standalonethewalls.client.i18n.ClientLanguage;
 
 /** Strict first-screen client command-line options. */
-public record ClientLaunchOptions(ClientLanguage language, boolean smokeMode) {
+public record ClientLaunchOptions(
+        ClientLanguage language, boolean smokeMode, Path dataDirectory) {
     public ClientLaunchOptions {
         Objects.requireNonNull(language, "language");
+        dataDirectory =
+                Objects.requireNonNull(dataDirectory, "dataDirectory")
+                        .toAbsolutePath()
+                        .normalize();
     }
 
     public static ClientLaunchOptions parse(String[] arguments) {
@@ -17,7 +23,9 @@ public record ClientLaunchOptions(ClientLanguage language, boolean smokeMode) {
     static ClientLaunchOptions parse(String[] arguments, Locale defaultLocale) {
         Objects.requireNonNull(arguments, "arguments");
         ClientLanguage language = ClientLanguage.fromLocale(defaultLocale);
+        Path dataDirectory = Path.of("data");
         boolean languageSet = false;
+        boolean dataDirectorySet = false;
         boolean smoke = false;
         for (int index = 0; index < arguments.length; index++) {
             String argument = requireArgument(arguments[index]);
@@ -26,15 +34,17 @@ public record ClientLaunchOptions(ClientLanguage language, boolean smokeMode) {
                     if (languageSet) {
                         throw new IllegalArgumentException("--lang may be supplied only once");
                     }
-                    if (++index >= arguments.length) {
-                        throw new IllegalArgumentException("--lang requires en or pl");
-                    }
-                    String languageCode = requireArgument(arguments[index]);
-                    if (languageCode.startsWith("--")) {
-                        throw new IllegalArgumentException("--lang requires en or pl");
-                    }
+                    String languageCode = requireValue(arguments, ++index, "--lang");
                     language = ClientLanguage.parse(languageCode);
                     languageSet = true;
+                }
+                case "--data-dir" -> {
+                    if (dataDirectorySet) {
+                        throw new IllegalArgumentException(
+                                "--data-dir may be supplied only once");
+                    }
+                    dataDirectory = Path.of(requireValue(arguments, ++index, "--data-dir"));
+                    dataDirectorySet = true;
                 }
                 case "--smoke" -> {
                     if (smoke) {
@@ -45,7 +55,18 @@ public record ClientLaunchOptions(ClientLanguage language, boolean smokeMode) {
                 default -> throw new IllegalArgumentException("unknown argument: " + argument);
             }
         }
-        return new ClientLaunchOptions(language, smoke);
+        return new ClientLaunchOptions(language, smoke, dataDirectory);
+    }
+
+    private static String requireValue(String[] arguments, int index, String option) {
+        if (index >= arguments.length) {
+            throw new IllegalArgumentException(option + " requires a value");
+        }
+        String value = requireArgument(arguments[index]);
+        if (value.isBlank() || value.startsWith("--")) {
+            throw new IllegalArgumentException(option + " requires a value");
+        }
+        return value;
     }
 
     private static String requireArgument(String argument) {
