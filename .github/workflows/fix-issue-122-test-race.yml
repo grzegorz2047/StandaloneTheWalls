@@ -34,24 +34,23 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
+          import re
 
           path = Path('server/src/test/java/pl/grzegorz2047/standalonethewalls/server/identity/session/MinimalLobbyRuntimeTest.java')
           text = path.read_text()
-          old = '''            waitUntil(
-                      () ->
-                              lobby.memberCount() == 1
-                                      && latestSnapshotUnchecked(alpha).revision() == 1L);
-          '''
-          new = '''            waitUntil(
-                      () ->
-                              lobby.memberCount() == 1
-                                      && snapshotCount(alpha) >= 1
-                                      && latestSnapshotUnchecked(alpha).revision() == 1L);
-          '''
-          count = text.count(old)
+          pattern = re.compile(
+              r'lobby\.memberCount\(\) == 1\s*'
+              r'&& latestSnapshotUnchecked\(alpha\)\.revision\(\) == 1L'
+          )
+          replacement = (
+              'lobby.memberCount() == 1\n'
+              '                                    && snapshotCount(alpha) >= 1\n'
+              '                                    && latestSnapshotUnchecked(alpha).revision() == 1L'
+          )
+          text, count = pattern.subn(replacement, text, count=1)
           if count != 1:
               raise SystemExit(f'expected exactly one snapshot wait replacement, got {count}')
-          path.write_text(text.replace(old, new, 1))
+          path.write_text(text)
 
       - name: Format changed test
         run: ./gradlew --no-daemon spotlessApply
