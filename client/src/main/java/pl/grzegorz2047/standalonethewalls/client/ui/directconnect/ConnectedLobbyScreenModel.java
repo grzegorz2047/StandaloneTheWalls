@@ -3,14 +3,16 @@ package pl.grzegorz2047.standalonethewalls.client.ui.directconnect;
 import java.util.Objects;
 import pl.grzegorz2047.standalonethewalls.client.ui.lobby.ConnectedLobbyModel;
 
-/** Renderer-independent connected-lobby roster and bounded command presentation state. */
+/** Renderer-independent connected-lobby roster, match phase, and command presentation state. */
 public record ConnectedLobbyScreenModel(
         ConnectedLobbyModel lobby,
+        ConnectedLobbyMatchModel match,
         boolean commandInFlight,
         String readyAction,
         String commandStatus) {
     public ConnectedLobbyScreenModel {
         Objects.requireNonNull(lobby, "lobby");
+        Objects.requireNonNull(match, "match");
         readyAction = Objects.requireNonNull(readyAction, "readyAction");
         commandStatus = Objects.requireNonNull(commandStatus, "commandStatus");
         if (readyAction.isBlank()) {
@@ -19,7 +21,7 @@ public record ConnectedLobbyScreenModel(
     }
 
     public boolean controlsEnabled() {
-        return !commandInFlight;
+        return !commandInFlight && match.lobbyControlsAllowed();
     }
 
     public boolean ownReady() {
