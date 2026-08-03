@@ -25,6 +25,7 @@ public final class ConnectedLobbySession implements AutoCloseable {
     private final CanonicalHandle handle;
     private final AtomicReference<LobbySnapshot> snapshot;
     private final AtomicReference<DirectConnectFailure> terminalFailure = new AtomicReference<>();
+    private final AtomicBoolean receiverStarted = new AtomicBoolean();
     private final AtomicBoolean closing = new AtomicBoolean();
     private final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
     private final CompletableFuture<Optional<DirectConnectFailure>> termination =
@@ -41,9 +42,6 @@ public final class ConnectedLobbySession implements AutoCloseable {
         snapshot = new AtomicReference<>(Objects.requireNonNull(initialSnapshot, "initialSnapshot"));
         this.ownershipReleased = Objects.requireNonNull(ownershipReleased, "ownershipReleased");
         requireExactSelf(initialSnapshot, playerId, handle);
-        Thread.ofVirtual()
-                .name("sunderfront-direct-connect-lobby-receiver")
-                .start(this::receiveLoop);
     }
 
     public PlayerId playerId() {
@@ -59,7 +57,7 @@ public final class ConnectedLobbySession implements AutoCloseable {
     }
 
     public boolean isOpen() {
-        return !closing.get() && session.isOpen();
+        return receiverStarted.get() && !closing.get() && session.isOpen();
     }
 
     public Optional<DirectConnectFailure> terminalFailure() {
@@ -78,6 +76,26 @@ public final class ConnectedLobbySession implements AutoCloseable {
     @Override
     public void close() {
         closeAsync();
+    }
+
+    void startReceiving() {
+        if (!receiverStarted.compareAndSet(false, true)) {
+            throw new IllegalStateException("lobby receiver can be started only once");
+        }
+        if (closing.get()) {
+            return;
+        }
+        try {
+            Thread.ofVirtual()
+                    .name("sunderfront-direct-connect-lobby-receiver")
+                    .start(this::receiveLoop);
+        } catch (RuntimeException exception) {
+            finish(
+                    Optional.of(
+                            DirectConnectFailure.of(
+                                    DirectConnectFailureCode.INTERNAL_FAILURE)));
+            throw exception;
+        }
     }
 
     static boolean containsExactSelf(
