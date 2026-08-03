@@ -11,7 +11,9 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
@@ -35,7 +37,8 @@ class ConnectedLobbySessionTest {
     private static final UUID SESSION_ID = UUID.fromString("12345678-1234-4234-8234-1234567890ab");
 
     @Test
-    void acceptsOnlyNewerSnapshotsContainingExactSelfAndClosesOnce() throws Exception {
+    void acceptsOnlyNewerSnapshotsContainingExactSelfAndClosesOnce()
+            throws InterruptedException, ExecutionException, TimeoutException {
         StubReliableChannel channel = new StubReliableChannel();
         AuthenticatedReliableSession transport =
                 AuthenticatedReliableSessionTestFactory.create(channel, PLAYER_ID, HANDLE);
@@ -59,7 +62,8 @@ class ConnectedLobbySessionTest {
     }
 
     @Test
-    void staleSnapshotClosesFailClosed() throws Exception {
+    void staleSnapshotClosesFailClosed()
+            throws InterruptedException, ExecutionException, TimeoutException {
         StubReliableChannel channel = new StubReliableChannel();
         ConnectedLobbySession session = createSession(channel, snapshot(2L, HANDLE));
         session.startReceiving();
@@ -76,7 +80,8 @@ class ConnectedLobbySessionTest {
     }
 
     @Test
-    void changedSelfHandleClosesFailClosed() throws Exception {
+    void changedSelfHandleClosesFailClosed()
+            throws InterruptedException, ExecutionException, TimeoutException {
         StubReliableChannel channel = new StubReliableChannel();
         ConnectedLobbySession session = createSession(channel, snapshot(1L, HANDLE));
         session.startReceiving();
@@ -93,7 +98,8 @@ class ConnectedLobbySessionTest {
     }
 
     @Test
-    void unexpectedMessageClosesFailClosed() throws Exception {
+    void unexpectedMessageClosesFailClosed()
+            throws InterruptedException, ExecutionException, TimeoutException {
         StubReliableChannel channel = new StubReliableChannel();
         ConnectedLobbySession session = createSession(channel, snapshot(1L, HANDLE));
         session.startReceiving();
@@ -130,7 +136,8 @@ class ConnectedLobbySessionTest {
                 LobbyProtocolCodec.encodeSnapshot(snapshot));
     }
 
-    private static void waitUntil(java.util.function.BooleanSupplier condition) throws Exception {
+    private static void waitUntil(java.util.function.BooleanSupplier condition)
+            throws InterruptedException {
         long deadline = System.nanoTime() + TIMEOUT.toNanos();
         while (!condition.getAsBoolean()) {
             if (System.nanoTime() >= deadline) {
