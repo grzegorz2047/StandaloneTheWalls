@@ -1,10 +1,48 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+$PeMachineAmd64 = 0x8664
+
 function Require-File {
     param([Parameter(Mandatory = $true)][string] $Path)
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
         throw "Required Windows app-image file is missing: $Path"
+    }
+}
+
+function Get-PeMachine {
+    param([Parameter(Mandatory = $true)][string] $Path)
+
+    Require-File $Path
+    $stream = [System.IO.File]::OpenRead($Path)
+    $reader = [System.IO.BinaryReader]::new($stream)
+    try {
+        if ($reader.ReadUInt16() -ne 0x5A4D) {
+            throw "Invalid DOS header: $Path"
+        }
+        $stream.Position = 0x3C
+        $peOffset = $reader.ReadUInt32()
+        if ($peOffset -gt ($stream.Length - 6)) {
+            throw "Truncated PE header: $Path"
+        }
+        $stream.Position = $peOffset
+        if ($reader.ReadUInt32() -ne 0x00004550) {
+            throw "Invalid PE signature: $Path"
+        }
+        return $reader.ReadUInt16()
+    }
+    finally {
+        $reader.Dispose()
+        $stream.Dispose()
+    }
+}
+
+function Require-X64Pe {
+    param([Parameter(Mandatory = $true)][string] $Path)
+
+    $machine = Get-PeMachine $Path
+    if ($machine -ne $PeMachineAmd64) {
+        throw ("PE file is not x64: {0}; machine=0x{1:X4}" -f $Path, $machine)
     }
 }
 
@@ -35,30 +73,26 @@ function Invoke-AppImageSmoke {
 
     $executable = Join-Path $Image 'Sunderfront.exe'
     $runtimeRelease = Join-Path $Image 'runtime/release'
-    $runtimeJava = Join-Path $Image 'runtime/bin/java.exe'
+    $runtimeJvm = Join-Path $Image 'runtime/bin/server/jvm.dll'
     Require-File $executable
     Require-File $runtimeRelease
-    Require-File $runtimeJava
+    Require-File $runtimeJvm
     Require-File (Join-Path $Image 'app/Sunderfront.cfg')
     Require-File (Join-Path $Image 'README.md')
     Require-File (Join-Path $Image 'README-PL.txt')
     Require-File (Join-Path $Image 'ICON-LICENSE.md')
     Require-File (Join-Path $Image 'assets/assets.lock.json')
 
-    $runtimeProperties = & $runtimeJava -XshowSettings:properties -version 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        throw "Bundled runtime could not report its properties"
+    $releaseText = Get-Content -LiteralPath $runtimeRelease -Raw
+    if ($releaseText -notmatch 'JAVA_VERSION="21(?:\.|\")') {
+        throw "Bundled runtime is not Java 21"
     }
-    $runtimeText = $runtimeProperties -join [Environment]::NewLine
-    if ($runtimeText -notmatch '(?m)^\s*java\.version\s*=\s*21(?:\.|$)') {
-        throw "Bundled runtime is not Java 21: $runtimeText"
-    }
-    if ($runtimeText -notmatch '(?m)^\s*os\.arch\s*=\s*(?:amd64|x86_64)\s*$') {
-        throw "Bundled runtime is not x64: $runtimeText"
-    }
-    foreach ($tool in @('javac.exe', 'javadoc.exe', 'jpackage.exe', 'jcmd.exe', 'jconsole.exe')) {
+    Require-X64Pe $executable
+    Require-X64Pe $runtimeJvm
+
+    foreach ($tool in @('java.exe', 'javac.exe', 'javadoc.exe', 'jpackage.exe', 'jcmd.exe', 'jconsole.exe')) {
         if (Test-Path -LiteralPath (Join-Path $Image "runtime/bin/$tool")) {
-            throw "Bundled runtime contains a forbidden JDK tool: $tool"
+            throw "Bundled application runtime contains an unnecessary Java/JDK launcher: $tool"
         }
     }
     Assert-NoRuntimeData $Image
