@@ -27,9 +27,7 @@ class UiPointerHitTest {
     @Test
     void rectangleAndTargetIdentifiersRejectNonCanonicalValues() {
         assertThrows(IllegalArgumentException.class, () -> new UiRect(0f, 0f, 0f, 1f));
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> new UiRect(Float.NaN, 0f, 1f, 1f));
+        assertThrows(IllegalArgumentException.class, () -> new UiRect(Float.NaN, 0f, 1f, 1f));
         assertThrows(IllegalArgumentException.class, () -> new UiTargetId("Menu Play"));
         assertThrows(IllegalArgumentException.class, () -> new UiTargetId(""));
     }
@@ -58,8 +56,7 @@ class UiPointerHitTest {
         UiHitTarget target = UiHitTarget.enabled(LOWER, new UiRect(0f, 0f, 10f, 10f));
 
         assertThrows(
-                IllegalArgumentException.class,
-                () -> new UiHitMap(List.of(target, target)));
+                IllegalArgumentException.class, () -> new UiHitMap(List.of(target, target)));
         UiHitMap map = new UiHitMap(List.of(target));
         assertThrows(UnsupportedOperationException.class, () -> map.targets().clear());
     }
