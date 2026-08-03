@@ -1,11 +1,6 @@
 name: Fix Issue 122 Shutdown
 
 on:
-  push:
-    branches:
-      - agent/issue-122-lobby-team-ready-protocol
-    paths:
-      - '.github/workflows/fix-issue-122-shutdown.yml'
   pull_request:
     branches:
       - main
@@ -36,7 +31,6 @@ jobs:
           cache-read-only: true
 
       - name: Apply domain-owned shutdown removal
-        if: github.event_name == 'push'
         shell: python
         run: |
           from pathlib import Path
@@ -94,11 +88,9 @@ jobs:
           test.write_text(text.replace(old, new, 1))
 
       - name: Format and test server
-        if: github.event_name == 'push'
         run: ./gradlew --no-daemon spotlessApply :server:test
 
       - name: Commit tested fix
-        if: github.event_name == 'push'
         shell: bash
         run: |
           set -euo pipefail
