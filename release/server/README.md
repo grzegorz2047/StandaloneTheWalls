@@ -7,17 +7,31 @@ The Java-free `Sunderfront.exe` package applies only to the Windows client.
 
 ## Windows first run
 
-Extract the complete archive and use the numbered root launchers:
+Extract the complete archive into a new writable directory and use the numbered
+root launchers:
 
-1. double-click `1_GENERUJ_CREDENTIALS.bat` exactly once;
+1. double-click `1_GENERUJ_CREDENTIALS.bat`;
 2. double-click `2_URUCHOM_SERWER.bat` for every server start.
 
-Both launchers check for a 64-bit Java 21 runtime and keep the console open after
-an error. The second launcher refuses to start without the required credentials
-and always supplies the server, identity, and TLS configuration files. This is
-the normal Windows path that opens the reliable TLS listener and minimal lobby.
+Do not copy only the numbered launchers into an older package. The root launchers,
+`bin/`, `lib/`, `config/`, and `tools/` must come from the same complete archive.
+The credential launcher rejects a missing technical launcher or Java-check helper
+as an incomplete or mixed-version package.
 
-`README-PL.txt` contains the short Polish operator guide.
+The first launcher is safe to run again. If all four credential files already
+exist and are non-empty, it preserves the current server identity, prints the
+existing public fingerprint, and exits successfully without invoking the
+generator. A partial or empty-file set fails closed without creating, deleting,
+or replacing any credential file.
+
+Both launchers check for a 64-bit Java 21 runtime when Java execution is needed
+and keep the console open after an error. The second launcher refuses to start
+without the required credentials and always supplies the server, identity, and
+TLS configuration files. This is the normal Windows path that opens the reliable
+TLS listener and minimal lobby.
+
+`README-PL.txt` contains the Polish operator guide and the recovery procedure for
+a partial credential directory.
 
 ## Technical credential generation
 
@@ -33,11 +47,17 @@ The equivalent Windows technical command is:
 bin\sunderfront-server-credentials.bat --output credentials
 ```
 
-The generator refuses to overwrite any target. It creates an Ed25519 PKCS#8
-private key, a self-signed X.509 server certificate, a public registry-root file
-suitable for the alpha `LOCAL_TOFU` configuration, and `server-fingerprint.txt`.
-Protect the private key and back it up together with `data/identity.sqlite`.
-Share only the fingerprint with players.
+The technical generator refuses to overwrite any target. It creates an Ed25519
+PKCS#8 private key, a self-signed X.509 server certificate, a public registry-root
+file suitable for the alpha `LOCAL_TOFU` configuration, and
+`server-fingerprint.txt`. Protect the private key and back it up together with
+`data/identity.sqlite`. Share only the fingerprint with players.
+
+Never combine files from different generator runs. The private key, certificate,
+and fingerprint form one identity set. Before recovering from a partial set,
+back up the entire `credentials` directory. Creating a fresh empty set changes
+the server identity and causes returning clients to warn about a changed
+fingerprint.
 
 ## Validate configuration
 
