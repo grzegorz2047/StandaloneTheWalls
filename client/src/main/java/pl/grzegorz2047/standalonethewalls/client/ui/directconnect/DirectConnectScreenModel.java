@@ -1,9 +1,7 @@
 package pl.grzegorz2047.standalonethewalls.client.ui.directconnect;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMember;
 
 /** Complete immutable render input for the Direct Connect screen. */
 public record DirectConnectScreenModel(
@@ -19,7 +17,7 @@ public record DirectConnectScreenModel(
         boolean primaryEnabled,
         boolean secondaryEnabled,
         Optional<String> fingerprint,
-        List<LobbyMember> members) {
+        Optional<ConnectedLobbyScreenModel> connectedLobby) {
     public DirectConnectScreenModel {
         Objects.requireNonNull(phase, "phase");
         Objects.requireNonNull(focus, "focus");
@@ -31,13 +29,14 @@ public record DirectConnectScreenModel(
         primaryAction = Objects.requireNonNull(primaryAction, "primaryAction");
         secondaryAction = Objects.requireNonNull(secondaryAction, "secondaryAction");
         fingerprint = Objects.requireNonNull(fingerprint, "fingerprint");
-        members = List.copyOf(Objects.requireNonNull(members, "members"));
+        connectedLobby = Objects.requireNonNull(connectedLobby, "connectedLobby");
         if (fingerprint.isPresent() && phase != DirectConnectUiPhase.CONFIRMING_IDENTITY) {
             throw new IllegalArgumentException(
                     "fingerprint is allowed only while confirming server identity");
         }
-        if (!members.isEmpty() && phase != DirectConnectUiPhase.CONNECTED) {
-            throw new IllegalArgumentException("members are allowed only while connected");
+        if (connectedLobby.isPresent() != (phase == DirectConnectUiPhase.CONNECTED)) {
+            throw new IllegalArgumentException(
+                    "structured lobby state is required exactly while connected");
         }
     }
 
