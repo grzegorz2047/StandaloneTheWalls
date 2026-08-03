@@ -89,19 +89,34 @@ jobs:
           if count != 1:
               raise SystemExit(f'expected exactly one shutdown assertion replacement, got {count}')
 
-          old_wait = '''            waitUntil(() -> lobby.memberCount() == 1 && alpha.closeCount() == 1);
+          old_replay_wait = '''            waitUntil(() -> lobby.memberCount() == 1 && alpha.closeCount() == 1);
           '''
-          new_wait = '''            waitUntil(
+          new_replay_wait = '''            waitUntil(
                       () ->
                               lobby.memberCount() == 1
                                       && alpha.closeCount() == 1
                                       && latestSnapshotUnchecked(bravo).revision() == 4L);
           '''
-          if text.count(old_wait) != 1:
+          if text.count(old_replay_wait) != 1:
               raise SystemExit(
-                  f'expected exactly one replay wait replacement, got {text.count(old_wait)}'
+                  f'expected exactly one replay wait replacement, got {text.count(old_replay_wait)}'
               )
-          test.write_text(text.replace(old_wait, new_wait, 1))
+          text = text.replace(old_replay_wait, new_replay_wait, 1)
+
+          old_baseline = '''            waitUntil(() -> lobby.memberCount() == 1);
+              int initialSnapshots = snapshotCount(alpha);
+          '''
+          new_baseline = '''            waitUntil(
+                      () ->
+                              lobby.memberCount() == 1
+                                      && latestSnapshotUnchecked(alpha).revision() == 1L);
+              int initialSnapshots = snapshotCount(alpha);
+          '''
+          if text.count(old_baseline) != 1:
+              raise SystemExit(
+                  f'expected exactly one baseline wait replacement, got {text.count(old_baseline)}'
+              )
+          test.write_text(text.replace(old_baseline, new_baseline, 1))
 
       - name: Format and test server
         run: ./gradlew --no-daemon spotlessApply :server:test
