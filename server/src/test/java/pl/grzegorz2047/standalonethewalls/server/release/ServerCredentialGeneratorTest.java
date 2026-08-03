@@ -7,12 +7,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.HexFormat;
+import java.util.Locale;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerFingerprint;
@@ -37,11 +39,14 @@ class ServerCredentialGeneratorTest {
         assertTrue(Files.size(registryRoots) > 0);
         assertTrue(Files.size(fingerprint) > 0);
 
-        X509Certificate parsedCertificate =
-                (X509Certificate)
-                        CertificateFactory.getInstance(
-                                        "X.509", BouncyCastleTlsCryptoFactory.provider())
-                                .generateCertificate(Files.newInputStream(certificate));
+        X509Certificate parsedCertificate;
+        try (InputStream input = Files.newInputStream(certificate)) {
+            parsedCertificate =
+                    (X509Certificate)
+                            CertificateFactory.getInstance(
+                                            "X.509", BouncyCastleTlsCryptoFactory.provider())
+                                    .generateCertificate(input);
+        }
         assertEquals(
                 generated.fingerprint(),
                 ServerFingerprint.fromPublicKey(parsedCertificate.getPublicKey().getEncoded()));
@@ -51,10 +56,10 @@ class ServerCredentialGeneratorTest {
 
         String rootLine = Files.readString(registryRoots, StandardCharsets.US_ASCII);
         assertTrue(rootLine.endsWith("\n"));
-        assertFalse(rootLine.substring(0, rootLine.length() - 1).isBlank());
-        assertArrayEquals(
-                HexFormat.of().parseHex(rootLine.substring(0, rootLine.length() - 1)),
-                HexFormat.of().parseHex(rootLine.trim()));
+        String rootValue = rootLine.substring(0, rootLine.length() - 1);
+        assertFalse(rootValue.isBlank());
+        assertEquals(rootValue.toLowerCase(Locale.ROOT), rootValue);
+        assertTrue(HexFormat.of().parseHex(rootValue).length > 0);
 
         byte[] originalPrivateKey = Files.readAllBytes(privateKey);
         assertThrows(IOException.class, () -> ServerCredentialGenerator.generate(output));
