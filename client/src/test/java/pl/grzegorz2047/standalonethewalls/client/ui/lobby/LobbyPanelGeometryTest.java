@@ -28,7 +28,8 @@ class LobbyPanelGeometryTest {
         assertEquals(LobbyPanelLayout.FOUR_COLUMNS, geometry.layout());
         assertWithinViewportAndDisjoint(geometry.panels(), 1920f, 1080f);
         for (int index = 1; index < geometry.panels().size(); index++) {
-            assertTrue(geometry.panels().get(index).left() > geometry.panels().get(index - 1).left());
+            assertTrue(
+                    geometry.panels().get(index).left() > geometry.panels().get(index - 1).left());
             assertEquals(geometry.panels().get(0).bottom(), geometry.panels().get(index).bottom());
         }
     }
@@ -39,11 +40,9 @@ class LobbyPanelGeometryTest {
                 IllegalArgumentException.class,
                 () -> LobbyPanelGeometry.forViewport(Float.NaN, 720f));
         assertThrows(
-                IllegalArgumentException.class,
-                () -> LobbyPanelGeometry.forViewport(720f, 0f));
+                IllegalArgumentException.class, () -> LobbyPanelGeometry.forViewport(720f, 0f));
         assertThrows(
-                IllegalArgumentException.class,
-                () -> LobbyPanelGeometry.forViewport(100f, 200f));
+                IllegalArgumentException.class, () -> LobbyPanelGeometry.forViewport(100f, 200f));
     }
 
     private static void assertWithinViewportAndDisjoint(

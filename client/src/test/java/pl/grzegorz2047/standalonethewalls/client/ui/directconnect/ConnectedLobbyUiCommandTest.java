@@ -64,11 +64,9 @@ class ConnectedLobbyUiCommandTest {
         controller.activate();
         assertEquals(1, lobby.sentCommands().size());
         assertEquals(
-                MESSAGES.text("direct.lobby.command.busy"),
-                connected(controller).commandStatus());
+                MESSAGES.text("direct.lobby.command.busy"), connected(controller).commandStatus());
 
-        lobby.deliverResult(
-                new LobbyCommandResult(1L, 2L, LobbyCommandOutcome.APPLIED), 1L);
+        lobby.deliverResult(new LobbyCommandResult(1L, 2L, LobbyCommandOutcome.APPLIED), 1L);
         TimeUnit.MILLISECONDS.sleep(20L);
         assertBusy(controller);
         assertEquals(
@@ -84,8 +82,7 @@ class ConnectedLobbyUiCommandTest {
                         connected(controller).lobby().revision() == 2L
                                 && connected(controller).controlsEnabled());
         assertEquals(
-                LobbyTeam.GREEN,
-                connected(controller).lobby().ownMember().orElseThrow().team());
+                LobbyTeam.GREEN, connected(controller).lobby().ownMember().orElseThrow().team());
         assertEquals(
                 MESSAGES.text("direct.lobby.command.applied"),
                 connected(controller).commandStatus());
@@ -97,8 +94,7 @@ class ConnectedLobbyUiCommandTest {
         assertEquals(
                 new LobbySetReadyCommand(2L, true),
                 LobbyProtocolCodec.decodeSetReady(ready.payload()));
-        lobby.deliverResult(
-                new LobbyCommandResult(2L, 3L, LobbyCommandOutcome.APPLIED), 3L);
+        lobby.deliverResult(new LobbyCommandResult(2L, 3L, LobbyCommandOutcome.APPLIED), 3L);
         lobby.deliverSnapshot(
                 DirectConnectUiTestFixtures.snapshot(
                         3L, LobbyTeam.GREEN, true, LobbyTeam.BLUE, false),
@@ -115,8 +111,7 @@ class ConnectedLobbyUiCommandTest {
         controller.focus(DirectConnectUiFocus.TEAM_GREEN);
         controller.activate();
         onlyCommand(lobby, 3);
-        lobby.deliverResult(
-                new LobbyCommandResult(3L, 3L, LobbyCommandOutcome.NO_CHANGE), 5L);
+        lobby.deliverResult(new LobbyCommandResult(3L, 3L, LobbyCommandOutcome.NO_CHANGE), 5L);
         waitUntil(() -> connected(controller).controlsEnabled());
         assertEquals(
                 MESSAGES.text("direct.lobby.command.no_change"),
@@ -126,8 +121,11 @@ class ConnectedLobbyUiCommandTest {
                 DirectConnectUiTestFixtures.snapshot(
                         4L, LobbyTeam.GREEN, true, LobbyTeam.BLUE, true),
                 6L);
-        waitUntil(() -> lobby.session().currentSnapshot().revision() == 4L);
-        controller.refreshConnectedSnapshot();
+        waitUntil(
+                () -> {
+                    controller.refreshConnectedSnapshot();
+                    return connected(controller).lobby().revision() == 4L;
+                });
         assertEquals(4L, connected(controller).lobby().revision());
         assertTrue(
                 connected(controller).lobby().panel(LobbyTeam.BLUE).members().getFirst().ready());
@@ -142,8 +140,7 @@ class ConnectedLobbyUiCommandTest {
             waitUntil(() -> connected(controller).controlsEnabled());
             assertEquals(
                     MESSAGES.text(
-                            "direct.lobby.command."
-                                    + rejection.name().toLowerCase(Locale.ROOT)),
+                            "direct.lobby.command." + rejection.name().toLowerCase(Locale.ROOT)),
                     connected(controller).commandStatus());
             assertEquals(DirectConnectUiPhase.CONNECTED, controller.model().phase());
             requestId++;
@@ -152,7 +149,7 @@ class ConnectedLobbyUiCommandTest {
         controller.focus(DirectConnectUiFocus.TEAM_YELLOW);
         controller.activate();
         assertBusy(controller);
-        lobby.session().closeAsync();
+        controller.escape();
         waitUntil(() -> controller.model().phase() == DirectConnectUiPhase.DISCONNECTED);
         assertTrue(controller.model().connectedLobby().isEmpty());
         controller.close();
@@ -241,10 +238,7 @@ class ConnectedLobbyUiCommandTest {
         private final DirectConnectResult result;
 
         private ImmediateConnectedBackend(ControlledLobby lobby) {
-            result =
-                    new DirectConnectResult.Connected(
-                            lobby.session(),
-                            PlayerSessionAdmissionStatus.LOCAL_RETURNING_ACCEPTED);
+            result = lobby.connectedResult(PlayerSessionAdmissionStatus.LOCAL_RETURNING_ACCEPTED);
         }
 
         @Override

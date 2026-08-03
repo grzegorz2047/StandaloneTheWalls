@@ -60,11 +60,7 @@ class ConnectedLobbyModelTest {
     void groupsTenParticipantsAcrossEveryTeamAndUnassigned() {
         List<LobbyMember> members = new ArrayList<>();
         LobbyTeam[] teams = {
-            LobbyTeam.UNASSIGNED,
-            LobbyTeam.RED,
-            LobbyTeam.BLUE,
-            LobbyTeam.GREEN,
-            LobbyTeam.YELLOW
+            LobbyTeam.UNASSIGNED, LobbyTeam.RED, LobbyTeam.BLUE, LobbyTeam.GREEN, LobbyTeam.YELLOW
         };
         for (int index = 0; index < 10; index++) {
             LobbyTeam team = teams[index % teams.length];
@@ -89,16 +85,13 @@ class ConnectedLobbyModelTest {
     @Test
     void acceptsTheProtocolMaximumOfFortyParticipants() {
         List<LobbyMember> members = new ArrayList<>();
-        LobbyTeam[] teams = {
-            LobbyTeam.RED, LobbyTeam.BLUE, LobbyTeam.GREEN, LobbyTeam.YELLOW
-        };
+        LobbyTeam[] teams = {LobbyTeam.RED, LobbyTeam.BLUE, LobbyTeam.GREEN, LobbyTeam.YELLOW};
         for (int index = 0; index < LobbySnapshot.MAXIMUM_MEMBERS; index++) {
             members.add(member(index, teams[index % teams.length], index % 3 == 0));
         }
 
         ConnectedLobbyModel model =
-                ConnectedLobbyModel.from(
-                        new LobbySnapshot(9L, members), Optional.of(playerId(39)));
+                ConnectedLobbyModel.from(new LobbySnapshot(9L, members), Optional.of(playerId(39)));
 
         assertEquals(40, model.totalMembers());
         assertTrue(model.unassignedMembers().isEmpty());
@@ -126,11 +119,8 @@ class ConnectedLobbyModelTest {
                 IllegalArgumentException.class,
                 () -> ConnectedLobbyModel.from(snapshot, Optional.of(playerId(1))));
         assertThrows(
-                IllegalArgumentException.class,
-                () -> LobbyPanelLayout.forViewportWidth(Float.NaN));
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> LobbyPanelLayout.forViewportWidth(0f));
+                IllegalArgumentException.class, () -> LobbyPanelLayout.forViewportWidth(Float.NaN));
+        assertThrows(IllegalArgumentException.class, () -> LobbyPanelLayout.forViewportWidth(0f));
     }
 
     private static LobbyMember member(int index, LobbyTeam team, boolean ready) {

@@ -796,11 +796,7 @@ public final class DirectConnectUiController implements AutoCloseable {
                             DirectConnectUiFocus.READY_ACTION,
                             DirectConnectUiFocus.PRIMARY_ACTION,
                             DirectConnectUiFocus.SECONDARY_ACTION);
-            case CONFIRMING_IDENTITY,
-                    SECURITY_ALERT,
-                    ADMISSION_REJECTED,
-                    FAILED,
-                    DISCONNECTED ->
+            case CONFIRMING_IDENTITY, SECURITY_ALERT, ADMISSION_REJECTED, FAILED, DISCONNECTED ->
                     List.of(
                             DirectConnectUiFocus.PRIMARY_ACTION,
                             DirectConnectUiFocus.SECONDARY_ACTION);

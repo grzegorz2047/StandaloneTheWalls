@@ -24,12 +24,9 @@ public record LobbyPanelGeometry(LobbyPanelLayout layout, List<UiRect> panels) {
         }
         LobbyPanelLayout layout = LobbyPanelLayout.forViewportWidth(width);
         float availableWidth =
-                width
-                        - (2f * HORIZONTAL_MARGIN)
-                        - ((layout.columns() - 1) * PANEL_GAP);
+                width - (2f * HORIZONTAL_MARGIN) - ((layout.columns() - 1) * PANEL_GAP);
         float top = height - TOP_RESERVED;
-        float availableHeight =
-                top - BOTTOM_RESERVED - ((layout.rows() - 1) * PANEL_GAP);
+        float availableHeight = top - BOTTOM_RESERVED - ((layout.rows() - 1) * PANEL_GAP);
         if (availableWidth <= 0f || availableHeight <= 0f) {
             throw new IllegalArgumentException("viewport is too small for team lobby panels");
         }

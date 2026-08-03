@@ -15,7 +15,8 @@ public record LobbyTeamPanelModel(LobbyTeam team, List<LobbyMemberRowModel> memb
         for (LobbyMemberRowModel member : members) {
             LobbyMemberRowModel row = Objects.requireNonNull(member, "member");
             if (row.team() != team) {
-                throw new IllegalArgumentException("team panel contains a member from another team");
+                throw new IllegalArgumentException(
+                        "team panel contains a member from another team");
             }
         }
     }

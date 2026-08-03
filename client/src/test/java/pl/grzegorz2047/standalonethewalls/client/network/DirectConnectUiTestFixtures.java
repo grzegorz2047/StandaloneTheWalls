@@ -5,6 +5,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.UUID;
@@ -18,6 +19,7 @@ import pl.grzegorz2047.standalonethewalls.protocol.ReliableChannel;
 import pl.grzegorz2047.standalonethewalls.protocol.ReliableSendResult;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.CanonicalHandle;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
+import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerSessionAdmissionStatus;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerFingerprint;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerId;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandResult;
@@ -34,8 +36,7 @@ public final class DirectConnectUiTestFixtures {
     public static final PlayerId OTHER_ID = new PlayerId("sf1_" + "b".repeat(52));
     public static final CanonicalHandle SELF_HANDLE = new CanonicalHandle("player_one");
     public static final CanonicalHandle OTHER_HANDLE = new CanonicalHandle("other_player");
-    private static final UUID SESSION_ID =
-            UUID.fromString("12345678-1234-4234-8234-1234567890ab");
+    private static final UUID SESSION_ID = UUID.fromString("12345678-1234-4234-8234-1234567890ab");
 
     private DirectConnectUiTestFixtures() {
         throw new AssertionError("No instances");
@@ -65,7 +66,11 @@ public final class DirectConnectUiTestFixtures {
     }
 
     public static LobbySnapshot snapshot(
-            long revision, LobbyTeam selfTeam, boolean selfReady, LobbyTeam otherTeam, boolean otherReady) {
+            long revision,
+            LobbyTeam selfTeam,
+            boolean selfReady,
+            LobbyTeam otherTeam,
+            boolean otherReady) {
         return new LobbySnapshot(
                 revision,
                 List.of(
@@ -102,17 +107,23 @@ public final class DirectConnectUiTestFixtures {
     }
 
     public static final class ControlledLobby {
-        private final ConnectedLobbySession session;
+        private ConnectedLobbySession session;
         private final ControlledReliableChannel channel;
 
-        private ControlledLobby(
-                ConnectedLobbySession session, ControlledReliableChannel channel) {
+        private ControlledLobby(ConnectedLobbySession session, ControlledReliableChannel channel) {
             this.session = session;
             this.channel = channel;
         }
 
-        public ConnectedLobbySession session() {
-            return session;
+        public synchronized DirectConnectResult connectedResult(
+                PlayerSessionAdmissionStatus admissionStatus) {
+            Objects.requireNonNull(admissionStatus, "admissionStatus");
+            ConnectedLobbySession transferred = session;
+            if (transferred == null) {
+                throw new IllegalStateException("controlled lobby session was already transferred");
+            }
+            session = null;
+            return new DirectConnectResult.Connected(transferred, admissionStatus);
         }
 
         public List<SentCommand> sentCommands() {

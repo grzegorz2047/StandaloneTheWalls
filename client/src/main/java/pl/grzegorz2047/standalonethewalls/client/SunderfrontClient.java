@@ -19,6 +19,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -503,7 +504,8 @@ public final class SunderfrontClient extends SimpleApplication
         addCenteredText(model.status(), 22f, statusColor(model.phase()), height - 112f);
 
         if (model.connectedLobby().isPresent()) {
-            renderConnectedLobby(model, model.connectedLobby().orElseThrow(), targets, width, height);
+            renderConnectedLobby(
+                    model, model.connectedLobby().orElseThrow(), targets, width, height);
         } else {
             renderConnectionDetails(model, targets, left, width, height);
         }
@@ -582,8 +584,7 @@ public final class SunderfrontClient extends SimpleApplication
             UiRect bounds = geometry.panels().get(index);
             renderTeamPanel(screenModel, connected, panel, bounds);
             targets.add(
-                    new UiHitTarget(
-                            teamTarget(panel.team()), bounds, connected.controlsEnabled()));
+                    new UiHitTarget(teamTarget(panel.team()), bounds, connected.controlsEnabled()));
         }
 
         String unassigned =
@@ -592,7 +593,8 @@ public final class SunderfrontClient extends SimpleApplication
                         : connected.lobby().unassignedMembers().stream()
                                 .map(this::memberLine)
                                 .collect(Collectors.joining(", "));
-        addCenteredText(messages.text("direct.lobby.unassigned", unassigned), 14f, MUTED_TEXT, 210f);
+        addCenteredText(
+                messages.text("direct.lobby.unassigned", unassigned), 14f, MUTED_TEXT, 210f);
         addCenteredText(
                 connected.commandStatus(),
                 15f,
@@ -611,8 +613,7 @@ public final class SunderfrontClient extends SimpleApplication
                                 connected.controlsEnabled()),
                         0f,
                         135f);
-        ready.setLocalTranslation(
-                Math.max(20f, (width - ready.getLineWidth()) / 2f), 135f, 0f);
+        ready.setLocalTranslation(Math.max(20f, (width - ready.getLineWidth()) / 2f), 135f, 0f);
         targets.add(
                 new UiHitTarget(
                         DIRECT_READY_TARGET,
@@ -628,7 +629,9 @@ public final class SunderfrontClient extends SimpleApplication
         boolean selected = screenModel.focus() == teamFocus(panel.team());
         String title =
                 (selected ? "> " : "  ")
-                        + messages.text("direct.lobby.team." + panel.team().name().toLowerCase());
+                        + messages.text(
+                                "direct.lobby.team."
+                                        + panel.team().name().toLowerCase(Locale.ROOT));
         float titleSize = Math.max(15f, Math.min(21f, bounds.width() / 12f));
         addText(
                 title,
@@ -656,11 +659,9 @@ public final class SunderfrontClient extends SimpleApplication
     }
 
     private String memberLine(LobbyMemberRowModel member) {
-        String ownPrefix =
-                member.ownPlayer() ? messages.text("direct.lobby.you_prefix") : "";
+        String ownPrefix = member.ownPlayer() ? messages.text("direct.lobby.you_prefix") : "";
         String readiness =
-                messages.text(
-                        member.ready() ? "direct.lobby.ready" : "direct.lobby.not_ready");
+                messages.text(member.ready() ? "direct.lobby.ready" : "direct.lobby.not_ready");
         return messages.text("direct.lobby.member", ownPrefix, member.handle(), readiness);
     }
 

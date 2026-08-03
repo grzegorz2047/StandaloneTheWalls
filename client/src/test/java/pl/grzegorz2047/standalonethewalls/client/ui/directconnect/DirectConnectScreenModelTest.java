@@ -17,11 +17,7 @@ import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
 class DirectConnectScreenModelTest {
     private static final PlayerId PLAYER_ID = new PlayerId("sf1_" + "a".repeat(52));
     private static final LobbyMember MEMBER =
-            new LobbyMember(
-                    PLAYER_ID,
-                    new CanonicalHandle("player_one"),
-                    LobbyTeam.RED,
-                    false);
+            new LobbyMember(PLAYER_ID, new CanonicalHandle("player_one"), LobbyTeam.RED, false);
 
     @Test
     void requiresStructuredLobbyExactlyWhileConnected() {
@@ -33,18 +29,10 @@ class DirectConnectScreenModelTest {
         assertTrue(connected.connectedLobby().orElseThrow().controlsEnabled());
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
-                        model(
-                                DirectConnectUiPhase.CONNECTED,
-                                Optional.empty(),
-                                Optional.empty()));
+                () -> model(DirectConnectUiPhase.CONNECTED, Optional.empty(), Optional.empty()));
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
-                        model(
-                                DirectConnectUiPhase.FAILED,
-                                Optional.empty(),
-                                Optional.of(lobby)));
+                () -> model(DirectConnectUiPhase.FAILED, Optional.empty(), Optional.of(lobby)));
     }
 
     @Test

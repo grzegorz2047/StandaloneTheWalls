@@ -34,8 +34,7 @@ public record ConnectedLobbyModel(
         validateRows(teamPanels, unassignedMembers, ownMember);
     }
 
-    public static ConnectedLobbyModel from(
-            LobbySnapshot snapshot, Optional<PlayerId> ownPlayerId) {
+    public static ConnectedLobbyModel from(LobbySnapshot snapshot, Optional<PlayerId> ownPlayerId) {
         LobbySnapshot source = Objects.requireNonNull(snapshot, "snapshot");
         Optional<PlayerId> ownIdentity = Objects.requireNonNull(ownPlayerId, "ownPlayerId");
         Map<LobbyTeam, List<LobbyMemberRowModel>> grouped = new EnumMap<>(LobbyTeam.class);
@@ -53,7 +52,8 @@ public record ConnectedLobbyModel(
             }
         }
         if (ownIdentity.isPresent() && ownRow == null) {
-            throw new IllegalArgumentException("authoritative lobby snapshot does not contain self");
+            throw new IllegalArgumentException(
+                    "authoritative lobby snapshot does not contain self");
         }
 
         List<LobbyTeamPanelModel> panels =
@@ -102,7 +102,8 @@ public record ConnectedLobbyModel(
         for (LobbyTeamPanelModel panel : panels) {
             for (LobbyMemberRowModel member : panel.members()) {
                 if (!playerIds.add(member.playerId())) {
-                    throw new IllegalArgumentException("connected lobby contains duplicate playerId");
+                    throw new IllegalArgumentException(
+                            "connected lobby contains duplicate playerId");
                 }
                 if (member.ownPlayer()) {
                     ownCount++;
