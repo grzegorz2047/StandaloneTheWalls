@@ -52,6 +52,88 @@ jobs:
               raise SystemExit(f'expected one locale-sensitive team key, got {text.count(old)}')
           source.write_text(text.replace(old, new, 1))
 
+      - name: Transfer controlled lobby sessions only once
+        shell: python
+        run: |
+          from pathlib import Path
+
+          fixture = Path('client/src/test/java/pl/grzegorz2047/standalonethewalls/client/network/DirectConnectUiTestFixtures.java')
+          text = fixture.read_text()
+          if 'import java.util.Objects;\n' not in text:
+              text = text.replace(
+                  'import java.util.Optional;\n',
+                  'import java.util.Optional;\nimport java.util.Objects;\n',
+                  1,
+              )
+          admission_import = (
+              'import pl.grzegorz2047.standalonethewalls.protocol.identity.'
+              'PlayerSessionAdmissionStatus;\n'
+          )
+          if admission_import not in text:
+              text = text.replace(
+                  'import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;\n',
+                  'import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;\n'
+                  + admission_import,
+                  1,
+              )
+          text = text.replace(
+              '        private final ConnectedLobbySession session;\n',
+              '        private ConnectedLobbySession session;\n',
+              1,
+          )
+          old_method = '''        public ConnectedLobbySession session() {
+              return session;
+          }
+'''
+          new_method = '''        public synchronized DirectConnectResult connectedResult(
+                  PlayerSessionAdmissionStatus admissionStatus) {
+              Objects.requireNonNull(admissionStatus, "admissionStatus");
+              ConnectedLobbySession transferred = session;
+              if (transferred == null) {
+                  throw new IllegalStateException("controlled lobby session was already transferred");
+              }
+              session = null;
+              return new DirectConnectResult.Connected(transferred, admissionStatus);
+          }
+'''
+          if text.count(old_method) != 1:
+              raise SystemExit(f'expected one mutable session accessor, got {text.count(old_method)}')
+          fixture.write_text(text.replace(old_method, new_method, 1))
+
+          test = Path('client/src/test/java/pl/grzegorz2047/standalonethewalls/client/ui/directconnect/ConnectedLobbyUiCommandTest.java')
+          text = test.read_text()
+          old_snapshot_wait = '''        waitUntil(() -> lobby.session().currentSnapshot().revision() == 4L);
+          controller.refreshConnectedSnapshot();
+'''
+          new_snapshot_wait = '''        waitUntil(
+                  () -> {
+                      controller.refreshConnectedSnapshot();
+                      return connected(controller).lobby().revision() == 4L;
+                  });
+'''
+          if text.count(old_snapshot_wait) != 1:
+              raise SystemExit('snapshot wait using exposed session was not found exactly once')
+          text = text.replace(old_snapshot_wait, new_snapshot_wait, 1)
+          if text.count('        lobby.session().closeAsync();\n') != 1:
+              raise SystemExit('manual close using exposed session was not found exactly once')
+          text = text.replace(
+              '        lobby.session().closeAsync();\n',
+              '        controller.escape();\n',
+              1,
+          )
+          old_result = '''            result =
+                      new DirectConnectResult.Connected(
+                              lobby.session(),
+                              PlayerSessionAdmissionStatus.LOCAL_RETURNING_ACCEPTED);
+'''
+          new_result = '''            result =
+                      lobby.connectedResult(
+                              PlayerSessionAdmissionStatus.LOCAL_RETURNING_ACCEPTED);
+'''
+          if text.count(old_result) != 1:
+              raise SystemExit('backend session construction was not found exactly once')
+          test.write_text(text.replace(old_result, new_result, 1))
+
       - name: Apply canonical Java formatting
         run: ./gradlew --no-daemon spotlessApply
 
