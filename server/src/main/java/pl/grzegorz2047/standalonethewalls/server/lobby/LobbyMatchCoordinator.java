@@ -98,10 +98,13 @@ public final class LobbyMatchCoordinator {
             throw new IllegalArgumentException("simulation tick gap is not allowed");
         }
 
+        lastProcessedTick = tickNumber;
+        if (matchState.phase() != MatchPhase.START_COUNTDOWN) {
+            return Optional.empty();
+        }
         MatchDecision decision =
                 MatchLifecycle.apply(matchConfiguration, matchState, new MatchCommand.Tick());
         requireAccepted(decision, "authoritative simulation tick was rejected");
-        lastProcessedTick = tickNumber;
         if (!commit(decision)) {
             return Optional.empty();
         }
