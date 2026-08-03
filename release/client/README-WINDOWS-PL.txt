@@ -1,4 +1,4 @@
-SUNDERFRONT 0.1.0-alpha.3 — KLIENT WINDOWS X64
+SUNDERFRONT 0.1.0-alpha.4 — KLIENT WINDOWS X64
 ================================================
 
 To jest techniczna wersja alpha sprawdzająca bezpieczne połączenie bezpośrednie
@@ -24,6 +24,10 @@ Sunderfront.exe używa przenośnego katalogu data obok pliku wykonywalnego.
 Znajduje się tam prywatna tożsamość gracza i zapamiętane fingerprinty serwerów.
 Nie udostępniaj jego zawartości. Kopia całego katalogu aplikacji zachowuje tę
 samą tożsamość gracza.
+
+Operator serwera powinien użyć kompletnego archiwum
+sunderfront-server-0.1.0-alpha.4.zip. Nie wolno kopiować samych numerowanych
+skryptów serwera do starszego katalogu bin/lib.
 
 STRUKTURA PACZKI
 ----------------
