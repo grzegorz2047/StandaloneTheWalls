@@ -91,9 +91,10 @@ public final class DirectConnectSmokeMain {
                             != PlayerSessionAdmissionStatus.LOCAL_FIRST_USE_ACCEPTED) {
                 throw new IllegalStateException("first-use admission status was not accepted");
             }
-            PlayerId playerId = connected.session().playerId();
-            requireExactSelf(connected.session(), options.handle(), playerId);
-            close(connected.session());
+            ConnectedLobbySession firstSession = connected.takeSession();
+            PlayerId playerId = firstSession.playerId();
+            requireExactSelf(firstSession, options.handle(), playerId);
+            close(firstSession);
             return new VerifiedFirstConnection(playerId);
         }
     }
@@ -108,11 +109,12 @@ public final class DirectConnectSmokeMain {
                     != PlayerSessionAdmissionStatus.LOCAL_RETURNING_ACCEPTED) {
                 throw new IllegalStateException("returning identity was not accepted");
             }
-            if (!returning.session().playerId().equals(expectedPlayerId)) {
+            ConnectedLobbySession returningSession = returning.takeSession();
+            if (!returningSession.playerId().equals(expectedPlayerId)) {
                 throw new IllegalStateException("player identity changed after restart");
             }
-            requireExactSelf(returning.session(), options.handle(), expectedPlayerId);
-            close(returning.session());
+            requireExactSelf(returningSession, options.handle(), expectedPlayerId);
+            close(returningSession);
         }
     }
 

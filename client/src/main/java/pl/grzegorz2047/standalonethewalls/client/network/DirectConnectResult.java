@@ -17,8 +17,7 @@ public sealed interface DirectConnectResult
 
         public Connected(
                 ConnectedLobbySession session, PlayerSessionAdmissionStatus admissionStatus) {
-            this.session =
-                    new AtomicReference<>(Objects.requireNonNull(session, "session"));
+            this.session = new AtomicReference<>(Objects.requireNonNull(session, "session"));
             this.admissionStatus = Objects.requireNonNull(admissionStatus, "admissionStatus");
             if (!admissionStatus.isAccepted()) {
                 throw new IllegalArgumentException("connected result requires accepted admission");

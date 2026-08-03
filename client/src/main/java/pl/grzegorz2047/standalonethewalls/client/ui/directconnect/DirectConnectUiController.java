@@ -327,13 +327,13 @@ public final class DirectConnectUiController implements AutoCloseable {
                 publish(confirmationModel(required.confirmation()));
             }
             case DirectConnectResult.Connected connected -> {
-                connectedSession = connected.session();
-                LobbySnapshot snapshot = connected.session().currentSnapshot();
+                ConnectedLobbySession transferred = connected.takeSession();
+                connectedSession = transferred;
+                LobbySnapshot snapshot = transferred.currentSnapshot();
                 connectedRevision.set(snapshot.revision());
                 focus = DirectConnectUiFocus.PRIMARY_ACTION;
                 publish(connectedModel(snapshot));
-                connected
-                        .session()
+                transferred
                         .termination()
                         .whenComplete(
                                 (terminalFailure, terminationError) ->
@@ -425,7 +425,7 @@ public final class DirectConnectUiController implements AutoCloseable {
 
     private void closeStaleConnectedResult(DirectConnectResult result) {
         if (result instanceof DirectConnectResult.Connected connected) {
-            runLifecycle("stale-session", () -> awaitSessionClose(connected.session()));
+            runLifecycle("stale-session", () -> awaitSessionClose(connected.takeSession()));
         }
     }
 
