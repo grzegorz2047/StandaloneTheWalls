@@ -70,7 +70,6 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
 
     private final AuthorizedPlayerSessionQueue source;
     private final LobbyConfiguration configuration;
-    private final MatchConfiguration matchConfiguration;
     private final LobbyMatchCoordinator matchCoordinator;
     private final Duration sendTimeout;
     private final Duration shutdownTimeout;
@@ -183,14 +182,15 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
             Runnable terminalFailureAction) {
         this.source = Objects.requireNonNull(source, "source");
         this.configuration = Objects.requireNonNull(configuration, "configuration");
-        this.matchConfiguration = Objects.requireNonNull(matchConfiguration, "matchConfiguration");
+        MatchConfiguration lifecycleConfiguration =
+                Objects.requireNonNull(matchConfiguration, "matchConfiguration");
         if (source.capacity() > LobbySnapshot.MAXIMUM_MEMBERS) {
             throw new IllegalArgumentException("source capacity exceeds minimal lobby capacity");
         }
         if (source.capacity() > configuration.maximumPlayers()) {
             throw new IllegalArgumentException("source capacity exceeds lobby configuration");
         }
-        matchCoordinator = new LobbyMatchCoordinator(configuration, matchConfiguration);
+        matchCoordinator = new LobbyMatchCoordinator(configuration, lifecycleConfiguration);
         visibleMatchSnapshot = new AtomicReference<>(matchCoordinator.snapshot());
         this.sendTimeout = requireDuration(sendTimeout, "sendTimeout", MAXIMUM_SEND_TIMEOUT);
         this.shutdownTimeout =

@@ -48,8 +48,7 @@ class ConnectedLobbyMatchSnapshotTest {
     }
 
     @Test
-    void closesOnARevisionGap()
-            throws InterruptedException, ExecutionException, TimeoutException {
+    void closesOnARevisionGap() throws InterruptedException, ExecutionException, TimeoutException {
         assertTerminalFailure(
                 snapshot(3L, 1L, 2, LobbyMatchPhase.START_COUNTDOWN, 20L),
                 DirectConnectFailureCode.LOBBY_MATCH_SNAPSHOT_REVISION_GAP);

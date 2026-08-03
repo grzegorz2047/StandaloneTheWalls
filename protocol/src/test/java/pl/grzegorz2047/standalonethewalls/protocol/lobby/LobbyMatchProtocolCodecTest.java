@@ -18,7 +18,7 @@ class LobbyMatchProtocolCodecTest {
     private static final int CANCELLATION_REASON_OFFSET = ROUND_NUMBER_OFFSET + Long.BYTES;
 
     @Test
-    void encodesTheExactFixedSizeBigEndianVector() throws Exception {
+    void encodesTheExactFixedSizeBigEndianVector() throws LobbyProtocolException {
         LobbyMatchPhaseSnapshot snapshot =
                 new LobbyMatchPhaseSnapshot(
                         7L,
@@ -52,7 +52,7 @@ class LobbyMatchProtocolCodecTest {
     }
 
     @Test
-    void roundTripsWaitingCancellationAndPreparationSnapshots() throws Exception {
+    void roundTripsWaitingCancellationAndPreparationSnapshots() throws LobbyProtocolException {
         LobbyMatchPhaseSnapshot waiting =
                 new LobbyMatchPhaseSnapshot(
                         0L,
