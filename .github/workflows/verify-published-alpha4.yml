@@ -1,0 +1,78 @@
+name: Verify Published Alpha4
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  audit-published-release:
+    if: github.head_ref == 'agent/verify-v0.1.0-alpha.4-release'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: v0.1.0-alpha.4
+      VERSION: 0.1.0-alpha.4
+      CANDIDATE: 65639547db17aa19b139217c89a51e85e36e9373
+    steps:
+      - name: Check out audit source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+
+      - name: Verify tag, release metadata, assets, checksums, and archive policy
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git fetch --force origin main "refs/tags/${TAG}:refs/tags/${TAG}"
+          test "$(git rev-parse origin/main)" = "$CANDIDATE"
+          test "$(git rev-parse "refs/tags/${TAG}^{commit}")" = "$CANDIDATE"
+
+          METADATA=$(gh release view "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json tagName,targetCommitish,isDraft,isPrerelease,name,assets)
+          test "$(jq -r '.tagName' <<<"$METADATA")" = "$TAG"
+          test "$(jq -r '.targetCommitish' <<<"$METADATA")" = "$CANDIDATE"
+          test "$(jq -r '.isDraft' <<<"$METADATA")" = "false"
+          test "$(jq -r '.isPrerelease' <<<"$METADATA")" = "true"
+
+          EXPECTED=$(printf '%s\n' \
+            SHA256SUMS \
+            "sunderfront-client-windows-x64-${VERSION}.zip" \
+            "sunderfront-client-${VERSION}.zip" \
+            "sunderfront-server-${VERSION}.zip" | sort)
+          ACTUAL=$(jq -r '.assets[].name' <<<"$METADATA" | sort)
+          test "$ACTUAL" = "$EXPECTED"
+          test "$(jq '.assets | length' <<<"$METADATA")" -eq 4
+
+          AUDIT_DIR="$RUNNER_TEMP/sunderfront-alpha4-release-audit"
+          mkdir -p "$AUDIT_DIR"
+          gh release download "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir "$AUDIT_DIR"
+
+          test "$(find "$AUDIT_DIR" -maxdepth 1 -type f | wc -l)" -eq 4
+          find "$AUDIT_DIR" -maxdepth 1 -type f -size 0 -print -quit | (! grep .)
+          (
+            cd "$AUDIT_DIR"
+            sha256sum --check SHA256SUMS
+          )
+
+          python3 release/verify_artifacts.py \
+            "$AUDIT_DIR" \
+            "$VERSION" \
+            --require-windows
+
+          while IFS=$'\t' read -r NAME DIGEST; do
+            if [[ -n "$DIGEST" && "$DIGEST" != "null" ]]; then
+              LOCAL="sha256:$(sha256sum "$AUDIT_DIR/$NAME" | awk '{print $1}')"
+              test "$LOCAL" = "$DIGEST"
+            fi
+          done < <(jq -r '.assets[] | [.name, (.digest // "")] | @tsv' <<<"$METADATA")
+
+          printf '%s\n' "$METADATA" | jq '{tagName,targetCommitish,isDraft,isPrerelease,name,assets:[.assets[]|{name,size,digest}]}'
