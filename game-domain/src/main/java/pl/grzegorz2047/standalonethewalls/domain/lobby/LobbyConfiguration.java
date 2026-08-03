@@ -34,7 +34,8 @@ public record LobbyConfiguration(
             throw new IllegalArgumentException("enabled teams cannot hold maximumPlayers");
         }
         if (minimumReadyPlayers < 2 || minimumReadyPlayers > maximumPlayers) {
-            throw new IllegalArgumentException("minimumReadyPlayers is outside the supported range");
+            throw new IllegalArgumentException(
+                    "minimumReadyPlayers is outside the supported range");
         }
         enabledTeams = Collections.unmodifiableSet(teams);
     }
