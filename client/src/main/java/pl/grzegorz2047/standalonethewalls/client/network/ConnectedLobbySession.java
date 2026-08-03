@@ -79,20 +79,18 @@ public final class ConnectedLobbySession implements AutoCloseable {
         closeAsync();
     }
 
-    void startReceiving() {
-        if (!receiverStarted.compareAndSet(false, true)) {
-            throw new IllegalStateException("lobby receiver can be started only once");
-        }
-        if (closing.get()) {
-            return;
+    boolean startReceiving() {
+        if (!receiverStarted.compareAndSet(false, true) || closing.get()) {
+            return false;
         }
         try {
             Thread.ofVirtual()
                     .name("sunderfront-direct-connect-lobby-receiver")
                     .start(this::receiveLoop);
+            return true;
         } catch (RuntimeException exception) {
             finish(Optional.of(DirectConnectFailure.of(DirectConnectFailureCode.INTERNAL_FAILURE)));
-            throw exception;
+            return false;
         }
     }
 
