@@ -1,4 +1,4 @@
-# Sunderfront Windows x64 client 0.1.0-alpha.3
+# Sunderfront Windows x64 client 0.1.0-alpha.4
 
 This is a technical alpha for secure Direct Connect and minimal lobby entry. It
 is not a playable The Walls match yet.
@@ -16,6 +16,10 @@ is not a playable The Walls match yet.
 The launcher keeps the private player identity and trusted-server records in a
 portable `data/` directory beside `Sunderfront.exe`. Do not share it. Move or back
 up the entire application directory rather than copying only the executable.
+
+Server operators should use the complete
+`sunderfront-server-0.1.0-alpha.4.zip` archive. Do not copy only numbered server
+launchers into an older `bin/lib` package.
 
 ## Contents
 
