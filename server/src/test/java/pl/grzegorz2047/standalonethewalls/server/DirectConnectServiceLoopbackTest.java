@@ -23,7 +23,6 @@ import pl.grzegorz2047.standalonethewalls.client.identity.ClientIdentityStorage;
 import pl.grzegorz2047.standalonethewalls.client.network.ConnectedLobbySession;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectAttempt;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectEndpoint;
-import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectEndpointException;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectResult;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectService;
 import pl.grzegorz2047.standalonethewalls.client.network.FirstUseConfirmation;
@@ -38,12 +37,7 @@ class DirectConnectServiceLoopbackTest {
     @TempDir Path temporaryDirectory;
 
     @Test
-    void entersLobbyAfterExplicitFirstUseAndReturnsAfterClientRestart()
-            throws GeneralSecurityException,
-                    OperatorCreationException,
-                    IOException,
-                    DirectConnectEndpointException,
-                    Exception {
+    void entersLobbyAfterExplicitFirstUseAndReturnsAfterClientRestart() throws Exception {
         int reliablePort = freePort();
         ProcessConfiguration process = createProcessConfiguration(reliablePort);
         CompletableFuture<Integer> launcherResult = startServer(process);
