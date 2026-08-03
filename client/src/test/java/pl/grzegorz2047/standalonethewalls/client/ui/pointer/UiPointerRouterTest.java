@@ -39,8 +39,7 @@ class UiPointerRouterTest {
     void replacingGeometryCancelsPressAndRemovesOldHitboxes() {
         UiPointerRouter router = new UiPointerRouter();
         router.replaceHitMap(
-                new UiHitMap(
-                        List.of(UiHitTarget.enabled(FIRST, new UiRect(0f, 0f, 40f, 40f)))));
+                new UiHitMap(List.of(UiHitTarget.enabled(FIRST, new UiRect(0f, 0f, 40f, 40f)))));
         router.button(UiPointerRouter.PRIMARY_BUTTON, true, 20f, 20f);
 
         router.replaceHitMap(

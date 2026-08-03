@@ -55,8 +55,7 @@ class UiPointerHitTest {
     void hitMapRejectsDuplicateIdentifiersAndCopiesInput() {
         UiHitTarget target = UiHitTarget.enabled(LOWER, new UiRect(0f, 0f, 10f, 10f));
 
-        assertThrows(
-                IllegalArgumentException.class, () -> new UiHitMap(List.of(target, target)));
+        assertThrows(IllegalArgumentException.class, () -> new UiHitMap(List.of(target, target)));
         UiHitMap map = new UiHitMap(List.of(target));
         assertThrows(UnsupportedOperationException.class, () -> map.targets().clear());
     }

@@ -53,12 +53,10 @@ public final class SunderfrontClient extends SimpleApplication
     private static final String INPUT_BACK = "sunderfront-ui-back";
     private static final String INPUT_BACKSPACE = "sunderfront-ui-backspace";
 
-    private static final UiTargetId DIRECT_ENDPOINT_TARGET =
-            new UiTargetId("direct.endpoint");
+    private static final UiTargetId DIRECT_ENDPOINT_TARGET = new UiTargetId("direct.endpoint");
     private static final UiTargetId DIRECT_HANDLE_TARGET = new UiTargetId("direct.handle");
     private static final UiTargetId DIRECT_PRIMARY_TARGET = new UiTargetId("direct.primary");
-    private static final UiTargetId DIRECT_SECONDARY_TARGET =
-            new UiTargetId("direct.secondary");
+    private static final UiTargetId DIRECT_SECONDARY_TARGET = new UiTargetId("direct.secondary");
 
     private static final ColorRGBA BACKGROUND = new ColorRGBA(0.025f, 0.035f, 0.06f, 1f);
     private static final ColorRGBA PRIMARY_TEXT = new ColorRGBA(0.88f, 0.91f, 0.96f, 1f);
@@ -237,8 +235,7 @@ public final class SunderfrontClient extends SimpleApplication
         pointerRouter.replaceHitMap(
                 new UiHitMap(
                         List.of(
-                                UiHitTarget.enabled(
-                                        menuTargetId(0), new UiRect(0f, 0f, 100f, 40f)),
+                                UiHitTarget.enabled(menuTargetId(0), new UiRect(0f, 0f, 100f, 40f)),
                                 UiHitTarget.enabled(
                                         menuTargetId(1), new UiRect(0f, 50f, 100f, 40f)))));
         handlePointerMotion(20f, 70f);
@@ -256,18 +253,15 @@ public final class SunderfrontClient extends SimpleApplication
                 new UiHitMap(
                         List.of(
                                 UiHitTarget.enabled(
-                                        DIRECT_ENDPOINT_TARGET,
-                                        new UiRect(0f, 0f, 100f, 40f)),
+                                        DIRECT_ENDPOINT_TARGET, new UiRect(0f, 0f, 100f, 40f)),
                                 UiHitTarget.enabled(
-                                        DIRECT_SECONDARY_TARGET,
-                                        new UiRect(0f, 50f, 100f, 40f)))));
+                                        DIRECT_SECONDARY_TARGET, new UiRect(0f, 50f, 100f, 40f)))));
         handlePointerMotion(20f, 20f);
         if (directConnectController.model().focus() != DirectConnectUiFocus.ENDPOINT) {
             throw new IllegalStateException("field hover did not update Direct Connect focus");
         }
         handlePointerMotion(20f, 70f);
-        if (directConnectController.model().focus()
-                != DirectConnectUiFocus.SECONDARY_ACTION) {
+        if (directConnectController.model().focus() != DirectConnectUiFocus.SECONDARY_ACTION) {
             throw new IllegalStateException("action hover did not update Direct Connect focus");
         }
         handlePointerButton(UiPointerRouter.PRIMARY_BUTTON, true, 20f, 70f);
@@ -337,11 +331,8 @@ public final class SunderfrontClient extends SimpleApplication
         pointerRouter.hover(x, y).ifPresent(this::focusPointerTarget);
     }
 
-    private void handlePointerButton(
-            int buttonIndex, boolean pressed, float x, float y) {
-        pointerRouter
-                .button(buttonIndex, pressed, x, y)
-                .ifPresent(this::activatePointerTarget);
+    private void handlePointerButton(int buttonIndex, boolean pressed, float x, float y) {
+        pointerRouter.button(buttonIndex, pressed, x, y).ifPresent(this::activatePointerTarget);
     }
 
     private void focusPointerTarget(UiTargetId target) {
@@ -481,9 +472,7 @@ public final class SunderfrontClient extends SimpleApplication
                             selected ? SELECTED_TEXT : PRIMARY_TEXT,
                             cam.getWidth() * 0.34f,
                             menuTop - (index * 56f));
-            targets.add(
-                    UiHitTarget.enabled(
-                            menuTargetId(index), hitBounds(entry, 18f, 10f, 240f)));
+            targets.add(UiHitTarget.enabled(menuTargetId(index), hitBounds(entry, 18f, 10f, 240f)));
         }
         if (!menuStatus.isBlank()) {
             addCenteredText(menuStatus, 18f, WARNING_TEXT, 105f);
@@ -491,8 +480,7 @@ public final class SunderfrontClient extends SimpleApplication
         addCenteredText(messages.text("menu.help"), 17f, MUTED_TEXT, 52f);
     }
 
-    private void renderDirectConnect(
-            DirectConnectScreenModel model, List<UiHitTarget> targets) {
+    private void renderDirectConnect(DirectConnectScreenModel model, List<UiHitTarget> targets) {
         float width = cam.getWidth();
         float height = cam.getHeight();
         float left = Math.max(42f, width * 0.12f);
@@ -527,9 +515,7 @@ public final class SunderfrontClient extends SimpleApplication
                                 model.focus() == DirectConnectUiFocus.HANDLE,
                                 model.editingEnabled()),
                         22f,
-                        model.focus() == DirectConnectUiFocus.HANDLE
-                                ? SELECTED_TEXT
-                                : PRIMARY_TEXT,
+                        model.focus() == DirectConnectUiFocus.HANDLE ? SELECTED_TEXT : PRIMARY_TEXT,
                         left,
                         height - 222f);
         targets.add(
@@ -595,8 +581,7 @@ public final class SunderfrontClient extends SimpleApplication
         float actionWidth = primary.getLineWidth() + gap + secondary.getLineWidth();
         float actionLeft = Math.max(20f, (width - actionWidth) / 2f);
         primary.setLocalTranslation(actionLeft, 78f, 0f);
-        secondary.setLocalTranslation(
-                actionLeft + primary.getLineWidth() + gap, 78f, 0f);
+        secondary.setLocalTranslation(actionLeft + primary.getLineWidth() + gap, 78f, 0f);
         targets.add(
                 new UiHitTarget(
                         DIRECT_PRIMARY_TARGET,
@@ -628,10 +613,7 @@ public final class SunderfrontClient extends SimpleApplication
     }
 
     private static UiRect hitBounds(
-            BitmapText text,
-            float horizontalPadding,
-            float verticalPadding,
-            float minimumWidth) {
+            BitmapText text, float horizontalPadding, float verticalPadding, float minimumWidth) {
         float renderedWidth = text.getLineWidth();
         float contentWidth = Math.max(minimumWidth, renderedWidth);
         float extraWidth = (contentWidth - renderedWidth) / 2f;

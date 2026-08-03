@@ -19,8 +19,7 @@ public final class UiPointerRouter {
         return hitMap.targetAt(x, y).map(UiHitTarget::id);
     }
 
-    public Optional<UiTargetId> button(
-            int buttonIndex, boolean pressed, float x, float y) {
+    public Optional<UiTargetId> button(int buttonIndex, boolean pressed, float x, float y) {
         if (buttonIndex != PRIMARY_BUTTON) {
             return Optional.empty();
         }
