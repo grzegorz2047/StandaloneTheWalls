@@ -20,9 +20,7 @@ public final class UiPointerGesture {
         if (captured == null) {
             return Optional.empty();
         }
-        return hitMap.targetAt(x, y)
-                .map(UiHitTarget::id)
-                .filter(captured::equals);
+        return hitMap.targetAt(x, y).map(UiHitTarget::id).filter(captured::equals);
     }
 
     public Optional<UiTargetId> pressedTarget() {
