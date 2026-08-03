@@ -91,7 +91,7 @@ raise SystemExit(f"server listener did not open: {last}")
 PY
 
 "$CLIENT_DIR/bin/sunderfront-client" --smoke --data-dir "$CLIENT_DIR/data"
-"$CLIENT_DIR/bin/sunderfront-direct-connect-smoke" \
+"$CLIENT_DIR/tools/sunderfront-direct-connect-smoke" \
   --endpoint "127.0.0.1:${RELIABLE_PORT}" \
   --handle release_smoke \
   --expected-fingerprint "$FINGERPRINT" \
