@@ -17,7 +17,9 @@ import java.security.KeyPairGenerator;
 import java.time.Duration;
 import java.util.HexFormat;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -26,6 +28,8 @@ import pl.grzegorz2047.standalonethewalls.client.network.ConnectedLobbySession;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectAttempt;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectConfiguration;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectEndpoint;
+import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectEndpointException;
+import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectFailureCode;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectResult;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectService;
 import pl.grzegorz2047.standalonethewalls.client.network.FirstUseConfirmation;
@@ -42,12 +46,19 @@ class DirectConnectServiceLoopbackTest {
                     Duration.ofSeconds(1),
                     Duration.ofSeconds(10),
                     Duration.ofSeconds(5),
-                    Duration.ofMinutes(2));
+                    Duration.ofMillis(200));
 
     @TempDir Path temporaryDirectory;
 
     @Test
-    void entersLobbyAfterExplicitFirstUseAndReturnsAfterClientRestart() throws Exception {
+    void entersLobbyOnlyAfterValidFirstUseAndReturnsAfterClientRestart()
+            throws GeneralSecurityException,
+                    OperatorCreationException,
+                    IOException,
+                    DirectConnectEndpointException,
+                    InterruptedException,
+                    ExecutionException,
+                    TimeoutException {
         int reliablePort = freePort();
         ProcessConfiguration process = createProcessConfiguration(reliablePort);
         CompletableFuture<Integer> launcherResult = startServer(process);
@@ -61,20 +72,53 @@ class DirectConnectServiceLoopbackTest {
         try (DirectConnectService firstClient =
                 new DirectConnectService(
                         new ClientIdentityStorage(clientData), DIRECT_CONNECT_CONFIGURATION)) {
-            DirectConnectResult unknown = await(firstClient.connect(endpoint, handle));
-            DirectConnectResult.ConfirmationRequired confirmationRequired =
-                    assertInstanceOf(DirectConnectResult.ConfirmationRequired.class, unknown);
-            FirstUseConfirmation confirmation = confirmationRequired.confirmation();
-            assertEquals(endpoint, confirmation.endpoint());
+            FirstUseConfirmation expired =
+                    confirmation(await(firstClient.connect(endpoint, handle)));
             assertFalse(firstClient.isConnecting());
+            Thread.sleep(300L);
+            assertEquals(
+                    DirectConnectFailureCode.CONFIRMATION_EXPIRED,
+                    failureCode(await(firstClient.confirmFirstUse(expired))));
 
+            FirstUseConfirmation original =
+                    confirmation(await(firstClient.connect(endpoint, handle)));
+            assertFalse(firstClient.isConnecting());
+            try (DirectConnectService unrelatedService =
+                    new DirectConnectService(
+                            new ClientIdentityStorage(
+                                    temporaryDirectory.resolve("unrelated-client-data")),
+                            DIRECT_CONNECT_CONFIGURATION)) {
+                assertEquals(
+                        DirectConnectFailureCode.CONFIRMATION_INVALID,
+                        failureCode(await(unrelatedService.confirmFirstUse(original))));
+            }
+
+            DirectConnectEndpoint changedEndpoint =
+                    DirectConnectEndpoint.parse(
+                            "127.0.0.1:" + differentPort(reliablePort));
+            FirstUseConfirmation tampered =
+                    new FirstUseConfirmation(
+                            changedEndpoint,
+                            original.serverId(),
+                            original.fingerprint(),
+                            original.expiresAt(),
+                            original.token());
+            assertEquals(
+                    DirectConnectFailureCode.CONFIRMATION_INVALID,
+                    failureCode(await(firstClient.confirmFirstUse(tampered))));
+
+            FirstUseConfirmation accepted =
+                    confirmation(await(firstClient.connect(endpoint, handle)));
             DirectConnectResult.Connected firstConnected =
                     assertInstanceOf(
                             DirectConnectResult.Connected.class,
-                            await(firstClient.confirmFirstUse(confirmation)));
+                            await(firstClient.confirmFirstUse(accepted)));
             assertEquals(
                     PlayerSessionAdmissionStatus.LOCAL_FIRST_USE_ACCEPTED,
                     firstConnected.admissionStatus());
+            assertEquals(
+                    DirectConnectFailureCode.CONFIRMATION_INVALID,
+                    failureCode(await(firstClient.confirmFirstUse(accepted))));
             persistedPlayerId = firstConnected.session().playerId();
             assertLobbyContainsSelf(firstConnected.session(), persistedPlayerId, handle);
             assertIdleLobbyRemainsOpen(firstConnected.session());
@@ -179,13 +223,24 @@ class DirectConnectServiceLoopbackTest {
         return new ProcessConfiguration(server, identity, tls);
     }
 
-    private static DirectConnectResult await(DirectConnectAttempt attempt) throws Exception {
+    private static FirstUseConfirmation confirmation(DirectConnectResult result) {
+        return assertInstanceOf(DirectConnectResult.ConfirmationRequired.class, result)
+                .confirmation();
+    }
+
+    private static DirectConnectFailureCode failureCode(DirectConnectResult result) {
+        return assertInstanceOf(DirectConnectResult.Failed.class, result).failure().code();
+    }
+
+    private static DirectConnectResult await(DirectConnectAttempt attempt)
+            throws InterruptedException, ExecutionException, TimeoutException {
         return attempt.result()
                 .toCompletableFuture()
                 .get(NETWORK_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     }
 
-    private static void close(ConnectedLobbySession session) throws Exception {
+    private static void close(ConnectedLobbySession session)
+            throws InterruptedException, ExecutionException, TimeoutException {
         session.closeAsync().toCompletableFuture().get(NETWORK_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     }
 
