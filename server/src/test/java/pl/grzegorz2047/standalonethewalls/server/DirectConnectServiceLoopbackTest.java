@@ -14,6 +14,7 @@ import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.time.Duration;
 import java.util.HexFormat;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -23,6 +24,7 @@ import org.junit.jupiter.api.io.TempDir;
 import pl.grzegorz2047.standalonethewalls.client.identity.ClientIdentityStorage;
 import pl.grzegorz2047.standalonethewalls.client.network.ConnectedLobbySession;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectAttempt;
+import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectConfiguration;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectEndpoint;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectResult;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectService;
@@ -34,6 +36,13 @@ import pl.grzegorz2047.standalonethewalls.server.testsupport.ServerTlsTestCertif
 
 class DirectConnectServiceLoopbackTest {
     private static final long NETWORK_TIMEOUT_SECONDS = 15L;
+    private static final DirectConnectConfiguration DIRECT_CONNECT_CONFIGURATION =
+            new DirectConnectConfiguration(
+                    Duration.ofSeconds(5),
+                    Duration.ofSeconds(1),
+                    Duration.ofSeconds(10),
+                    Duration.ofSeconds(5),
+                    Duration.ofMinutes(2));
 
     @TempDir Path temporaryDirectory;
 
@@ -50,7 +59,8 @@ class DirectConnectServiceLoopbackTest {
         PlayerId persistedPlayerId;
 
         try (DirectConnectService firstClient =
-                new DirectConnectService(new ClientIdentityStorage(clientData))) {
+                new DirectConnectService(
+                        new ClientIdentityStorage(clientData), DIRECT_CONNECT_CONFIGURATION)) {
             DirectConnectResult unknown = await(firstClient.connect(endpoint, handle));
             DirectConnectResult.ConfirmationRequired confirmationRequired =
                     assertInstanceOf(DirectConnectResult.ConfirmationRequired.class, unknown);
@@ -67,11 +77,13 @@ class DirectConnectServiceLoopbackTest {
                     firstConnected.admissionStatus());
             persistedPlayerId = firstConnected.session().playerId();
             assertLobbyContainsSelf(firstConnected.session(), persistedPlayerId, handle);
+            assertIdleLobbyRemainsOpen(firstConnected.session());
             close(firstConnected.session());
         }
 
         try (DirectConnectService restartedClient =
-                new DirectConnectService(new ClientIdentityStorage(clientData))) {
+                new DirectConnectService(
+                        new ClientIdentityStorage(clientData), DIRECT_CONNECT_CONFIGURATION)) {
             DirectConnectResult.Connected returning =
                     assertInstanceOf(
                             DirectConnectResult.Connected.class,
@@ -185,6 +197,12 @@ class DirectConnectServiceLoopbackTest {
                                 member ->
                                         member.playerId().equals(playerId)
                                                 && member.handle().equals(handle)));
+    }
+
+    private static void assertIdleLobbyRemainsOpen(ConnectedLobbySession session)
+            throws InterruptedException {
+        Thread.sleep(Duration.ofMillis(1_250));
+        assertTrue(session.isOpen());
     }
 
     private static void awaitListener(int port) throws IOException, InterruptedException {
