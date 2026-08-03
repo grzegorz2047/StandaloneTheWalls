@@ -81,7 +81,7 @@ jobs:
   verify-windows-main:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: windows-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -100,3 +100,7 @@ jobs:
 
       - name: Run full quality gate
         run: .\gradlew.bat --no-daemon --no-configuration-cache check
+
+      - name: Verify Windows first-run launchers
+        shell: pwsh
+        run: .\release\verify_windows_launchers.ps1
