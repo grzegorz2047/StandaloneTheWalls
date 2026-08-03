@@ -12,7 +12,8 @@ public enum LobbyCommandOutcome {
     TEAM_DISABLED(13),
     TEAM_FULL(14),
     TEAM_IMBALANCE(15),
-    TEAM_REQUIRED(16);
+    TEAM_REQUIRED(16),
+    MATCH_ALREADY_STARTED(17);
 
     private final int wireCode;
 
@@ -35,6 +36,7 @@ public enum LobbyCommandOutcome {
             case 14 -> Optional.of(TEAM_FULL);
             case 15 -> Optional.of(TEAM_IMBALANCE);
             case 16 -> Optional.of(TEAM_REQUIRED);
+            case 17 -> Optional.of(MATCH_ALREADY_STARTED);
             default -> Optional.empty();
         };
     }
