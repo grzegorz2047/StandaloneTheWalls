@@ -603,6 +603,10 @@ public final class DirectConnectService implements AutoCloseable {
             if (currentWorker != null) {
                 currentWorker.interrupt();
             }
+            ConnectedLobbySession stagedSession = connected.get();
+            if (stagedSession != null) {
+                awaitClose(stagedSession.closeAsync());
+            }
             closeCurrentResource();
             completeFailure(DirectConnectFailureCode.CANCELLED);
             active.compareAndSet(this, null);
