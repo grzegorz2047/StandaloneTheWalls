@@ -3,7 +3,7 @@ name: Publish Sunderfront Alpha
 on:
   push:
     branches:
-      - "publish-v0.1.0-alpha.3"
+      - "publish-v0.1.0-alpha.4"
   pull_request:
     branches:
       - main
@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: publish-v0.1.0-alpha.3
+  group: publish-v0.1.0-alpha.4
   cancel-in-progress: false
 
 jobs:
@@ -27,7 +27,7 @@ jobs:
       (github.event_name == 'pull_request' &&
        github.event.pull_request.draft == false &&
        github.event.pull_request.head.repo.full_name == github.repository &&
-       github.head_ref == 'publish-v0.1.0-alpha.3')
+       github.head_ref == 'publish-v0.1.0-alpha.4')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
@@ -55,7 +55,7 @@ jobs:
           VERSION=$(tr -d '\r\n' < release/version.txt)
           TAG="v${VERSION}"
           TRIGGER=".release-trigger/${TAG}.json"
-          test "$VERSION" = "0.1.0-alpha.3"
+          test "$VERSION" = "0.1.0-alpha.4"
           test "$PUBLICATION_REF" = "publish-${TAG}"
           test "$(git rev-parse HEAD)" = "$PUBLICATION_COMMIT"
           test -f "$TRIGGER"
@@ -241,7 +241,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$VERSION" = "0.1.0-alpha.3"
+          test "$VERSION" = "0.1.0-alpha.4"
           test "$TAG" = "v${VERSION}"
           test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
           git fetch --no-tags origin main "$PUBLICATION_REF"
@@ -264,7 +264,7 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --target "$SOURCE_COMMIT" \
             --prerelease \
-            --title "Sunderfront ${TAG} — Java-Free Windows Client Alpha" \
+            --title "Sunderfront ${TAG} — Windows First-Run Reliability Alpha" \
             --notes-file release/RELEASE_NOTES.md \
             "build/release/sunderfront-client-windows-x64-${VERSION}.zip" \
             "build/release/sunderfront-client-${VERSION}.zip" \

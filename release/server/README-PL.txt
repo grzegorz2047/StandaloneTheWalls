@@ -1,4 +1,4 @@
-SUNDERFRONT 0.1.0-alpha.3 — SERWER WINDOWS
+SUNDERFRONT 0.1.0-alpha.4 — SERWER WINDOWS
 ============================================
 
 To jest dedykowany serwer technicznej wersji Direct Connect Alpha. Nie zawiera
@@ -31,6 +31,19 @@ Launcher numer 2 zawsze przekazuje pełną konfigurację serwera, identity i TLS
 Dzięki temu domyślny start otwiera reliable TLS i minimal lobby. Uruchomienie
 samego bin\sunderfront-server.bat bez argumentów jest trybem technicznym z
 wyłączoną siecią i nie przyjmie klienta Direct Connect.
+
+AKTUALIZACJA ZE STARSZEJ ALPHY
+-----------------------------
+
+1. Rozpakuj całe archiwum sunderfront-server-0.1.0-alpha.4.zip do nowego pustego
+   katalogu.
+2. Wykonaj kopię całych katalogów credentials i data starego serwera.
+3. Jeżeli stary katalog credentials zawiera wszystkie cztery niepuste pliki,
+   skopiuj cały katalog jako jeden zestaw do paczki alpha.4.
+4. Nie łącz pojedynczych plików z różnych uruchomień generatora.
+5. Uruchom 1_GENERUJ_CREDENTIALS.bat. Kompletny zestaw zostanie zaakceptowany bez
+   zmiany zawartości i hashy.
+6. Uruchom 2_URUCHOM_SERWER.bat.
 
 PORTY I ZAPORA
 --------------

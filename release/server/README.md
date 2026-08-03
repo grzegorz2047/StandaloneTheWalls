@@ -1,4 +1,4 @@
-# Sunderfront dedicated server 0.1.0-alpha.3
+# Sunderfront dedicated server 0.1.0-alpha.4
 
 This alpha dedicated server remains a portable JVM distribution. It requires a
 separately installed 64-bit Java 21 runtime. No private key, certificate,
@@ -32,6 +32,15 @@ TLS listener and minimal lobby.
 
 `README-PL.txt` contains the Polish operator guide and the recovery procedure for
 a partial credential directory.
+
+## Upgrade from an older alpha
+
+Extract `sunderfront-server-0.1.0-alpha.4.zip` into a new empty directory. Back up
+both `credentials/` and `data/`. When the old credential directory contains all
+four non-empty files, copy the entire directory as one set into the alpha.4
+package. Do not combine individual files from different generator runs. Running
+the root credential launcher over a complete set is idempotent and does not
+change its hashes.
 
 ## Technical credential generation
 
