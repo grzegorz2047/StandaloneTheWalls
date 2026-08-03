@@ -21,13 +21,13 @@ class ConnectedLobbyModelTest {
     @Test
     void representsAnEmptyRosterWithoutInventingSelfOrCapacity() {
         ConnectedLobbyModel model =
-                ConnectedLobbyModel.from(new LobbySnapshot(1L, List.of()), Optional.empty(), 720f);
+                ConnectedLobbyModel.from(new LobbySnapshot(1L, List.of()), Optional.empty());
 
         assertEquals(0, model.totalMembers());
         assertTrue(model.ownMember().isEmpty());
         assertTrue(model.unassignedMembers().isEmpty());
-        assertEquals(LobbyPanelLayout.TWO_BY_TWO, model.layout());
-        assertEquals(ConnectedLobbyModel.DISPLAY_TEAM_ORDER,
+        assertEquals(
+                ConnectedLobbyModel.DISPLAY_TEAM_ORDER,
                 model.teamPanels().stream().map(LobbyTeamPanelModel::team).toList());
         assertTrue(model.teamPanels().stream().allMatch(panel -> panel.occupiedSlots() == 0));
     }
@@ -45,10 +45,8 @@ class ConnectedLobbyModelTest {
                                         LobbyTeam.UNASSIGNED,
                                         false)));
 
-        ConnectedLobbyModel model =
-                ConnectedLobbyModel.from(snapshot, Optional.of(self), 1080f);
+        ConnectedLobbyModel model = ConnectedLobbyModel.from(snapshot, Optional.of(self));
 
-        assertEquals(LobbyPanelLayout.FOUR_COLUMNS, model.layout());
         assertEquals(1, model.totalMembers());
         LobbyMemberRowModel own = model.ownMember().orElseThrow();
         assertEquals(self, own.playerId());
@@ -75,8 +73,7 @@ class ConnectedLobbyModelTest {
         PlayerId self = playerId(7);
 
         ConnectedLobbyModel model =
-                ConnectedLobbyModel.from(
-                        new LobbySnapshot(3L, members), Optional.of(self), 1080f);
+                ConnectedLobbyModel.from(new LobbySnapshot(3L, members), Optional.of(self));
 
         assertEquals(10, model.totalMembers());
         assertEquals(2, model.unassignedMembers().size());
@@ -101,7 +98,7 @@ class ConnectedLobbyModelTest {
 
         ConnectedLobbyModel model =
                 ConnectedLobbyModel.from(
-                        new LobbySnapshot(9L, members), Optional.of(playerId(39)), 1920f);
+                        new LobbySnapshot(9L, members), Optional.of(playerId(39)));
 
         assertEquals(40, model.totalMembers());
         assertTrue(model.unassignedMembers().isEmpty());
@@ -112,18 +109,28 @@ class ConnectedLobbyModelTest {
     }
 
     @Test
+    void choosesResponsivePanelLayoutFor720pAnd1080pWidths() {
+        assertEquals(LobbyPanelLayout.TWO_BY_TWO, LobbyPanelLayout.forViewportWidth(720f));
+        assertEquals(LobbyPanelLayout.FOUR_COLUMNS, LobbyPanelLayout.forViewportWidth(1080f));
+        assertEquals(2, LobbyPanelLayout.TWO_BY_TWO.columns());
+        assertEquals(2, LobbyPanelLayout.TWO_BY_TWO.rows());
+        assertEquals(4, LobbyPanelLayout.FOUR_COLUMNS.columns());
+        assertEquals(1, LobbyPanelLayout.FOUR_COLUMNS.rows());
+    }
+
+    @Test
     void rejectsMissingSelfAndInvalidViewportWidths() {
         LobbySnapshot snapshot = new LobbySnapshot(1L, List.of(member(0, LobbyTeam.RED, false)));
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> ConnectedLobbyModel.from(snapshot, Optional.of(playerId(1)), 1080f));
+                () -> ConnectedLobbyModel.from(snapshot, Optional.of(playerId(1))));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> ConnectedLobbyModel.from(snapshot, Optional.empty(), Float.NaN));
+                () -> LobbyPanelLayout.forViewportWidth(Float.NaN));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> ConnectedLobbyModel.from(snapshot, Optional.empty(), 0f));
+                () -> LobbyPanelLayout.forViewportWidth(0f));
     }
 
     private static LobbyMember member(int index, LobbyTeam team, boolean ready) {
