@@ -2,9 +2,8 @@ name: Publish Direct Connect Alpha
 
 on:
   push:
-    tags:
-      - "v0.1.0-alpha.1"
-  workflow_dispatch:
+    branches:
+      - "publish-v0.1.0-alpha.1"
 
 permissions:
   contents: read
@@ -14,16 +13,150 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  resolve-candidate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      source_commit: ${{ steps.candidate.outputs.source_commit }}
+      version: ${{ steps.candidate.outputs.version }}
+      tag: ${{ steps.candidate.outputs.tag }}
+    steps:
+      - name: Check out publication branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+
+      - name: Resolve immutable release candidate
+        id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(tr -d '\r\n' < release/version.txt)
+          TAG="v${VERSION}"
+          TRIGGER=".release-trigger/${TAG}.json"
+          test "$VERSION" = "0.1.0-alpha.1"
+          test "$GITHUB_REF_NAME" = "publish-${TAG}"
+          test -f "$TRIGGER"
+
+          read -r MANIFEST_VERSION SOURCE_COMMIT < <(
+            python3 - "$TRIGGER" <<'PY'
+          import json
+          import sys
+
+          path = sys.argv[1]
+          with open(path, encoding="utf-8") as handle:
+              data = json.load(handle)
+          if set(data) != {"version", "commit"}:
+              raise SystemExit("release trigger must contain exactly version and commit")
+          version = data["version"]
+          commit = data["commit"]
+          if not isinstance(version, str) or not isinstance(commit, str):
+              raise SystemExit("release trigger values must be strings")
+          print(version, commit)
+          PY
+          )
+
+          test "$MANIFEST_VERSION" = "$VERSION"
+          [[ "$SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse "${GITHUB_SHA}^")" = "$SOURCE_COMMIT"
+          test "$(git diff --name-only "$SOURCE_COMMIT" "$GITHUB_SHA")" = "$TRIGGER"
+
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$SOURCE_COMMIT"
+          git cat-file -e "${SOURCE_COMMIT}^{commit}"
+          test "$(git show "${SOURCE_COMMIT}:release/version.txt" | tr -d '\r\n')" = "$VERSION"
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "Tag ${TAG} already exists; releases are immutable." >&2
+            exit 1
+          fi
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release ${TAG} already exists; published bytes are immutable." >&2
+            exit 1
+          fi
+
+          echo "source_commit=$SOURCE_COMMIT" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+  verify-linux:
+    needs: resolve-candidate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Check out immutable candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ needs.resolve-candidate.outputs.source_commit }}
+
+      - name: Set up Java 21
+        uses: actions/setup-java@d7793b545071e98d581d3bf084a51c3213318a07
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
+        with:
+          cache-read-only: true
+
+      - name: Run complete quality gate
+        run: ./gradlew --no-daemon check
+
+      - name: Verify release distributions
+        run: bash release/verify_release.sh
+
+  verify-windows:
+    needs: resolve-candidate
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out immutable candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ needs.resolve-candidate.outputs.source_commit }}
+
+      - name: Set up Java 21
+        uses: actions/setup-java@d7793b545071e98d581d3bf084a51c3213318a07
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
+        with:
+          cache-read-only: true
+
+      - name: Run complete quality gate
+        run: .\gradlew.bat --no-daemon check
+
   publish:
+    needs:
+      - resolve-candidate
+      - verify-linux
+      - verify-windows
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     permissions:
       contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_COMMIT: ${{ needs.resolve-candidate.outputs.source_commit }}
+      VERSION: ${{ needs.resolve-candidate.outputs.version }}
+      TAG: ${{ needs.resolve-candidate.outputs.tag }}
     steps:
-      - name: Check out tagged source
+      - name: Check out immutable candidate
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: v0.1.0-alpha.1
+          ref: ${{ needs.resolve-candidate.outputs.source_commit }}
           fetch-depth: 0
 
       - name: Set up Java 21
@@ -40,43 +173,57 @@ jobs:
         with:
           cache-read-only: true
 
-      - name: Validate immutable release tag
+      - name: Rebuild final release payload
+        run: bash release/verify_release.sh
+
+      - name: Revalidate immutable target and payload
         shell: bash
         run: |
           set -euo pipefail
-          VERSION=$(tr -d '\r\n' < release/version.txt)
-          RELEASE_TAG="v${VERSION}"
-          test "$RELEASE_TAG" = "v0.1.0-alpha.1"
-          git fetch origin "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
-          test "$(git rev-parse HEAD)" = "$(git rev-list -n 1 "$RELEASE_TAG")"
-          ./gradlew --no-daemon properties --console=plain | grep -Fx "version: ${VERSION}"
+          test "$VERSION" = "0.1.0-alpha.1"
+          test "$TAG" = "v${VERSION}"
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
           git fetch --no-tags origin main
-          git merge-base --is-ancestor "$(git rev-parse HEAD)" origin/main
-
-      - name: Run complete quality gate
-        run: ./gradlew --no-daemon check
-
-      - name: Verify release distributions
-        run: bash release/verify_release.sh
-
-      - name: Refuse silent replacement
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if gh release view v0.1.0-alpha.1 >/dev/null 2>&1; then
-            echo "Release v0.1.0-alpha.1 already exists; published bytes are immutable." >&2
+          test "$(git rev-parse origin/main)" = "$SOURCE_COMMIT"
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "Tag ${TAG} appeared during verification; refusing replacement." >&2
             exit 1
           fi
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release ${TAG} appeared during verification; refusing replacement." >&2
+            exit 1
+          fi
+          (
+            cd build/release
+            sha256sum --check SHA256SUMS
+          )
 
-      - name: Publish immutable prerelease
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Create immutable prerelease and tag
+        shell: bash
         run: |
-          gh release create v0.1.0-alpha.1 \
-            build/release/sunderfront-client-0.1.0-alpha.1.zip \
-            build/release/sunderfront-server-0.1.0-alpha.1.zip \
-            build/release/SHA256SUMS \
-            --verify-tag \
+          set -euo pipefail
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$SOURCE_COMMIT" \
             --prerelease \
-            --title "Sunderfront v0.1.0-alpha.1 — Direct Connect Alpha" \
-            --notes-file release/RELEASE_NOTES.md
+            --title "Sunderfront ${TAG} — Direct Connect Alpha" \
+            --notes-file release/RELEASE_NOTES.md \
+            "build/release/sunderfront-client-${VERSION}.zip" \
+            "build/release/sunderfront-server-${VERSION}.zip" \
+            build/release/SHA256SUMS
+
+      - name: Verify published target and assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "refs/tags/${TAG}:refs/tags/${TAG}"
+          test "$(git rev-list -n 1 "$TAG")" = "$SOURCE_COMMIT"
+          EXPECTED=$(printf '%s\n' \
+            SHA256SUMS \
+            "sunderfront-client-${VERSION}.zip" \
+            "sunderfront-server-${VERSION}.zip" | sort)
+          ACTUAL=$(gh release view "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json assets \
+            --jq '.assets[].name' | sort)
+          test "$ACTUAL" = "$EXPECTED"
