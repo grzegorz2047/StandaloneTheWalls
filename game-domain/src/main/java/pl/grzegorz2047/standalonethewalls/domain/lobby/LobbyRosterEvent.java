@@ -19,7 +19,9 @@ public sealed interface LobbyRosterEvent
             implements LobbyRosterEvent {
         public ParticipantJoined {
             Objects.requireNonNull(participantId, "participantId");
-            requirePositiveRevision(revision);
+            if (revision < 1L) {
+                throw new IllegalArgumentException("event revision must be positive");
+            }
         }
     }
 
@@ -32,7 +34,9 @@ public sealed interface LobbyRosterEvent
         public ParticipantLeft {
             Objects.requireNonNull(participantId, "participantId");
             Objects.requireNonNull(previousTeam, "previousTeam");
-            requirePositiveRevision(revision);
+            if (revision < 1L) {
+                throw new IllegalArgumentException("event revision must be positive");
+            }
         }
     }
 
@@ -47,7 +51,9 @@ public sealed interface LobbyRosterEvent
             Objects.requireNonNull(participantId, "participantId");
             Objects.requireNonNull(previousTeam, "previousTeam");
             Objects.requireNonNull(selectedTeam, "selectedTeam");
-            requirePositiveRevision(revision);
+            if (revision < 1L) {
+                throw new IllegalArgumentException("event revision must be positive");
+            }
         }
     }
 
@@ -55,13 +61,9 @@ public sealed interface LobbyRosterEvent
             implements LobbyRosterEvent {
         public ReadyChanged {
             Objects.requireNonNull(participantId, "participantId");
-            requirePositiveRevision(revision);
-        }
-    }
-
-    private static void requirePositiveRevision(long revision) {
-        if (revision < 1L) {
-            throw new IllegalArgumentException("event revision must be positive");
+            if (revision < 1L) {
+                throw new IllegalArgumentException("event revision must be positive");
+            }
         }
     }
 }
