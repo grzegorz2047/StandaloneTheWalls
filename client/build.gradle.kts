@@ -48,6 +48,9 @@ distributions {
             }
             from(directConnectSmokeScripts) {
                 into("bin")
+                filePermissions {
+                    unix("rwxr-xr-x")
+                }
             }
         }
     }
