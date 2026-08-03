@@ -6,7 +6,7 @@ import java.util.Objects;
 import java.util.Set;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
 
-/** Complete bounded membership view at one monotonic lobby revision. */
+/** Complete bounded identity, team, and readiness roster at one monotonic lobby revision. */
 public record LobbySnapshot(long revision, List<LobbyMember> members) {
     public static final int MAXIMUM_MEMBERS = 40;
 
