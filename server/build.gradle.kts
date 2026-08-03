@@ -63,6 +63,9 @@ distributions {
             }
             from(credentialGeneratorScripts) {
                 into("bin")
+                filePermissions {
+                    unix("rwxr-xr-x")
+                }
             }
         }
     }
