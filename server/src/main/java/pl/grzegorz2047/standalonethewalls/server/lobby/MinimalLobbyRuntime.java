@@ -25,23 +25,37 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import pl.grzegorz2047.standalonethewalls.domain.TeamId;
+import pl.grzegorz2047.standalonethewalls.domain.lobby.LobbyConfiguration;
+import pl.grzegorz2047.standalonethewalls.domain.lobby.LobbyParticipantId;
+import pl.grzegorz2047.standalonethewalls.domain.lobby.LobbyParticipantState;
+import pl.grzegorz2047.standalonethewalls.domain.lobby.LobbyRosterCommand;
+import pl.grzegorz2047.standalonethewalls.domain.lobby.LobbyRosterDecision;
+import pl.grzegorz2047.standalonethewalls.domain.lobby.LobbyRosterRejection;
+import pl.grzegorz2047.standalonethewalls.domain.lobby.LobbyRosterRules;
+import pl.grzegorz2047.standalonethewalls.domain.lobby.LobbyRosterState;
 import pl.grzegorz2047.standalonethewalls.protocol.MessageType;
 import pl.grzegorz2047.standalonethewalls.protocol.ProtocolEnvelope;
 import pl.grzegorz2047.standalonethewalls.protocol.ReliableSendResult;
-import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandOutcome;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandResult;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyJoined;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMember;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolCodec;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolException;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySelectTeamCommand;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySetReadyCommand;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
 import pl.grzegorz2047.standalonethewalls.server.identity.session.AuthorizedPlayerSession;
 import pl.grzegorz2047.standalonethewalls.server.identity.session.AuthorizedPlayerSessionQueue;
 
 /**
- * Owns the first reliable-only lobby membership runtime.
+ * Owns reliable lobby membership and the authoritative team/readiness roster.
  *
- * <p>The coordinator and receive watchers use owned virtual threads. No queue polling, network
- * send/receive, or session close executes on the fixed-tick simulation thread, listener accept
- * thread, or identity-admission worker.
+ * <p>The coordinator is the only roster writer. Receive workers decode bounded payloads and enqueue
+ * trusted-session intents. No queue polling, network I/O, domain transition, or session close runs
+ * on the fixed-tick simulation thread, listener accept thread, or identity-admission worker.
  */
 public final class MinimalLobbyRuntime implements AutoCloseable {
     private static final AtomicLong RUNTIME_IDS = new AtomicLong();
@@ -50,6 +64,7 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
     private static final long POLL_MILLIS = 10L;
 
     private final AuthorizedPlayerSessionQueue source;
+    private final LobbyConfiguration configuration;
     private final Duration sendTimeout;
     private final Duration shutdownTimeout;
     private final Consumer<MinimalLobbyEvent> eventObserver;
@@ -71,7 +86,13 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
             Duration sendTimeout,
             Duration shutdownTimeout,
             Consumer<MinimalLobbyEvent> eventObserver) {
-        this(source, sendTimeout, shutdownTimeout, eventObserver, () -> {});
+        this(
+                source,
+                LobbyConfiguration.standard(),
+                sendTimeout,
+                shutdownTimeout,
+                eventObserver,
+                () -> {});
     }
 
     public MinimalLobbyRuntime(
@@ -80,9 +101,38 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
             Duration shutdownTimeout,
             Consumer<MinimalLobbyEvent> eventObserver,
             Runnable terminalFailureAction) {
+        this(
+                source,
+                LobbyConfiguration.standard(),
+                sendTimeout,
+                shutdownTimeout,
+                eventObserver,
+                terminalFailureAction);
+    }
+
+    public MinimalLobbyRuntime(
+            AuthorizedPlayerSessionQueue source,
+            LobbyConfiguration configuration,
+            Duration sendTimeout,
+            Duration shutdownTimeout,
+            Consumer<MinimalLobbyEvent> eventObserver) {
+        this(source, configuration, sendTimeout, shutdownTimeout, eventObserver, () -> {});
+    }
+
+    public MinimalLobbyRuntime(
+            AuthorizedPlayerSessionQueue source,
+            LobbyConfiguration configuration,
+            Duration sendTimeout,
+            Duration shutdownTimeout,
+            Consumer<MinimalLobbyEvent> eventObserver,
+            Runnable terminalFailureAction) {
         this.source = Objects.requireNonNull(source, "source");
+        this.configuration = Objects.requireNonNull(configuration, "configuration");
         if (source.capacity() > LobbySnapshot.MAXIMUM_MEMBERS) {
             throw new IllegalArgumentException("source capacity exceeds minimal lobby capacity");
+        }
+        if (source.capacity() > configuration.maximumPlayers()) {
+            throw new IllegalArgumentException("source capacity exceeds lobby configuration");
         }
         this.sendTimeout = requireDuration(sendTimeout, "sendTimeout", MAXIMUM_SEND_TIMEOUT);
         this.shutdownTimeout =
@@ -174,7 +224,9 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
             while (lifecycle.get() == State.RUNNING) {
                 acceptPending(state);
                 Command command = commands.poll(POLL_MILLIS, TimeUnit.MILLISECONDS);
-                if (command instanceof SessionEnded ended) {
+                if (command instanceof ClientCommand clientCommand) {
+                    handleClientCommand(state, clientCommand);
+                } else if (command instanceof SessionEnded ended) {
                     handleSessionEnded(state, ended);
                 } else if (command == Shutdown.INSTANCE) {
                     break;
@@ -247,22 +299,30 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
     }
 
     private void acceptOne(LobbyState state, AuthorizedPlayerSession session) {
-        PlayerId playerId = session.playerId();
-        if (state.members.containsKey(playerId)) {
+        LobbyParticipantId participantId = participantId(session);
+        if (state.members.containsKey(participantId)) {
             closeSession(session);
             publish(MinimalLobbyEvent.Code.DUPLICATE_PLAYER_REJECTED);
             return;
         }
 
-        long joinedRevision = Math.incrementExact(state.revision);
-        LobbyMember member = new LobbyMember(playerId, session.handle());
+        LobbyRosterDecision decision =
+                LobbyRosterRules.apply(
+                        configuration, state.roster, new LobbyRosterCommand.Join(participantId));
+        if (!decision.accepted()) {
+            closeSession(session);
+            publish(MinimalLobbyEvent.Code.DUPLICATE_PLAYER_REJECTED);
+            return;
+        }
+
+        LobbyMember identity = new LobbyMember(session.playerId(), session.handle());
         try {
             await(
                     session.reliableChannel()
                             .send(
                                     MessageType.LOBBY_JOINED,
                                     LobbyProtocolCodec.encodeJoined(
-                                            new LobbyJoined(joinedRevision, member))),
+                                            new LobbyJoined(decision.state().revision(), identity))),
                     sendTimeout);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
@@ -274,68 +334,127 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
             return;
         }
 
-        state.revision = joinedRevision;
-        visibleRevision.set(joinedRevision);
-        state.members.put(playerId, new MemberState(member, session));
-        memberCount.set(state.members.size());
+        state.members.put(participantId, new MemberState(participantId, identity, session));
+        commitRoster(state, decision.state());
         publish(MinimalLobbyEvent.Code.MEMBER_JOINED);
         stabilizeSnapshots(state);
-        MemberState retained = state.members.get(playerId);
+        MemberState retained = state.members.get(participantId);
         if (retained != null && retained.session == session) {
             startReceiveWatcher(retained);
         }
     }
 
-    private void handleSessionEnded(LobbyState state, SessionEnded ended) {
-        MemberState current = state.members.get(ended.playerId);
-        if (current == null || !current.session.sessionId().equals(ended.sessionId)) {
+    private void handleClientCommand(LobbyState state, ClientCommand inbound) {
+        MemberState member = state.members.get(inbound.participantId());
+        if (member == null || !member.session.sessionId().equals(inbound.sessionId())) {
             return;
         }
-        state.members.remove(ended.playerId);
-        incrementRevision(state);
-        memberCount.set(state.members.size());
-        closeSession(current.session);
-        publish(
-                ended.reason == EndReason.PROTOCOL_VIOLATION
-                        ? MinimalLobbyEvent.Code.PROTOCOL_VIOLATION
-                        : ended.reason == EndReason.RECEIVE_FAILED
-                                ? MinimalLobbyEvent.Code.RECEIVE_FAILED
-                                : MinimalLobbyEvent.Code.MEMBER_LEFT);
-        stabilizeSnapshots(state);
+        if (inbound.requestId() <= member.lastRequestId) {
+            removeMember(state, member, EndReason.PROTOCOL_VIOLATION, true);
+            return;
+        }
+        member.lastRequestId = inbound.requestId();
+
+        LobbyRosterDecision decision =
+                LobbyRosterRules.apply(configuration, state.roster, inbound.command());
+        boolean changed = decision.accepted() && decision.state() != state.roster;
+        LobbyCommandOutcome outcome;
+        if (decision.accepted()) {
+            outcome = changed ? LobbyCommandOutcome.APPLIED : LobbyCommandOutcome.NO_CHANGE;
+            if (changed) {
+                commitRoster(state, decision.state());
+            }
+        } else {
+            outcome = outcome(decision.rejection().orElseThrow());
+        }
+
+        LobbyCommandResult result =
+                new LobbyCommandResult(inbound.requestId(), state.roster.revision(), outcome);
+        if (!sendCommandResult(member, result)) {
+            removeMember(state, member, EndReason.SEND_FAILED, true);
+            return;
+        }
+        if (changed) {
+            stabilizeSnapshots(state);
+        }
+    }
+
+    private void handleSessionEnded(LobbyState state, SessionEnded ended) {
+        MemberState member = state.members.get(ended.participantId());
+        if (member == null || !member.session.sessionId().equals(ended.sessionId())) {
+            return;
+        }
+        removeMember(state, member, ended.reason(), true);
+    }
+
+    private void removeMember(
+            LobbyState state, MemberState member, EndReason reason, boolean broadcastSnapshot) {
+        MemberState current = state.members.get(member.participantId);
+        if (current == null || current.session != member.session) {
+            return;
+        }
+        state.members.remove(member.participantId);
+        LobbyRosterDecision decision =
+                LobbyRosterRules.apply(
+                        configuration,
+                        state.roster,
+                        new LobbyRosterCommand.Leave(member.participantId));
+        if (!decision.accepted()) {
+            throw new IllegalStateException("authoritative lobby roster rejected an owned leave");
+        }
+        commitRoster(state, decision.state());
+        closeSession(member.session);
+        publish(eventCode(reason));
+        if (broadcastSnapshot) {
+            stabilizeSnapshots(state);
+        }
     }
 
     private void stabilizeSnapshots(LobbyState state) {
         while (!state.members.isEmpty()) {
-            LobbySnapshot snapshot =
-                    new LobbySnapshot(
-                            state.revision,
-                            state.members.values().stream()
-                                    .map(memberState -> memberState.member)
-                                    .toList());
+            LobbySnapshot snapshot = snapshot(state);
             byte[] payload = LobbyProtocolCodec.encodeSnapshot(snapshot);
-            List<PlayerId> failed = sendSnapshot(state.members, payload);
+            List<LobbyParticipantId> failed = sendSnapshot(state.members, payload);
             if (failed.isEmpty()) {
                 return;
             }
             failed.stream()
-                    .sorted(Comparator.comparing(PlayerId::value))
+                    .sorted()
                     .forEach(
-                            playerId -> {
-                                MemberState removed = state.members.remove(playerId);
+                            participantId -> {
+                                MemberState removed = state.members.get(participantId);
                                 if (removed != null) {
-                                    incrementRevision(state);
-                                    memberCount.set(state.members.size());
-                                    closeSession(removed.session);
-                                    publish(MinimalLobbyEvent.Code.SEND_FAILED);
+                                    removeMember(
+                                            state, removed, EndReason.SEND_FAILED, false);
                                 }
                             });
         }
     }
 
-    private List<PlayerId> sendSnapshot(Map<PlayerId, MemberState> members, byte[] payload) {
-        Map<PlayerId, CompletableFuture<ReliableSendResult>> sends = new LinkedHashMap<>();
-        List<PlayerId> failed = new ArrayList<>();
-        for (Map.Entry<PlayerId, MemberState> entry : members.entrySet()) {
+    private LobbySnapshot snapshot(LobbyState state) {
+        List<LobbyMember> members = new ArrayList<>(state.roster.participants().size());
+        for (LobbyParticipantState participant : state.roster.participants()) {
+            MemberState member = state.members.get(participant.participantId());
+            if (member == null) {
+                throw new IllegalStateException("authoritative roster contains an unowned member");
+            }
+            members.add(
+                    new LobbyMember(
+                            member.identity.playerId(),
+                            member.identity.handle(),
+                            participant.team().map(MinimalLobbyRuntime::protocolTeam)
+                                    .orElse(LobbyTeam.UNASSIGNED),
+                            participant.ready()));
+        }
+        return new LobbySnapshot(state.roster.revision(), members);
+    }
+
+    private List<LobbyParticipantId> sendSnapshot(
+            Map<LobbyParticipantId, MemberState> members, byte[] payload) {
+        Map<LobbyParticipantId, CompletableFuture<ReliableSendResult>> sends =
+                new LinkedHashMap<>();
+        List<LobbyParticipantId> failed = new ArrayList<>();
+        for (Map.Entry<LobbyParticipantId, MemberState> entry : members.entrySet()) {
             try {
                 sends.put(
                         entry.getKey(),
@@ -352,7 +471,8 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         }
 
         long deadline = System.nanoTime() + sendTimeout.toNanos();
-        for (Map.Entry<PlayerId, CompletableFuture<ReliableSendResult>> entry : sends.entrySet()) {
+        for (Map.Entry<LobbyParticipantId, CompletableFuture<ReliableSendResult>> entry :
+                sends.entrySet()) {
             long remaining = deadline - System.nanoTime();
             if (remaining <= 0L) {
                 entry.getValue().cancel(true);
@@ -365,10 +485,7 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
                 Thread.currentThread().interrupt();
                 entry.getValue().cancel(true);
                 failed.add(entry.getKey());
-            } catch (ExecutionException | TimeoutException exception) {
-                entry.getValue().cancel(true);
-                failed.add(entry.getKey());
-            } catch (RuntimeException exception) {
+            } catch (ExecutionException | TimeoutException | RuntimeException exception) {
                 entry.getValue().cancel(true);
                 failed.add(entry.getKey());
             }
@@ -376,43 +493,100 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         return List.copyOf(failed);
     }
 
+    private boolean sendCommandResult(MemberState member, LobbyCommandResult result) {
+        try {
+            await(
+                    member.session
+                            .reliableChannel()
+                            .send(
+                                    MessageType.LOBBY_COMMAND_RESULT,
+                                    LobbyProtocolCodec.encodeCommandResult(result)),
+                    sendTimeout);
+            return true;
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return false;
+        } catch (ExecutionException | TimeoutException | RuntimeException exception) {
+            return false;
+        }
+    }
+
     private void startReceiveWatcher(MemberState member) {
         try {
-            workers.execute(
-                    () -> {
-                        EndReason reason;
-                        try {
-                            Optional<ProtocolEnvelope> received =
-                                    Objects.requireNonNull(
-                                                    member.session.reliableChannel().receive(),
-                                                    "lobby receive stage")
-                                            .toCompletableFuture()
-                                            .get();
-                            reason =
-                                    received.isPresent()
-                                            ? EndReason.PROTOCOL_VIOLATION
-                                            : EndReason.EOF;
-                        } catch (InterruptedException exception) {
-                            Thread.currentThread().interrupt();
-                            return;
-                        } catch (ExecutionException exception) {
-                            reason = EndReason.RECEIVE_FAILED;
-                        } catch (RuntimeException exception) {
-                            reason = EndReason.RECEIVE_FAILED;
-                        }
-                        enqueue(
-                                new SessionEnded(
-                                        member.member.playerId(),
-                                        member.session.sessionId(),
-                                        reason));
-                    });
+            workers.execute(() -> runReceiveWatcher(member));
         } catch (RejectedExecutionException exception) {
             enqueue(
                     new SessionEnded(
-                            member.member.playerId(),
+                            member.participantId,
                             member.session.sessionId(),
                             EndReason.RECEIVE_FAILED));
         }
+    }
+
+    private void runReceiveWatcher(MemberState member) {
+        try {
+            while (lifecycle.get() == State.RUNNING) {
+                Optional<ProtocolEnvelope> received =
+                        Objects.requireNonNull(
+                                        member.session.reliableChannel().receive(),
+                                        "lobby receive stage")
+                                .toCompletableFuture()
+                                .get();
+                if (received.isEmpty()) {
+                    enqueue(
+                            new SessionEnded(
+                                    member.participantId,
+                                    member.session.sessionId(),
+                                    EndReason.EOF));
+                    return;
+                }
+                ClientCommand command = decodeClientCommand(member, received.orElseThrow());
+                enqueue(command);
+            }
+        } catch (LobbyProtocolException exception) {
+            enqueue(
+                    new SessionEnded(
+                            member.participantId,
+                            member.session.sessionId(),
+                            EndReason.PROTOCOL_VIOLATION));
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException | RuntimeException exception) {
+            enqueue(
+                    new SessionEnded(
+                            member.participantId,
+                            member.session.sessionId(),
+                            EndReason.RECEIVE_FAILED));
+        }
+    }
+
+    private static ClientCommand decodeClientCommand(
+            MemberState member, ProtocolEnvelope envelope) throws LobbyProtocolException {
+        return switch (envelope.messageType()) {
+            case LOBBY_SELECT_TEAM -> {
+                LobbySelectTeamCommand command =
+                        LobbyProtocolCodec.decodeSelectTeam(envelope.payload());
+                yield new ClientCommand(
+                        member.participantId,
+                        member.session.sessionId(),
+                        command.requestId(),
+                        new LobbyRosterCommand.SelectTeam(
+                                member.participantId, domainTeam(command.team())));
+            }
+            case LOBBY_SET_READY -> {
+                LobbySetReadyCommand command = LobbyProtocolCodec.decodeSetReady(envelope.payload());
+                yield new ClientCommand(
+                        member.participantId,
+                        member.session.sessionId(),
+                        command.requestId(),
+                        new LobbyRosterCommand.SetReady(
+                                member.participantId, command.ready()));
+            }
+            default ->
+                    throw new LobbyProtocolException(
+                            LobbyProtocolException.Code.INVALID_SIZE,
+                            "message type is not accepted by the lobby command boundary");
+        };
     }
 
     private void enqueue(Command command) {
@@ -462,10 +636,10 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         }
     }
 
-    private long incrementRevision(LobbyState state) {
-        state.revision = Math.incrementExact(state.revision);
-        visibleRevision.set(state.revision);
-        return state.revision;
+    private void commitRoster(LobbyState state, LobbyRosterState roster) {
+        state.roster = Objects.requireNonNull(roster, "roster");
+        memberCount.set(roster.participants().size());
+        visibleRevision.set(roster.revision());
     }
 
     private void publish(MinimalLobbyEvent.Code code) {
@@ -475,6 +649,50 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         } catch (RuntimeException ignored) {
             // Diagnostic observers cannot control membership or lifecycle.
         }
+    }
+
+    private static LobbyParticipantId participantId(AuthorizedPlayerSession session) {
+        return new LobbyParticipantId(session.playerId().value());
+    }
+
+    private static TeamId domainTeam(LobbyTeam team) {
+        return switch (Objects.requireNonNull(team, "team")) {
+            case GREEN -> TeamId.GREEN;
+            case BLUE -> TeamId.BLUE;
+            case RED -> TeamId.RED;
+            case YELLOW -> TeamId.YELLOW;
+            case UNASSIGNED -> throw new IllegalArgumentException("unassigned is not selectable");
+        };
+    }
+
+    private static LobbyTeam protocolTeam(TeamId team) {
+        return switch (Objects.requireNonNull(team, "team")) {
+            case GREEN -> LobbyTeam.GREEN;
+            case BLUE -> LobbyTeam.BLUE;
+            case RED -> LobbyTeam.RED;
+            case YELLOW -> LobbyTeam.YELLOW;
+        };
+    }
+
+    private static LobbyCommandOutcome outcome(LobbyRosterRejection rejection) {
+        return switch (Objects.requireNonNull(rejection, "rejection")) {
+            case LOBBY_FULL -> LobbyCommandOutcome.LOBBY_FULL;
+            case DUPLICATE_PARTICIPANT -> LobbyCommandOutcome.DUPLICATE_PARTICIPANT;
+            case UNKNOWN_PARTICIPANT -> LobbyCommandOutcome.UNKNOWN_PARTICIPANT;
+            case TEAM_DISABLED -> LobbyCommandOutcome.TEAM_DISABLED;
+            case TEAM_FULL -> LobbyCommandOutcome.TEAM_FULL;
+            case TEAM_IMBALANCE -> LobbyCommandOutcome.TEAM_IMBALANCE;
+            case TEAM_REQUIRED -> LobbyCommandOutcome.TEAM_REQUIRED;
+        };
+    }
+
+    private static MinimalLobbyEvent.Code eventCode(EndReason reason) {
+        return switch (reason) {
+            case EOF -> MinimalLobbyEvent.Code.MEMBER_LEFT;
+            case PROTOCOL_VIOLATION -> MinimalLobbyEvent.Code.PROTOCOL_VIOLATION;
+            case SEND_FAILED -> MinimalLobbyEvent.Code.SEND_FAILED;
+            case RECEIVE_FAILED -> MinimalLobbyEvent.Code.RECEIVE_FAILED;
+        };
     }
 
     private static <T> T await(CompletionStage<T> stage, Duration timeout)
@@ -531,15 +749,36 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
     private enum EndReason {
         EOF,
         PROTOCOL_VIOLATION,
+        SEND_FAILED,
         RECEIVE_FAILED
     }
 
-    private sealed interface Command permits SessionEnded, Shutdown {}
+    private sealed interface Command permits ClientCommand, SessionEnded, Shutdown {}
 
-    private record SessionEnded(PlayerId playerId, UUID sessionId, EndReason reason)
+    private record ClientCommand(
+            LobbyParticipantId participantId,
+            UUID sessionId,
+            long requestId,
+            LobbyRosterCommand command)
+            implements Command {
+        private ClientCommand {
+            Objects.requireNonNull(participantId, "participantId");
+            Objects.requireNonNull(sessionId, "sessionId");
+            Objects.requireNonNull(command, "command");
+            if (requestId < 1L) {
+                throw new IllegalArgumentException("requestId must be positive");
+            }
+            if (!participantId.equals(command.participantId())) {
+                throw new IllegalArgumentException("command identity does not match its session");
+            }
+        }
+    }
+
+    private record SessionEnded(
+            LobbyParticipantId participantId, UUID sessionId, EndReason reason)
             implements Command {
         private SessionEnded {
-            Objects.requireNonNull(playerId, "playerId");
+            Objects.requireNonNull(participantId, "participantId");
             Objects.requireNonNull(sessionId, "sessionId");
             Objects.requireNonNull(reason, "reason");
         }
@@ -550,18 +789,23 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
     }
 
     private static final class MemberState {
-        private final LobbyMember member;
+        private final LobbyParticipantId participantId;
+        private final LobbyMember identity;
         private final AuthorizedPlayerSession session;
+        private long lastRequestId;
 
-        private MemberState(LobbyMember member, AuthorizedPlayerSession session) {
-            this.member = Objects.requireNonNull(member, "member");
+        private MemberState(
+                LobbyParticipantId participantId,
+                LobbyMember identity,
+                AuthorizedPlayerSession session) {
+            this.participantId = Objects.requireNonNull(participantId, "participantId");
+            this.identity = Objects.requireNonNull(identity, "identity");
             this.session = Objects.requireNonNull(session, "session");
         }
     }
 
     private static final class LobbyState {
-        private final TreeMap<PlayerId, MemberState> members =
-                new TreeMap<>(Comparator.comparing(PlayerId::value));
-        private long revision;
+        private final TreeMap<LobbyParticipantId, MemberState> members = new TreeMap<>();
+        private LobbyRosterState roster = LobbyRosterState.initial();
     }
 }
