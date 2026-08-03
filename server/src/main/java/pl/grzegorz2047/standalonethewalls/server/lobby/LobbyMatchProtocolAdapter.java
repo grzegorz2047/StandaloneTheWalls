@@ -48,8 +48,7 @@ final class LobbyMatchProtocolAdapter {
     private static LobbyCountdownCancellationReason cancellationReason(
             CountdownCancellationReason reason) {
         return switch (Objects.requireNonNull(reason, "reason")) {
-            case INSUFFICIENT_PLAYERS ->
-                    LobbyCountdownCancellationReason.INSUFFICIENT_PLAYERS;
+            case INSUFFICIENT_PLAYERS -> LobbyCountdownCancellationReason.INSUFFICIENT_PLAYERS;
             case LOBBY_NOT_READY -> LobbyCountdownCancellationReason.LOBBY_NOT_READY;
         };
     }

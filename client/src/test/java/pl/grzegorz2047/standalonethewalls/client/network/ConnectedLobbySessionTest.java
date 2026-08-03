@@ -26,6 +26,9 @@ import pl.grzegorz2047.standalonethewalls.protocol.ReliableChannel;
 import pl.grzegorz2047.standalonethewalls.protocol.ReliableSendResult;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.CanonicalHandle;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCountdownCancellationReason;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhase;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhaseSnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMember;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
@@ -48,7 +51,10 @@ class ConnectedLobbySessionTest {
         AtomicInteger releases = new AtomicInteger();
         ConnectedLobbySession session =
                 new ConnectedLobbySession(
-                        transport, snapshot(1L, HANDLE), ignored -> releases.incrementAndGet());
+                        transport,
+                        snapshot(1L, HANDLE),
+                        matchSnapshot(1L, 1L, 1),
+                        ignored -> releases.incrementAndGet());
         session.startReceiving();
 
         channel.deliver(snapshotEnvelope(snapshot(2L, HANDLE), 1L));
@@ -158,7 +164,24 @@ class ConnectedLobbySessionTest {
             StubReliableChannel channel, LobbySnapshot initial) {
         AuthenticatedReliableSession transport =
                 AuthenticatedReliableSessionTestFactory.create(channel, PLAYER_ID, HANDLE);
-        return new ConnectedLobbySession(transport, initial, ignored -> {});
+        return new ConnectedLobbySession(
+                transport,
+                initial,
+                matchSnapshot(1L, initial.revision(), initial.members().size()),
+                ignored -> {});
+    }
+
+    private static LobbyMatchPhaseSnapshot matchSnapshot(
+            long revision, long rosterRevision, int connectedPlayers) {
+        return new LobbyMatchPhaseSnapshot(
+                revision,
+                rosterRevision,
+                LobbyMatchPhaseSnapshot.BEFORE_FIRST_TICK,
+                LobbyMatchPhase.WAITING_FOR_PLAYERS,
+                0L,
+                connectedPlayers,
+                1L,
+                LobbyCountdownCancellationReason.NONE);
     }
 
     private static LobbySnapshot snapshot(long revision, CanonicalHandle handle) {

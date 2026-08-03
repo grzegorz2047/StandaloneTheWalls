@@ -84,23 +84,28 @@ class LobbyMatchProtocolCodecTest {
                         1L,
                         LobbyCountdownCancellationReason.NONE);
 
-        assertThat(LobbyMatchProtocolCodec.decodeSnapshot(
-                        LobbyMatchProtocolCodec.encodeSnapshot(waiting)))
+        assertThat(
+                        LobbyMatchProtocolCodec.decodeSnapshot(
+                                LobbyMatchProtocolCodec.encodeSnapshot(waiting)))
                 .isEqualTo(waiting);
-        assertThat(LobbyMatchProtocolCodec.decodeSnapshot(
-                        LobbyMatchProtocolCodec.encodeSnapshot(cancelled)))
+        assertThat(
+                        LobbyMatchProtocolCodec.decodeSnapshot(
+                                LobbyMatchProtocolCodec.encodeSnapshot(cancelled)))
                 .isEqualTo(cancelled);
-        assertThat(LobbyMatchProtocolCodec.decodeSnapshot(
-                        LobbyMatchProtocolCodec.encodeSnapshot(preparation)))
+        assertThat(
+                        LobbyMatchProtocolCodec.decodeSnapshot(
+                                LobbyMatchProtocolCodec.encodeSnapshot(preparation)))
                 .isEqualTo(preparation);
     }
 
     @Test
     void rejectsNullTruncatedAndExtendedPayloads() {
         assertCode(null, LobbyProtocolException.Code.INVALID_SIZE);
-        assertCode(new byte[LobbyMatchProtocolCodec.SNAPSHOT_BYTES - 1],
+        assertCode(
+                new byte[LobbyMatchProtocolCodec.SNAPSHOT_BYTES - 1],
                 LobbyProtocolException.Code.INVALID_SIZE);
-        assertCode(new byte[LobbyMatchProtocolCodec.SNAPSHOT_BYTES + 1],
+        assertCode(
+                new byte[LobbyMatchProtocolCodec.SNAPSHOT_BYTES + 1],
                 LobbyProtocolException.Code.INVALID_SIZE);
     }
 

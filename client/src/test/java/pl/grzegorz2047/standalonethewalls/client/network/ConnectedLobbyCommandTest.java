@@ -32,6 +32,9 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.CanonicalHandle;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandOutcome;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandResult;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCountdownCancellationReason;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhase;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhaseSnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMember;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolException;
@@ -422,7 +425,20 @@ class ConnectedLobbyCommandTest {
             java.util.function.Consumer<ConnectedLobbySession> released) {
         AuthenticatedReliableSession transport =
                 AuthenticatedReliableSessionTestFactory.create(channel, PLAYER_ID, HANDLE);
-        return new ConnectedLobbySession(transport, initial, released);
+        return new ConnectedLobbySession(
+                transport, initial, initialMatchSnapshot(initial), released);
+    }
+
+    private static LobbyMatchPhaseSnapshot initialMatchSnapshot(LobbySnapshot roster) {
+        return new LobbyMatchPhaseSnapshot(
+                1L,
+                roster.revision(),
+                LobbyMatchPhaseSnapshot.BEFORE_FIRST_TICK,
+                LobbyMatchPhase.WAITING_FOR_PLAYERS,
+                0L,
+                roster.members().size(),
+                1L,
+                LobbyCountdownCancellationReason.NONE);
     }
 
     private static LobbySnapshot snapshot(long revision) {

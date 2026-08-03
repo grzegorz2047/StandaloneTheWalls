@@ -33,8 +33,7 @@ class LobbyMatchProtocolAdapterTest {
                 .isEqualTo(LobbyCountdownCancellationReason.INSUFFICIENT_PLAYERS);
         assertThat(countdown.phase()).isEqualTo(LobbyMatchPhase.START_COUNTDOWN);
         assertThat(countdown.ticksRemaining()).isEqualTo(17L);
-        assertThat(countdown.cancellationReason())
-                .isEqualTo(LobbyCountdownCancellationReason.NONE);
+        assertThat(countdown.cancellationReason()).isEqualTo(LobbyCountdownCancellationReason.NONE);
         assertThat(preparation.phase()).isEqualTo(LobbyMatchPhase.PREPARATION);
         assertThat(preparation.ticksRemaining()).isEqualTo(400L);
     }

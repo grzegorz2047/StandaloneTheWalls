@@ -7,15 +7,7 @@ import pl.grzegorz2047.standalonethewalls.protocol.MessageType;
 /** Exact fixed-size big-endian codec for authoritative lobby match snapshots. */
 public final class LobbyMatchProtocolCodec {
     public static final int SNAPSHOT_BYTES =
-            1
-                    + Long.BYTES
-                    + Long.BYTES
-                    + Long.BYTES
-                    + 1
-                    + Long.BYTES
-                    + 1
-                    + Long.BYTES
-                    + 1;
+            1 + Long.BYTES + Long.BYTES + Long.BYTES + 1 + Long.BYTES + 1 + Long.BYTES + 1;
 
     private static final int SNAPSHOT_SCHEMA_VERSION = 1;
 
@@ -78,8 +70,7 @@ public final class LobbyMatchProtocolCodec {
         long ticksRemaining = input.getLong();
         if (ticksRemaining < 0L) {
             throw new LobbyProtocolException(
-                    LobbyProtocolException.Code.INVALID_TICK,
-                    "lobby match countdown is negative");
+                    LobbyProtocolException.Code.INVALID_TICK, "lobby match countdown is negative");
         }
         int connectedPlayers = Byte.toUnsignedInt(input.get());
         if (connectedPlayers > LobbySnapshot.MAXIMUM_MEMBERS) {

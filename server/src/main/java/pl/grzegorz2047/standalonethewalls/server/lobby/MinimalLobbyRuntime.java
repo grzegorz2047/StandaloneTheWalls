@@ -615,9 +615,7 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
     }
 
     private List<LobbyParticipantId> sendToMembers(
-            Map<LobbyParticipantId, MemberState> members,
-            MessageType messageType,
-            byte[] payload) {
+            Map<LobbyParticipantId, MemberState> members, MessageType messageType, byte[] payload) {
         Map<LobbyParticipantId, CompletableFuture<ReliableSendResult>> sends =
                 new LinkedHashMap<>();
         List<LobbyParticipantId> failed = new ArrayList<>();

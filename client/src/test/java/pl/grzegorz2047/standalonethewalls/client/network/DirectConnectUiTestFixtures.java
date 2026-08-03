@@ -23,6 +23,9 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerSessionAdmissi
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerFingerprint;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerId;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandResult;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCountdownCancellationReason;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhase;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhaseSnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMember;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
@@ -86,7 +89,23 @@ public final class DirectConnectUiTestFixtures {
             ReliableChannel channel, LobbySnapshot initialSnapshot) {
         AuthenticatedReliableSession authenticated =
                 AuthenticatedReliableSessionTestFactory.create(channel, SELF_ID, SELF_HANDLE);
-        return new ConnectedLobbySession(authenticated, initialSnapshot, ignored -> {});
+        return new ConnectedLobbySession(
+                authenticated,
+                initialSnapshot,
+                initialMatchSnapshot(initialSnapshot),
+                ignored -> {});
+    }
+
+    private static LobbyMatchPhaseSnapshot initialMatchSnapshot(LobbySnapshot roster) {
+        return new LobbyMatchPhaseSnapshot(
+                1L,
+                roster.revision(),
+                LobbyMatchPhaseSnapshot.BEFORE_FIRST_TICK,
+                LobbyMatchPhase.WAITING_FOR_PLAYERS,
+                0L,
+                roster.members().size(),
+                1L,
+                LobbyCountdownCancellationReason.NONE);
     }
 
     private static void start(ConnectedLobbySession session) {
