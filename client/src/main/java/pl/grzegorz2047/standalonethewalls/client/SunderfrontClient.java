@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -33,9 +34,14 @@ import pl.grzegorz2047.standalonethewalls.client.ui.directconnect.DirectConnectS
 import pl.grzegorz2047.standalonethewalls.client.ui.directconnect.DirectConnectUiController;
 import pl.grzegorz2047.standalonethewalls.client.ui.directconnect.DirectConnectUiFocus;
 import pl.grzegorz2047.standalonethewalls.client.ui.directconnect.DirectConnectUiPhase;
+import pl.grzegorz2047.standalonethewalls.client.ui.pointer.UiHitMap;
+import pl.grzegorz2047.standalonethewalls.client.ui.pointer.UiHitTarget;
+import pl.grzegorz2047.standalonethewalls.client.ui.pointer.UiPointerRouter;
+import pl.grzegorz2047.standalonethewalls.client.ui.pointer.UiRect;
+import pl.grzegorz2047.standalonethewalls.client.ui.pointer.UiTargetId;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMember;
 
-/** Keyboard-first jMonkeyEngine shell for the start menu and production Direct Connect flow. */
+/** Keyboard-and-pointer jMonkeyEngine shell for the menu and Direct Connect flow. */
 public final class SunderfrontClient extends SimpleApplication
         implements ActionListener, RawInputListener {
     private static final String INPUT_UP = "sunderfront-ui-up";
@@ -46,6 +52,13 @@ public final class SunderfrontClient extends SimpleApplication
     private static final String INPUT_SELECT = "sunderfront-ui-select";
     private static final String INPUT_BACK = "sunderfront-ui-back";
     private static final String INPUT_BACKSPACE = "sunderfront-ui-backspace";
+
+    private static final UiTargetId DIRECT_ENDPOINT_TARGET =
+            new UiTargetId("direct.endpoint");
+    private static final UiTargetId DIRECT_HANDLE_TARGET = new UiTargetId("direct.handle");
+    private static final UiTargetId DIRECT_PRIMARY_TARGET = new UiTargetId("direct.primary");
+    private static final UiTargetId DIRECT_SECONDARY_TARGET =
+            new UiTargetId("direct.secondary");
 
     private static final ColorRGBA BACKGROUND = new ColorRGBA(0.025f, 0.035f, 0.06f, 1f);
     private static final ColorRGBA PRIMARY_TEXT = new ColorRGBA(0.88f, 0.91f, 0.96f, 1f);
@@ -59,6 +72,7 @@ public final class SunderfrontClient extends SimpleApplication
     private final boolean smokeMode;
     private final Path dataDirectory;
     private final CompletableFuture<Void> initialized = new CompletableFuture<>();
+    private final UiPointerRouter pointerRouter = new UiPointerRouter();
 
     private StartMenuModel menu;
     private Screen screen = Screen.START_MENU;
@@ -150,10 +164,19 @@ public final class SunderfrontClient extends SimpleApplication
     public void onJoyButtonEvent(JoyButtonEvent event) {}
 
     @Override
-    public void onMouseMotionEvent(MouseMotionEvent event) {}
+    public void onMouseMotionEvent(MouseMotionEvent event) {
+        if (!smokeMode) {
+            handlePointerMotion(event.getX(), event.getY());
+        }
+    }
 
     @Override
-    public void onMouseButtonEvent(MouseButtonEvent event) {}
+    public void onMouseButtonEvent(MouseButtonEvent event) {
+        if (!smokeMode) {
+            handlePointerButton(
+                    event.getButtonIndex(), event.isPressed(), event.getX(), event.getY());
+        }
+    }
 
     @Override
     public void onTouchEvent(TouchEvent event) {}
@@ -161,6 +184,7 @@ public final class SunderfrontClient extends SimpleApplication
     @Override
     public void destroy() {
         shuttingDown = true;
+        pointerRouter.replaceHitMap(UiHitMap.empty());
         closeDirectConnectController();
         if (!smokeMode && inputManager != null) {
             inputManager.removeListener(this);
@@ -198,6 +222,58 @@ public final class SunderfrontClient extends SimpleApplication
         if (screen != Screen.START_MENU) {
             throw new IllegalStateException(
                     "Direct Connect screen did not return to the start menu");
+        }
+    }
+
+    void exercisePointerNavigation(Duration timeout) {
+        Objects.requireNonNull(timeout, "timeout");
+        if (timeout.isZero() || timeout.isNegative()) {
+            throw new IllegalArgumentException("timeout must be positive");
+        }
+        if (!smokeMode) {
+            throw new IllegalStateException("pointer smoke exercise requires smoke mode");
+        }
+
+        pointerRouter.replaceHitMap(
+                new UiHitMap(
+                        List.of(
+                                UiHitTarget.enabled(
+                                        menuTargetId(0), new UiRect(0f, 0f, 100f, 40f)),
+                                UiHitTarget.enabled(
+                                        menuTargetId(1), new UiRect(0f, 50f, 100f, 40f)))));
+        handlePointerMotion(20f, 70f);
+        if (menu.selectedIndex() != 1) {
+            throw new IllegalStateException("menu hover did not update selection");
+        }
+        handlePointerMotion(20f, 20f);
+        handlePointerButton(UiPointerRouter.PRIMARY_BUTTON, true, 20f, 20f);
+        handlePointerButton(UiPointerRouter.PRIMARY_BUTTON, false, 20f, 20f);
+        if (screen != Screen.DIRECT_CONNECT || directConnectController == null) {
+            throw new IllegalStateException("pointer did not open Direct Connect");
+        }
+
+        pointerRouter.replaceHitMap(
+                new UiHitMap(
+                        List.of(
+                                UiHitTarget.enabled(
+                                        DIRECT_ENDPOINT_TARGET,
+                                        new UiRect(0f, 0f, 100f, 40f)),
+                                UiHitTarget.enabled(
+                                        DIRECT_SECONDARY_TARGET,
+                                        new UiRect(0f, 50f, 100f, 40f)))));
+        handlePointerMotion(20f, 20f);
+        if (directConnectController.model().focus() != DirectConnectUiFocus.ENDPOINT) {
+            throw new IllegalStateException("field hover did not update Direct Connect focus");
+        }
+        handlePointerMotion(20f, 70f);
+        if (directConnectController.model().focus()
+                != DirectConnectUiFocus.SECONDARY_ACTION) {
+            throw new IllegalStateException("action hover did not update Direct Connect focus");
+        }
+        handlePointerButton(UiPointerRouter.PRIMARY_BUTTON, true, 20f, 70f);
+        handlePointerButton(UiPointerRouter.PRIMARY_BUTTON, false, 20f, 70f);
+        if (screen != Screen.START_MENU) {
+            throw new IllegalStateException("pointer did not return to the start menu");
         }
     }
 
@@ -254,6 +330,59 @@ public final class SunderfrontClient extends SimpleApplication
             default -> {
                 // InputManager invokes this listener only for registered mappings.
             }
+        }
+    }
+
+    private void handlePointerMotion(float x, float y) {
+        pointerRouter.hover(x, y).ifPresent(this::focusPointerTarget);
+    }
+
+    private void handlePointerButton(
+            int buttonIndex, boolean pressed, float x, float y) {
+        pointerRouter
+                .button(buttonIndex, pressed, x, y)
+                .ifPresent(this::activatePointerTarget);
+    }
+
+    private void focusPointerTarget(UiTargetId target) {
+        if (screen == Screen.START_MENU) {
+            int index = menuIndex(target);
+            if (index >= 0 && index != menu.selectedIndex()) {
+                menu = menu.select(index);
+                renderCurrentScreen();
+            }
+            return;
+        }
+        directFocus(target)
+                .ifPresent(
+                        focus -> {
+                            if (directConnectController != null) {
+                                directConnectController.focus(focus);
+                            }
+                        });
+    }
+
+    private void activatePointerTarget(UiTargetId target) {
+        if (screen == Screen.START_MENU) {
+            int index = menuIndex(target);
+            if (index < 0) {
+                return;
+            }
+            menu = menu.select(index);
+            activateSelectedEntry();
+            return;
+        }
+        Optional<DirectConnectUiFocus> requested = directFocus(target);
+        if (requested.isEmpty() || directConnectController == null) {
+            return;
+        }
+        DirectConnectUiFocus focus = requested.orElseThrow();
+        if (!directConnectController.focus(focus)) {
+            return;
+        }
+        if (focus == DirectConnectUiFocus.PRIMARY_ACTION
+                || focus == DirectConnectUiFocus.SECONDARY_ACTION) {
+            directConnectController.activate();
         }
     }
 
@@ -326,15 +455,18 @@ public final class SunderfrontClient extends SimpleApplication
         }
         renderedWidth = cam.getWidth();
         renderedHeight = cam.getHeight();
+        pointerRouter.replaceHitMap(UiHitMap.empty());
         guiNode.detachAllChildren();
+        List<UiHitTarget> targets = new ArrayList<>();
         if (screen == Screen.START_MENU) {
-            renderStartMenu();
+            renderStartMenu(targets);
         } else if (directConnectModel != null) {
-            renderDirectConnect(directConnectModel);
+            renderDirectConnect(directConnectModel, targets);
         }
+        pointerRouter.replaceHitMap(new UiHitMap(targets));
     }
 
-    private void renderStartMenu() {
+    private void renderStartMenu(List<UiHitTarget> targets) {
         addCenteredText(messages.text("app.title"), 54f, PRIMARY_TEXT, cam.getHeight() - 90f);
         addCenteredText(messages.text("app.subtitle"), 22f, MUTED_TEXT, cam.getHeight() - 140f);
 
@@ -342,12 +474,16 @@ public final class SunderfrontClient extends SimpleApplication
         for (int index = 0; index < menu.entries().size(); index++) {
             boolean selected = index == menu.selectedIndex();
             String label = (selected ? "> " : "  ") + menu.entries().get(index).label();
-            addText(
-                    label,
-                    30f,
-                    selected ? SELECTED_TEXT : PRIMARY_TEXT,
-                    cam.getWidth() * 0.34f,
-                    menuTop - (index * 56f));
+            BitmapText entry =
+                    addText(
+                            label,
+                            30f,
+                            selected ? SELECTED_TEXT : PRIMARY_TEXT,
+                            cam.getWidth() * 0.34f,
+                            menuTop - (index * 56f));
+            targets.add(
+                    UiHitTarget.enabled(
+                            menuTargetId(index), hitBounds(entry, 18f, 10f, 240f)));
         }
         if (!menuStatus.isBlank()) {
             addCenteredText(menuStatus, 18f, WARNING_TEXT, 105f);
@@ -355,7 +491,8 @@ public final class SunderfrontClient extends SimpleApplication
         addCenteredText(messages.text("menu.help"), 17f, MUTED_TEXT, 52f);
     }
 
-    private void renderDirectConnect(DirectConnectScreenModel model) {
+    private void renderDirectConnect(
+            DirectConnectScreenModel model, List<UiHitTarget> targets) {
         float width = cam.getWidth();
         float height = cam.getHeight();
         float left = Math.max(42f, width * 0.12f);
@@ -363,26 +500,43 @@ public final class SunderfrontClient extends SimpleApplication
         addCenteredText(model.title(), 40f, PRIMARY_TEXT, height - 65f);
         addCenteredText(model.status(), 22f, statusColor(model.phase()), height - 112f);
 
-        addText(
-                fieldLine(
-                        messages.text("direct.field.endpoint"),
-                        model.endpointText(),
-                        model.focus() == DirectConnectUiFocus.ENDPOINT,
-                        model.editingEnabled()),
-                22f,
-                model.focus() == DirectConnectUiFocus.ENDPOINT ? SELECTED_TEXT : PRIMARY_TEXT,
-                left,
-                height - 180f);
-        addText(
-                fieldLine(
-                        messages.text("direct.field.handle"),
-                        model.handleText(),
-                        model.focus() == DirectConnectUiFocus.HANDLE,
-                        model.editingEnabled()),
-                22f,
-                model.focus() == DirectConnectUiFocus.HANDLE ? SELECTED_TEXT : PRIMARY_TEXT,
-                left,
-                height - 222f);
+        BitmapText endpoint =
+                addText(
+                        fieldLine(
+                                messages.text("direct.field.endpoint"),
+                                model.endpointText(),
+                                model.focus() == DirectConnectUiFocus.ENDPOINT,
+                                model.editingEnabled()),
+                        22f,
+                        model.focus() == DirectConnectUiFocus.ENDPOINT
+                                ? SELECTED_TEXT
+                                : PRIMARY_TEXT,
+                        left,
+                        height - 180f);
+        targets.add(
+                new UiHitTarget(
+                        DIRECT_ENDPOINT_TARGET,
+                        hitBounds(endpoint, 14f, 8f, 0f),
+                        model.editingEnabled()));
+
+        BitmapText handle =
+                addText(
+                        fieldLine(
+                                messages.text("direct.field.handle"),
+                                model.handleText(),
+                                model.focus() == DirectConnectUiFocus.HANDLE,
+                                model.editingEnabled()),
+                        22f,
+                        model.focus() == DirectConnectUiFocus.HANDLE
+                                ? SELECTED_TEXT
+                                : PRIMARY_TEXT,
+                        left,
+                        height - 222f);
+        targets.add(
+                new UiHitTarget(
+                        DIRECT_HANDLE_TARGET,
+                        hitBounds(handle, 14f, 8f, 0f),
+                        model.editingEnabled()));
 
         float detailY = height - 278f;
         for (String line : wrap(model.detail(), Math.max(44, (int) (width / 14f)))) {
@@ -413,17 +567,47 @@ public final class SunderfrontClient extends SimpleApplication
                     Math.min(detailY - 18f, height - 340f));
         }
 
-        String actions =
-                actionLabel(
+        BitmapText primary =
+                addText(
+                        actionLabel(
                                 model.primaryAction(),
                                 model.focus() == DirectConnectUiFocus.PRIMARY_ACTION,
-                                model.primaryEnabled())
-                        + "      "
-                        + actionLabel(
+                                model.primaryEnabled()),
+                        22f,
+                        actionColor(
+                                model.focus() == DirectConnectUiFocus.PRIMARY_ACTION,
+                                model.primaryEnabled()),
+                        0f,
+                        78f);
+        BitmapText secondary =
+                addText(
+                        actionLabel(
                                 model.secondaryAction(),
                                 model.focus() == DirectConnectUiFocus.SECONDARY_ACTION,
-                                model.secondaryEnabled());
-        addCenteredText(actions, 22f, SELECTED_TEXT, 78f);
+                                model.secondaryEnabled()),
+                        22f,
+                        actionColor(
+                                model.focus() == DirectConnectUiFocus.SECONDARY_ACTION,
+                                model.secondaryEnabled()),
+                        0f,
+                        78f);
+        float gap = Math.max(36f, Math.min(72f, width * 0.07f));
+        float actionWidth = primary.getLineWidth() + gap + secondary.getLineWidth();
+        float actionLeft = Math.max(20f, (width - actionWidth) / 2f);
+        primary.setLocalTranslation(actionLeft, 78f, 0f);
+        secondary.setLocalTranslation(
+                actionLeft + primary.getLineWidth() + gap, 78f, 0f);
+        targets.add(
+                new UiHitTarget(
+                        DIRECT_PRIMARY_TARGET,
+                        hitBounds(primary, 18f, 10f, 100f),
+                        model.primaryEnabled()));
+        targets.add(
+                new UiHitTarget(
+                        DIRECT_SECONDARY_TARGET,
+                        hitBounds(secondary, 18f, 10f, 100f),
+                        model.secondaryEnabled()));
+
         addCenteredText(messages.text("direct.help"), 15f, MUTED_TEXT, 34f);
     }
 
@@ -443,6 +627,22 @@ public final class SunderfrontClient extends SimpleApplication
                 Math.max(20f, (cam.getWidth() - bitmapText.getLineWidth()) / 2f), y, 0f);
     }
 
+    private static UiRect hitBounds(
+            BitmapText text,
+            float horizontalPadding,
+            float verticalPadding,
+            float minimumWidth) {
+        float renderedWidth = text.getLineWidth();
+        float contentWidth = Math.max(minimumWidth, renderedWidth);
+        float extraWidth = (contentWidth - renderedWidth) / 2f;
+        float lineHeight = Math.max(1f, text.getLineHeight());
+        return new UiRect(
+                text.getLocalTranslation().x - horizontalPadding - extraWidth,
+                text.getLocalTranslation().y - lineHeight - verticalPadding,
+                contentWidth + (2f * horizontalPadding),
+                lineHeight + (2f * verticalPadding));
+    }
+
     private static String fieldLine(
             String label, String value, boolean selected, boolean editingEnabled) {
         String cursor = selected ? "> " : "  ";
@@ -455,6 +655,45 @@ public final class SunderfrontClient extends SimpleApplication
             return "(" + label + ")";
         }
         return selected ? "[" + label + "]" : label;
+    }
+
+    private static ColorRGBA actionColor(boolean selected, boolean enabled) {
+        if (!enabled) {
+            return MUTED_TEXT;
+        }
+        return selected ? SELECTED_TEXT : PRIMARY_TEXT;
+    }
+
+    private static UiTargetId menuTargetId(int index) {
+        if (index < 0) {
+            throw new IllegalArgumentException("menu index must not be negative");
+        }
+        return new UiTargetId("menu.entry." + index);
+    }
+
+    private int menuIndex(UiTargetId target) {
+        for (int index = 0; index < menu.entries().size(); index++) {
+            if (menuTargetId(index).equals(target)) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    private static Optional<DirectConnectUiFocus> directFocus(UiTargetId target) {
+        if (DIRECT_ENDPOINT_TARGET.equals(target)) {
+            return Optional.of(DirectConnectUiFocus.ENDPOINT);
+        }
+        if (DIRECT_HANDLE_TARGET.equals(target)) {
+            return Optional.of(DirectConnectUiFocus.HANDLE);
+        }
+        if (DIRECT_PRIMARY_TARGET.equals(target)) {
+            return Optional.of(DirectConnectUiFocus.PRIMARY_ACTION);
+        }
+        if (DIRECT_SECONDARY_TARGET.equals(target)) {
+            return Optional.of(DirectConnectUiFocus.SECONDARY_ACTION);
+        }
+        return Optional.empty();
     }
 
     private static String formatMembers(List<LobbyMember> members, String ownHandle, int columns) {
