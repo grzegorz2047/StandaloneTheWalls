@@ -44,8 +44,7 @@ class DirectConnectServiceLoopbackTest {
         awaitListener(reliablePort);
 
         Path clientData = temporaryDirectory.resolve("client-data");
-        DirectConnectEndpoint endpoint =
-                DirectConnectEndpoint.parse("127.0.0.1:" + reliablePort);
+        DirectConnectEndpoint endpoint = DirectConnectEndpoint.parse("127.0.0.1:" + reliablePort);
         CanonicalHandle handle = new CanonicalHandle("direct_player");
         PlayerId persistedPlayerId;
 
@@ -173,9 +172,7 @@ class DirectConnectServiceLoopbackTest {
     }
 
     private static void close(ConnectedLobbySession session) throws Exception {
-        session.closeAsync()
-                .toCompletableFuture()
-                .get(NETWORK_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        session.closeAsync().toCompletableFuture().get(NETWORK_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     }
 
     private static void assertLobbyContainsSelf(
