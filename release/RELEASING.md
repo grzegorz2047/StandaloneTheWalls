@@ -28,17 +28,24 @@ administrative and cannot be enforced by files inside the repository.
    }
    ```
 
-5. Push the publication branch. Do not merge it into `main` and do not add other
-   files or commits.
+5. Prefer a normal `git push` of the publication branch. Do not merge it into
+   `main` and do not add other files or commits.
+6. When an automation environment can write repository commits but its push does
+   not emit a workflow event, open a same-repository draft PR from
+   `publish-v0.1.0-alpha.1` to `main`, review the one-file diff, and mark it ready
+   for review. The PR is only a reviewed trigger and audit record; never merge it.
 
 The workflow rejects a branch whose trigger commit is not directly on top of the
 candidate, whose diff contains anything except the trigger JSON, whose candidate
 is not the current `origin/main`, or whose version does not match
-`release/version.txt`.
+`release/version.txt`. The PR fallback additionally requires the exact publication
+branch, a same-repository head, a non-draft PR, and an unchanged head commit through
+final publication.
 
 ## Automated verification and publication
 
-A push to `publish-v0.1.0-alpha.1` runs one self-contained workflow:
+A push to `publish-v0.1.0-alpha.1`, or marking its reviewed same-repository trigger
+PR ready, runs one self-contained workflow:
 
 1. resolve and validate the immutable candidate SHA from the trigger JSON;
 2. refuse an existing tag or GitHub Release;
@@ -48,7 +55,7 @@ A push to `publish-v0.1.0-alpha.1` runs one self-contained workflow:
    verification, and run Direct Connect E2E from freshly unpacked distributions;
 5. run the complete Java 21 quality gate on Windows;
 6. rebuild the final payload from the same candidate and recheck that `main`, the
-   tag, and the Release have not changed;
+   publication branch, the tag, and the Release have not changed;
 7. run `gh release create --target <candidate SHA>`, which creates
    `v0.1.0-alpha.1` and the prerelease only after every gate succeeds;
 8. verify that the resulting tag resolves to the candidate and that the Release
