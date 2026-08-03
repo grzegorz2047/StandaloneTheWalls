@@ -99,14 +99,33 @@ public final class DirectConnectService implements AutoCloseable {
     }
 
     public DirectConnectAttempt connect(DirectConnectEndpoint endpoint, CanonicalHandle handle) {
+        return connect(endpoint, handle, DirectConnectProgressListener.NONE);
+    }
+
+    public DirectConnectAttempt connect(
+            DirectConnectEndpoint endpoint,
+            CanonicalHandle handle,
+            DirectConnectProgressListener progressListener) {
         Objects.requireNonNull(endpoint, "endpoint");
         Objects.requireNonNull(handle, "handle");
         pendingConfirmation.set(null);
-        return start(endpoint, handle, Optional.empty(), false);
+        return start(
+                endpoint,
+                handle,
+                Optional.empty(),
+                false,
+                DirectConnectProgressListener.require(progressListener));
     }
 
     public DirectConnectAttempt confirmFirstUse(FirstUseConfirmation confirmation) {
+        return confirmFirstUse(confirmation, DirectConnectProgressListener.NONE);
+    }
+
+    public DirectConnectAttempt confirmFirstUse(
+            FirstUseConfirmation confirmation, DirectConnectProgressListener progressListener) {
         Objects.requireNonNull(confirmation, "confirmation");
+        DirectConnectProgressListener listener =
+                DirectConnectProgressListener.require(progressListener);
         if (closed.get()) {
             return DirectConnectAttempt.completed(DirectConnectFailureCode.SERVICE_CLOSED);
         }
@@ -121,7 +140,12 @@ public final class DirectConnectService implements AutoCloseable {
                 confirmation.endpoint(),
                 pending.handle(),
                 Optional.of(confirmation.serverId()),
-                true);
+                true,
+                listener);
+    }
+
+    public void discardPendingConfirmation() {
+        pendingConfirmation.set(null);
     }
 
     public boolean isConnecting() {
@@ -129,7 +153,8 @@ public final class DirectConnectService implements AutoCloseable {
     }
 
     public Optional<ConnectedLobbySession> connectedSession() {
-        return Optional.ofNullable(connected.get());
+        ConnectedLobbySession session = connected.get();
+        return session != null && session.isOpen() ? Optional.of(session) : Optional.empty();
     }
 
     @Override
@@ -164,7 +189,8 @@ public final class DirectConnectService implements AutoCloseable {
             DirectConnectEndpoint endpoint,
             CanonicalHandle handle,
             Optional<ServerId> expectedServerId,
-            boolean persistConfirmedServer) {
+            boolean persistConfirmedServer,
+            DirectConnectProgressListener progressListener) {
         if (closed.get()) {
             return DirectConnectAttempt.completed(DirectConnectFailureCode.SERVICE_CLOSED);
         }
@@ -172,7 +198,12 @@ public final class DirectConnectService implements AutoCloseable {
             return DirectConnectAttempt.completed(DirectConnectFailureCode.ALREADY_CONNECTED);
         }
         Operation operation =
-                new Operation(endpoint, handle, expectedServerId, persistConfirmedServer);
+                new Operation(
+                        endpoint,
+                        handle,
+                        expectedServerId,
+                        persistConfirmedServer,
+                        progressListener);
         if (!active.compareAndSet(null, operation)) {
             return DirectConnectAttempt.completed(DirectConnectFailureCode.ALREADY_CONNECTING);
         }
@@ -202,6 +233,7 @@ public final class DirectConnectService implements AutoCloseable {
         private final CanonicalHandle handle;
         private final Optional<ServerId> expectedServerId;
         private final boolean persistConfirmedServer;
+        private final DirectConnectProgressListener progressListener;
         private final CompletableFuture<DirectConnectResult> result = new CompletableFuture<>();
         private final AtomicBoolean cancelled = new AtomicBoolean();
         private final Object resourceLock = new Object();
@@ -214,11 +246,13 @@ public final class DirectConnectService implements AutoCloseable {
                 DirectConnectEndpoint endpoint,
                 CanonicalHandle handle,
                 Optional<ServerId> expectedServerId,
-                boolean persistConfirmedServer) {
+                boolean persistConfirmedServer,
+                DirectConnectProgressListener progressListener) {
             this.endpoint = endpoint;
             this.handle = handle;
             this.expectedServerId = expectedServerId;
             this.persistConfirmedServer = persistConfirmedServer;
+            this.progressListener = DirectConnectProgressListener.require(progressListener);
         }
 
         private DirectConnectAttempt attempt() {
@@ -237,10 +271,12 @@ public final class DirectConnectService implements AutoCloseable {
                         new PinnedServerTrustManager(
                                 trustService, endpoint.serverReference(), expectedServerId);
 
+                emit(DirectConnectStage.RESOLVING);
                 Optional<InetAddress[]> addresses = resolveAddresses();
                 if (addresses.isEmpty()) {
                     return;
                 }
+                emit(DirectConnectStage.CONNECTING);
                 Socket socket = connectSocket(addresses.orElseThrow());
                 if (socket == null) {
                     return;
@@ -248,6 +284,7 @@ public final class DirectConnectService implements AutoCloseable {
                 installResource(() -> closeSocket(socket));
                 requireActive();
 
+                emit(DirectConnectStage.SECURING_TRANSPORT);
                 Tls13Connection tls;
                 try {
                     tls = Tls13ClientConnector.connect(socket, trustManager, random);
@@ -274,6 +311,7 @@ public final class DirectConnectService implements AutoCloseable {
                 installResource(() -> awaitClose(bootstrapped.closeAsync()));
                 requireActive();
 
+                emit(DirectConnectStage.AUTHENTICATING);
                 AuthenticatedReliableSession authenticated;
                 try {
                     authenticated =
@@ -301,6 +339,7 @@ public final class DirectConnectService implements AutoCloseable {
                 installResource(() -> awaitClose(authenticated.closeAsync()));
                 requireActive();
 
+                emit(DirectConnectStage.WAITING_ADMISSION);
                 PlayerSessionAdmissionStatus admission = receiveAdmission(authenticated);
                 if (admission == null) {
                     return;
@@ -312,6 +351,7 @@ public final class DirectConnectService implements AutoCloseable {
                     return;
                 }
 
+                emit(DirectConnectStage.JOINING_LOBBY);
                 LobbyJoined joined = receiveJoined(authenticated, identity);
                 if (joined == null) {
                     return;
@@ -598,6 +638,17 @@ public final class DirectConnectService implements AutoCloseable {
             java.util.Arrays.fill(tokenBytes, (byte) 0);
             pendingConfirmation.set(new PendingConfirmation(confirmation, handle));
             complete(new DirectConnectResult.ConfirmationRequired(confirmation));
+        }
+
+        private void emit(DirectConnectStage stage) {
+            if (cancelled.get() || closed.get()) {
+                return;
+            }
+            try {
+                progressListener.onStage(Objects.requireNonNull(stage, "stage"));
+            } catch (RuntimeException ignored) {
+                // Progress observers cannot control transport ownership or lifecycle.
+            }
         }
 
         private boolean cancel() {
