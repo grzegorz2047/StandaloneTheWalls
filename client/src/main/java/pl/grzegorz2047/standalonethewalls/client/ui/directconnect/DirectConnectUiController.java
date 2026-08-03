@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import pl.grzegorz2047.standalonethewalls.client.i18n.ClientMessages;
@@ -14,6 +13,7 @@ import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectEndpoint;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectEndpointException;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectFailure;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectFailureCode;
+import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectProgressListener;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectResult;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectService;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectStage;
@@ -27,7 +27,7 @@ public final class DirectConnectUiController implements AutoCloseable {
     public static final String DEFAULT_ENDPOINT = "127.0.0.1:27420";
     private static final int MAXIMUM_HANDLE_LENGTH = 24;
 
-    private final DirectConnectService service;
+    private final DirectConnectUiBackend backend;
     private final ClientMessages messages;
     private final UiDispatcher dispatcher;
     private final Consumer<DirectConnectScreenModel> observer;
@@ -38,7 +38,7 @@ public final class DirectConnectUiController implements AutoCloseable {
     private String handleText = "player_one";
     private DirectConnectUiFocus focus = DirectConnectUiFocus.ENDPOINT;
     private DirectConnectScreenModel model;
-    private DirectConnectAttempt activeAttempt;
+    private DirectConnectUiAttempt activeAttempt;
     private FirstUseConfirmation confirmation;
     private ConnectedLobbySession connectedSession;
     private long connectedRevision = -1L;
@@ -50,7 +50,16 @@ public final class DirectConnectUiController implements AutoCloseable {
             UiDispatcher dispatcher,
             Consumer<DirectConnectScreenModel> observer,
             Runnable exitToMenu) {
-        this.service = Objects.requireNonNull(service, "service");
+        this(new ServiceBackend(service), messages, dispatcher, observer, exitToMenu);
+    }
+
+    DirectConnectUiController(
+            DirectConnectUiBackend backend,
+            ClientMessages messages,
+            UiDispatcher dispatcher,
+            Consumer<DirectConnectScreenModel> observer,
+            Runnable exitToMenu) {
+        this.backend = Objects.requireNonNull(backend, "backend");
         this.messages = Objects.requireNonNull(messages, "messages");
         this.dispatcher = UiDispatcher.require(dispatcher);
         this.observer = Objects.requireNonNull(observer, "observer");
@@ -193,13 +202,13 @@ public final class DirectConnectUiController implements AutoCloseable {
             return;
         }
         generation++;
-        DirectConnectAttempt attempt = activeAttempt;
+        DirectConnectUiAttempt attempt = activeAttempt;
         ConnectedLobbySession session = connectedSession;
         activeAttempt = null;
         connectedSession = null;
         connectedRevision = -1L;
         confirmation = null;
-        service.discardPendingConfirmation();
+        backend.discardPendingConfirmation();
         runLifecycle(
                 "close",
                 () -> {
@@ -207,7 +216,7 @@ public final class DirectConnectUiController implements AutoCloseable {
                         attempt.cancel();
                     }
                     awaitSessionClose(session);
-                    service.close();
+                    backend.close();
                 });
     }
 
@@ -251,7 +260,7 @@ public final class DirectConnectUiController implements AutoCloseable {
         focus = DirectConnectUiFocus.SECONDARY_ACTION;
         publish(progressModel(DirectConnectUiPhase.RESOLVING));
         activeAttempt =
-                service.connect(
+                backend.connect(
                         endpoint,
                         handle,
                         stage ->
@@ -280,7 +289,7 @@ public final class DirectConnectUiController implements AutoCloseable {
         focus = DirectConnectUiFocus.SECONDARY_ACTION;
         publish(progressModel(DirectConnectUiPhase.RESOLVING));
         activeAttempt =
-                service.confirmFirstUse(
+                backend.confirmFirstUse(
                         accepted,
                         stage ->
                                 dispatcher.dispatch(
@@ -380,7 +389,7 @@ public final class DirectConnectUiController implements AutoCloseable {
 
     private void cancelAttempt() {
         generation++;
-        DirectConnectAttempt attempt = activeAttempt;
+        DirectConnectUiAttempt attempt = activeAttempt;
         activeAttempt = null;
         focus = DirectConnectUiFocus.ENDPOINT;
         publish(formModel(messages.text("direct.status.cancelled")));
@@ -391,7 +400,7 @@ public final class DirectConnectUiController implements AutoCloseable {
 
     private void cancelConfirmation() {
         generation++;
-        service.discardPendingConfirmation();
+        backend.discardPendingConfirmation();
         confirmation = null;
         focus = DirectConnectUiFocus.ENDPOINT;
         publish(formModel(messages.text("direct.status.confirmation_cancelled")));
@@ -625,7 +634,7 @@ public final class DirectConnectUiController implements AutoCloseable {
         }
         try {
             session.closeAsync().toCompletableFuture().join();
-        } catch (CompletionException | RuntimeException ignored) {
+        } catch (RuntimeException ignored) {
             // Session cleanup cannot replace the stable immutable UI state.
         }
     }
@@ -633,6 +642,54 @@ public final class DirectConnectUiController implements AutoCloseable {
     private void requireOpen() {
         if (closed.get()) {
             throw new IllegalStateException("Direct Connect UI controller is closed");
+        }
+    }
+
+    private static final class ServiceBackend implements DirectConnectUiBackend {
+        private final DirectConnectService service;
+
+        private ServiceBackend(DirectConnectService service) {
+            this.service = Objects.requireNonNull(service, "service");
+        }
+
+        @Override
+        public DirectConnectUiAttempt connect(
+                DirectConnectEndpoint endpoint,
+                CanonicalHandle handle,
+                DirectConnectProgressListener progressListener) {
+            return adapt(service.connect(endpoint, handle, progressListener));
+        }
+
+        @Override
+        public DirectConnectUiAttempt confirmFirstUse(
+                FirstUseConfirmation confirmation,
+                DirectConnectProgressListener progressListener) {
+            return adapt(service.confirmFirstUse(confirmation, progressListener));
+        }
+
+        @Override
+        public void discardPendingConfirmation() {
+            service.discardPendingConfirmation();
+        }
+
+        @Override
+        public void close() {
+            service.close();
+        }
+
+        private static DirectConnectUiAttempt adapt(DirectConnectAttempt attempt) {
+            Objects.requireNonNull(attempt, "attempt");
+            return new DirectConnectUiAttempt() {
+                @Override
+                public java.util.concurrent.CompletionStage<DirectConnectResult> result() {
+                    return attempt.result();
+                }
+
+                @Override
+                public boolean cancel() {
+                    return attempt.cancel();
+                }
+            };
         }
     }
 }
