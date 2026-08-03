@@ -23,8 +23,7 @@ public record DirectConnectConfiguration(
 
     public DirectConnectConfiguration {
         connectTimeout = requireTimeout(connectTimeout, "connectTimeout", MAXIMUM_TIMEOUT);
-        socketReadTimeout =
-                requireTimeout(socketReadTimeout, "socketReadTimeout", MAXIMUM_TIMEOUT);
+        socketReadTimeout = requireTimeout(socketReadTimeout, "socketReadTimeout", MAXIMUM_TIMEOUT);
         protocolStepTimeout =
                 requireTimeout(protocolStepTimeout, "protocolStepTimeout", MAXIMUM_TIMEOUT);
         closeTimeout = requireTimeout(closeTimeout, "closeTimeout", MAXIMUM_TIMEOUT);

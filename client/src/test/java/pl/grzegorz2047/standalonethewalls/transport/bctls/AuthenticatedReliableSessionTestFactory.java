@@ -10,8 +10,7 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerId;
 
 /** Test-only construction bridge for the transport-owned authenticated session type. */
 public final class AuthenticatedReliableSessionTestFactory {
-    private static final UUID SESSION_ID =
-            UUID.fromString("12345678-1234-4234-8234-1234567890ab");
+    private static final UUID SESSION_ID = UUID.fromString("12345678-1234-4234-8234-1234567890ab");
     private static final ServerId SERVER_ID = new ServerId("sfs1_" + "b".repeat(52));
 
     private AuthenticatedReliableSessionTestFactory() {

@@ -8,8 +8,7 @@ public sealed interface DirectConnectResult
         permits DirectConnectResult.Connected,
                 DirectConnectResult.ConfirmationRequired,
                 DirectConnectResult.Failed {
-    record Connected(
-            ConnectedLobbySession session, PlayerSessionAdmissionStatus admissionStatus)
+    record Connected(ConnectedLobbySession session, PlayerSessionAdmissionStatus admissionStatus)
             implements DirectConnectResult {
         public Connected {
             Objects.requireNonNull(session, "session");
@@ -20,8 +19,7 @@ public sealed interface DirectConnectResult
         }
     }
 
-    record ConfirmationRequired(FirstUseConfirmation confirmation)
-            implements DirectConnectResult {
+    record ConfirmationRequired(FirstUseConfirmation confirmation) implements DirectConnectResult {
         public ConfirmationRequired {
             Objects.requireNonNull(confirmation, "confirmation");
         }

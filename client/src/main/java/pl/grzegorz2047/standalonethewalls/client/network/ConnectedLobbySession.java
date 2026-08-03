@@ -39,7 +39,8 @@ public final class ConnectedLobbySession implements AutoCloseable {
         this.session = Objects.requireNonNull(session, "session");
         playerId = session.playerId();
         handle = session.handle();
-        snapshot = new AtomicReference<>(Objects.requireNonNull(initialSnapshot, "initialSnapshot"));
+        snapshot =
+                new AtomicReference<>(Objects.requireNonNull(initialSnapshot, "initialSnapshot"));
         this.ownershipReleased = Objects.requireNonNull(ownershipReleased, "ownershipReleased");
         requireExactSelf(initialSnapshot, playerId, handle);
     }
@@ -90,10 +91,7 @@ public final class ConnectedLobbySession implements AutoCloseable {
                     .name("sunderfront-direct-connect-lobby-receiver")
                     .start(this::receiveLoop);
         } catch (RuntimeException exception) {
-            finish(
-                    Optional.of(
-                            DirectConnectFailure.of(
-                                    DirectConnectFailureCode.INTERNAL_FAILURE)));
+            finish(Optional.of(DirectConnectFailure.of(DirectConnectFailureCode.INTERNAL_FAILURE)));
             throw exception;
         }
     }
@@ -117,8 +115,7 @@ public final class ConnectedLobbySession implements AutoCloseable {
             while (!closing.get()) {
                 Optional<ProtocolEnvelope> received =
                         Objects.requireNonNull(
-                                        session.reliableChannel().receive(),
-                                        "lobby receive stage")
+                                        session.reliableChannel().receive(), "lobby receive stage")
                                 .toCompletableFuture()
                                 .get();
                 if (received.isEmpty()) {

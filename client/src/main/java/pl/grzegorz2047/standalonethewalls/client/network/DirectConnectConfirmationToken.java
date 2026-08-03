@@ -23,8 +23,7 @@ public final class DirectConnectConfirmationToken {
     @Override
     public boolean equals(Object other) {
         return this == other
-                || other instanceof DirectConnectConfirmationToken token
-                        && securelyEquals(token);
+                || other instanceof DirectConnectConfirmationToken token && securelyEquals(token);
     }
 
     @Override

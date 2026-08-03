@@ -107,7 +107,8 @@ public final class DirectConnectEndpoint {
     }
 
     public ServerReference serverReference() {
-        return new ServerReference(authority);
+        String value = hostKind == HostKind.IPV6 ? "ipv6:" + host + ':' + port : authority;
+        return new ServerReference(value);
     }
 
     public InetSocketAddress unresolvedSocketAddress() {
@@ -283,8 +284,7 @@ public final class DirectConnectEndpoint {
     }
 
     private static boolean isAsciiLetterOrDigit(char character) {
-        return character >= 'a' && character <= 'z'
-                || character >= '0' && character <= '9';
+        return character >= 'a' && character <= 'z' || character >= '0' && character <= '9';
     }
 
     private static DirectConnectEndpointException invalidHost() {

@@ -34,9 +34,12 @@ It rejects implicit ports, URLs, user information, paths, queries, fragments,
 whitespace, zone identifiers, unbracketed IPv6, non-ASCII DNS input, and
 non-canonical numeric forms. Parsing does not perform DNS resolution.
 
-The canonical authority is also the `ServerReference` trust-store key. The first
-release deliberately does not use redirects, SRV records, aliases, or automatic
-endpoint migration because those features need explicit trust-key semantics.
+The canonical authority is the trust-store key for DNS and IPv4. Because the
+existing `ServerReference` alphabet intentionally excludes brackets, IPv6 uses the
+tagged opaque key `ipv6:<canonical-host>:<port>` while UI and socket authority remain
+bracketed. The first release deliberately does not use redirects, SRV records,
+aliases, or automatic endpoint migration because those features need explicit
+trust-key semantics.
 
 ### Explicit two-connection TOFU
 

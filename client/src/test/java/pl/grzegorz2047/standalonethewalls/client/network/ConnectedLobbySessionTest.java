@@ -32,8 +32,7 @@ class ConnectedLobbySessionTest {
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
     private static final PlayerId PLAYER_ID = new PlayerId("sf1_" + "a".repeat(52));
     private static final CanonicalHandle HANDLE = new CanonicalHandle("alpha");
-    private static final UUID SESSION_ID =
-            UUID.fromString("12345678-1234-4234-8234-1234567890ab");
+    private static final UUID SESSION_ID = UUID.fromString("12345678-1234-4234-8234-1234567890ab");
 
     @Test
     void acceptsOnlyNewerSnapshotsContainingExactSelfAndClosesOnce() throws Exception {
@@ -67,7 +66,9 @@ class ConnectedLobbySessionTest {
 
         channel.deliver(snapshotEnvelope(snapshot(2L, HANDLE), 1L));
         Optional<DirectConnectFailure> failure =
-                session.termination().toCompletableFuture().get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+                session.termination()
+                        .toCompletableFuture()
+                        .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
 
         assertEquals(DirectConnectFailureCode.LOBBY_SNAPSHOT_STALE, failure.orElseThrow().code());
         assertFalse(session.isOpen());
@@ -80,14 +81,14 @@ class ConnectedLobbySessionTest {
         ConnectedLobbySession session = createSession(channel, snapshot(1L, HANDLE));
         session.startReceiving();
 
-        channel.deliver(
-                snapshotEnvelope(snapshot(2L, new CanonicalHandle("different")), 1L));
+        channel.deliver(snapshotEnvelope(snapshot(2L, new CanonicalHandle("different")), 1L));
         Optional<DirectConnectFailure> failure =
-                session.termination().toCompletableFuture().get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+                session.termination()
+                        .toCompletableFuture()
+                        .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
 
         assertEquals(
-                DirectConnectFailureCode.LOBBY_IDENTITY_MISMATCH,
-                failure.orElseThrow().code());
+                DirectConnectFailureCode.LOBBY_IDENTITY_MISMATCH, failure.orElseThrow().code());
         assertEquals(1, channel.closeCount());
     }
 
@@ -99,13 +100,11 @@ class ConnectedLobbySessionTest {
 
         channel.deliver(
                 new ProtocolEnvelope(
-                        ProtocolVersion.CURRENT,
-                        MessageType.PING,
-                        SESSION_ID,
-                        1L,
-                        new byte[0]));
+                        ProtocolVersion.CURRENT, MessageType.PING, SESSION_ID, 1L, new byte[0]));
         Optional<DirectConnectFailure> failure =
-                session.termination().toCompletableFuture().get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+                session.termination()
+                        .toCompletableFuture()
+                        .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
 
         assertEquals(DirectConnectFailureCode.UNEXPECTED_MESSAGE, failure.orElseThrow().code());
         assertEquals(1, channel.closeCount());

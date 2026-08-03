@@ -98,8 +98,7 @@ public final class DirectConnectService implements AutoCloseable {
                         Thread.ofVirtual().name("sunderfront-direct-connect-", 0L).factory());
     }
 
-    public DirectConnectAttempt connect(
-            DirectConnectEndpoint endpoint, CanonicalHandle handle) {
+    public DirectConnectAttempt connect(DirectConnectEndpoint endpoint, CanonicalHandle handle) {
         Objects.requireNonNull(endpoint, "endpoint");
         Objects.requireNonNull(handle, "handle");
         pendingConfirmation.set(null);
@@ -371,8 +370,7 @@ public final class DirectConnectService implements AutoCloseable {
             try {
                 InetAddress[] resolved =
                         resolution.get(
-                                configuration.connectTimeout().toNanos(),
-                                TimeUnit.NANOSECONDS);
+                                configuration.connectTimeout().toNanos(), TimeUnit.NANOSECONDS);
                 if (resolved.length == 0) {
                     completeFailure(DirectConnectFailureCode.DNS_OR_CONNECT_FAILED);
                     return null;
@@ -420,8 +418,7 @@ public final class DirectConnectService implements AutoCloseable {
             return null;
         }
 
-        private boolean persistFirstUse(
-                ServerTrustService trustService, Tls13Connection tls) {
+        private boolean persistFirstUse(ServerTrustService trustService, Tls13Connection tls) {
             try {
                 trustService.confirmFirstUse(
                         endpoint.serverReference(),
@@ -539,8 +536,7 @@ public final class DirectConnectService implements AutoCloseable {
             try {
                 Optional<ProtocolEnvelope> received =
                         Objects.requireNonNull(
-                                        authenticated.reliableChannel().receive(),
-                                        "receive stage")
+                                        authenticated.reliableChannel().receive(), "receive stage")
                                 .toCompletableFuture()
                                 .get(
                                         configuration.protocolStepTimeout().toNanos(),
@@ -552,8 +548,7 @@ public final class DirectConnectService implements AutoCloseable {
                 return received.orElseThrow();
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
-                completeFailure(
-                        cancelled.get() ? DirectConnectFailureCode.CANCELLED : timeoutCode);
+                completeFailure(cancelled.get() ? DirectConnectFailureCode.CANCELLED : timeoutCode);
                 return null;
             } catch (TimeoutException exception) {
                 completeFailure(timeoutCode);
@@ -655,8 +650,7 @@ public final class DirectConnectService implements AutoCloseable {
         }
     }
 
-    private record PendingConfirmation(
-            FirstUseConfirmation confirmation, CanonicalHandle handle) {
+    private record PendingConfirmation(FirstUseConfirmation confirmation, CanonicalHandle handle) {
         private PendingConfirmation {
             Objects.requireNonNull(confirmation, "confirmation");
             Objects.requireNonNull(handle, "handle");

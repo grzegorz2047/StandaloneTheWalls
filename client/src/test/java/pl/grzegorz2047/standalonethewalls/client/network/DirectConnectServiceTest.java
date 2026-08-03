@@ -76,9 +76,7 @@ class DirectConnectServiceTest {
 
         assertTrue(first.cancel());
         DirectConnectResult cancelled =
-                first.result()
-                        .toCompletableFuture()
-                        .get(WAIT.toMillis(), TimeUnit.MILLISECONDS);
+                first.result().toCompletableFuture().get(WAIT.toMillis(), TimeUnit.MILLISECONDS);
         assertEquals(
                 DirectConnectFailureCode.CANCELLED,
                 ((DirectConnectResult.Failed) cancelled).failure().code());
