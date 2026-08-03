@@ -178,7 +178,11 @@ public final class ServerCredentialGenerator {
             Path target, byte[] content, boolean privateFile, List<Path> created)
             throws IOException {
         Objects.requireNonNull(content, "content");
-        FileStore store = Files.getFileStore(target.getParent());
+        Path parent = target.getParent();
+        if (parent == null) {
+            throw new IOException("credential target must have a parent directory");
+        }
+        FileStore store = Files.getFileStore(parent);
         if (store.supportsFileAttributeView("posix")) {
             Files.createFile(
                     target,
