@@ -1,8 +1,8 @@
-# Sunderfront JVM client 0.1.0-alpha.3
+# Sunderfront JVM client 0.1.0-alpha.4
 
 This is the technical cross-platform JVM distribution. It requires a separately
 installed 64-bit Java 21 runtime. Windows x64 users should normally download
-`sunderfront-client-windows-x64-0.1.0-alpha.3.zip` instead; that package includes
+`sunderfront-client-windows-x64-0.1.0-alpha.4.zip` instead; that package includes
 its own restricted runtime and starts through `Sunderfront.exe`.
 
 ## Start this JVM archive on Windows
