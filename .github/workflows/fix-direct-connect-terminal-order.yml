@@ -1,0 +1,83 @@
+name: Repair Direct Connect terminal ordering
+
+on:
+  push:
+    branches:
+      - agent/issue-88-direct-connect-service-v2
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fix-direct-connect-terminal-order
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: agent/issue-88-direct-connect-service-v2
+
+      - name: Set up Java 21
+        uses: actions/setup-java@d7793b545071e98d581d3bf084a51c3213318a07
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Publish results only after cleanup
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          service = Path('client/src/main/java/pl/grzegorz2047/standalonethewalls/client/network/DirectConnectService.java')
+          text = service.read_text()
+          old = '''        private void complete(DirectConnectResult terminalResult) {
+              result.complete(terminalResult);
+          }
+          '''
+          new = '''        private void complete(DirectConnectResult terminalResult) {
+              closeCurrentResource();
+              active.compareAndSet(this, null);
+              result.complete(terminalResult);
+          }
+          '''
+          if old not in text:
+              raise SystemExit('terminal completion block not found')
+          service.write_text(text.replace(old, new))
+
+          loopback = Path('server/src/test/java/pl/grzegorz2047/standalonethewalls/server/DirectConnectServiceLoopbackTest.java')
+          text = loopback.read_text()
+          text = text.replace(
+              'import static org.junit.jupiter.api.Assertions.assertEquals;\n',
+              'import static org.junit.jupiter.api.Assertions.assertEquals;\nimport static org.junit.jupiter.api.Assertions.assertFalse;\n',
+          )
+          needle = '''            FirstUseConfirmation confirmation = confirmationRequired.confirmation();
+              assertEquals(endpoint, confirmation.endpoint());
+          '''
+          replacement = '''            FirstUseConfirmation confirmation = confirmationRequired.confirmation();
+              assertEquals(endpoint, confirmation.endpoint());
+              assertFalse(firstClient.isConnecting());
+          '''
+          if needle not in text:
+              raise SystemExit('loopback confirmation block not found')
+          loopback.write_text(text.replace(needle, replacement))
+          PY
+
+      - name: Apply repository formatting
+        run: ./gradlew --no-daemon spotlessApply
+
+      - name: Commit repair and remove workflow
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git rm .github/workflows/fix-direct-connect-terminal-order.yml
+          git add client/src/main/java/pl/grzegorz2047/standalonethewalls/client/network/DirectConnectService.java
+          git add server/src/test/java/pl/grzegorz2047/standalonethewalls/server/DirectConnectServiceLoopbackTest.java
+          git diff --cached --quiet || git commit -m 'fix(client): publish Direct Connect result after cleanup'
+          git push origin HEAD:agent/issue-88-direct-connect-service-v2
