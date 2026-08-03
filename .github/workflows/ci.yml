@@ -28,40 +28,12 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
+          import re
 
           path = Path('client/src/main/java/pl/grzegorz2047/standalonethewalls/client/SunderfrontClient.java')
           text = path.read_text(encoding='utf-8')
           text = text.replace('import java.util.concurrent.Future;\n', '')
-          old = '''    void exerciseDirectConnectNavigation(Duration timeout)
-                  throws InterruptedException, TimeoutException {
-              Objects.requireNonNull(timeout, "timeout");
-              if (!smokeMode) {
-                  throw new IllegalStateException("navigation smoke exercise requires smoke mode");
-              }
-              Future<Void> exercise =
-                      enqueue(
-                              () -> {
-                                  openDirectConnectScreen();
-                                  if (screen != Screen.DIRECT_CONNECT || directConnectController == null) {
-                                      throw new IllegalStateException(
-                                              "Direct Connect screen did not open in smoke mode");
-                                  }
-                                  directConnectController.escape();
-                                  if (screen != Screen.START_MENU || directConnectController != null) {
-                                      throw new IllegalStateException(
-                                              "Direct Connect screen did not return to the start menu");
-                                  }
-                                  return null;
-                              });
-              try {
-                  exercise.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
-              } catch (ExecutionException exception) {
-                  throw new IllegalStateException(
-                          "Direct Connect navigation smoke exercise failed", exception.getCause());
-              }
-          }
-          '''
-          new = '''    void exerciseDirectConnectNavigation(Duration timeout) {
+          replacement = '''    void exerciseDirectConnectNavigation(Duration timeout) {
               Objects.requireNonNull(timeout, "timeout");
               if (timeout.isZero() || timeout.isNegative()) {
                   throw new IllegalArgumentException("timeout must be positive");
@@ -79,10 +51,17 @@ jobs:
                           "Direct Connect screen did not return to the start menu");
               }
           }
+
           '''
-          if old not in text:
-              raise SystemExit('expected headless smoke block was not found')
-          path.write_text(text.replace(old, new), encoding='utf-8')
+          pattern = re.compile(
+              r'    void exerciseDirectConnectNavigation\(Duration timeout\).*?'
+              r'(?=    private void registerInputs\(\))',
+              re.DOTALL,
+          )
+          updated, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'expected exactly one headless smoke method, found {count}')
+          path.write_text(updated, encoding='utf-8')
 
       - name: Apply repository formatter
         run: ./gradlew --no-daemon spotlessApply
