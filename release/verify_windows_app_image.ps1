@@ -35,20 +35,26 @@ function Invoke-AppImageSmoke {
 
     $executable = Join-Path $Image 'Sunderfront.exe'
     $runtimeRelease = Join-Path $Image 'runtime/release'
+    $runtimeJava = Join-Path $Image 'runtime/bin/java.exe'
     Require-File $executable
     Require-File $runtimeRelease
+    Require-File $runtimeJava
     Require-File (Join-Path $Image 'app/Sunderfront.cfg')
     Require-File (Join-Path $Image 'README.md')
     Require-File (Join-Path $Image 'README-PL.txt')
     Require-File (Join-Path $Image 'ICON-LICENSE.md')
     Require-File (Join-Path $Image 'assets/assets.lock.json')
 
-    $releaseText = Get-Content -LiteralPath $runtimeRelease -Raw
-    if ($releaseText -notmatch 'JAVA_VERSION="21(?:\.|\")') {
-        throw "Bundled runtime is not Java 21"
+    $runtimeProperties = & $runtimeJava -XshowSettings:properties -version 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        throw "Bundled runtime could not report its properties"
     }
-    if ($releaseText -notmatch 'OS_ARCH="(?:amd64|x86_64)"') {
-        throw "Bundled runtime is not x64"
+    $runtimeText = $runtimeProperties -join [Environment]::NewLine
+    if ($runtimeText -notmatch '(?m)^\s*java\.version\s*=\s*21(?:\.|$)') {
+        throw "Bundled runtime is not Java 21: $runtimeText"
+    }
+    if ($runtimeText -notmatch '(?m)^\s*os\.arch\s*=\s*(?:amd64|x86_64)\s*$') {
+        throw "Bundled runtime is not x64: $runtimeText"
     }
     foreach ($tool in @('javac.exe', 'javadoc.exe', 'jpackage.exe', 'jcmd.exe', 'jconsole.exe')) {
         if (Test-Path -LiteralPath (Join-Path $Image "runtime/bin/$tool")) {
