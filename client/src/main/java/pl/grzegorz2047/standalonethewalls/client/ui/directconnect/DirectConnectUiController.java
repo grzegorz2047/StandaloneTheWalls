@@ -5,6 +5,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import pl.grzegorz2047.standalonethewalls.client.i18n.ClientMessages;
 import pl.grzegorz2047.standalonethewalls.client.network.ConnectedLobbySession;
@@ -41,8 +42,8 @@ public final class DirectConnectUiController implements AutoCloseable {
     private DirectConnectUiAttempt activeAttempt;
     private FirstUseConfirmation confirmation;
     private ConnectedLobbySession connectedSession;
-    private long connectedRevision = -1L;
-    private long generation;
+    private final AtomicLong connectedRevision = new AtomicLong(-1L);
+    private final AtomicLong generation = new AtomicLong();
 
     public DirectConnectUiController(
             DirectConnectService service,
@@ -192,8 +193,8 @@ public final class DirectConnectUiController implements AutoCloseable {
             return;
         }
         LobbySnapshot snapshot = connectedSession.currentSnapshot();
-        if (snapshot.revision() > connectedRevision) {
-            connectedRevision = snapshot.revision();
+        if (snapshot.revision() > connectedRevision.get()) {
+            connectedRevision.set(snapshot.revision());
             publish(connectedModel(snapshot));
         }
     }
@@ -203,12 +204,12 @@ public final class DirectConnectUiController implements AutoCloseable {
         if (!closed.compareAndSet(false, true)) {
             return;
         }
-        generation++;
+        generation.incrementAndGet();
         DirectConnectUiAttempt attempt = activeAttempt;
         ConnectedLobbySession session = connectedSession;
         activeAttempt = null;
         connectedSession = null;
-        connectedRevision = -1L;
+        connectedRevision.set(-1L);
         confirmation = null;
         backend.discardPendingConfirmation();
         runLifecycle(
@@ -255,10 +256,10 @@ public final class DirectConnectUiController implements AutoCloseable {
             return;
         }
 
-        long attemptGeneration = ++generation;
+        long attemptGeneration = generation.incrementAndGet();
         confirmation = null;
         connectedSession = null;
-        connectedRevision = -1L;
+        connectedRevision.set(-1L);
         focus = DirectConnectUiFocus.SECONDARY_ACTION;
         publish(progressModel(DirectConnectUiPhase.RESOLVING));
         activeAttempt =
@@ -281,7 +282,7 @@ public final class DirectConnectUiController implements AutoCloseable {
             publish(failureModel(messages.text("direct.failure.confirmation_invalid")));
             return;
         }
-        long attemptGeneration = ++generation;
+        long attemptGeneration = generation.incrementAndGet();
         FirstUseConfirmation accepted = confirmation;
         confirmation = null;
         focus = DirectConnectUiFocus.SECONDARY_ACTION;
@@ -328,7 +329,7 @@ public final class DirectConnectUiController implements AutoCloseable {
             case DirectConnectResult.Connected connected -> {
                 connectedSession = connected.session();
                 LobbySnapshot snapshot = connected.session().currentSnapshot();
-                connectedRevision = snapshot.revision();
+                connectedRevision.set(snapshot.revision());
                 focus = DirectConnectUiFocus.PRIMARY_ACTION;
                 publish(connectedModel(snapshot));
                 connected
@@ -371,7 +372,7 @@ public final class DirectConnectUiController implements AutoCloseable {
             return;
         }
         connectedSession = null;
-        connectedRevision = -1L;
+        connectedRevision.set(-1L);
         focus = DirectConnectUiFocus.PRIMARY_ACTION;
         String detail =
                 terminationError != null
@@ -383,7 +384,7 @@ public final class DirectConnectUiController implements AutoCloseable {
     }
 
     private void cancelAttempt() {
-        generation++;
+        generation.incrementAndGet();
         DirectConnectUiAttempt attempt = activeAttempt;
         activeAttempt = null;
         focus = DirectConnectUiFocus.ENDPOINT;
@@ -394,7 +395,7 @@ public final class DirectConnectUiController implements AutoCloseable {
     }
 
     private void cancelConfirmation() {
-        generation++;
+        generation.incrementAndGet();
         backend.discardPendingConfirmation();
         confirmation = null;
         focus = DirectConnectUiFocus.ENDPOINT;
@@ -402,10 +403,10 @@ public final class DirectConnectUiController implements AutoCloseable {
     }
 
     private void disconnect() {
-        generation++;
+        generation.incrementAndGet();
         ConnectedLobbySession session = connectedSession;
         connectedSession = null;
-        connectedRevision = -1L;
+        connectedRevision.set(-1L);
         focus = DirectConnectUiFocus.PRIMARY_ACTION;
         publish(disconnectedModel(messages.text("direct.status.disconnected")));
         if (session != null) {
@@ -419,7 +420,7 @@ public final class DirectConnectUiController implements AutoCloseable {
     }
 
     private boolean isCurrent(long attemptGeneration) {
-        return !closed.get() && generation == attemptGeneration;
+        return !closed.get() && generation.get() == attemptGeneration;
     }
 
     private void closeStaleConnectedResult(DirectConnectResult result) {

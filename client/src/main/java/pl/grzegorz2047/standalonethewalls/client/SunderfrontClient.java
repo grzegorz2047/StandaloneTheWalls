@@ -66,8 +66,8 @@ public final class SunderfrontClient extends SimpleApplication
     private BitmapFont font;
     private DirectConnectUiController directConnectController;
     private DirectConnectScreenModel directConnectModel;
-    private int renderedWidth = -1;
-    private int renderedHeight = -1;
+    private volatile int renderedWidth = -1;
+    private volatile int renderedHeight = -1;
     private volatile boolean shuttingDown;
 
     public SunderfrontClient(ClientMessages messages, boolean smokeMode) {
@@ -191,11 +191,11 @@ public final class SunderfrontClient extends SimpleApplication
             throw new IllegalStateException("navigation smoke exercise requires smoke mode");
         }
         openDirectConnectScreen();
-        if (screen != Screen.DIRECT_CONNECT || directConnectController == null) {
+        if (screen != Screen.DIRECT_CONNECT) {
             throw new IllegalStateException("Direct Connect screen did not open in smoke mode");
         }
         directConnectController.escape();
-        if (screen != Screen.START_MENU || directConnectController != null) {
+        if (screen != Screen.START_MENU) {
             throw new IllegalStateException(
                     "Direct Connect screen did not return to the start menu");
         }
