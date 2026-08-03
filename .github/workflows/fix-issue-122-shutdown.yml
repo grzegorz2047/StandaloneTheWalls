@@ -103,20 +103,19 @@ jobs:
               )
           text = text.replace(old_replay_wait, new_replay_wait, 1)
 
-          old_baseline = '''            waitUntil(() -> lobby.memberCount() == 1);
-              int initialSnapshots = snapshotCount(alpha);
-          '''
-          new_baseline = '''            waitUntil(
+          pattern = re.compile(
+              r'            waitUntil\(\(\) -> lobby\.memberCount\(\) == 1\);\n'
+              r'            int initialSnapshots = snapshotCount\(alpha\);'
+          )
+          replacement = '''            waitUntil(
                       () ->
                               lobby.memberCount() == 1
                                       && latestSnapshotUnchecked(alpha).revision() == 1L);
-              int initialSnapshots = snapshotCount(alpha);
-          '''
-          if text.count(old_baseline) != 1:
-              raise SystemExit(
-                  f'expected exactly one baseline wait replacement, got {text.count(old_baseline)}'
-              )
-          test.write_text(text.replace(old_baseline, new_baseline, 1))
+              int initialSnapshots = snapshotCount(alpha);'''
+          text, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'expected exactly one baseline wait replacement, got {count}')
+          test.write_text(text)
 
       - name: Format and test server
         run: ./gradlew --no-daemon spotlessApply :server:test
