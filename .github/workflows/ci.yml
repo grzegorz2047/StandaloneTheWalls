@@ -33,6 +33,25 @@ jobs:
         with:
           cache-read-only: true
 
+      - name: Make team localization keys locale-stable
+        shell: python
+        run: |
+          from pathlib import Path
+
+          source = Path('client/src/main/java/pl/grzegorz2047/standalonethewalls/client/SunderfrontClient.java')
+          text = source.read_text()
+          import_marker = 'import java.util.List;\n'
+          locale_import = 'import java.util.Locale;\n'
+          if locale_import not in text:
+              if import_marker not in text:
+                  raise SystemExit('List import marker not found')
+              text = text.replace(import_marker, import_marker + locale_import, 1)
+          old = 'panel.team().name().toLowerCase()'
+          new = 'panel.team().name().toLowerCase(Locale.ROOT)'
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one locale-sensitive team key, got {text.count(old)}')
+          source.write_text(text.replace(old, new, 1))
+
       - name: Apply canonical Java formatting
         run: ./gradlew --no-daemon spotlessApply
 
