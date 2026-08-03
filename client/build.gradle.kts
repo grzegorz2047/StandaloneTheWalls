@@ -1,3 +1,8 @@
+import org.gradle.api.tasks.application.CreateStartScripts
+import org.gradle.api.tasks.bundling.Jar
+import org.gradle.api.tasks.bundling.Tar
+import org.gradle.api.tasks.bundling.Zip
+
 plugins {
     application
 }
@@ -19,4 +24,39 @@ dependencies {
 
 application {
     mainClass = "pl.grzegorz2047.standalonethewalls.client.ClientMain"
+}
+
+tasks.named<CreateStartScripts>("startScripts") {
+    applicationName = "sunderfront-client"
+}
+
+val directConnectSmokeScripts = tasks.register<CreateStartScripts>("directConnectSmokeScripts") {
+    applicationName = "sunderfront-direct-connect-smoke"
+    mainClass =
+        "pl.grzegorz2047.standalonethewalls.client.release.DirectConnectSmokeMain"
+    classpath = files(tasks.named<Jar>("jar"), configurations.runtimeClasspath)
+    outputDir = layout.buildDirectory.dir("generated-scripts/direct-connect-smoke").get().asFile
+}
+
+distributions {
+    named("main") {
+        distributionBaseName = "sunderfront-client"
+        contents {
+            from(rootProject.file("release/client/README.md"))
+            from(rootProject.file("assets/assets.lock.json")) {
+                into("assets")
+            }
+            from(directConnectSmokeScripts) {
+                into("bin")
+            }
+        }
+    }
+}
+
+tasks.named<Zip>("distZip") {
+    archiveFileName = "sunderfront-client-${project.version}.zip"
+}
+
+tasks.named<Tar>("distTar") {
+    enabled = false
 }
