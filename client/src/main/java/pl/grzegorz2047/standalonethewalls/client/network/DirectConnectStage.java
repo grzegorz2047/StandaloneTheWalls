@@ -1,4 +1,4 @@
-package pl.grzegorz2047.standalethewalls.client.network;
+package pl.grzegorz2047.standalonethewalls.client.network;
 
 /** Public non-terminal progress stages suitable for immutable UI state. */
 public enum DirectConnectStage {
