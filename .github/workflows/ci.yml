@@ -39,6 +39,17 @@ jobs:
       - name: Verify formatted client slice
         run: ./gradlew --no-daemon :client:test :client:spotbugsMain :client:spotbugsTest --rerun-tasks
 
+      - name: Upload pointer diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pointer-quality-reports
+          path: |
+            client/build/reports/spotbugs/**
+            client/build/reports/tests/**
+          if-no-files-found: ignore
+          retention-days: 2
+
       - name: Commit formatting only when required
         shell: bash
         run: |
