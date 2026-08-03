@@ -14,10 +14,11 @@ import pl.grzegorz2047.standalonethewalls.domain.match.MatchPhase;
 import pl.grzegorz2047.standalonethewalls.domain.match.MatchState;
 
 /**
- * Single-owner adapter joining authoritative lobby readiness with the deterministic match lifecycle.
+ * Single-owner adapter joining authoritative lobby readiness with the deterministic match
+ * lifecycle.
  *
- * <p>The caller must serialize roster updates and simulation ticks. The coordinator performs no I/O,
- * owns no thread, and rejects gaps instead of silently guessing missing authoritative input.
+ * <p>The caller must serialize roster updates and simulation ticks. The coordinator performs no
+ * I/O, owns no thread, and rejects gaps instead of silently guessing missing authoritative input.
  */
 public final class LobbyMatchCoordinator {
     private final LobbyConfiguration lobbyConfiguration;
@@ -31,10 +32,8 @@ public final class LobbyMatchCoordinator {
 
     public LobbyMatchCoordinator(
             LobbyConfiguration lobbyConfiguration, MatchConfiguration matchConfiguration) {
-        this.lobbyConfiguration =
-                Objects.requireNonNull(lobbyConfiguration, "lobbyConfiguration");
-        this.matchConfiguration =
-                Objects.requireNonNull(matchConfiguration, "matchConfiguration");
+        this.lobbyConfiguration = Objects.requireNonNull(lobbyConfiguration, "lobbyConfiguration");
+        this.matchConfiguration = Objects.requireNonNull(matchConfiguration, "matchConfiguration");
         if (lobbyConfiguration.minimumReadyPlayers() != matchConfiguration.minimumPlayers()) {
             throw new IllegalArgumentException(
                     "lobby and match minimum player counts must be identical");

@@ -127,8 +127,7 @@ class LobbyMatchCoordinatorTest {
 
     @Test
     void requiresOneSharedMinimumPlayerPolicy() {
-        MatchConfiguration mismatched =
-                new MatchConfiguration(3, 2, 2, 1, 2, 1, 2, 1, 1);
+        MatchConfiguration mismatched = new MatchConfiguration(3, 2, 2, 1, 2, 1, 2, 1, 1);
 
         assertThatThrownBy(() -> new LobbyMatchCoordinator(LOBBY, mismatched))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -145,13 +144,10 @@ class LobbyMatchCoordinatorTest {
     }
 
     private static LobbyRosterState onePlayer(long revision) {
-        return new LobbyRosterState(
-                revision, List.of(participant("alpha", TeamId.RED, false)));
+        return new LobbyRosterState(revision, List.of(participant("alpha", TeamId.RED, false)));
     }
 
-    private static LobbyParticipantState participant(
-            String id, TeamId team, boolean ready) {
-        return new LobbyParticipantState(
-                new LobbyParticipantId(id), Optional.of(team), ready);
+    private static LobbyParticipantState participant(String id, TeamId team, boolean ready) {
+        return new LobbyParticipantState(new LobbyParticipantId(id), Optional.of(team), ready);
     }
 }

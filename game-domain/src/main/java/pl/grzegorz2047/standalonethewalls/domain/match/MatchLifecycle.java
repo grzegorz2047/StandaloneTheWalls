@@ -20,10 +20,7 @@ public final class MatchLifecycle {
             case MatchCommand.CompleteMapLoad ignored -> completeMapLoad(state);
             case MatchCommand.UpdateLobbyState update ->
                     updateLobbyState(
-                            configuration,
-                            state,
-                            update.connectedPlayers(),
-                            update.readyToStart());
+                            configuration, state, update.connectedPlayers(), update.readyToStart());
             case MatchCommand.Tick ignored -> tick(configuration, state);
             case MatchCommand.FinishMatch finish ->
                     finishMatch(configuration, state, finish.result());

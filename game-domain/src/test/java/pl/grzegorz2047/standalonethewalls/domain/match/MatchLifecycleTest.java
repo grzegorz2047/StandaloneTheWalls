@@ -51,8 +51,7 @@ class MatchLifecycleTest {
     void playerCountAloneNeverStartsCountdown() {
         MatchState waiting = waitingState();
 
-        MatchDecision decision =
-                accepted(waiting, new MatchCommand.UpdateLobbyState(4, false));
+        MatchDecision decision = accepted(waiting, new MatchCommand.UpdateLobbyState(4, false));
 
         assertThat(decision.state().phase()).isEqualTo(MatchPhase.WAITING_FOR_PLAYERS);
         assertThat(decision.state().connectedPlayers()).isEqualTo(4);
@@ -62,8 +61,7 @@ class MatchLifecycleTest {
     @Test
     void readyLobbyStartsCountdownExactlyOnce() {
         MatchState waiting = waitingState();
-        MatchDecision started =
-                accepted(waiting, new MatchCommand.UpdateLobbyState(2, true));
+        MatchDecision started = accepted(waiting, new MatchCommand.UpdateLobbyState(2, true));
         MatchDecision repeated =
                 accepted(started.state(), new MatchCommand.UpdateLobbyState(2, true));
 
@@ -72,9 +70,7 @@ class MatchLifecycleTest {
         assertThat(started.events())
                 .containsExactly(
                         new MatchEvent.PhaseChanged(
-                                MatchPhase.WAITING_FOR_PLAYERS,
-                                MatchPhase.START_COUNTDOWN,
-                                1L));
+                                MatchPhase.WAITING_FOR_PLAYERS, MatchPhase.START_COUNTDOWN, 1L));
         assertThat(repeated.state()).isEqualTo(started.state());
         assertThat(repeated.events()).isEmpty();
     }
@@ -82,8 +78,7 @@ class MatchLifecycleTest {
     @Test
     void cancelsCountdownWhenPlayerCountFallsBelowMinimum() {
         MatchState state = waitingState();
-        MatchDecision started =
-                accepted(state, new MatchCommand.UpdateLobbyState(2, true));
+        MatchDecision started = accepted(state, new MatchCommand.UpdateLobbyState(2, true));
         MatchDecision cancelled =
                 accepted(started.state(), new MatchCommand.UpdateLobbyState(1, false));
 
@@ -100,8 +95,7 @@ class MatchLifecycleTest {
     @Test
     void cancelsAndRestartsCountdownWhenLobbyReadinessChanges() {
         MatchState state = waitingState();
-        MatchDecision started =
-                accepted(state, new MatchCommand.UpdateLobbyState(3, true));
+        MatchDecision started = accepted(state, new MatchCommand.UpdateLobbyState(3, true));
         MatchDecision elapsed = accepted(started.state(), new MatchCommand.Tick());
         MatchDecision cancelled =
                 accepted(elapsed.state(), new MatchCommand.UpdateLobbyState(3, false));
@@ -127,8 +121,7 @@ class MatchLifecycleTest {
         state = accepted(state, new MatchCommand.Tick()).state();
         assertThat(state.ticksRemaining()).isOne();
 
-        MatchDecision cancelled =
-                accepted(state, new MatchCommand.UpdateLobbyState(2, false));
+        MatchDecision cancelled = accepted(state, new MatchCommand.UpdateLobbyState(2, false));
         MatchDecision nextTick = accepted(cancelled.state(), new MatchCommand.Tick());
 
         assertThat(cancelled.state().phase()).isEqualTo(MatchPhase.WAITING_FOR_PLAYERS);
@@ -144,8 +137,7 @@ class MatchLifecycleTest {
         state = accepted(state, new MatchCommand.Tick()).state();
         assertThat(state.phase()).isEqualTo(MatchPhase.PREPARATION);
 
-        MatchDecision updated =
-                accepted(state, new MatchCommand.UpdateLobbyState(1, false));
+        MatchDecision updated = accepted(state, new MatchCommand.UpdateLobbyState(1, false));
 
         assertThat(updated.state().phase()).isEqualTo(MatchPhase.PREPARATION);
         assertThat(updated.state().connectedPlayers()).isOne();
@@ -158,8 +150,7 @@ class MatchLifecycleTest {
         MatchState waiting = waitingState();
 
         MatchDecision decision =
-                MatchLifecycle.apply(
-                        FAST, waiting, new MatchCommand.UpdateLobbyState(1, true));
+                MatchLifecycle.apply(FAST, waiting, new MatchCommand.UpdateLobbyState(1, true));
 
         assertThat(decision.accepted()).isFalse();
         assertThat(decision.state()).isEqualTo(waiting);
@@ -200,8 +191,7 @@ class MatchLifecycleTest {
     void rejectsNegativePlayerCountsAndEmptyFinishResults() {
         MatchState waiting = waitingState();
         MatchDecision negative =
-                MatchLifecycle.apply(
-                        FAST, waiting, new MatchCommand.UpdateLobbyState(-1, false));
+                MatchLifecycle.apply(FAST, waiting, new MatchCommand.UpdateLobbyState(-1, false));
         MatchState combat = enterPhase(MatchPhase.OPEN_COMBAT);
         MatchDecision noResult =
                 MatchLifecycle.apply(FAST, combat, new MatchCommand.FinishMatch(MatchResult.NONE));
