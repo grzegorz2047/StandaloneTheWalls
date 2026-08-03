@@ -16,15 +16,16 @@ class ConnectedLobbyMatchSnapshotTest {
 
     @Test
     void acceptsExactlyTheNextSynchronizedRevision() throws Exception {
-        TestSession test = openSession();
+        DirectConnectUiTestFixtures.ControlledLobby lobby = openLobby();
+        ConnectedLobbySession session = takeSession(lobby);
         LobbyMatchPhaseSnapshot next = snapshot(2L, 1L, 2, LobbyMatchPhase.START_COUNTDOWN, 20L);
 
-        test.lobby().deliverMatchSnapshot(next, 2L);
-        waitUntil(() -> test.session().currentMatchSnapshot().revision() == 2L);
+        lobby.deliverMatchSnapshot(next, 2L);
+        waitUntil(() -> session.currentMatchSnapshot().revision() == 2L);
 
-        assertThat(test.session().currentMatchSnapshot()).isEqualTo(next);
-        assertThat(test.session().terminalFailure()).isEmpty();
-        test.session().closeAsync().toCompletableFuture().get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        assertThat(session.currentMatchSnapshot()).isEqualTo(next);
+        assertThat(session.terminalFailure()).isEmpty();
+        session.closeAsync().toCompletableFuture().get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     @Test
@@ -64,27 +65,29 @@ class ConnectedLobbyMatchSnapshotTest {
 
     private static void assertTerminalFailure(
             LobbyMatchPhaseSnapshot snapshot, DirectConnectFailureCode expected) throws Exception {
-        TestSession test = openSession();
+        DirectConnectUiTestFixtures.ControlledLobby lobby = openLobby();
+        ConnectedLobbySession session = takeSession(lobby);
 
-        test.lobby().deliverMatchSnapshot(snapshot, 2L);
+        lobby.deliverMatchSnapshot(snapshot, 2L);
         Optional<DirectConnectFailure> failure =
-                test.session()
-                        .termination()
+                session.termination()
                         .toCompletableFuture()
                         .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
 
         assertThat(failure).isPresent();
         assertThat(failure.orElseThrow().code()).isEqualTo(expected);
-        assertThat(test.session().isOpen()).isFalse();
+        assertThat(session.isOpen()).isFalse();
     }
 
-    private static TestSession openSession() {
-        DirectConnectUiTestFixtures.ControlledLobby lobby =
-                DirectConnectUiTestFixtures.controlledLobby();
+    private static DirectConnectUiTestFixtures.ControlledLobby openLobby() {
+        return DirectConnectUiTestFixtures.controlledLobby();
+    }
+
+    private static ConnectedLobbySession takeSession(
+            DirectConnectUiTestFixtures.ControlledLobby lobby) {
         DirectConnectResult result =
                 lobby.connectedResult(PlayerSessionAdmissionStatus.LOCAL_FIRST_USE_ACCEPTED);
-        ConnectedLobbySession session = ((DirectConnectResult.Connected) result).takeSession();
-        return new TestSession(lobby, session);
+        return ((DirectConnectResult.Connected) result).takeSession();
     }
 
     private static LobbyMatchPhaseSnapshot snapshot(
@@ -112,7 +115,4 @@ class ConnectedLobbyMatchSnapshotTest {
         }
         assertThat(condition.getAsBoolean()).isTrue();
     }
-
-    private record TestSession(
-            DirectConnectUiTestFixtures.ControlledLobby lobby, ConnectedLobbySession session) {}
 }
