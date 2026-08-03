@@ -72,7 +72,7 @@ jobs:
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           name: sunderfront-client-windows-x64
-          path: build/windows-release-download
+          path: ${{ runner.temp }}/sunderfront-windows-release
 
       - name: Verify JVM release distributions
         run: bash release/verify_release.sh
@@ -82,7 +82,7 @@ jobs:
         run: |
           set -euo pipefail
           VERSION=$(tr -d '\r\n' < release/version.txt)
-          WINDOWS_ARCHIVE="build/windows-release-download/sunderfront-client-windows-x64-${VERSION}.zip"
+          WINDOWS_ARCHIVE="$RUNNER_TEMP/sunderfront-windows-release/sunderfront-client-windows-x64-${VERSION}.zip"
           python3 release/assemble_cross_platform_release.py build/release "$WINDOWS_ARCHIVE" "$VERSION"
           python3 release/verify_artifacts.py build/release "$VERSION" --require-windows
           (
