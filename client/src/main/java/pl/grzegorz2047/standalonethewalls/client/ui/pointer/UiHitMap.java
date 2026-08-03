@@ -9,8 +9,6 @@ import java.util.Set;
 
 /** Immutable ordered hit map; the last matching target is treated as visually topmost. */
 public final class UiHitMap {
-    private static final UiHitMap EMPTY = new UiHitMap(List.of());
-
     private final List<UiHitTarget> targets;
 
     public UiHitMap(List<UiHitTarget> targets) {
@@ -25,7 +23,7 @@ public final class UiHitMap {
     }
 
     public static UiHitMap empty() {
-        return EMPTY;
+        return new UiHitMap(List.of());
     }
 
     public List<UiHitTarget> targets() {
