@@ -7,10 +7,16 @@ The Java-free `Sunderfront.exe` package applies only to the Windows client.
 
 ## Windows first run
 
-Extract the complete archive and use the numbered root launchers:
+Extract the complete archive into a new writable directory and use the numbered
+root launchers:
 
 1. double-click `1_GENERUJ_CREDENTIALS.bat`;
 2. double-click `2_URUCHOM_SERWER.bat` for every server start.
+
+Do not copy only the numbered launchers into an older package. The root launchers,
+`bin/`, `lib/`, `config/`, and `tools/` must come from the same complete archive.
+The credential launcher rejects a missing technical launcher or Java-check helper
+as an incomplete or mixed-version package.
 
 The first launcher is safe to run again. If all four credential files already
 exist and are non-empty, it preserves the current server identity, prints the
