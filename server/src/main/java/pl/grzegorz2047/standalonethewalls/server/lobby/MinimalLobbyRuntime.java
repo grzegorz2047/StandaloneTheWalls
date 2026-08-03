@@ -20,6 +20,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -33,12 +34,14 @@ import pl.grzegorz2047.standalonethewalls.domain.lobby.LobbyRosterDecision;
 import pl.grzegorz2047.standalonethewalls.domain.lobby.LobbyRosterRejection;
 import pl.grzegorz2047.standalonethewalls.domain.lobby.LobbyRosterRules;
 import pl.grzegorz2047.standalonethewalls.domain.lobby.LobbyRosterState;
+import pl.grzegorz2047.standalonethewalls.domain.match.MatchConfiguration;
 import pl.grzegorz2047.standalonethewalls.protocol.MessageType;
 import pl.grzegorz2047.standalonethewalls.protocol.ProtocolEnvelope;
 import pl.grzegorz2047.standalonethewalls.protocol.ReliableSendResult;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandOutcome;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandResult;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyJoined;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMember;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolException;
@@ -50,20 +53,25 @@ import pl.grzegorz2047.standalonethewalls.server.identity.session.AuthorizedPlay
 import pl.grzegorz2047.standalonethewalls.server.identity.session.AuthorizedPlayerSessionQueue;
 
 /**
- * Owns reliable lobby membership and the authoritative team/readiness roster.
+ * Owns reliable lobby membership, the authoritative roster, and the lobby-to-preparation match
+ * phase.
  *
- * <p>The coordinator is the only roster writer. Receive workers decode bounded payloads and enqueue
- * trusted-session intents. No queue polling, network I/O, domain transition, or session close runs
- * on the fixed-tick simulation thread, listener accept thread, or identity-admission worker.
+ * <p>The coordinator is the only state writer. Receive workers decode bounded payloads and enqueue
+ * trusted-session intents. The simulation thread only advances a constant-memory tick mailbox; no
+ * queue polling, network I/O, domain transition, or session close runs on that thread, the listener
+ * accept thread, or an identity-admission worker.
  */
 public final class MinimalLobbyRuntime implements AutoCloseable {
     private static final AtomicLong RUNTIME_IDS = new AtomicLong();
     private static final Duration MAXIMUM_SEND_TIMEOUT = Duration.ofSeconds(30);
     private static final Duration MAXIMUM_SHUTDOWN_TIMEOUT = Duration.ofSeconds(30);
+    private static final int DEFAULT_TICK_RATE = 20;
     private static final long POLL_MILLIS = 10L;
 
     private final AuthorizedPlayerSessionQueue source;
     private final LobbyConfiguration configuration;
+    private final MatchConfiguration matchConfiguration;
+    private final LobbyMatchCoordinator matchCoordinator;
     private final Duration sendTimeout;
     private final Duration shutdownTimeout;
     private final Consumer<MinimalLobbyEvent> eventObserver;
@@ -74,6 +82,10 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
     private final AtomicReference<Throwable> failure = new AtomicReference<>();
     private final AtomicInteger memberCount = new AtomicInteger();
     private final AtomicLong visibleRevision = new AtomicLong();
+    private final AtomicReference<LobbyMatchSnapshot> visibleMatchSnapshot;
+    private final AtomicLong offeredSimulationTick =
+            new AtomicLong(LobbyMatchSnapshot.BEFORE_FIRST_TICK);
+    private final AtomicBoolean tickSignalQueued = new AtomicBoolean();
     private final CompletableFuture<Void> terminated = new CompletableFuture<>();
     private final Object lifecycleLock = new Object();
     private final long runtimeId = RUNTIME_IDS.incrementAndGet();
@@ -88,6 +100,7 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         this(
                 source,
                 LobbyConfiguration.standard(),
+                MatchConfiguration.defaults(DEFAULT_TICK_RATE),
                 sendTimeout,
                 shutdownTimeout,
                 eventObserver,
@@ -103,6 +116,7 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         this(
                 source,
                 LobbyConfiguration.standard(),
+                MatchConfiguration.defaults(DEFAULT_TICK_RATE),
                 sendTimeout,
                 shutdownTimeout,
                 eventObserver,
@@ -115,7 +129,14 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
             Duration sendTimeout,
             Duration shutdownTimeout,
             Consumer<MinimalLobbyEvent> eventObserver) {
-        this(source, configuration, sendTimeout, shutdownTimeout, eventObserver, () -> {});
+        this(
+                source,
+                configuration,
+                MatchConfiguration.defaults(DEFAULT_TICK_RATE),
+                sendTimeout,
+                shutdownTimeout,
+                eventObserver,
+                () -> {});
     }
 
     public MinimalLobbyRuntime(
@@ -125,21 +146,59 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
             Duration shutdownTimeout,
             Consumer<MinimalLobbyEvent> eventObserver,
             Runnable terminalFailureAction) {
+        this(
+                source,
+                configuration,
+                MatchConfiguration.defaults(DEFAULT_TICK_RATE),
+                sendTimeout,
+                shutdownTimeout,
+                eventObserver,
+                terminalFailureAction);
+    }
+
+    public MinimalLobbyRuntime(
+            AuthorizedPlayerSessionQueue source,
+            LobbyConfiguration configuration,
+            MatchConfiguration matchConfiguration,
+            Duration sendTimeout,
+            Duration shutdownTimeout,
+            Consumer<MinimalLobbyEvent> eventObserver) {
+        this(
+                source,
+                configuration,
+                matchConfiguration,
+                sendTimeout,
+                shutdownTimeout,
+                eventObserver,
+                () -> {});
+    }
+
+    public MinimalLobbyRuntime(
+            AuthorizedPlayerSessionQueue source,
+            LobbyConfiguration configuration,
+            MatchConfiguration matchConfiguration,
+            Duration sendTimeout,
+            Duration shutdownTimeout,
+            Consumer<MinimalLobbyEvent> eventObserver,
+            Runnable terminalFailureAction) {
         this.source = Objects.requireNonNull(source, "source");
         this.configuration = Objects.requireNonNull(configuration, "configuration");
+        this.matchConfiguration = Objects.requireNonNull(matchConfiguration, "matchConfiguration");
         if (source.capacity() > LobbySnapshot.MAXIMUM_MEMBERS) {
             throw new IllegalArgumentException("source capacity exceeds minimal lobby capacity");
         }
         if (source.capacity() > configuration.maximumPlayers()) {
             throw new IllegalArgumentException("source capacity exceeds lobby configuration");
         }
+        matchCoordinator = new LobbyMatchCoordinator(configuration, matchConfiguration);
+        visibleMatchSnapshot = new AtomicReference<>(matchCoordinator.snapshot());
         this.sendTimeout = requireDuration(sendTimeout, "sendTimeout", MAXIMUM_SEND_TIMEOUT);
         this.shutdownTimeout =
                 requireDuration(shutdownTimeout, "shutdownTimeout", MAXIMUM_SHUTDOWN_TIMEOUT);
         this.eventObserver = Objects.requireNonNull(eventObserver, "eventObserver");
         this.terminalFailureAction =
                 Objects.requireNonNull(terminalFailureAction, "terminalFailureAction");
-        commands = new ArrayBlockingQueue<>(Math.max(16, source.capacity() * 4 + 1));
+        commands = new ArrayBlockingQueue<>(Math.max(16, source.capacity() * 4 + 2));
         workers =
                 Executors.newThreadPerTaskExecutor(
                         Thread.ofVirtual()
@@ -171,8 +230,48 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         return visibleRevision.get();
     }
 
+    public LobbyMatchSnapshot matchSnapshot() {
+        return visibleMatchSnapshot.get();
+    }
+
     public Optional<Throwable> failure() {
         return Optional.ofNullable(failure.get());
+    }
+
+    /**
+     * Offers one sequential simulation tick without blocking the caller.
+     *
+     * @return {@code false} when the runtime is not running or its bounded command queue cannot be
+     *     signalled
+     */
+    public boolean offerSimulationTick(long tickNumber) {
+        if (tickNumber < 0L) {
+            throw new IllegalArgumentException("tickNumber cannot be negative");
+        }
+        if (lifecycle.get() != State.RUNNING) {
+            return false;
+        }
+        while (true) {
+            long previous = offeredSimulationTick.get();
+            if (tickNumber < previous) {
+                throw new IllegalArgumentException("tickNumber cannot move backwards");
+            }
+            if (tickNumber == previous) {
+                return true;
+            }
+            if (tickNumber != Math.addExact(previous, 1L)) {
+                throw new IllegalArgumentException("simulation tick gap is not allowed");
+            }
+            if (offeredSimulationTick.compareAndSet(previous, tickNumber)) {
+                break;
+            }
+        }
+        if (tickSignalQueued.compareAndSet(false, true)
+                && !commands.offer(SimulationTickSignal.INSTANCE)) {
+            tickSignalQueued.set(false);
+            return false;
+        }
+        return true;
     }
 
     @Override
@@ -227,6 +326,8 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
                     handleClientCommand(state, clientCommand);
                 } else if (command instanceof SessionEnded ended) {
                     handleSessionEnded(state, ended);
+                } else if (command == SimulationTickSignal.INSTANCE) {
+                    handleSimulationTicks(state);
                 } else if (command == Shutdown.INSTANCE) {
                     break;
                 }
@@ -282,6 +383,27 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
                     terminalFailure.addSuppressed(actionFailure);
                 }
                 terminated.completeExceptionally(terminalFailure);
+            }
+        }
+    }
+
+    private void handleSimulationTicks(LobbyState state) {
+        while (true) {
+            long targetTick = offeredSimulationTick.get();
+            long nextTick = Math.addExact(matchCoordinator.snapshot().authoritativeTick(), 1L);
+            while (nextTick <= targetTick) {
+                Optional<LobbyMatchSnapshot> changed = matchCoordinator.advanceTick(nextTick);
+                if (changed.isPresent()) {
+                    visibleMatchSnapshot.set(changed.orElseThrow());
+                    stabilizeMatchSnapshots(state);
+                }
+                nextTick = Math.addExact(nextTick, 1L);
+            }
+
+            tickSignalQueued.set(false);
+            if (offeredSimulationTick.get() == targetTick
+                    || !tickSignalQueued.compareAndSet(false, true)) {
+                return;
             }
         }
     }
@@ -355,6 +477,18 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         }
         member.lastRequestId = inbound.requestId();
 
+        if (!matchCoordinator.acceptsLobbyCommands()) {
+            LobbyCommandResult locked =
+                    new LobbyCommandResult(
+                            inbound.requestId(),
+                            state.roster.revision(),
+                            LobbyCommandOutcome.MATCH_ALREADY_STARTED);
+            if (!sendCommandResult(member, locked)) {
+                removeMember(state, member, EndReason.SEND_FAILED, true);
+            }
+            return;
+        }
+
         LobbyRosterDecision decision =
                 LobbyRosterRules.apply(configuration, state.roster, inbound.command());
         boolean changed = decision.accepted() && decision.state() != state.roster;
@@ -412,22 +546,52 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
 
     private void stabilizeSnapshots(LobbyState state) {
         while (!state.members.isEmpty()) {
-            LobbySnapshot snapshot = snapshot(state);
-            byte[] payload = LobbyProtocolCodec.encodeSnapshot(snapshot);
-            List<LobbyParticipantId> failed = sendSnapshot(state.members, payload);
-            if (failed.isEmpty()) {
+            byte[] rosterPayload = LobbyProtocolCodec.encodeSnapshot(snapshot(state));
+            List<LobbyParticipantId> rosterFailed =
+                    sendToMembers(state.members, MessageType.LOBBY_SNAPSHOT, rosterPayload);
+            if (!rosterFailed.isEmpty()) {
+                removeFailedMembers(state, rosterFailed);
+                continue;
+            }
+
+            byte[] matchPayload =
+                    LobbyMatchProtocolCodec.encodeSnapshot(
+                            LobbyMatchProtocolAdapter.toProtocol(matchCoordinator.snapshot()));
+            List<LobbyParticipantId> matchFailed =
+                    sendToMembers(state.members, MessageType.LOBBY_MATCH_SNAPSHOT, matchPayload);
+            if (matchFailed.isEmpty()) {
                 return;
             }
-            failed.stream()
-                    .sorted()
-                    .forEach(
-                            participantId -> {
-                                MemberState removed = state.members.get(participantId);
-                                if (removed != null) {
-                                    removeMember(state, removed, EndReason.SEND_FAILED, false);
-                                }
-                            });
+            removeFailedMembers(state, matchFailed);
         }
+    }
+
+    private void stabilizeMatchSnapshots(LobbyState state) {
+        if (state.members.isEmpty()) {
+            return;
+        }
+        byte[] payload =
+                LobbyMatchProtocolCodec.encodeSnapshot(
+                        LobbyMatchProtocolAdapter.toProtocol(matchCoordinator.snapshot()));
+        List<LobbyParticipantId> failed =
+                sendToMembers(state.members, MessageType.LOBBY_MATCH_SNAPSHOT, payload);
+        if (failed.isEmpty()) {
+            return;
+        }
+        removeFailedMembers(state, failed);
+        stabilizeSnapshots(state);
+    }
+
+    private void removeFailedMembers(LobbyState state, List<LobbyParticipantId> failed) {
+        failed.stream()
+                .sorted()
+                .forEach(
+                        participantId -> {
+                            MemberState removed = state.members.get(participantId);
+                            if (removed != null) {
+                                removeMember(state, removed, EndReason.SEND_FAILED, false);
+                            }
+                        });
     }
 
     private LobbySnapshot snapshot(LobbyState state) {
@@ -450,8 +614,10 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         return new LobbySnapshot(state.roster.revision(), members);
     }
 
-    private List<LobbyParticipantId> sendSnapshot(
-            Map<LobbyParticipantId, MemberState> members, byte[] payload) {
+    private List<LobbyParticipantId> sendToMembers(
+            Map<LobbyParticipantId, MemberState> members,
+            MessageType messageType,
+            byte[] payload) {
         Map<LobbyParticipantId, CompletableFuture<ReliableSendResult>> sends =
                 new LinkedHashMap<>();
         List<LobbyParticipantId> failed = new ArrayList<>();
@@ -463,7 +629,7 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
                                         entry.getValue()
                                                 .session
                                                 .reliableChannel()
-                                                .send(MessageType.LOBBY_SNAPSHOT, payload),
+                                                .send(messageType, payload),
                                         "snapshot send stage")
                                 .toCompletableFuture());
             } catch (RuntimeException exception) {
@@ -656,6 +822,7 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         state.roster = Objects.requireNonNull(roster, "roster");
         memberCount.set(roster.participants().size());
         visibleRevision.set(roster.revision());
+        matchCoordinator.updateRoster(roster).ifPresent(visibleMatchSnapshot::set);
     }
 
     private void publish(MinimalLobbyEvent.Code code) {
@@ -769,7 +936,8 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         RECEIVE_FAILED
     }
 
-    private sealed interface Command permits ClientCommand, SessionEnded, Shutdown {}
+    private sealed interface Command
+            permits ClientCommand, SessionEnded, SimulationTickSignal, Shutdown {}
 
     private record ClientCommand(
             LobbyParticipantId participantId,
@@ -797,6 +965,10 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
             Objects.requireNonNull(sessionId, "sessionId");
             Objects.requireNonNull(reason, "reason");
         }
+    }
+
+    private enum SimulationTickSignal implements Command {
+        INSTANCE
     }
 
     private enum Shutdown implements Command {
