@@ -21,7 +21,9 @@ public record LobbyParticipantState(
 
     public LobbyParticipantState withTeam(TeamId selectedTeam) {
         return new LobbyParticipantState(
-                participantId, Optional.of(Objects.requireNonNull(selectedTeam, "selectedTeam")), false);
+                participantId,
+                Optional.of(Objects.requireNonNull(selectedTeam, "selectedTeam")),
+                false);
     }
 
     public LobbyParticipantState withReady(boolean nextReady) {

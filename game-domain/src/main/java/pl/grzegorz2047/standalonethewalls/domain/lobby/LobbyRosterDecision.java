@@ -26,7 +26,9 @@ public record LobbyRosterDecision(
     public static LobbyRosterDecision rejected(
             LobbyRosterState unchangedState, LobbyRosterRejection rejection) {
         return new LobbyRosterDecision(
-                unchangedState, List.of(), Optional.of(Objects.requireNonNull(rejection, "rejection")));
+                unchangedState,
+                List.of(),
+                Optional.of(Objects.requireNonNull(rejection, "rejection")));
     }
 
     public boolean accepted() {

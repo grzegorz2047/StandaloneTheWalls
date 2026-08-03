@@ -30,16 +30,14 @@ class LobbyRosterRulesTest {
         assertThat(joinedAlice.events())
                 .containsExactly(new LobbyRosterEvent.ParticipantJoined(ALICE, 2L));
 
-        LobbyRosterDecision left =
-                accepted(joinedAlice.state(), new LobbyRosterCommand.Leave(BOB));
+        LobbyRosterDecision left = accepted(joinedAlice.state(), new LobbyRosterCommand.Leave(BOB));
         assertThat(left.state().revision()).isEqualTo(3L);
         assertThat(left.state().participants())
                 .extracting(LobbyParticipantState::participantId)
                 .containsExactly(ALICE);
         assertThat(left.events())
                 .containsExactly(
-                        new LobbyRosterEvent.ParticipantLeft(
-                                BOB, Optional.empty(), false, 3L));
+                        new LobbyRosterEvent.ParticipantLeft(BOB, Optional.empty(), false, 3L));
     }
 
     @Test
@@ -125,16 +123,13 @@ class LobbyRosterRulesTest {
 
         state = select(state, ALICE, TeamId.GREEN);
         state = select(state, BOB, TeamId.BLUE);
-        LobbyRosterDecision ready =
-                accepted(state, new LobbyRosterCommand.SetReady(ALICE, true));
+        LobbyRosterDecision ready = accepted(state, new LobbyRosterCommand.SetReady(ALICE, true));
         assertThat(ready.state().participant(ALICE).orElseThrow().ready()).isTrue();
         assertThat(ready.events())
                 .containsExactly(new LobbyRosterEvent.ReadyChanged(ALICE, true, 5L));
 
         LobbyRosterDecision moved =
-                accepted(
-                        ready.state(),
-                        new LobbyRosterCommand.SelectTeam(ALICE, TeamId.RED));
+                accepted(ready.state(), new LobbyRosterCommand.SelectTeam(ALICE, TeamId.RED));
         LobbyParticipantState alice = moved.state().participant(ALICE).orElseThrow();
         assertThat(alice.team()).contains(TeamId.RED);
         assertThat(alice.ready()).isFalse();
@@ -186,10 +181,8 @@ class LobbyRosterRulesTest {
                 new LobbyRosterState(
                         8L,
                         List.of(
-                                new LobbyParticipantState(
-                                        ALICE, Optional.of(TeamId.GREEN), true),
-                                new LobbyParticipantState(
-                                        BOB, Optional.of(TeamId.GREEN), true)));
+                                new LobbyParticipantState(ALICE, Optional.of(TeamId.GREEN), true),
+                                new LobbyParticipantState(BOB, Optional.of(TeamId.GREEN), true)));
         assertThat(oneTeam.readyToStart(STANDARD)).isFalse();
     }
 
@@ -219,9 +212,7 @@ class LobbyRosterRulesTest {
         LobbyRosterState disabledTeamState =
                 new LobbyRosterState(
                         1L,
-                        List.of(
-                                new LobbyParticipantState(
-                                        ALICE, Optional.of(TeamId.RED), false)));
+                        List.of(new LobbyParticipantState(ALICE, Optional.of(TeamId.RED), false)));
         assertThatThrownBy(
                         () ->
                                 LobbyRosterRules.apply(
@@ -266,9 +257,7 @@ class LobbyRosterRulesTest {
     }
 
     private static LobbyRosterDecision accepted(
-            LobbyConfiguration configuration,
-            LobbyRosterState state,
-            LobbyRosterCommand command) {
+            LobbyConfiguration configuration, LobbyRosterState state, LobbyRosterCommand command) {
         LobbyRosterDecision decision = LobbyRosterRules.apply(configuration, state, command);
         assertThat(decision.accepted()).isTrue();
         assertThat(decision.rejection()).isEmpty();

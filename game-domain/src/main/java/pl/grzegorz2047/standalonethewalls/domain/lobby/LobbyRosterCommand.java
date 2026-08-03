@@ -24,16 +24,14 @@ public sealed interface LobbyRosterCommand
         }
     }
 
-    record SelectTeam(LobbyParticipantId participantId, TeamId team)
-            implements LobbyRosterCommand {
+    record SelectTeam(LobbyParticipantId participantId, TeamId team) implements LobbyRosterCommand {
         public SelectTeam {
             Objects.requireNonNull(participantId, "participantId");
             Objects.requireNonNull(team, "team");
         }
     }
 
-    record SetReady(LobbyParticipantId participantId, boolean ready)
-            implements LobbyRosterCommand {
+    record SetReady(LobbyParticipantId participantId, boolean ready) implements LobbyRosterCommand {
         public SetReady {
             Objects.requireNonNull(participantId, "participantId");
         }

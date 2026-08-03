@@ -26,20 +26,13 @@ class LobbyRosterValueTest {
 
     @Test
     void rejectsConfigurationsWithoutEnoughTeamsOrCapacity() {
-        assertThatThrownBy(
-                        () -> new LobbyConfiguration(Set.of(TeamId.GREEN), 2, 2, 2))
+        assertThatThrownBy(() -> new LobbyConfiguration(Set.of(TeamId.GREEN), 2, 2, 2))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("two teams");
-        assertThatThrownBy(
-                        () ->
-                                new LobbyConfiguration(
-                                        Set.of(TeamId.GREEN, TeamId.BLUE), 5, 2, 2))
+        assertThatThrownBy(() -> new LobbyConfiguration(Set.of(TeamId.GREEN, TeamId.BLUE), 5, 2, 2))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("cannot hold");
-        assertThatThrownBy(
-                        () ->
-                                new LobbyConfiguration(
-                                        EnumSet.allOf(TeamId.class), 40, 10, 41))
+        assertThatThrownBy(() -> new LobbyConfiguration(EnumSet.allOf(TeamId.class), 40, 10, 41))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("minimumReadyPlayers");
     }
@@ -59,9 +52,7 @@ class LobbyRosterValueTest {
         assertThatThrownBy(
                         () ->
                                 new LobbyParticipantState(
-                                        new LobbyParticipantId("player"),
-                                        Optional.empty(),
-                                        true))
+                                        new LobbyParticipantId("player"), Optional.empty(), true))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("must have a team");
     }
@@ -74,10 +65,8 @@ class LobbyRosterValueTest {
                 new LobbyRosterState(
                         4L,
                         List.of(
-                                new LobbyParticipantState(
-                                        alice, Optional.of(TeamId.GREEN), true),
-                                new LobbyParticipantState(
-                                        bob, Optional.of(TeamId.BLUE), false)));
+                                new LobbyParticipantState(alice, Optional.of(TeamId.GREEN), true),
+                                new LobbyParticipantState(bob, Optional.of(TeamId.BLUE), false)));
 
         assertThat(state.participant(alice)).isPresent();
         assertThat(state.participant(new LobbyParticipantId("carol"))).isEmpty();

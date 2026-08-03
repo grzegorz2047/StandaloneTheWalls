@@ -16,9 +16,7 @@ public final class LobbyRosterRules {
     }
 
     public static LobbyRosterDecision apply(
-            LobbyConfiguration configuration,
-            LobbyRosterState state,
-            LobbyRosterCommand command) {
+            LobbyConfiguration configuration, LobbyRosterState state, LobbyRosterCommand command) {
         LobbyConfiguration rules = Objects.requireNonNull(configuration, "configuration");
         LobbyRosterState current = Objects.requireNonNull(state, "state");
         LobbyRosterCommand requested = Objects.requireNonNull(command, "command");
@@ -39,8 +37,7 @@ public final class LobbyRosterRules {
             LobbyRosterCommand.Join command) {
         TreeMap<LobbyParticipantId, LobbyParticipantState> participants = participantsById(state);
         if (participants.containsKey(command.participantId())) {
-            return LobbyRosterDecision.rejected(
-                    state, LobbyRosterRejection.DUPLICATE_PARTICIPANT);
+            return LobbyRosterDecision.rejected(state, LobbyRosterRejection.DUPLICATE_PARTICIPANT);
         }
         if (participants.size() >= configuration.maximumPlayers()) {
             return LobbyRosterDecision.rejected(state, LobbyRosterRejection.LOBBY_FULL);
@@ -48,8 +45,7 @@ public final class LobbyRosterRules {
 
         long revision = nextRevision(state);
         participants.put(
-                command.participantId(),
-                LobbyParticipantState.unassigned(command.participantId()));
+                command.participantId(), LobbyParticipantState.unassigned(command.participantId()));
         LobbyRosterState next = state(revision, participants);
         return LobbyRosterDecision.accepted(
                 next,
@@ -61,8 +57,7 @@ public final class LobbyRosterRules {
         TreeMap<LobbyParticipantId, LobbyParticipantState> participants = participantsById(state);
         LobbyParticipantState removed = participants.remove(command.participantId());
         if (removed == null) {
-            return LobbyRosterDecision.rejected(
-                    state, LobbyRosterRejection.UNKNOWN_PARTICIPANT);
+            return LobbyRosterDecision.rejected(state, LobbyRosterRejection.UNKNOWN_PARTICIPANT);
         }
 
         long revision = nextRevision(state);
@@ -84,8 +79,7 @@ public final class LobbyRosterRules {
         TreeMap<LobbyParticipantId, LobbyParticipantState> participants = participantsById(state);
         LobbyParticipantState participant = participants.get(command.participantId());
         if (participant == null) {
-            return LobbyRosterDecision.rejected(
-                    state, LobbyRosterRejection.UNKNOWN_PARTICIPANT);
+            return LobbyRosterDecision.rejected(state, LobbyRosterRejection.UNKNOWN_PARTICIPANT);
         }
         if (!configuration.enabledTeams().contains(command.team())) {
             return LobbyRosterDecision.rejected(state, LobbyRosterRejection.TEAM_DISABLED);
@@ -135,8 +129,7 @@ public final class LobbyRosterRules {
         TreeMap<LobbyParticipantId, LobbyParticipantState> participants = participantsById(state);
         LobbyParticipantState participant = participants.get(command.participantId());
         if (participant == null) {
-            return LobbyRosterDecision.rejected(
-                    state, LobbyRosterRejection.UNKNOWN_PARTICIPANT);
+            return LobbyRosterDecision.rejected(state, LobbyRosterRejection.UNKNOWN_PARTICIPANT);
         }
         if (command.ready() && participant.team().isEmpty()) {
             return LobbyRosterDecision.rejected(state, LobbyRosterRejection.TEAM_REQUIRED);

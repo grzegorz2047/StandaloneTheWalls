@@ -9,7 +9,8 @@ public record LobbyParticipantId(String value) implements Comparable<LobbyPartic
     public LobbyParticipantId {
         Objects.requireNonNull(value, "value");
         if (value.isEmpty() || value.length() > MAXIMUM_LENGTH) {
-            throw new IllegalArgumentException("lobby participant id length is outside the accepted range");
+            throw new IllegalArgumentException(
+                    "lobby participant id length is outside the accepted range");
         }
         for (int index = 0; index < value.length(); index++) {
             char character = value.charAt(index);

@@ -46,7 +46,9 @@ public record LobbyRosterState(long revision, List<LobbyParticipantState> partic
     public int teamSize(TeamId team) {
         Objects.requireNonNull(team, "team");
         return Math.toIntExact(
-                participants.stream().filter(participant -> participant.team().filter(team::equals).isPresent()).count());
+                participants.stream()
+                        .filter(participant -> participant.team().filter(team::equals).isPresent())
+                        .count());
     }
 
     public Map<TeamId, Integer> teamSizes(LobbyConfiguration configuration) {
