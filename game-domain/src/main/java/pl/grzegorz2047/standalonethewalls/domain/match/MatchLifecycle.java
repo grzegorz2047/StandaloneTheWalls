@@ -1,6 +1,7 @@
 package pl.grzegorz2047.standalonethewalls.domain.match;
 
 import java.util.Objects;
+import pl.grzegorz2047.standalonethewalls.domain.match.MatchEvent.CountdownCancellationReason;
 
 /** Stateless transition function for the match lifecycle. */
 public final class MatchLifecycle {
@@ -17,8 +18,12 @@ public final class MatchLifecycle {
         return switch (command) {
             case MatchCommand.BeginMapLoad ignored -> beginMapLoad(state);
             case MatchCommand.CompleteMapLoad ignored -> completeMapLoad(state);
-            case MatchCommand.UpdatePlayerCount update ->
-                    updatePlayerCount(configuration, state, update.connectedPlayers());
+            case MatchCommand.UpdateLobbyState update ->
+                    updateLobbyState(
+                            configuration,
+                            state,
+                            update.connectedPlayers(),
+                            update.readyToStart());
             case MatchCommand.Tick ignored -> tick(configuration, state);
             case MatchCommand.FinishMatch finish ->
                     finishMatch(configuration, state, finish.result());
@@ -39,14 +44,24 @@ public final class MatchLifecycle {
         return transition(state, MatchPhase.WAITING_FOR_PLAYERS, 0L, MatchResult.NONE);
     }
 
-    private static MatchDecision updatePlayerCount(
-            MatchConfiguration configuration, MatchState state, int connectedPlayers) {
+    private static MatchDecision updateLobbyState(
+            MatchConfiguration configuration,
+            MatchState state,
+            int connectedPlayers,
+            boolean readyToStart) {
         if (connectedPlayers < 0) {
             return MatchDecision.rejected(
                     state,
                     new MatchRejection(
                             MatchRejection.Code.INVALID_PLAYER_COUNT,
                             "connectedPlayers cannot be negative"));
+        }
+        if (readyToStart && connectedPlayers < configuration.minimumPlayers()) {
+            return MatchDecision.rejected(
+                    state,
+                    new MatchRejection(
+                            MatchRejection.Code.INVALID_LOBBY_STATE,
+                            "readyToStart requires the configured minimum player count"));
         }
 
         MatchState updated =
@@ -57,8 +72,7 @@ public final class MatchLifecycle {
                         state.roundNumber(),
                         state.result());
 
-        if (state.phase() == MatchPhase.WAITING_FOR_PLAYERS
-                && connectedPlayers >= configuration.minimumPlayers()) {
+        if (state.phase() == MatchPhase.WAITING_FOR_PLAYERS && readyToStart) {
             return transition(
                     updated,
                     MatchPhase.START_COUNTDOWN,
@@ -66,8 +80,7 @@ public final class MatchLifecycle {
                     MatchResult.NONE);
         }
 
-        if (state.phase() == MatchPhase.START_COUNTDOWN
-                && connectedPlayers < configuration.minimumPlayers()) {
+        if (state.phase() == MatchPhase.START_COUNTDOWN && !readyToStart) {
             MatchState waiting =
                     new MatchState(
                             MatchPhase.WAITING_FOR_PLAYERS,
@@ -75,10 +88,14 @@ public final class MatchLifecycle {
                             connectedPlayers,
                             state.roundNumber(),
                             MatchResult.NONE);
+            CountdownCancellationReason reason =
+                    connectedPlayers < configuration.minimumPlayers()
+                            ? CountdownCancellationReason.INSUFFICIENT_PLAYERS
+                            : CountdownCancellationReason.LOBBY_NOT_READY;
             return MatchDecision.accepted(
                     waiting,
                     new MatchEvent.CountdownCancelled(
-                            connectedPlayers, configuration.minimumPlayers()),
+                            reason, connectedPlayers, configuration.minimumPlayers()),
                     new MatchEvent.PhaseChanged(
                             MatchPhase.START_COUNTDOWN,
                             MatchPhase.WAITING_FOR_PLAYERS,
