@@ -10,18 +10,24 @@ import pl.grzegorz2047.standalonethewalls.domain.match.MatchResult;
 public record LobbyMatchSnapshot(
         long revision,
         long rosterRevision,
+        long authoritativeTick,
         MatchPhase phase,
         long ticksRemaining,
         int connectedPlayers,
         long roundNumber,
         MatchResult result,
         Optional<CountdownCancellationReason> cancellationReason) {
+    public static final long BEFORE_FIRST_TICK = -1L;
+
     public LobbyMatchSnapshot {
         if (revision < 0L) {
             throw new IllegalArgumentException("match snapshot revision cannot be negative");
         }
         if (rosterRevision < 0L) {
             throw new IllegalArgumentException("roster revision cannot be negative");
+        }
+        if (authoritativeTick < BEFORE_FIRST_TICK) {
+            throw new IllegalArgumentException("authoritativeTick is outside the supported range");
         }
         Objects.requireNonNull(phase, "phase");
         if (ticksRemaining < 0L) {
