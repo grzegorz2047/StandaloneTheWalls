@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import pl.grzegorz2047.standalonethewalls.client.i18n.ClientMessages;
@@ -12,6 +13,7 @@ import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectAttempt;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectEndpoint;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectEndpointException;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectFailure;
+import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectFailureCode;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectResult;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectService;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectStage;
@@ -79,8 +81,8 @@ public final class DirectConnectUiController implements AutoCloseable {
             case HANDLE -> {
                 char canonical = Character.toLowerCase(character);
                 if (handleText.length() < MAXIMUM_HANDLE_LENGTH
-                        && (canonical >= 'a' && canonical <= 'z'
-                                || canonical >= '0' && canonical <= '9'
+                        && ((canonical >= 'a' && canonical <= 'z')
+                                || (canonical >= '0' && canonical <= '9')
                                 || canonical == '_')) {
                     handleText += canonical;
                 }
@@ -142,7 +144,7 @@ public final class DirectConnectUiController implements AutoCloseable {
                     disconnectAndExit();
                 }
             }
-            case ADMISSION_REJECTED, FAILED, DISCONNECTED -> {
+            case SECURITY_ALERT, ADMISSION_REJECTED, FAILED, DISCONNECTED -> {
                 if (focus == DirectConnectUiFocus.PRIMARY_ACTION) {
                     focus = DirectConnectUiFocus.ENDPOINT;
                     publish(formModel(messages.text("direct.status.ready")));
@@ -165,7 +167,7 @@ public final class DirectConnectUiController implements AutoCloseable {
                     JOINING_LOBBY -> cancelAttempt();
             case CONFIRMING_IDENTITY -> cancelConfirmation();
             case CONNECTED -> disconnect();
-            case ADMISSION_REJECTED, FAILED, DISCONNECTED -> {
+            case SECURITY_ALERT, ADMISSION_REJECTED, FAILED, DISCONNECTED -> {
                 focus = DirectConnectUiFocus.ENDPOINT;
                 publish(formModel(messages.text("direct.status.ready")));
             }
@@ -191,17 +193,22 @@ public final class DirectConnectUiController implements AutoCloseable {
             return;
         }
         generation++;
-        if (activeAttempt != null) {
-            activeAttempt.cancel();
-            activeAttempt = null;
-        }
-        service.discardPendingConfirmation();
+        DirectConnectAttempt attempt = activeAttempt;
+        ConnectedLobbySession session = connectedSession;
+        activeAttempt = null;
+        connectedSession = null;
+        connectedRevision = -1L;
         confirmation = null;
-        if (connectedSession != null) {
-            connectedSession.closeAsync();
-            connectedSession = null;
-        }
-        service.close();
+        service.discardPendingConfirmation();
+        runLifecycle(
+                "close",
+                () -> {
+                    if (attempt != null) {
+                        attempt.cancel();
+                    }
+                    awaitSessionClose(session);
+                    service.close();
+                });
     }
 
     private void activateForm() {
@@ -305,6 +312,7 @@ public final class DirectConnectUiController implements AutoCloseable {
         }
         activeAttempt = null;
         if (failure != null || result == null) {
+            focus = DirectConnectUiFocus.PRIMARY_ACTION;
             publish(failureModel(messages.text("direct.failure.internal_failure")));
             return;
         }
@@ -336,16 +344,20 @@ public final class DirectConnectUiController implements AutoCloseable {
     }
 
     private void handleFailure(DirectConnectFailure failure) {
-        if (failure.code()
-                == pl.grzegorz2047.standalonethewalls.client.network.DirectConnectFailureCode
-                        .ADMISSION_REJECTED) {
+        if (failure.code() == DirectConnectFailureCode.ADMISSION_REJECTED) {
             PlayerSessionAdmissionStatus status = failure.admissionStatus().orElseThrow();
             focus = DirectConnectUiFocus.PRIMARY_ACTION;
             publish(admissionRejectedModel(admissionMessage(status)));
             return;
         }
         focus = DirectConnectUiFocus.PRIMARY_ACTION;
-        publish(failureModel(failureMessage(failure)));
+        if (failure.code() == DirectConnectFailureCode.CHANGED_SERVER_IDENTITY
+                || failure.code()
+                        == DirectConnectFailureCode.EXPECTED_SERVER_IDENTITY_MISMATCH) {
+            publish(securityAlertModel(failureMessage(failure)));
+        } else {
+            publish(failureModel(failureMessage(failure)));
+        }
     }
 
     private void handleTermination(
@@ -368,12 +380,13 @@ public final class DirectConnectUiController implements AutoCloseable {
 
     private void cancelAttempt() {
         generation++;
-        if (activeAttempt != null) {
-            activeAttempt.cancel();
-            activeAttempt = null;
-        }
+        DirectConnectAttempt attempt = activeAttempt;
+        activeAttempt = null;
         focus = DirectConnectUiFocus.ENDPOINT;
         publish(formModel(messages.text("direct.status.cancelled")));
+        if (attempt != null) {
+            runLifecycle("cancel", attempt::cancel);
+        }
     }
 
     private void cancelConfirmation() {
@@ -386,13 +399,14 @@ public final class DirectConnectUiController implements AutoCloseable {
 
     private void disconnect() {
         generation++;
-        if (connectedSession != null) {
-            connectedSession.closeAsync();
-            connectedSession = null;
-        }
+        ConnectedLobbySession session = connectedSession;
+        connectedSession = null;
         connectedRevision = -1L;
         focus = DirectConnectUiFocus.PRIMARY_ACTION;
         publish(disconnectedModel(messages.text("direct.status.disconnected")));
+        if (session != null) {
+            runLifecycle("disconnect", () -> awaitSessionClose(session));
+        }
     }
 
     private void disconnectAndExit() {
@@ -406,7 +420,7 @@ public final class DirectConnectUiController implements AutoCloseable {
 
     private void closeStaleConnectedResult(DirectConnectResult result) {
         if (result instanceof DirectConnectResult.Connected connected) {
-            connected.session().closeAsync();
+            runLifecycle("stale-session", () -> awaitSessionClose(connected.session()));
         }
     }
 
@@ -451,7 +465,7 @@ public final class DirectConnectUiController implements AutoCloseable {
                 endpointText,
                 handleText,
                 messages.text("direct.confirm.title"),
-                messages.text("direct.status.confirming"),
+                messages.text("direct.status.confirming_identity"),
                 messages.text("direct.confirm.detail", required.endpoint().authority()),
                 messages.text("direct.action.trust"),
                 messages.text("direct.action.cancel"),
@@ -478,25 +492,35 @@ public final class DirectConnectUiController implements AutoCloseable {
                 snapshot.members());
     }
 
+    private DirectConnectScreenModel securityAlertModel(String detail) {
+        return terminalModel(
+                DirectConnectUiPhase.SECURITY_ALERT,
+                messages.text("direct.security.title"),
+                detail);
+    }
+
     private DirectConnectScreenModel admissionRejectedModel(String detail) {
-        return terminalModel(DirectConnectUiPhase.ADMISSION_REJECTED, detail);
+        return terminalModel(
+                DirectConnectUiPhase.ADMISSION_REJECTED, messages.text("direct.title"), detail);
     }
 
     private DirectConnectScreenModel failureModel(String detail) {
-        return terminalModel(DirectConnectUiPhase.FAILED, detail);
+        return terminalModel(DirectConnectUiPhase.FAILED, messages.text("direct.title"), detail);
     }
 
     private DirectConnectScreenModel disconnectedModel(String detail) {
-        return terminalModel(DirectConnectUiPhase.DISCONNECTED, detail);
+        return terminalModel(
+                DirectConnectUiPhase.DISCONNECTED, messages.text("direct.title"), detail);
     }
 
-    private DirectConnectScreenModel terminalModel(DirectConnectUiPhase phase, String detail) {
+    private DirectConnectScreenModel terminalModel(
+            DirectConnectUiPhase phase, String title, String detail) {
         return new DirectConnectScreenModel(
                 phase,
                 focus,
                 endpointText,
                 handleText,
-                messages.text("direct.title"),
+                title,
                 messages.text(statusKey(phase)),
                 detail,
                 messages.text("direct.action.retry"),
@@ -542,6 +566,7 @@ public final class DirectConnectUiController implements AutoCloseable {
                     WAITING_ADMISSION,
                     JOINING_LOBBY -> List.of(DirectConnectUiFocus.SECONDARY_ACTION);
             case CONFIRMING_IDENTITY,
+                    SECURITY_ALERT,
                     ADMISSION_REJECTED,
                     FAILED,
                     CONNECTED,
@@ -577,6 +602,32 @@ public final class DirectConnectUiController implements AutoCloseable {
 
     private static String removeLast(String value) {
         return value.isEmpty() ? value : value.substring(0, value.length() - 1);
+    }
+
+    private static void runLifecycle(String operation, Runnable action) {
+        Objects.requireNonNull(operation, "operation");
+        Objects.requireNonNull(action, "action");
+        Thread.ofVirtual()
+                .name("sunderfront-direct-connect-ui-" + operation)
+                .start(
+                        () -> {
+                            try {
+                                action.run();
+                            } catch (RuntimeException ignored) {
+                                // The immutable UI state already records the public outcome.
+                            }
+                        });
+    }
+
+    private static void awaitSessionClose(ConnectedLobbySession session) {
+        if (session == null) {
+            return;
+        }
+        try {
+            session.closeAsync().toCompletableFuture().join();
+        } catch (CompletionException | RuntimeException ignored) {
+            // Session cleanup cannot replace the stable immutable UI state.
+        }
     }
 
     private void requireOpen() {
