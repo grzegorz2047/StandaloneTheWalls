@@ -7,6 +7,7 @@ import org.gradle.api.artifacts.dsl.LockMode
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.api.tasks.bundling.AbstractArchiveTask
 import org.gradle.api.tasks.testing.Test
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.testing.jacoco.plugins.JacocoPluginExtension
@@ -19,7 +20,7 @@ plugins {
 }
 
 group = "pl.grzegorz2047.standalonethewalls"
-version = "0.1.0-SNAPSHOT"
+version = file("release/version.txt").readText().trim()
 
 val junitBomDependency = libs.junit.bom
 val junitJupiterDependency = libs.junit.jupiter
@@ -31,6 +32,11 @@ val jacocoVersion = libs.versions.jacoco.get()
 allprojects {
     repositories {
         mavenCentral()
+    }
+
+    tasks.withType<AbstractArchiveTask>().configureEach {
+        isPreserveFileTimestamps = false
+        isReproducibleFileOrder = true
     }
 
     dependencyLocking {

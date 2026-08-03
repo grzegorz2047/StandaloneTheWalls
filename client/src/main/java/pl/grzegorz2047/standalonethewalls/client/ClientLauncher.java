@@ -28,8 +28,7 @@ public final class ClientLauncher {
             ClientLaunchOptions options = ClientLaunchOptions.parse(arguments);
             ClientMessages messages = ClientMessages.forLanguage(options.language());
             SunderfrontClient application =
-                    new SunderfrontClient(
-                            messages, options.smokeMode(), options.dataDirectory());
+                    new SunderfrontClient(messages, options.smokeMode(), options.dataDirectory());
             configure(application);
             if (options.smokeMode()) {
                 return runSmoke(application);

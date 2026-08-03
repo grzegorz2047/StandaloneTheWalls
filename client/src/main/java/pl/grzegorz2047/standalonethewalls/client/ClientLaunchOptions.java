@@ -6,14 +6,11 @@ import java.util.Objects;
 import pl.grzegorz2047.standalonethewalls.client.i18n.ClientLanguage;
 
 /** Strict first-screen client command-line options. */
-public record ClientLaunchOptions(
-        ClientLanguage language, boolean smokeMode, Path dataDirectory) {
+public record ClientLaunchOptions(ClientLanguage language, boolean smokeMode, Path dataDirectory) {
     public ClientLaunchOptions {
         Objects.requireNonNull(language, "language");
         dataDirectory =
-                Objects.requireNonNull(dataDirectory, "dataDirectory")
-                        .toAbsolutePath()
-                        .normalize();
+                Objects.requireNonNull(dataDirectory, "dataDirectory").toAbsolutePath().normalize();
     }
 
     public static ClientLaunchOptions parse(String[] arguments) {
@@ -40,8 +37,7 @@ public record ClientLaunchOptions(
                 }
                 case "--data-dir" -> {
                     if (dataDirectorySet) {
-                        throw new IllegalArgumentException(
-                                "--data-dir may be supplied only once");
+                        throw new IllegalArgumentException("--data-dir may be supplied only once");
                     }
                     dataDirectory = Path.of(requireValue(arguments, ++index, "--data-dir"));
                     dataDirectorySet = true;

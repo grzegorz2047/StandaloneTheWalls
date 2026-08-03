@@ -68,8 +68,7 @@ public final class ServerCredentialGenerator {
         return generate(outputDirectory, Clock.systemUTC(), new SecureRandom());
     }
 
-    static GeneratedCredentials generate(
-            Path outputDirectory, Clock clock, SecureRandom random)
+    static GeneratedCredentials generate(Path outputDirectory, Clock clock, SecureRandom random)
             throws GeneralSecurityException,
                     OperatorCreationException,
                     IdentityException,
@@ -178,7 +177,8 @@ public final class ServerCredentialGenerator {
     }
 
     private static void writeNew(
-            Path target, byte[] content, boolean privateFile, List<Path> created) throws IOException {
+            Path target, byte[] content, boolean privateFile, List<Path> created)
+            throws IOException {
         Objects.requireNonNull(content, "content");
         FileStore store = Files.getFileStore(target.getParent());
         if (store.supportsFileAttributeView("posix")) {

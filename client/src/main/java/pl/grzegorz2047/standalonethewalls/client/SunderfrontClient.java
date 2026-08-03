@@ -524,12 +524,7 @@ public final class SunderfrontClient extends SimpleApplication
     }
 
     private static Path defaultDataDirectory() {
-        String userHome = System.getProperty("user.home");
-        Path home =
-                userHome == null || userHome.isBlank()
-                        ? Path.of(".").toAbsolutePath().normalize()
-                        : Path.of(userHome);
-        return home.resolve(".sunderfront");
+        return Path.of("data").toAbsolutePath().normalize();
     }
 
     private enum Screen {

@@ -68,7 +68,8 @@ public final class DirectConnectSmokeMain {
             throws InterruptedException, ExecutionException, TimeoutException {
         try (DirectConnectService service =
                 new DirectConnectService(new ClientIdentityStorage(options.dataDirectory()))) {
-            DirectConnectResult initial = await(service.connect(options.endpoint(), options.handle()));
+            DirectConnectResult initial =
+                    await(service.connect(options.endpoint(), options.handle()));
             DirectConnectResult connectedResult;
             boolean confirmedFirstUse = false;
             if (initial instanceof DirectConnectResult.ConfirmationRequired required) {
@@ -180,12 +181,14 @@ public final class DirectConnectSmokeMain {
             for (int index = 0; index < arguments.length; index++) {
                 String argument = Objects.requireNonNull(arguments[index], "argument");
                 switch (argument) {
-                    case "--endpoint" -> endpoint = requireValue(arguments, ++index, argument, endpoint);
+                    case "--endpoint" ->
+                            endpoint = requireValue(arguments, ++index, argument, endpoint);
                     case "--handle" -> handle = requireValue(arguments, ++index, argument, handle);
                     case "--expected-fingerprint" ->
                             fingerprint = requireValue(arguments, ++index, argument, fingerprint);
                     case "--data-dir" ->
-                            dataDirectory = requireValue(arguments, ++index, argument, dataDirectory);
+                            dataDirectory =
+                                    requireValue(arguments, ++index, argument, dataDirectory);
                     case "--require-first-use" -> {
                         if (requireFirstUse) {
                             throw new IllegalArgumentException("duplicate first-use flag");
@@ -195,7 +198,10 @@ public final class DirectConnectSmokeMain {
                     default -> throw new IllegalArgumentException("unknown smoke argument");
                 }
             }
-            if (endpoint == null || handle == null || fingerprint == null || dataDirectory == null) {
+            if (endpoint == null
+                    || handle == null
+                    || fingerprint == null
+                    || dataDirectory == null) {
                 throw new IllegalArgumentException("missing smoke argument");
             }
             return new Options(
