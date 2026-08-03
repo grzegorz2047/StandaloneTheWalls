@@ -159,7 +159,7 @@ jobs:
           cache-read-only: true
 
       - name: Run complete quality gate
-        run: .\gradlew.bat --no-daemon check
+        run: .\gradlew.bat --no-daemon --no-configuration-cache check
 
   publish:
     needs:
