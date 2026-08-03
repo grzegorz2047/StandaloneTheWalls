@@ -1,0 +1,108 @@
+name: Implement Issue 126 Pointer Focus
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/implement-issue-126-focus.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/issue-126-mouse-ui
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+
+      - name: Add phase-safe direct focus
+        shell: python
+        run: |
+          from pathlib import Path
+
+          controller = Path('client/src/main/java/pl/grzegorz2047/standalonethewalls/client/ui/directconnect/DirectConnectUiController.java')
+          text = controller.read_text()
+          marker = '''    public void activate() {
+'''
+          method = '''    public boolean focus(DirectConnectUiFocus target) {
+        requireOpen();
+        Objects.requireNonNull(target, "target");
+        if (!allowedFocuses(model.phase()).contains(target)) {
+            return false;
+        }
+        if (focus == target) {
+            return true;
+        }
+        focus = target;
+        publish(copyWithFocus(model, focus));
+        return true;
+    }
+
+'''
+          if text.count(marker) != 1:
+              raise SystemExit('activate marker is not unique')
+          if 'public boolean focus(DirectConnectUiFocus target)' in text:
+              raise SystemExit('direct focus method already exists')
+          controller.write_text(text.replace(marker, method + marker, 1))
+
+          test = Path('client/src/test/java/pl/grzegorz2047/standalonethewalls/client/ui/directconnect/DirectConnectUiControllerTest.java')
+          text = test.read_text()
+          test_marker = '''    private static DirectConnectUiController controller(FakeBackend backend) {
+'''
+          test_method = '''    @Test
+    void directFocusAcceptsOnlyTargetsAvailableInCurrentPhase() {
+        FakeBackend backend = new FakeBackend();
+        DirectConnectUiController controller = controller(backend);
+        controller.open();
+
+        assertTrue(controller.focus(DirectConnectUiFocus.HANDLE));
+        assertEquals(DirectConnectUiFocus.HANDLE, controller.model().focus());
+        assertTrue(controller.focus(DirectConnectUiFocus.PRIMARY_ACTION));
+        controller.activate();
+
+        assertEquals(DirectConnectUiPhase.RESOLVING, controller.model().phase());
+        assertEquals(DirectConnectUiFocus.SECONDARY_ACTION, controller.model().focus());
+        assertFalse(controller.focus(DirectConnectUiFocus.ENDPOINT));
+        assertEquals(DirectConnectUiFocus.SECONDARY_ACTION, controller.model().focus());
+        assertTrue(controller.focus(DirectConnectUiFocus.SECONDARY_ACTION));
+        controller.close();
+    }
+
+'''
+          if text.count(test_marker) != 1:
+              raise SystemExit('controller factory marker is not unique')
+          if 'directFocusAcceptsOnlyTargetsAvailableInCurrentPhase' in text:
+              raise SystemExit('direct focus test already exists')
+          test.write_text(text.replace(test_marker, test_method + test_marker, 1))
+
+      - name: Apply canonical formatting
+        run: ./gradlew --no-daemon spotlessApply
+
+      - name: Run focused client tests
+        run: ./gradlew --no-daemon :client:test :client:spotbugsMain :client:spotbugsTest --rerun-tasks
+
+      - name: Commit tested focus boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add client/src/main/java/pl/grzegorz2047/standalonethewalls/client/ui/directconnect/DirectConnectUiController.java
+          git add client/src/test/java/pl/grzegorz2047/standalonethewalls/client/ui/directconnect/DirectConnectUiControllerTest.java
+          git commit -m '[P0][Client/UI] Add phase-safe pointer focus'
+          git push origin HEAD:agent/issue-126-mouse-ui
