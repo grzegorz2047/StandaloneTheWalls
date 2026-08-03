@@ -4,11 +4,11 @@ Normal source branches contain only this documentation. A publication branch nam
 `publish-v<version>` adds one JSON trigger file named `v<version>.json` in one
 ordinary commit directly on top of the immutable candidate commit.
 
-For `v0.1.0-alpha.2` the branch-only file is:
+For `v0.1.0-alpha.3` the branch-only file is:
 
 ```json
 {
-  "version": "0.1.0-alpha.2",
+  "version": "0.1.0-alpha.3",
   "commit": "<40-character current main SHA>"
 }
 ```

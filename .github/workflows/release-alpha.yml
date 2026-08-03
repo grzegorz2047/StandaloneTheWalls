@@ -1,9 +1,9 @@
-name: Publish Direct Connect Alpha
+name: Publish Sunderfront Alpha
 
 on:
   push:
     branches:
-      - "publish-v0.1.0-alpha.2"
+      - "publish-v0.1.0-alpha.3"
   pull_request:
     branches:
       - main
@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: publish-v0.1.0-alpha.2
+  group: publish-v0.1.0-alpha.3
   cancel-in-progress: false
 
 jobs:
@@ -27,7 +27,7 @@ jobs:
       (github.event_name == 'pull_request' &&
        github.event.pull_request.draft == false &&
        github.event.pull_request.head.repo.full_name == github.repository &&
-       github.head_ref == 'publish-v0.1.0-alpha.2')
+       github.head_ref == 'publish-v0.1.0-alpha.3')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
@@ -55,7 +55,7 @@ jobs:
           VERSION=$(tr -d '\r\n' < release/version.txt)
           TAG="v${VERSION}"
           TRIGGER=".release-trigger/${TAG}.json"
-          test "$VERSION" = "0.1.0-alpha.2"
+          test "$VERSION" = "0.1.0-alpha.3"
           test "$PUBLICATION_REF" = "publish-${TAG}"
           test "$(git rev-parse HEAD)" = "$PUBLICATION_COMMIT"
           test -f "$TRIGGER"
@@ -131,24 +131,25 @@ jobs:
       - name: Run complete quality gate
         run: ./gradlew --no-daemon check
 
-      - name: Verify release distributions
+      - name: Verify JVM release distributions
         run: bash release/verify_release.sh
 
   verify-windows:
     needs: resolve-candidate
     runs-on: windows-latest
-    timeout-minutes: 35
+    timeout-minutes: 60
     steps:
       - name: Check out immutable candidate
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ needs.resolve-candidate.outputs.source_commit }}
 
-      - name: Set up Java 21
+      - name: Set up Java 21 x64
         uses: actions/setup-java@d7793b545071e98d581d3bf084a51c3213318a07
         with:
           distribution: temurin
           java-version: "21"
+          architecture: x64
 
       - name: Validate Gradle wrapper
         uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a
@@ -161,9 +162,22 @@ jobs:
       - name: Run complete quality gate
         run: .\gradlew.bat --no-daemon --no-configuration-cache check
 
-      - name: Verify Windows first-run launchers
+      - name: Verify Windows JVM first-run launchers
         shell: pwsh
         run: .\release\verify_windows_launchers.ps1
+
+      - name: Build and verify Windows app image twice
+        shell: pwsh
+        run: .\release\verify_windows_app_image.ps1
+
+      - name: Upload verified Windows release archive
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: sunderfront-client-windows-x64-release
+          path: build/windows-release/*.zip
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
 
   publish:
     needs:
@@ -171,7 +185,7 @@ jobs:
       - verify-linux
       - verify-windows
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 45
     permissions:
       contents: write
     env:
@@ -202,14 +216,32 @@ jobs:
         with:
           cache-read-only: true
 
-      - name: Rebuild final release payload
+      - name: Download verified Windows release archive
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: sunderfront-client-windows-x64-release
+          path: ${{ runner.temp }}/sunderfront-windows-release
+
+      - name: Rebuild final JVM release payload
         run: bash release/verify_release.sh
+
+      - name: Assemble and verify cross-platform payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          WINDOWS_ARCHIVE="$RUNNER_TEMP/sunderfront-windows-release/sunderfront-client-windows-x64-${VERSION}.zip"
+          python3 release/assemble_cross_platform_release.py build/release "$WINDOWS_ARCHIVE" "$VERSION"
+          python3 release/verify_artifacts.py build/release "$VERSION" --require-windows
+          (
+            cd build/release
+            sha256sum --check SHA256SUMS
+          )
 
       - name: Revalidate immutable target and payload
         shell: bash
         run: |
           set -euo pipefail
-          test "$VERSION" = "0.1.0-alpha.2"
+          test "$VERSION" = "0.1.0-alpha.3"
           test "$TAG" = "v${VERSION}"
           test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
           git fetch --no-tags origin main "$PUBLICATION_REF"
@@ -223,10 +255,6 @@ jobs:
             echo "Release ${TAG} appeared during verification; refusing replacement." >&2
             exit 1
           fi
-          (
-            cd build/release
-            sha256sum --check SHA256SUMS
-          )
 
       - name: Create immutable prerelease and tag
         shell: bash
@@ -236,8 +264,9 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --target "$SOURCE_COMMIT" \
             --prerelease \
-            --title "Sunderfront ${TAG} — Windows First-Run Alpha" \
+            --title "Sunderfront ${TAG} — Java-Free Windows Client Alpha" \
             --notes-file release/RELEASE_NOTES.md \
+            "build/release/sunderfront-client-windows-x64-${VERSION}.zip" \
             "build/release/sunderfront-client-${VERSION}.zip" \
             "build/release/sunderfront-server-${VERSION}.zip" \
             build/release/SHA256SUMS
@@ -250,6 +279,7 @@ jobs:
           test "$(git rev-list -n 1 "$TAG")" = "$SOURCE_COMMIT"
           EXPECTED=$(printf '%s\n' \
             SHA256SUMS \
+            "sunderfront-client-windows-x64-${VERSION}.zip" \
             "sunderfront-client-${VERSION}.zip" \
             "sunderfront-server-${VERSION}.zip" | sort)
           ACTUAL=$(gh release view "$TAG" \

@@ -1,23 +1,25 @@
-# Sunderfront client 0.1.0-alpha.2
+# Sunderfront JVM client 0.1.0-alpha.3
 
-This is the second Direct Connect Alpha. It requires a 64-bit Java 21 runtime.
-No installer or bundled JRE is included.
+This is the technical cross-platform JVM distribution. It requires a separately
+installed 64-bit Java 21 runtime. Windows x64 users should normally download
+`sunderfront-client-windows-x64-0.1.0-alpha.3.zip` instead; that package includes
+its own restricted runtime and starts through `Sunderfront.exe`.
 
-## Start on Windows
+## Start this JVM archive on Windows
 
-Extract the complete archive, then double-click:
+Extract the complete archive, install 64-bit Java 21, then double-click:
 
 ```text
 URUCHOM_KLIENTA.bat
 ```
 
-The root launcher checks for a 64-bit Java 21 runtime, keeps the console open on
-failure, and starts the production client with the portable `data` directory.
-`README-PL.txt` contains the short Polish first-run guide.
+The root launcher checks Java, keeps the console open on failure, and starts the
+production client with the portable `data` directory. `README-PL.txt` contains
+the short Polish guide for this technical JVM archive.
 
 ## Technical start on Linux or Windows
 
-Linux and other compatible shells can use the generated JVM launcher directly:
+Linux and compatible shells can use the generated JVM launcher directly:
 
 ```bash
 bin/sunderfront-client --data-dir data
@@ -43,7 +45,7 @@ alpha does not require a production asset pack.
 
 ## Archive layout
 
-- `URUCHOM_KLIENTA.bat` is the normal Windows entry point;
+- `URUCHOM_KLIENTA.bat` is the convenience entry point for this JVM archive;
 - `bin/` contains generated technical JVM launchers;
 - `lib/` contains runtime libraries, not a source checkout;
 - `tools/` contains release diagnostics, not the normal game entry point;
@@ -59,6 +61,6 @@ the UI and require an explicit expected fingerprint.
 
 This alpha proves secure Direct Connect and minimal lobby membership. It has no
 gameplay, realtime world transport, reconnect, public server browser, team
-selection, maps, final assets, audio, updater, bundled Java runtime, executable,
-or platform-signed installer. The current bitmap font also limits Polish UI text
-to ASCII.
+selection, maps, final assets, audio, updater, or signed installer. This JVM
+archive does not bundle Java; the separate Windows x64 archive does. The current
+bitmap font also limits Polish UI text to ASCII.

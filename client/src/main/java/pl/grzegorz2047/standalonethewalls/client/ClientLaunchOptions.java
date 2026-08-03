@@ -7,6 +7,8 @@ import pl.grzegorz2047.standalonethewalls.client.i18n.ClientLanguage;
 
 /** Strict first-screen client command-line options. */
 public record ClientLaunchOptions(ClientLanguage language, boolean smokeMode, Path dataDirectory) {
+    private static final String JPACKAGE_APP_PATH_PROPERTY = "jpackage.app-path";
+
     public ClientLaunchOptions {
         Objects.requireNonNull(language, "language");
         dataDirectory =
@@ -18,9 +20,14 @@ public record ClientLaunchOptions(ClientLanguage language, boolean smokeMode, Pa
     }
 
     static ClientLaunchOptions parse(String[] arguments, Locale defaultLocale) {
+        return parse(arguments, defaultLocale, System.getProperty(JPACKAGE_APP_PATH_PROPERTY));
+    }
+
+    static ClientLaunchOptions parse(
+            String[] arguments, Locale defaultLocale, String packagedLauncherPath) {
         Objects.requireNonNull(arguments, "arguments");
         ClientLanguage language = ClientLanguage.fromLocale(defaultLocale);
-        Path dataDirectory = Path.of("data");
+        Path dataDirectory = null;
         boolean languageSet = false;
         boolean dataDirectorySet = false;
         boolean smoke = false;
@@ -51,7 +58,22 @@ public record ClientLaunchOptions(ClientLanguage language, boolean smokeMode, Pa
                 default -> throw new IllegalArgumentException("unknown argument: " + argument);
             }
         }
+        if (!dataDirectorySet) {
+            dataDirectory = defaultDataDirectory(packagedLauncherPath);
+        }
         return new ClientLaunchOptions(language, smoke, dataDirectory);
+    }
+
+    private static Path defaultDataDirectory(String packagedLauncherPath) {
+        if (packagedLauncherPath == null || packagedLauncherPath.isBlank()) {
+            return Path.of("data");
+        }
+        Path launcher = Path.of(packagedLauncherPath).toAbsolutePath().normalize();
+        Path launcherDirectory = launcher.getParent();
+        if (launcherDirectory == null) {
+            throw new IllegalArgumentException("packaged launcher path must have a parent");
+        }
+        return launcherDirectory.resolve("data");
     }
 
     private static String requireValue(String[] arguments, int index, String option) {

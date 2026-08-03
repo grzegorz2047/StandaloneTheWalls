@@ -1,11 +1,18 @@
-SUNDERFRONT 0.1.0-alpha.2 — KLIENT WINDOWS
-============================================
+SUNDERFRONT 0.1.0-alpha.3 — TECHNICZNY KLIENT JVM
+===================================================
 
-To jest techniczna wersja alpha sprawdzająca bezpieczne połączenie bezpośrednie
-i wejście do minimalnego lobby. Nie zawiera jeszcze właściwej rozgrywki The Walls.
+Ta paczka jest techniczną, przenośną dystrybucją JVM dla Linuxa i testów.
+Wymaga osobno zainstalowanej 64-bitowej Java 21.
 
-PIERWSZE URUCHOMIENIE
---------------------
+Zwykły użytkownik Windows x64 powinien pobrać paczkę:
+
+sunderfront-client-windows-x64-0.1.0-alpha.3.zip
+
+Zawiera ona Sunderfront.exe oraz własny ograniczony runtime Java 21 i nie wymaga
+instalowania Javy.
+
+URUCHOMIENIE TEJ PACZKI JVM NA WINDOWS
+--------------------------------------
 
 1. Rozpakuj całe archiwum do zwykłego katalogu z prawem zapisu.
 2. Zainstaluj 64-bitową Java 21, jeżeli nie jest jeszcze dostępna.
@@ -35,8 +42,8 @@ CO OZNACZAJĄ KATALOGI
 ROZWIĄZYWANIE PROBLEMÓW
 -----------------------
 
-- Brak lub zła Java: uruchom ponownie URUCHOM_KLIENTA.bat i przeczytaj
-  komunikat pozostawiony w oknie konsoli.
+- Brak lub zła Java: użyj zalecanej paczki Windows x64 albo uruchom ponownie
+  URUCHOM_KLIENTA.bat i przeczytaj komunikat pozostawiony w oknie konsoli.
 - Połączenie z localhost nie działa: operator serwera powinien uruchomić
   1_GENERUJ_CREDENTIALS.bat, a następnie 2_URUCHOM_SERWER.bat. Samo uruchomienie
   bin\sunderfront-server.bat bez konfiguracji startuje proces z wyłączonym TLS
@@ -50,5 +57,5 @@ OGRANICZENIA
 ------------
 
 Brak gameplayu, mapy, drużyn, walki, realtime UDP/DTLS, reconnectu, publicznej
-listy serwerów, finalnych assetów, audio, automatycznej aktualizacji, pliku .exe
-i podpisanego instalatora. Obecna paczka wymaga osobno zainstalowanej Java 21.
+listy serwerów, finalnych assetów, audio, automatycznej aktualizacji i podpisanego
+instalatora. Tylko osobna paczka Windows x64 zawiera Sunderfront.exe i runtime.

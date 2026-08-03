@@ -12,13 +12,14 @@ import pl.grzegorz2047.standalonethewalls.client.i18n.ClientLanguage;
 
 class ClientLaunchOptionsTest {
     @Test
-    void usesPortableDataDirectoryAndAcceptsExplicitOverrides() {
+    void usesWorkingDirectoryDataForJvmDistributionAndAcceptsExplicitOverrides() {
         ClientLaunchOptions defaults =
-                ClientLaunchOptions.parse(new String[0], Locale.forLanguageTag("pl-PL"));
+                ClientLaunchOptions.parse(new String[0], Locale.forLanguageTag("pl-PL"), null);
         ClientLaunchOptions explicit =
                 ClientLaunchOptions.parse(
                         new String[] {"--lang", "en", "--smoke", "--data-dir", "runtime/client"},
-                        Locale.forLanguageTag("pl-PL"));
+                        Locale.forLanguageTag("pl-PL"),
+                        Path.of("build", "packaged", "Sunderfront.exe").toString());
 
         assertEquals(ClientLanguage.POLISH, defaults.language());
         assertFalse(defaults.smokeMode());
@@ -30,39 +31,57 @@ class ClientLaunchOptionsTest {
     }
 
     @Test
+    void resolvesDefaultDataBesideJpackageLauncher() {
+        Path launcher =
+                Path.of("build", "portable", "Sunderfront", "Sunderfront.exe")
+                        .toAbsolutePath()
+                        .normalize();
+
+        ClientLaunchOptions packaged =
+                ClientLaunchOptions.parse(new String[0], Locale.ENGLISH, launcher.toString());
+
+        assertEquals(launcher.getParent().resolve("data"), packaged.dataDirectory());
+    }
+
+    @Test
     void rejectsUnknownDuplicateIncompleteAndNullOptions() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> ClientLaunchOptions.parse(new String[] {"--lang"}, Locale.ENGLISH));
+                () -> ClientLaunchOptions.parse(new String[] {"--lang"}, Locale.ENGLISH, null));
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
                         ClientLaunchOptions.parse(
-                                new String[] {"--lang", "en", "--lang", "pl"}, Locale.ENGLISH));
+                                new String[] {"--lang", "en", "--lang", "pl"},
+                                Locale.ENGLISH,
+                                null));
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
                         ClientLaunchOptions.parse(
-                                new String[] {"--smoke", "--smoke"}, Locale.ENGLISH));
+                                new String[] {"--smoke", "--smoke"}, Locale.ENGLISH, null));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> ClientLaunchOptions.parse(new String[] {"--data-dir"}, Locale.ENGLISH));
+                () -> ClientLaunchOptions.parse(new String[] {"--data-dir"}, Locale.ENGLISH, null));
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
                         ClientLaunchOptions.parse(
                                 new String[] {"--data-dir", "one", "--data-dir", "two"},
-                                Locale.ENGLISH));
+                                Locale.ENGLISH,
+                                null));
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
                         ClientLaunchOptions.parse(
-                                new String[] {"--data-dir", "--smoke"}, Locale.ENGLISH));
+                                new String[] {"--data-dir", "--smoke"}, Locale.ENGLISH, null));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> ClientLaunchOptions.parse(new String[] {"--unknown"}, Locale.ENGLISH));
+                () -> ClientLaunchOptions.parse(new String[] {"--unknown"}, Locale.ENGLISH, null));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> ClientLaunchOptions.parse(new String[] {"--lang", null}, Locale.ENGLISH));
+                () ->
+                        ClientLaunchOptions.parse(
+                                new String[] {"--lang", null}, Locale.ENGLISH, null));
     }
 }
