@@ -36,10 +36,16 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerReference;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerTrustRecord;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerTrustService;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerTrustStore;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandOutcome;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandResult;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyJoined;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMember;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolException;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySelectTeamCommand;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySetReadyCommand;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
 import pl.grzegorz2047.standalonethewalls.server.testsupport.ServerTlsTestCertificateMaterial;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.AuthenticatedReliableSession;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.BootstrappedReliableSession;
@@ -112,7 +118,7 @@ class ServerLauncherTest {
     }
 
     @Test
-    void launcherAcceptsARealTlsIdentityAndTransfersItIntoMinimalLobby()
+    void launcherTransfersIdentityAndAppliesTeamReadyCommandsInMinimalLobby()
             throws GeneralSecurityException,
                     OperatorCreationException,
                     IOException,
@@ -196,6 +202,43 @@ class ServerLauncherTest {
             LobbySnapshot snapshot = LobbyProtocolCodec.decodeSnapshot(snapshotEnvelope.payload());
             assertEquals(joined.revision(), snapshot.revision());
             assertEquals(java.util.List.of(joined.self()), snapshot.members());
+
+            send(
+                    authenticated,
+                    MessageType.LOBBY_SELECT_TEAM,
+                    LobbyProtocolCodec.encodeSelectTeam(
+                            new LobbySelectTeamCommand(1L, LobbyTeam.GREEN)));
+            LobbyCommandResult teamResult = receiveCommandResult(authenticated);
+            assertEquals(
+                    new LobbyCommandResult(1L, 2L, LobbyCommandOutcome.APPLIED), teamResult);
+            LobbySnapshot teamSnapshot = receiveSnapshot(authenticated);
+            assertEquals(
+                    java.util.List.of(
+                            new LobbyMember(
+                                    identity.playerId(),
+                                    handle,
+                                    LobbyTeam.GREEN,
+                                    false)),
+                    teamSnapshot.members());
+            assertEquals(2L, teamSnapshot.revision());
+
+            send(
+                    authenticated,
+                    MessageType.LOBBY_SET_READY,
+                    LobbyProtocolCodec.encodeSetReady(new LobbySetReadyCommand(2L, true)));
+            LobbyCommandResult readyResult = receiveCommandResult(authenticated);
+            assertEquals(
+                    new LobbyCommandResult(2L, 3L, LobbyCommandOutcome.APPLIED), readyResult);
+            LobbySnapshot readySnapshot = receiveSnapshot(authenticated);
+            assertEquals(
+                    java.util.List.of(
+                            new LobbyMember(
+                                    identity.playerId(),
+                                    handle,
+                                    LobbyTeam.GREEN,
+                                    true)),
+                    readySnapshot.members());
+            assertEquals(3L, readySnapshot.revision());
 
             authenticated
                     .closeAsync()
@@ -292,6 +335,35 @@ class ServerLauncherTest {
                 identity,
                 tls,
                 ServerId.fromPublicKey(material.keyPair().getPublic().getEncoded()));
+    }
+
+    private static void send(
+            AuthenticatedReliableSession session, MessageType messageType, byte[] payload)
+            throws InterruptedException, ExecutionException, TimeoutException {
+        session.reliableChannel()
+                .send(messageType, payload)
+                .toCompletableFuture()
+                .get(NETWORK_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    }
+
+    private static LobbyCommandResult receiveCommandResult(AuthenticatedReliableSession session)
+            throws InterruptedException,
+                    ExecutionException,
+                    TimeoutException,
+                    LobbyProtocolException {
+        ProtocolEnvelope envelope = receive(session);
+        assertEquals(MessageType.LOBBY_COMMAND_RESULT, envelope.messageType());
+        return LobbyProtocolCodec.decodeCommandResult(envelope.payload());
+    }
+
+    private static LobbySnapshot receiveSnapshot(AuthenticatedReliableSession session)
+            throws InterruptedException,
+                    ExecutionException,
+                    TimeoutException,
+                    LobbyProtocolException {
+        ProtocolEnvelope envelope = receive(session);
+        assertEquals(MessageType.LOBBY_SNAPSHOT, envelope.messageType());
+        return LobbyProtocolCodec.decodeSnapshot(envelope.payload());
     }
 
     private static ProtocolEnvelope receive(AuthenticatedReliableSession session)
