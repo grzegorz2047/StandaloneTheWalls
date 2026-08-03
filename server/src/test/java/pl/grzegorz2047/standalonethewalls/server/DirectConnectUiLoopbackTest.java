@@ -34,6 +34,7 @@ import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectConfigurat
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectService;
 import pl.grzegorz2047.standalonethewalls.client.ui.directconnect.DirectConnectUiController;
 import pl.grzegorz2047.standalonethewalls.client.ui.directconnect.DirectConnectUiPhase;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
 import pl.grzegorz2047.standalonethewalls.server.testsupport.ServerTlsTestCertificateMaterial;
 
 class DirectConnectUiLoopbackTest {
@@ -97,9 +98,12 @@ class DirectConnectUiLoopbackTest {
 
             pumpUntil(uiTasks, controller, DirectConnectUiPhase.CONNECTED);
             assertEquals("player_one", controller.model().handleText());
-            assertTrue(
-                    controller.model().members().stream()
-                            .anyMatch(member -> member.handle().value().equals("player_one")));
+            var connected = controller.model().connectedLobby().orElseThrow();
+            assertEquals(1, connected.lobby().totalMembers());
+            assertEquals(4, connected.lobby().teamPanels().size());
+            assertEquals("player_one", connected.lobby().ownMember().orElseThrow().handle());
+            assertEquals(LobbyTeam.UNASSIGNED, connected.lobby().ownMember().orElseThrow().team());
+            assertTrue(connected.controlsEnabled());
             assertFalse(callbackSources.isEmpty());
             assertTrue(callbackSources.stream().noneMatch(source -> source == uiOwner));
             assertFalse(observerLeftUiOwner.get());

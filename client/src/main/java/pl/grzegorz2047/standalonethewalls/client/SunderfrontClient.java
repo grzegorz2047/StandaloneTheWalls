@@ -19,27 +19,33 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 import pl.grzegorz2047.standalonethewalls.client.i18n.ClientMessages;
 import pl.grzegorz2047.standalonethewalls.client.identity.ClientIdentityStorage;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectService;
 import pl.grzegorz2047.standalonethewalls.client.ui.StartMenuAction;
 import pl.grzegorz2047.standalonethewalls.client.ui.StartMenuModel;
+import pl.grzegorz2047.standalonethewalls.client.ui.directconnect.ConnectedLobbyScreenModel;
 import pl.grzegorz2047.standalonethewalls.client.ui.directconnect.DirectConnectScreenModel;
 import pl.grzegorz2047.standalonethewalls.client.ui.directconnect.DirectConnectUiController;
 import pl.grzegorz2047.standalonethewalls.client.ui.directconnect.DirectConnectUiFocus;
 import pl.grzegorz2047.standalonethewalls.client.ui.directconnect.DirectConnectUiPhase;
+import pl.grzegorz2047.standalonethewalls.client.ui.lobby.LobbyMemberRowModel;
+import pl.grzegorz2047.standalonethewalls.client.ui.lobby.LobbyPanelGeometry;
+import pl.grzegorz2047.standalonethewalls.client.ui.lobby.LobbyTeamPanelModel;
 import pl.grzegorz2047.standalonethewalls.client.ui.pointer.UiHitMap;
 import pl.grzegorz2047.standalonethewalls.client.ui.pointer.UiHitTarget;
 import pl.grzegorz2047.standalonethewalls.client.ui.pointer.UiPointerRouter;
 import pl.grzegorz2047.standalonethewalls.client.ui.pointer.UiRect;
 import pl.grzegorz2047.standalonethewalls.client.ui.pointer.UiTargetId;
-import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMember;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
 
 /** Keyboard-and-pointer jMonkeyEngine shell for the menu and Direct Connect flow. */
 public final class SunderfrontClient extends SimpleApplication
@@ -55,6 +61,12 @@ public final class SunderfrontClient extends SimpleApplication
 
     private static final UiTargetId DIRECT_ENDPOINT_TARGET = new UiTargetId("direct.endpoint");
     private static final UiTargetId DIRECT_HANDLE_TARGET = new UiTargetId("direct.handle");
+    private static final UiTargetId DIRECT_TEAM_RED_TARGET = new UiTargetId("direct.team.red");
+    private static final UiTargetId DIRECT_TEAM_BLUE_TARGET = new UiTargetId("direct.team.blue");
+    private static final UiTargetId DIRECT_TEAM_GREEN_TARGET = new UiTargetId("direct.team.green");
+    private static final UiTargetId DIRECT_TEAM_YELLOW_TARGET =
+            new UiTargetId("direct.team.yellow");
+    private static final UiTargetId DIRECT_READY_TARGET = new UiTargetId("direct.ready");
     private static final UiTargetId DIRECT_PRIMARY_TARGET = new UiTargetId("direct.primary");
     private static final UiTargetId DIRECT_SECONDARY_TARGET = new UiTargetId("direct.secondary");
 
@@ -65,6 +77,10 @@ public final class SunderfrontClient extends SimpleApplication
     private static final ColorRGBA SUCCESS_TEXT = new ColorRGBA(0.35f, 0.86f, 0.55f, 1f);
     private static final ColorRGBA WARNING_TEXT = new ColorRGBA(0.98f, 0.66f, 0.22f, 1f);
     private static final ColorRGBA ERROR_TEXT = new ColorRGBA(0.96f, 0.34f, 0.31f, 1f);
+    private static final ColorRGBA RED_TEAM = new ColorRGBA(0.96f, 0.35f, 0.35f, 1f);
+    private static final ColorRGBA BLUE_TEAM = new ColorRGBA(0.35f, 0.62f, 0.98f, 1f);
+    private static final ColorRGBA GREEN_TEAM = new ColorRGBA(0.35f, 0.86f, 0.48f, 1f);
+    private static final ColorRGBA YELLOW_TEAM = new ColorRGBA(0.96f, 0.82f, 0.28f, 1f);
 
     private final ClientMessages messages;
     private final boolean smokeMode;
@@ -371,8 +387,7 @@ public final class SunderfrontClient extends SimpleApplication
         if (!directConnectController.focus(focus)) {
             return;
         }
-        if (focus == DirectConnectUiFocus.PRIMARY_ACTION
-                || focus == DirectConnectUiFocus.SECONDARY_ACTION) {
+        if (focus != DirectConnectUiFocus.ENDPOINT && focus != DirectConnectUiFocus.HANDLE) {
             directConnectController.activate();
         }
     }
@@ -488,6 +503,22 @@ public final class SunderfrontClient extends SimpleApplication
         addCenteredText(model.title(), 40f, PRIMARY_TEXT, height - 65f);
         addCenteredText(model.status(), 22f, statusColor(model.phase()), height - 112f);
 
+        if (model.connectedLobby().isPresent()) {
+            renderConnectedLobby(
+                    model, model.connectedLobby().orElseThrow(), targets, width, height);
+        } else {
+            renderConnectionDetails(model, targets, left, width, height);
+        }
+        renderBottomActions(model, targets, width);
+        addCenteredText(messages.text("direct.help"), 15f, MUTED_TEXT, 34f);
+    }
+
+    private void renderConnectionDetails(
+            DirectConnectScreenModel model,
+            List<UiHitTarget> targets,
+            float left,
+            float width,
+            float height) {
         BitmapText endpoint =
                 addText(
                         fieldLine(
@@ -539,20 +570,103 @@ public final class SunderfrontClient extends SimpleApplication
                     detailY - 10f);
             addText(model.fingerprint().orElseThrow(), 30f, WARNING_TEXT, left, detailY - 48f);
         }
+    }
 
-        if (!model.members().isEmpty()) {
-            int columns = width >= 1050f ? 3 : 2;
-            int rows = (model.members().size() + columns - 1) / columns;
-            float available = Math.max(120f, height - 390f);
-            float memberSize = Math.max(12f, Math.min(17f, available / Math.max(1, rows)));
-            addText(
-                    formatMembers(model.members(), model.handleText(), columns),
-                    memberSize,
-                    PRIMARY_TEXT,
-                    left,
-                    Math.min(detailY - 18f, height - 340f));
+    private void renderConnectedLobby(
+            DirectConnectScreenModel screenModel,
+            ConnectedLobbyScreenModel connected,
+            List<UiHitTarget> targets,
+            float width,
+            float height) {
+        LobbyPanelGeometry geometry = LobbyPanelGeometry.forViewport(width, height);
+        for (int index = 0; index < connected.lobby().teamPanels().size(); index++) {
+            LobbyTeamPanelModel panel = connected.lobby().teamPanels().get(index);
+            UiRect bounds = geometry.panels().get(index);
+            renderTeamPanel(screenModel, connected, panel, bounds);
+            targets.add(
+                    new UiHitTarget(teamTarget(panel.team()), bounds, connected.controlsEnabled()));
         }
 
+        String unassigned =
+                connected.lobby().unassignedMembers().isEmpty()
+                        ? messages.text("direct.lobby.unassigned.none")
+                        : connected.lobby().unassignedMembers().stream()
+                                .map(this::memberLine)
+                                .collect(Collectors.joining(", "));
+        addCenteredText(
+                messages.text("direct.lobby.unassigned", unassigned), 14f, MUTED_TEXT, 210f);
+        addCenteredText(
+                connected.commandStatus(),
+                15f,
+                connected.commandInFlight() ? WARNING_TEXT : MUTED_TEXT,
+                178f);
+
+        BitmapText ready =
+                addText(
+                        actionLabel(
+                                connected.readyAction(),
+                                screenModel.focus() == DirectConnectUiFocus.READY_ACTION,
+                                connected.controlsEnabled()),
+                        21f,
+                        actionColor(
+                                screenModel.focus() == DirectConnectUiFocus.READY_ACTION,
+                                connected.controlsEnabled()),
+                        0f,
+                        135f);
+        ready.setLocalTranslation(Math.max(20f, (width - ready.getLineWidth()) / 2f), 135f, 0f);
+        targets.add(
+                new UiHitTarget(
+                        DIRECT_READY_TARGET,
+                        hitBounds(ready, 18f, 10f, 160f),
+                        connected.controlsEnabled()));
+    }
+
+    private void renderTeamPanel(
+            DirectConnectScreenModel screenModel,
+            ConnectedLobbyScreenModel connected,
+            LobbyTeamPanelModel panel,
+            UiRect bounds) {
+        boolean selected = screenModel.focus() == teamFocus(panel.team());
+        String title =
+                (selected ? "> " : "  ")
+                        + messages.text(
+                                "direct.lobby.team."
+                                        + panel.team().name().toLowerCase(Locale.ROOT));
+        float titleSize = Math.max(15f, Math.min(21f, bounds.width() / 12f));
+        addText(
+                title,
+                titleSize,
+                selected ? SELECTED_TEXT : teamColor(panel.team()),
+                bounds.left() + 10f,
+                bounds.bottom() + bounds.height() - 10f);
+
+        int contentRows = panel.members().size() + 2;
+        float memberSize = Math.max(10f, Math.min(14f, bounds.height() / contentRows));
+        String body =
+                messages.text("direct.lobby.occupied", panel.occupiedSlots())
+                        + (panel.members().isEmpty()
+                                ? ""
+                                : "\n"
+                                        + panel.members().stream()
+                                                .map(this::memberLine)
+                                                .collect(Collectors.joining("\n")));
+        addText(
+                body,
+                memberSize,
+                connected.controlsEnabled() ? PRIMARY_TEXT : MUTED_TEXT,
+                bounds.left() + 10f,
+                bounds.bottom() + bounds.height() - titleSize - 22f);
+    }
+
+    private String memberLine(LobbyMemberRowModel member) {
+        String ownPrefix = member.ownPlayer() ? messages.text("direct.lobby.you_prefix") : "";
+        String readiness =
+                messages.text(member.ready() ? "direct.lobby.ready" : "direct.lobby.not_ready");
+        return messages.text("direct.lobby.member", ownPrefix, member.handle(), readiness);
+    }
+
+    private void renderBottomActions(
+            DirectConnectScreenModel model, List<UiHitTarget> targets, float width) {
         BitmapText primary =
                 addText(
                         actionLabel(
@@ -592,8 +706,6 @@ public final class SunderfrontClient extends SimpleApplication
                         DIRECT_SECONDARY_TARGET,
                         hitBounds(secondary, 18f, 10f, 100f),
                         model.secondaryEnabled()));
-
-        addCenteredText(messages.text("direct.help"), 15f, MUTED_TEXT, 34f);
     }
 
     private BitmapText addText(String text, float size, ColorRGBA color, float x, float y) {
@@ -662,12 +774,57 @@ public final class SunderfrontClient extends SimpleApplication
         return -1;
     }
 
+    private static UiTargetId teamTarget(LobbyTeam team) {
+        return switch (team) {
+            case RED -> DIRECT_TEAM_RED_TARGET;
+            case BLUE -> DIRECT_TEAM_BLUE_TARGET;
+            case GREEN -> DIRECT_TEAM_GREEN_TARGET;
+            case YELLOW -> DIRECT_TEAM_YELLOW_TARGET;
+            case UNASSIGNED -> throw new IllegalArgumentException("unassigned has no team target");
+        };
+    }
+
+    private static DirectConnectUiFocus teamFocus(LobbyTeam team) {
+        return switch (team) {
+            case RED -> DirectConnectUiFocus.TEAM_RED;
+            case BLUE -> DirectConnectUiFocus.TEAM_BLUE;
+            case GREEN -> DirectConnectUiFocus.TEAM_GREEN;
+            case YELLOW -> DirectConnectUiFocus.TEAM_YELLOW;
+            case UNASSIGNED -> throw new IllegalArgumentException("unassigned has no team focus");
+        };
+    }
+
+    private static ColorRGBA teamColor(LobbyTeam team) {
+        return switch (team) {
+            case RED -> RED_TEAM;
+            case BLUE -> BLUE_TEAM;
+            case GREEN -> GREEN_TEAM;
+            case YELLOW -> YELLOW_TEAM;
+            case UNASSIGNED -> MUTED_TEXT;
+        };
+    }
+
     private static Optional<DirectConnectUiFocus> directFocus(UiTargetId target) {
         if (DIRECT_ENDPOINT_TARGET.equals(target)) {
             return Optional.of(DirectConnectUiFocus.ENDPOINT);
         }
         if (DIRECT_HANDLE_TARGET.equals(target)) {
             return Optional.of(DirectConnectUiFocus.HANDLE);
+        }
+        if (DIRECT_TEAM_RED_TARGET.equals(target)) {
+            return Optional.of(DirectConnectUiFocus.TEAM_RED);
+        }
+        if (DIRECT_TEAM_BLUE_TARGET.equals(target)) {
+            return Optional.of(DirectConnectUiFocus.TEAM_BLUE);
+        }
+        if (DIRECT_TEAM_GREEN_TARGET.equals(target)) {
+            return Optional.of(DirectConnectUiFocus.TEAM_GREEN);
+        }
+        if (DIRECT_TEAM_YELLOW_TARGET.equals(target)) {
+            return Optional.of(DirectConnectUiFocus.TEAM_YELLOW);
+        }
+        if (DIRECT_READY_TARGET.equals(target)) {
+            return Optional.of(DirectConnectUiFocus.READY_ACTION);
         }
         if (DIRECT_PRIMARY_TARGET.equals(target)) {
             return Optional.of(DirectConnectUiFocus.PRIMARY_ACTION);
@@ -676,33 +833,6 @@ public final class SunderfrontClient extends SimpleApplication
             return Optional.of(DirectConnectUiFocus.SECONDARY_ACTION);
         }
         return Optional.empty();
-    }
-
-    private static String formatMembers(List<LobbyMember> members, String ownHandle, int columns) {
-        int rows = (members.size() + columns - 1) / columns;
-        StringBuilder result = new StringBuilder();
-        for (int row = 0; row < rows; row++) {
-            for (int column = 0; column < columns; column++) {
-                int index = row + (column * rows);
-                String cell = "";
-                if (index < members.size()) {
-                    String handle = members.get(index).handle().value();
-                    cell = (handle.equals(ownHandle) ? "* " : "  ") + handle;
-                }
-                result.append(padRight(cell, 29));
-            }
-            if (row + 1 < rows) {
-                result.append('\n');
-            }
-        }
-        return result.toString();
-    }
-
-    private static String padRight(String value, int length) {
-        if (value.length() >= length) {
-            return value;
-        }
-        return value + " ".repeat(length - value.length());
     }
 
     private static List<String> wrap(String value, int maximumCharacters) {
