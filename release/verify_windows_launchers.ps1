@@ -21,6 +21,7 @@ function Invoke-ExpectExitCode {
     if ($actualExitCode -ne $ExpectedExitCode) {
         throw "Command returned ${actualExitCode}, expected ${ExpectedExitCode}: $Path $($Arguments -join ' ')"
     }
+    $global:LASTEXITCODE = 0
 }
 
 function Invoke-Checked {
