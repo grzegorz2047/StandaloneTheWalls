@@ -1,0 +1,102 @@
+name: Fix Issue 124 Final Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/fix-issue-124-final-tests.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/issue-124-client-lobby-command-correlation
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+
+      - name: Repair one-shot session test ownership and exception clauses
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          loopback = Path('server/src/test/java/pl/grzegorz2047/standalonethewalls/server/DirectConnectServiceLoopbackTest.java')
+          text = loopback.read_text()
+
+          first_pattern = re.compile(
+              r'\s*persistedPlayerId = firstConnected\.session\(\)\.playerId\(\);\n'
+              r'\s*assertLobbyContainsSelf\(firstConnected\.session\(\), persistedPlayerId, handle\);\n'
+              r'\s*assertIdleLobbyRemainsOpen\(firstConnected\.session\(\)\);\n'
+              r'\s*close\(firstConnected\.session\(\)\);'
+          )
+          first_replacement = '''
+              ConnectedLobbySession firstSession = firstConnected.takeSession();
+              persistedPlayerId = firstSession.playerId();
+              assertLobbyContainsSelf(firstSession, persistedPlayerId, handle);
+              assertIdleLobbyRemainsOpen(firstSession);
+              close(firstSession);'''
+          text, count = first_pattern.subn(first_replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'expected one first loopback transfer, got {count}')
+
+          returning_pattern = re.compile(
+              r'\s*assertEquals\(persistedPlayerId, returning\.session\(\)\.playerId\(\)\);\n'
+              r'\s*assertLobbyContainsSelf\(returning\.session\(\), persistedPlayerId, handle\);\n'
+              r'\s*close\(returning\.session\(\)\);'
+          )
+          returning_replacement = '''
+              ConnectedLobbySession returningSession = returning.takeSession();
+              assertEquals(persistedPlayerId, returningSession.playerId());
+              assertLobbyContainsSelf(returningSession, persistedPlayerId, handle);
+              close(returningSession);'''
+          text, count = returning_pattern.subn(returning_replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'expected one returning loopback transfer, got {count}')
+          if '.session()' in text:
+              raise SystemExit('legacy connected-result accessor remains in loopback test')
+          loopback.write_text(text)
+
+          command_test = Path('client/src/test/java/pl/grzegorz2047/standalonethewalls/client/network/ConnectedLobbyCommandTest.java')
+          text = command_test.read_text()
+          count = text.count('throws Exception')
+          if count < 1:
+              raise SystemExit('no broad throws Exception clauses found')
+          text = text.replace(
+              'throws Exception',
+              'throws InterruptedException, ExecutionException, TimeoutException',
+          )
+          command_test.write_text(text)
+          print(f'replaced {count} broad exception clauses')
+
+      - name: Apply canonical formatting
+        run: ./gradlew --no-daemon spotlessApply
+
+      - name: Run focused client and server gates
+        run: ./gradlew --no-daemon :client:test :client:spotbugsTest :server:compileTestJava :server:test --rerun-tasks
+
+      - name: Commit tested fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add client/src/test/java/pl/grzegorz2047/standalonethewalls/client/network/ConnectedLobbyCommandTest.java
+          git add server/src/test/java/pl/grzegorz2047/standalonethewalls/server/DirectConnectServiceLoopbackTest.java
+          git commit -m '[P0][Client] Complete one-shot session test migration'
+          git push origin HEAD:agent/issue-124-client-lobby-command-correlation
