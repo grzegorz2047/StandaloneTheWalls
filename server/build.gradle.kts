@@ -52,6 +52,12 @@ distributions {
         distributionBaseName = "sunderfront-server"
         contents {
             from(rootProject.file("release/server/README.md"))
+            from(rootProject.file("release/server/README-PL.txt"))
+            from(rootProject.file("release/server/1_GENERUJ_CREDENTIALS.bat"))
+            from(rootProject.file("release/server/2_URUCHOM_SERWER.bat"))
+            from(rootProject.file("release/windows/require-java-21.bat")) {
+                into("tools/windows")
+            }
             from(rootProject.file("release/server/config")) {
                 into("config")
             }
