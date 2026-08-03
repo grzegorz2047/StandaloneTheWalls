@@ -65,8 +65,10 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Apply strict runtime test migration
-        run: python3 .github/scripts/patch_issue_128_runtime_tests.py
+      - name: Apply strict runtime and SpotBugs migrations
+        run: |
+          python3 .github/scripts/patch_issue_128_runtime_tests.py
+          python3 .github/scripts/patch_issue_128_spotbugs.py
 
       - name: Format and run full quality gate
         run: |
@@ -78,6 +80,13 @@ jobs:
 
           allowed = {
               'client/src/test/java/pl/grzegorz2047/standalonethewalls/client/network/ConnectedLobbyMatchSnapshotTest.java',
+              'protocol/src/test/java/pl/grzegorz2047/standalonethewalls/protocol/lobby/LobbyMatchProtocolCodecTest.java',
+              'server/src/main/java/pl/grzegorz2047/standalonethewalls/server/lobby/MinimalLobbyRuntime.java',
+              'server/src/test/java/pl/grzegorz2047/standalonethewalls/server/identity/session/MinimalLobbyRuntimeTest.java',
+          }
+          required = {
+              'protocol/src/test/java/pl/grzegorz2047/standalonethewalls/protocol/lobby/LobbyMatchProtocolCodecTest.java',
+              'server/src/main/java/pl/grzegorz2047/standalonethewalls/server/lobby/MinimalLobbyRuntime.java',
               'server/src/test/java/pl/grzegorz2047/standalonethewalls/server/identity/session/MinimalLobbyRuntimeTest.java',
           }
           actual = {
@@ -86,7 +95,7 @@ jobs:
               ).splitlines() if line
           }
           unexpected = actual - allowed
-          missing = allowed - actual
+          missing = required - actual
           if unexpected or missing:
               raise SystemExit(f'unexpected={sorted(unexpected)} missing={sorted(missing)} actual={sorted(actual)}')
           PY
@@ -107,6 +116,8 @@ jobs:
           set -euo pipefail
           git add -- \
             client/src/test/java/pl/grzegorz2047/standalonethewalls/client/network/ConnectedLobbyMatchSnapshotTest.java \
+            protocol/src/test/java/pl/grzegorz2047/standalonethewalls/protocol/lobby/LobbyMatchProtocolCodecTest.java \
+            server/src/main/java/pl/grzegorz2047/standalonethewalls/server/lobby/MinimalLobbyRuntime.java \
             server/src/test/java/pl/grzegorz2047/standalonethewalls/server/identity/session/MinimalLobbyRuntimeTest.java
           if git diff --cached --quiet; then
             exit 0
