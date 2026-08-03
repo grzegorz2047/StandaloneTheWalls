@@ -1,4 +1,4 @@
-package pl.grzegorz2047.standalonethewalls.client.network;
+package pl.grzegorz2047.standalethewalls.client.network;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -17,8 +17,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import pl.grzegorz2047.standalonethewalls.client.identity.ClientIdentityStorage;
-import pl.grzegorz2047.standalonethewalls.protocol.identity.CanonicalHandle;
+import pl.grzegorz2047.standalethewalls.client.identity.ClientIdentityStorage;
+import pl.grzegorz2047.standalethewalls.protocol.identity.CanonicalHandle;
 
 class DirectConnectServiceTest {
     private static final Duration WAIT = Duration.ofSeconds(5);
@@ -34,6 +34,7 @@ class DirectConnectServiceTest {
         CountDownLatch resolverEntered = new CountDownLatch(1);
         CountDownLatch releaseResolver = new CountDownLatch(1);
         AtomicReference<String> resolverThread = new AtomicReference<>();
+        AtomicReference<DirectConnectStage> observedStage = new AtomicReference<>();
         DirectConnectConfiguration configuration =
                 new DirectConnectConfiguration(
                         Duration.ofSeconds(3),
@@ -64,11 +65,18 @@ class DirectConnectServiceTest {
         Thread renderer =
                 Thread.ofPlatform()
                         .name("jME3 Main")
-                        .start(() -> firstReference.set(service.connect(endpoint, handle)));
+                        .start(
+                                () ->
+                                        firstReference.set(
+                                                service.connect(
+                                                        endpoint,
+                                                        handle,
+                                                        observedStage::set)));
         renderer.join(WAIT.toMillis());
         assertTrue(resolverEntered.await(WAIT.toMillis(), TimeUnit.MILLISECONDS));
         DirectConnectAttempt first = firstReference.get();
 
+        assertEquals(DirectConnectStage.RESOLVING, observedStage.get());
         DirectConnectResult second =
                 service.connect(endpoint, handle)
                         .result()
