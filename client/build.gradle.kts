@@ -7,6 +7,7 @@ dependencies {
     implementation(project(":game-domain"))
     implementation(project(":protocol"))
     implementation(project(":map-format"))
+    implementation(project(":transport-bctls"))
 
     implementation(libs.jme3.core)
     implementation(libs.jme3.desktop)
