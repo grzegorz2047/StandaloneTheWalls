@@ -178,7 +178,10 @@ class MinimalLobbyRuntimeTest {
 
         try {
             lobby.start();
-            waitUntil(() -> lobby.memberCount() == 1);
+            waitUntil(
+                    () ->
+                            lobby.memberCount() == 1
+                                    && latestSnapshotUnchecked(alpha).revision() == 1L);
             int initialSnapshots = snapshotCount(alpha);
 
             sendReady(alpha, 1L, true);
@@ -265,7 +268,11 @@ class MinimalLobbyRuntimeTest {
             waitForResult(alpha, 1L);
 
             sendReady(alpha, 1L, false);
-            waitUntil(() -> lobby.memberCount() == 1 && alpha.closeCount() == 1);
+            waitUntil(
+                    () ->
+                            lobby.memberCount() == 1
+                                    && alpha.closeCount() == 1
+                                    && latestSnapshotUnchecked(bravo).revision() == 4L);
 
             assertThat(bravo.closeCount()).isZero();
             assertThat(latestSnapshotUnchecked(bravo).members())
@@ -338,6 +345,7 @@ class MinimalLobbyRuntimeTest {
 
         assertThat(lobby.isRunning()).isFalse();
         assertThat(lobby.memberCount()).isZero();
+        assertThat(lobby.revision()).isEqualTo(4L);
         assertThat(first.closeCount()).isEqualTo(1);
         assertThat(second.closeCount()).isEqualTo(1);
         assertThat(queue.activeTransferCount()).isZero();

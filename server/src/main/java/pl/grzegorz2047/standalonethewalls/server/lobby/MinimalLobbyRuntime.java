@@ -604,10 +604,25 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
     }
 
     private void closeMembers(LobbyState state) {
-        List<AuthorizedPlayerSession> sessions =
-                state.members.values().stream().map(member -> member.session).toList();
-        state.members.clear();
-        memberCount.set(0);
+        List<MemberState> members = new ArrayList<>(state.members.values());
+        List<AuthorizedPlayerSession> sessions = new ArrayList<>(members.size());
+        for (MemberState member : members) {
+            MemberState removed = state.members.remove(member.participantId);
+            if (removed == null || removed.session != member.session) {
+                throw new IllegalStateException("owned lobby member disappeared during shutdown");
+            }
+            LobbyRosterDecision decision =
+                    LobbyRosterRules.apply(
+                            configuration,
+                            state.roster,
+                            new LobbyRosterCommand.Leave(member.participantId));
+            if (!decision.accepted()) {
+                throw new IllegalStateException(
+                        "authoritative lobby roster rejected an owned shutdown leave");
+            }
+            commitRoster(state, decision.state());
+            sessions.add(member.session);
+        }
         if (sessions.isEmpty()) {
             return;
         }
