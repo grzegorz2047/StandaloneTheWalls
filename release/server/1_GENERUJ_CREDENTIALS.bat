@@ -2,6 +2,9 @@
 setlocal EnableExtensions
 cd /d "%~dp0"
 
+if not exist "tools\windows\require-java-21.bat" goto :incomplete_package
+if not exist "bin\sunderfront-server-credentials.bat" goto :incomplete_package
+
 call :inspect_credentials
 if "%CREDENTIAL_PRESENT%"=="0" goto :generate
 if "%CREDENTIAL_PRESENT%"=="4" if "%CREDENTIAL_READY%"=="4" goto :already_complete
@@ -59,6 +62,14 @@ goto :failure
 set "EXIT_CODE=17"
 echo [BLAD] Generator zakonczyl sie bez kompletnego zestawu credentials.
 echo Niczego nie usuwaj. Wykonaj kopie katalogu credentials i sprawdz README-PL.txt.
+goto :failure
+
+:incomplete_package
+set "EXIT_CODE=18"
+echo [BLAD] Paczka serwera jest niekompletna albo zawiera pliki z roznych wersji.
+echo Brakuje technicznego launchera generatora lub skryptu kontroli Java.
+echo Rozpakuj cale archiwum serwera do nowego pustego katalogu.
+echo Nie kopiuj samych plikow 1_GENERUJ_CREDENTIALS.bat lub 2_URUCHOM_SERWER.bat do starszej paczki.
 goto :failure
 
 :success
