@@ -12,6 +12,7 @@ public record MatchRejection(Code code, String detail) {
     public enum Code {
         INVALID_PHASE,
         INVALID_PLAYER_COUNT,
+        INVALID_LOBBY_STATE,
         INVALID_RESULT
     }
 }
