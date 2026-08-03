@@ -180,3 +180,66 @@ jobs:
 
       - name: Run full quality gate
         run: .\gradlew.bat --no-daemon --no-configuration-cache check
+
+  verify-published-alpha:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.head_ref == 'agent/verify-v0.1.0-alpha.3-release'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: v0.1.0-alpha.3
+      VERSION: 0.1.0-alpha.3
+      SOURCE_COMMIT: 9a301b87a687e9bb9475e1b923c077c0089d3e9f
+    steps:
+      - name: Check out audit validator
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Verify release metadata and tag target
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release view "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json tagName,targetCommitish,isDraft,isPrerelease,assets \
+            > release.json
+          jq -e --arg tag "$TAG" --arg source "$SOURCE_COMMIT" '
+            .tagName == $tag and
+            .targetCommitish == $source and
+            .isDraft == false and
+            .isPrerelease == true and
+            ([.assets[].name] | sort) == [
+              "SHA256SUMS",
+              "sunderfront-client-0.1.0-alpha.3.zip",
+              "sunderfront-client-windows-x64-0.1.0-alpha.3.zip",
+              "sunderfront-server-0.1.0-alpha.3.zip"
+            ] and
+            ([.assets[].size > 0] | all)
+          ' release.json
+          test "$(gh api "repos/$GITHUB_REPOSITORY/commits/$TAG" --jq .sha)" = "$SOURCE_COMMIT"
+          jq '{tagName, targetCommitish, isDraft, isPrerelease, assets: [.assets[] | {name, size}]}' release.json
+
+      - name: Download and verify published bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir published
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir published
+          EXPECTED=$(printf '%s\n' \
+            SHA256SUMS \
+            sunderfront-client-0.1.0-alpha.3.zip \
+            sunderfront-client-windows-x64-0.1.0-alpha.3.zip \
+            sunderfront-server-0.1.0-alpha.3.zip | sort)
+          ACTUAL=$(find published -maxdepth 1 -type f -printf '%f\n' | sort)
+          test "$ACTUAL" = "$EXPECTED"
+          (
+            cd published
+            sha256sum --check SHA256SUMS
+            unzip -t sunderfront-client-0.1.0-alpha.3.zip
+            unzip -t sunderfront-client-windows-x64-0.1.0-alpha.3.zip
+            unzip -t sunderfront-server-0.1.0-alpha.3.zip
+          )
+          python3 release/verify_artifacts.py published "$VERSION" --require-windows
