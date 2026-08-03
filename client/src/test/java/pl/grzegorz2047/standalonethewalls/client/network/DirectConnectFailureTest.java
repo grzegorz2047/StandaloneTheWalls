@@ -24,8 +24,7 @@ class DirectConnectFailureTest {
                         .admissionStatus()
                         .isEmpty());
         assertThrows(
-                NullPointerException.class,
-                () -> new DirectConnectFailure(null, Optional.empty()));
+                NullPointerException.class, () -> new DirectConnectFailure(null, Optional.empty()));
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
