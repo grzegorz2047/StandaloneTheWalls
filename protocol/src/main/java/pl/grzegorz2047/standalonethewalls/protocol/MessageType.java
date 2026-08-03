@@ -17,7 +17,8 @@ public enum MessageType {
     LOBBY_SNAPSHOT(11, 4 * 1024, Channel.RELIABLE),
     LOBBY_SELECT_TEAM(12, 16, Channel.RELIABLE),
     LOBBY_SET_READY(13, 16, Channel.RELIABLE),
-    LOBBY_COMMAND_RESULT(14, 32, Channel.RELIABLE);
+    LOBBY_COMMAND_RESULT(14, 32, Channel.RELIABLE),
+    LOBBY_MATCH_SNAPSHOT(15, 64, Channel.RELIABLE);
 
     private final int wireId;
     private final int maximumPayloadBytes;
@@ -57,6 +58,7 @@ public enum MessageType {
             case 12 -> Optional.of(LOBBY_SELECT_TEAM);
             case 13 -> Optional.of(LOBBY_SET_READY);
             case 14 -> Optional.of(LOBBY_COMMAND_RESULT);
+            case 15 -> Optional.of(LOBBY_MATCH_SNAPSHOT);
             default -> Optional.empty();
         };
     }
