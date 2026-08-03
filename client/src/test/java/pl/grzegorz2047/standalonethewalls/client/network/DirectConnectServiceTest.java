@@ -69,9 +69,7 @@ class DirectConnectServiceTest {
                                 () ->
                                         firstReference.set(
                                                 service.connect(
-                                                        endpoint,
-                                                        handle,
-                                                        observedStage::set)));
+                                                        endpoint, handle, observedStage::set)));
         renderer.join(WAIT.toMillis());
         assertTrue(resolverEntered.await(WAIT.toMillis(), TimeUnit.MILLISECONDS));
         DirectConnectAttempt first = firstReference.get();

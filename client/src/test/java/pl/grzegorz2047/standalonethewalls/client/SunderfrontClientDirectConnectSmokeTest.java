@@ -1,11 +1,11 @@
 package pl.grzegorz2047.standalonethewalls.client;
 
+import com.jme3.system.JmeContext;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import com.jme3.system.JmeContext;
 import pl.grzegorz2047.standalonethewalls.client.i18n.ClientLanguage;
 import pl.grzegorz2047.standalonethewalls.client.i18n.ClientMessages;
 

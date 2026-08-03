@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import pl.grzegorz2047.standalonethewalls.client.i18n.ClientMessages;
@@ -80,9 +79,7 @@ public final class SunderfrontClient extends SimpleApplication
         this.messages = Objects.requireNonNull(messages, "messages");
         this.smokeMode = smokeMode;
         this.dataDirectory =
-                Objects.requireNonNull(dataDirectory, "dataDirectory")
-                        .toAbsolutePath()
-                        .normalize();
+                Objects.requireNonNull(dataDirectory, "dataDirectory").toAbsolutePath().normalize();
     }
 
     @Override
@@ -108,8 +105,7 @@ public final class SunderfrontClient extends SimpleApplication
         if (screen == Screen.DIRECT_CONNECT && directConnectController != null) {
             directConnectController.refreshConnectedSnapshot();
         }
-        if (!smokeMode
-                && (renderedWidth != cam.getWidth() || renderedHeight != cam.getHeight())) {
+        if (!smokeMode && (renderedWidth != cam.getWidth() || renderedHeight != cam.getHeight())) {
             renderCurrentScreen();
         }
     }
@@ -186,32 +182,22 @@ public final class SunderfrontClient extends SimpleApplication
         }
     }
 
-    void exerciseDirectConnectNavigation(Duration timeout)
-            throws InterruptedException, TimeoutException {
+    void exerciseDirectConnectNavigation(Duration timeout) {
         Objects.requireNonNull(timeout, "timeout");
+        if (timeout.isZero() || timeout.isNegative()) {
+            throw new IllegalArgumentException("timeout must be positive");
+        }
         if (!smokeMode) {
             throw new IllegalStateException("navigation smoke exercise requires smoke mode");
         }
-        Future<Void> exercise =
-                enqueue(
-                        () -> {
-                            openDirectConnectScreen();
-                            if (screen != Screen.DIRECT_CONNECT || directConnectController == null) {
-                                throw new IllegalStateException(
-                                        "Direct Connect screen did not open in smoke mode");
-                            }
-                            directConnectController.escape();
-                            if (screen != Screen.START_MENU || directConnectController != null) {
-                                throw new IllegalStateException(
-                                        "Direct Connect screen did not return to the start menu");
-                            }
-                            return null;
-                        });
-        try {
-            exercise.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
-        } catch (ExecutionException exception) {
+        openDirectConnectScreen();
+        if (screen != Screen.DIRECT_CONNECT || directConnectController == null) {
+            throw new IllegalStateException("Direct Connect screen did not open in smoke mode");
+        }
+        directConnectController.escape();
+        if (screen != Screen.START_MENU || directConnectController != null) {
             throw new IllegalStateException(
-                    "Direct Connect navigation smoke exercise failed", exception.getCause());
+                    "Direct Connect screen did not return to the start menu");
         }
     }
 
@@ -350,8 +336,7 @@ public final class SunderfrontClient extends SimpleApplication
 
     private void renderStartMenu() {
         addCenteredText(messages.text("app.title"), 54f, PRIMARY_TEXT, cam.getHeight() - 90f);
-        addCenteredText(
-                messages.text("app.subtitle"), 22f, MUTED_TEXT, cam.getHeight() - 140f);
+        addCenteredText(messages.text("app.subtitle"), 22f, MUTED_TEXT, cam.getHeight() - 140f);
 
         float menuTop = cam.getHeight() - 260f;
         for (int index = 0; index < menu.entries().size(); index++) {
@@ -385,9 +370,7 @@ public final class SunderfrontClient extends SimpleApplication
                         model.focus() == DirectConnectUiFocus.ENDPOINT,
                         model.editingEnabled()),
                 22f,
-                model.focus() == DirectConnectUiFocus.ENDPOINT
-                        ? SELECTED_TEXT
-                        : PRIMARY_TEXT,
+                model.focus() == DirectConnectUiFocus.ENDPOINT ? SELECTED_TEXT : PRIMARY_TEXT,
                 left,
                 height - 180f);
         addText(
@@ -414,12 +397,7 @@ public final class SunderfrontClient extends SimpleApplication
                     MUTED_TEXT,
                     left,
                     detailY - 10f);
-            addText(
-                    model.fingerprint().orElseThrow(),
-                    30f,
-                    WARNING_TEXT,
-                    left,
-                    detailY - 48f);
+            addText(model.fingerprint().orElseThrow(), 30f, WARNING_TEXT, left, detailY - 48f);
         }
 
         if (!model.members().isEmpty()) {
@@ -479,8 +457,7 @@ public final class SunderfrontClient extends SimpleApplication
         return selected ? "[" + label + "]" : label;
     }
 
-    private static String formatMembers(
-            List<LobbyMember> members, String ownHandle, int columns) {
+    private static String formatMembers(List<LobbyMember> members, String ownHandle, int columns) {
         int rows = (members.size() + columns - 1) / columns;
         StringBuilder result = new StringBuilder();
         for (int row = 0; row < rows; row++) {
@@ -511,8 +488,7 @@ public final class SunderfrontClient extends SimpleApplication
         List<String> lines = new ArrayList<>();
         StringBuilder current = new StringBuilder();
         for (String word : value.split(" ")) {
-            if (current.length() > 0
-                    && current.length() + 1 + word.length() > maximumCharacters) {
+            if (current.length() > 0 && current.length() + 1 + word.length() > maximumCharacters) {
                 lines.add(current.toString());
                 current.setLength(0);
             }

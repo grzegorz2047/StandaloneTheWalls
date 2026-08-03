@@ -122,8 +122,7 @@ public final class DirectConnectService implements AutoCloseable {
     }
 
     public DirectConnectAttempt confirmFirstUse(
-            FirstUseConfirmation confirmation,
-            DirectConnectProgressListener progressListener) {
+            FirstUseConfirmation confirmation, DirectConnectProgressListener progressListener) {
         Objects.requireNonNull(confirmation, "confirmation");
         DirectConnectProgressListener listener =
                 DirectConnectProgressListener.require(progressListener);

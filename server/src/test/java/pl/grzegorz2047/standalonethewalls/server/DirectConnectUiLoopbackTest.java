@@ -67,8 +67,7 @@ class DirectConnectUiLoopbackTest {
         AtomicBoolean observerLeftUiOwner = new AtomicBoolean();
         DirectConnectService service =
                 new DirectConnectService(
-                        new ClientIdentityStorage(
-                                temporaryDirectory.resolve("ui-client-data")),
+                        new ClientIdentityStorage(temporaryDirectory.resolve("ui-client-data")),
                         CONFIGURATION);
         DirectConnectUiController controller =
                 new DirectConnectUiController(
@@ -116,8 +115,7 @@ class DirectConnectUiLoopbackTest {
                 launcherResult.get(NETWORK_TIMEOUT_SECONDS, TimeUnit.SECONDS));
     }
 
-    private static void replaceEndpoint(
-            DirectConnectUiController controller, String endpoint) {
+    private static void replaceEndpoint(DirectConnectUiController controller, String endpoint) {
         for (int index = 0; index < DirectConnectUiController.DEFAULT_ENDPOINT.length(); index++) {
             controller.backspace();
         }

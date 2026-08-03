@@ -15,20 +15,16 @@ class DirectConnectLocalizationTest {
         for (ClientLanguage language : ClientLanguage.values()) {
             ClientMessages messages = ClientMessages.forLanguage(language);
             for (DirectConnectFailureCode code : DirectConnectFailureCode.values()) {
-                assertPresent(
-                        messages,
-                        "direct.failure." + code.name().toLowerCase(Locale.ROOT));
+                assertPresent(messages, "direct.failure." + code.name().toLowerCase(Locale.ROOT));
             }
             for (PlayerSessionAdmissionStatus status : PlayerSessionAdmissionStatus.values()) {
                 assertPresent(
-                        messages,
-                        "direct.admission." + status.name().toLowerCase(Locale.ROOT));
+                        messages, "direct.admission." + status.name().toLowerCase(Locale.ROOT));
             }
             for (DirectConnectUiPhase phase : DirectConnectUiPhase.values()) {
                 if (phase != DirectConnectUiPhase.FORM) {
                     assertPresent(
-                            messages,
-                            "direct.status." + phase.name().toLowerCase(Locale.ROOT));
+                            messages, "direct.status." + phase.name().toLowerCase(Locale.ROOT));
                 }
             }
         }

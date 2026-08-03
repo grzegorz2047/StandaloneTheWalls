@@ -52,7 +52,8 @@ public record DirectConnectScreenModel(
                     SECURING_TRANSPORT,
                     AUTHENTICATING,
                     WAITING_ADMISSION,
-                    JOINING_LOBBY -> true;
+                    JOINING_LOBBY ->
+                    true;
             default -> false;
         };
     }

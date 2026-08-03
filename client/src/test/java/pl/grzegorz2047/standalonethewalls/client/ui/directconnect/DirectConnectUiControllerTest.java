@@ -80,7 +80,8 @@ class DirectConnectUiControllerTest {
         FirstUseConfirmation confirmation = DirectConnectUiTestFixtures.confirmation();
         first.complete(new DirectConnectResult.ConfirmationRequired(confirmation));
         assertEquals(DirectConnectUiPhase.CONFIRMING_IDENTITY, controller.model().phase());
-        assertEquals(confirmation.fingerprint().value(), controller.model().fingerprint().orElseThrow());
+        assertEquals(
+                confirmation.fingerprint().value(), controller.model().fingerprint().orElseThrow());
 
         controller.activate();
         ControllableAttempt confirmed = backend.confirmAttempts.getFirst();
@@ -160,8 +161,7 @@ class DirectConnectUiControllerTest {
 
         second.complete(
                 new DirectConnectResult.Failed(
-                        DirectConnectFailure.of(
-                                DirectConnectFailureCode.DNS_OR_CONNECT_FAILED)));
+                        DirectConnectFailure.of(DirectConnectFailureCode.DNS_OR_CONNECT_FAILED)));
         assertEquals(DirectConnectUiPhase.FAILED, controller.model().phase());
         controller.close();
     }
@@ -237,8 +237,7 @@ class DirectConnectUiControllerTest {
 
         @Override
         public DirectConnectUiAttempt confirmFirstUse(
-                FirstUseConfirmation confirmation,
-                DirectConnectProgressListener progressListener) {
+                FirstUseConfirmation confirmation, DirectConnectProgressListener progressListener) {
             ControllableAttempt attempt = new ControllableAttempt(progressListener);
             confirmAttempts.add(attempt);
             return attempt;

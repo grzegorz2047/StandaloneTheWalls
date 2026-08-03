@@ -138,7 +138,8 @@ public final class DirectConnectUiController implements AutoCloseable {
                     SECURING_TRANSPORT,
                     AUTHENTICATING,
                     WAITING_ADMISSION,
-                    JOINING_LOBBY -> cancelAttempt();
+                    JOINING_LOBBY ->
+                    cancelAttempt();
             case CONFIRMING_IDENTITY -> {
                 if (focus == DirectConnectUiFocus.PRIMARY_ACTION) {
                     confirmIdentity();
@@ -173,7 +174,8 @@ public final class DirectConnectUiController implements AutoCloseable {
                     SECURING_TRANSPORT,
                     AUTHENTICATING,
                     WAITING_ADMISSION,
-                    JOINING_LOBBY -> cancelAttempt();
+                    JOINING_LOBBY ->
+                    cancelAttempt();
             case CONFIRMING_IDENTITY -> cancelConfirmation();
             case CONNECTED -> disconnect();
             case SECURITY_ALERT, ADMISSION_REJECTED, FAILED, DISCONNECTED -> {
@@ -271,11 +273,7 @@ public final class DirectConnectUiController implements AutoCloseable {
                 .whenComplete(
                         (result, failure) ->
                                 dispatcher.dispatch(
-                                        () ->
-                                                handleResult(
-                                                        attemptGeneration,
-                                                        result,
-                                                        failure)));
+                                        () -> handleResult(attemptGeneration, result, failure)));
     }
 
     private void confirmIdentity() {
@@ -299,11 +297,7 @@ public final class DirectConnectUiController implements AutoCloseable {
                 .whenComplete(
                         (result, failure) ->
                                 dispatcher.dispatch(
-                                        () ->
-                                                handleResult(
-                                                        attemptGeneration,
-                                                        result,
-                                                        failure)));
+                                        () -> handleResult(attemptGeneration, result, failure)));
     }
 
     private void handleProgress(long attemptGeneration, DirectConnectStage stage) {
@@ -337,7 +331,8 @@ public final class DirectConnectUiController implements AutoCloseable {
                 connectedRevision = snapshot.revision();
                 focus = DirectConnectUiFocus.PRIMARY_ACTION;
                 publish(connectedModel(snapshot));
-                connected.session()
+                connected
+                        .session()
                         .termination()
                         .whenComplete(
                                 (terminalFailure, terminationError) ->
@@ -361,8 +356,7 @@ public final class DirectConnectUiController implements AutoCloseable {
         }
         focus = DirectConnectUiFocus.PRIMARY_ACTION;
         if (failure.code() == DirectConnectFailureCode.CHANGED_SERVER_IDENTITY
-                || failure.code()
-                        == DirectConnectFailureCode.EXPECTED_SERVER_IDENTITY_MISMATCH) {
+                || failure.code() == DirectConnectFailureCode.EXPECTED_SERVER_IDENTITY_MISMATCH) {
             publish(securityAlertModel(failureMessage(failure)));
         } else {
             publish(failureModel(failureMessage(failure)));
@@ -382,7 +376,8 @@ public final class DirectConnectUiController implements AutoCloseable {
         String detail =
                 terminationError != null
                         ? messages.text("direct.failure.connection_closed")
-                        : terminalFailure.map(this::failureMessage)
+                        : terminalFailure
+                                .map(this::failureMessage)
                                 .orElse(messages.text("direct.status.disconnected"));
         publish(disconnectedModel(detail));
     }
@@ -573,7 +568,8 @@ public final class DirectConnectUiController implements AutoCloseable {
                     SECURING_TRANSPORT,
                     AUTHENTICATING,
                     WAITING_ADMISSION,
-                    JOINING_LOBBY -> List.of(DirectConnectUiFocus.SECONDARY_ACTION);
+                    JOINING_LOBBY ->
+                    List.of(DirectConnectUiFocus.SECONDARY_ACTION);
             case CONFIRMING_IDENTITY,
                     SECURITY_ALERT,
                     ADMISSION_REJECTED,
@@ -662,8 +658,7 @@ public final class DirectConnectUiController implements AutoCloseable {
 
         @Override
         public DirectConnectUiAttempt confirmFirstUse(
-                FirstUseConfirmation confirmation,
-                DirectConnectProgressListener progressListener) {
+                FirstUseConfirmation confirmation, DirectConnectProgressListener progressListener) {
             return adapt(service.confirmFirstUse(confirmation, progressListener));
         }
 
