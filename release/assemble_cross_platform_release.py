@@ -60,8 +60,8 @@ def main() -> int:
     require(not windows_target.exists(), "Windows archive target already exists")
     shutil.copyfile(windows_source, windows_target)
 
-    archives = sorted([*expected_jvm, windows_target], key=lambda path: path.name)
-    checksum_lines = [f"{digest(path)}  {path.name}\n" for path in archives]
+    archives = [*expected_jvm, windows_target]
+    checksum_lines = sorted(f"{digest(path)}  {path.name}\n" for path in archives)
     checksum_path = release_directory / "SHA256SUMS"
     checksum_path.write_text("".join(checksum_lines), encoding="ascii", newline="\n")
     return 0
