@@ -94,8 +94,7 @@ class DirectConnectServiceLoopbackTest {
             }
 
             DirectConnectEndpoint changedEndpoint =
-                    DirectConnectEndpoint.parse(
-                            "127.0.0.1:" + differentPort(reliablePort));
+                    DirectConnectEndpoint.parse("127.0.0.1:" + differentPort(reliablePort));
             FirstUseConfirmation tampered =
                     new FirstUseConfirmation(
                             changedEndpoint,
