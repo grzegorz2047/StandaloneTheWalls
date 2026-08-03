@@ -7,11 +7,18 @@ VERSION=$(tr -d '\r\n' < release/version.txt)
 TEMP_DIR=$(mktemp -d)
 SERVER_PID=""
 cleanup() {
+  local status=$?
+  trap - EXIT
   if [[ -n "$SERVER_PID" ]] && kill -0 "$SERVER_PID" 2>/dev/null; then
     kill "$SERVER_PID" 2>/dev/null || true
     wait "$SERVER_PID" 2>/dev/null || true
   fi
+  if (( status != 0 )) && [[ -f "$TEMP_DIR/server.log" ]]; then
+    echo "--- dedicated server log ---" >&2
+    cat "$TEMP_DIR/server.log" >&2
+  fi
   rm -rf "$TEMP_DIR"
+  exit "$status"
 }
 trap cleanup EXIT
 
@@ -23,13 +30,17 @@ CLIENT_DIR="$TEMP_DIR/sunderfront-client-${VERSION}"
 read -r RELIABLE_PORT REALTIME_PORT < <(
   python3 - <<'PY'
 import socket
-ports = []
-for _ in range(2):
-    sock = socket.socket()
-    sock.bind(("127.0.0.1", 0))
-    ports.append(sock.getsockname()[1])
-    sock.close()
-print(*ports)
+
+sockets = []
+try:
+    for _ in range(2):
+        sock = socket.socket()
+        sock.bind(("127.0.0.1", 0))
+        sockets.append(sock)
+    print(*(sock.getsockname()[1] for sock in sockets))
+finally:
+    for sock in sockets:
+        sock.close()
 PY
 )
 
