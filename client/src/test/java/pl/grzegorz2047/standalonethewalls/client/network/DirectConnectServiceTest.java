@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.nio.file.Path;
 import java.security.SecureRandom;
@@ -44,7 +45,12 @@ class DirectConnectServiceTest {
                         host -> {
                             resolverThread.set(Thread.currentThread().getName());
                             resolverEntered.countDown();
-                            releaseResolver.await();
+                            try {
+                                releaseResolver.await();
+                            } catch (InterruptedException exception) {
+                                Thread.currentThread().interrupt();
+                                throw new IOException("resolver interrupted", exception);
+                            }
                             return new InetAddress[] {InetAddress.getLoopbackAddress()};
                         });
         DirectConnectEndpoint endpoint = DirectConnectEndpoint.parse("localhost:27420");
