@@ -21,4 +21,8 @@ public record ConnectedLobbyScreenModel(
     public boolean controlsEnabled() {
         return !commandInFlight;
     }
+
+    public boolean ownReady() {
+        return lobby.ownMember().orElseThrow().ready();
+    }
 }
