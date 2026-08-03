@@ -11,12 +11,15 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.GeneralSecurityException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.HexFormat;
 import java.util.Locale;
+import org.bouncycastle.operator.OperatorCreationException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import pl.grzegorz2047.standalonethewalls.protocol.identity.IdentityException;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerFingerprint;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.BouncyCastleTlsCryptoFactory;
 
@@ -24,7 +27,11 @@ class ServerCredentialGeneratorTest {
     @TempDir Path temporaryDirectory;
 
     @Test
-    void createsCompleteCredentialsAndRefusesOverwrite() throws Exception {
+    void createsCompleteCredentialsAndRefusesOverwrite()
+            throws GeneralSecurityException,
+                    OperatorCreationException,
+                    IdentityException,
+                    IOException {
         Path output = temporaryDirectory.resolve("credentials");
 
         ServerCredentialGenerator.GeneratedCredentials generated =
@@ -67,7 +74,7 @@ class ServerCredentialGeneratorTest {
     }
 
     @Test
-    void failsBeforeCreatingSiblingsWhenAnyTargetAlreadyExists() throws Exception {
+    void failsBeforeCreatingSiblingsWhenAnyTargetAlreadyExists() throws IOException {
         Path output = temporaryDirectory.resolve("collision");
         Files.createDirectories(output);
         Path existing = output.resolve(ServerCredentialGenerator.FINGERPRINT_FILE);
