@@ -1,8 +1,10 @@
-SUNDERFRONT 0.1.0-alpha.2 — SERWER WINDOWS
+SUNDERFRONT 0.1.0-alpha.3 — SERWER WINDOWS
 ============================================
 
 To jest dedykowany serwer technicznej wersji Direct Connect Alpha. Nie zawiera
-jeszcze właściwej rozgrywki The Walls.
+jeszcze właściwej rozgrywki The Walls. Serwer nadal wymaga osobno zainstalowanej
+64-bitowej Java 21. Paczka z Sunderfront.exe i własnym runtime dotyczy tylko
+klienta Windows x64.
 
 PIERWSZE URUCHOMIENIE
 --------------------
@@ -73,4 +75,4 @@ OGRANICZENIA
 
 Brak gameplayu, mapy, drużyn, walki, realtime UDP/DTLS, reconnectu, publicznej
 listy serwerów, zdalnej administracji, automatycznej rotacji certyfikatu,
-dołączonego runtime Java i podpisanego instalatora.
+dołączonego runtime serwera, serwerowego pliku EXE i podpisanego instalatora.
