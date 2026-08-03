@@ -74,12 +74,18 @@ jobs:
 
           command_test = Path('client/src/test/java/pl/grzegorz2047/standalonethewalls/client/network/ConnectedLobbyCommandTest.java')
           text = command_test.read_text()
+          import_marker = 'import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolCodec;\n'
+          protocol_import = 'import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolException;\n'
+          if protocol_import not in text:
+              if import_marker not in text:
+                  raise SystemExit('LobbyProtocolCodec import marker not found')
+              text = text.replace(import_marker, import_marker + protocol_import, 1)
           count = text.count('throws Exception')
           if count < 1:
               raise SystemExit('no broad throws Exception clauses found')
           text = text.replace(
               'throws Exception',
-              'throws InterruptedException, ExecutionException, TimeoutException',
+              'throws InterruptedException, ExecutionException, TimeoutException, LobbyProtocolException',
           )
           command_test.write_text(text)
           print(f'replaced {count} broad exception clauses')
