@@ -21,6 +21,15 @@ The four canonical teams are Green, Blue, Red, and Yellow, with a default capaci
 of ten players each. Small matches may use a two-team map variant. Team assignment
 must keep active team sizes within one player whenever possible.
 
+The authoritative lobby roster is a deterministic renderer- and
+transport-independent domain model. A participant joins unassigned, explicitly
+selects an enabled non-full team, and may choose only a destination that achieves
+the best currently available team-size balance. Selecting another team clears the
+participant's ready state. The lobby is ready to start only when the configured
+minimum is present, every participant has selected a team and is ready, and at
+least two teams are represented. Network messages, server integration, countdown
+wiring, class selection, and presentation remain separate follow-up work.
+
 ## Preparation
 
 During preparation, players cannot damage each other or cross central team
