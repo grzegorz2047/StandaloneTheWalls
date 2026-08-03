@@ -18,7 +18,8 @@ public sealed interface LobbyRosterEvent
     record ParticipantJoined(LobbyParticipantId participantId, long revision)
             implements LobbyRosterEvent {
         public ParticipantJoined {
-            requireParticipantAndRevision(participantId, revision);
+            Objects.requireNonNull(participantId, "participantId");
+            requirePositiveRevision(revision);
         }
     }
 
@@ -29,8 +30,9 @@ public sealed interface LobbyRosterEvent
             long revision)
             implements LobbyRosterEvent {
         public ParticipantLeft {
-            requireParticipantAndRevision(participantId, revision);
+            Objects.requireNonNull(participantId, "participantId");
             Objects.requireNonNull(previousTeam, "previousTeam");
+            requirePositiveRevision(revision);
         }
     }
 
@@ -42,22 +44,22 @@ public sealed interface LobbyRosterEvent
             long revision)
             implements LobbyRosterEvent {
         public TeamChanged {
-            requireParticipantAndRevision(participantId, revision);
+            Objects.requireNonNull(participantId, "participantId");
             Objects.requireNonNull(previousTeam, "previousTeam");
             Objects.requireNonNull(selectedTeam, "selectedTeam");
+            requirePositiveRevision(revision);
         }
     }
 
     record ReadyChanged(LobbyParticipantId participantId, boolean ready, long revision)
             implements LobbyRosterEvent {
         public ReadyChanged {
-            requireParticipantAndRevision(participantId, revision);
+            Objects.requireNonNull(participantId, "participantId");
+            requirePositiveRevision(revision);
         }
     }
 
-    private static void requireParticipantAndRevision(
-            LobbyParticipantId participantId, long revision) {
-        Objects.requireNonNull(participantId, "participantId");
+    private static void requirePositiveRevision(long revision) {
         if (revision < 1L) {
             throw new IllegalArgumentException("event revision must be positive");
         }
