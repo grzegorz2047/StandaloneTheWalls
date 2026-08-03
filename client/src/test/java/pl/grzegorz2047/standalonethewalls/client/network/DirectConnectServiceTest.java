@@ -1,4 +1,4 @@
-package pl.grzegorz2047.standalethewalls.client.network;
+package pl.grzegorz2047.standalonethewalls.client.network;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -17,8 +17,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import pl.grzegorz2047.standalethewalls.client.identity.ClientIdentityStorage;
-import pl.grzegorz2047.standalethewalls.protocol.identity.CanonicalHandle;
+import pl.grzegorz2047.standalonethewalls.client.identity.ClientIdentityStorage;
+import pl.grzegorz2047.standalonethewalls.protocol.identity.CanonicalHandle;
 
 class DirectConnectServiceTest {
     private static final Duration WAIT = Duration.ofSeconds(5);
