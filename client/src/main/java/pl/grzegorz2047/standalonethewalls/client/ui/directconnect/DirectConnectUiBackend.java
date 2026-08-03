@@ -1,9 +1,7 @@
 package pl.grzegorz2047.standalonethewalls.client.ui.directconnect;
 
-import java.util.concurrent.CompletionStage;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectEndpoint;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectProgressListener;
-import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectResult;
 import pl.grzegorz2047.standalonethewalls.client.network.FirstUseConfirmation;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.CanonicalHandle;
 
@@ -21,10 +19,4 @@ interface DirectConnectUiBackend extends AutoCloseable {
 
     @Override
     void close();
-}
-
-interface DirectConnectUiAttempt {
-    CompletionStage<DirectConnectResult> result();
-
-    boolean cancel();
 }
