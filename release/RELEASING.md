@@ -5,35 +5,62 @@ The only version handled by this milestone is `v0.1.0-alpha.1`. The build reads
 
 ## Repository protection required once
 
-Create a GitHub tag ruleset for `v0.1.0-alpha.1` that restricts tag creation and
-deletion to repository maintainers and the repository Actions identity used by the
-promotion workflow. Keep `main` protected and require the normal CI check before
-merging release changes. These settings are administrative and cannot be enforced
-by files inside the repository.
+Create a GitHub tag ruleset for `v0.1.0-alpha.1` that permits creation by the
+repository Actions identity used by the publication workflow and restricts later
+updates or deletion to repository maintainers. Keep `main` protected and require
+the normal CI check before merging release changes. These settings are
+administrative and cannot be enforced by files inside the repository.
 
-## Automated promotion and publication
+## Prepare the immutable publication branch
 
-1. Merge release changes only after PR CI and distribution E2E are green.
-2. A push to `main` starts `Promote Direct Connect Alpha Tag`.
-3. If `v0.1.0-alpha.1` already exists, promotion exits successfully without moving,
-   replacing, or rebuilding the tag.
-4. When the tag is absent, promotion independently runs:
-   - the complete Java 21 quality gate on Ubuntu;
-   - two-build reproducibility, archive policy, checksum checks, negative checksum
-     verification, and Direct Connect E2E from freshly unpacked distributions;
-   - the complete Java 21 quality gate on Windows.
-5. Only after all three gates succeed, promotion proves `origin/main` still equals
-   the exact triggering commit, rechecks tag absence, and creates annotated
-   `v0.1.0-alpha.1` on that commit.
-6. Promotion dispatches `Publish Direct Connect Alpha`. Publication checks out the
-   existing exact tag, proves it points to a commit on `main`, reruns `check` and
-   the complete release verification, and refuses to replace an existing Release.
-7. The prerelease contains exactly the client ZIP, server ZIP, `SHA256SUMS`, release
-   notes, and known alpha limitations.
+1. Merge the release implementation only after PR CI and distribution E2E are
+   green.
+2. Record the exact current `main` SHA. This is the candidate that will be built,
+   tested, tagged, and published.
+3. Create branch `publish-v0.1.0-alpha.1` directly from that SHA.
+4. Add exactly one file, `.release-trigger/v0.1.0-alpha.1.json`, in exactly one
+   ordinary commit whose parent is the recorded candidate:
 
-Do not create or move the release tag manually during the normal process. A missing
-tag is a fail-closed signal that one of the promotion gates has not completed
-successfully. Investigate and repair the gate; do not publish around it.
+   ```json
+   {
+     "version": "0.1.0-alpha.1",
+     "commit": "<40-character current main SHA>"
+   }
+   ```
+
+5. Push the publication branch. Do not merge it into `main` and do not add other
+   files or commits.
+
+The workflow rejects a branch whose trigger commit is not directly on top of the
+candidate, whose diff contains anything except the trigger JSON, whose candidate
+is not the current `origin/main`, or whose version does not match
+`release/version.txt`.
+
+## Automated verification and publication
+
+A push to `publish-v0.1.0-alpha.1` runs one self-contained workflow:
+
+1. resolve and validate the immutable candidate SHA from the trigger JSON;
+2. refuse an existing tag or GitHub Release;
+3. run the complete Java 21 quality gate on Ubuntu;
+4. build the client and server ZIPs twice, compare them byte-for-byte, validate
+   archive policy and SHA-256 checksums, prove a corrupted copy fails checksum
+   verification, and run Direct Connect E2E from freshly unpacked distributions;
+5. run the complete Java 21 quality gate on Windows;
+6. rebuild the final payload from the same candidate and recheck that `main`, the
+   tag, and the Release have not changed;
+7. run `gh release create --target <candidate SHA>`, which creates
+   `v0.1.0-alpha.1` and the prerelease only after every gate succeeds;
+8. verify that the resulting tag resolves to the candidate and that the Release
+   contains exactly the client ZIP, server ZIP, and `SHA256SUMS`.
+
+This follows the release-branch model used by `grzegorz2047/3dsTowerdefenseAIDev`:
+the publication branch is the explicit audit trigger, while the Release targets a
+separately validated source commit. There is no `workflow_run` chain, recursive
+workflow dispatch, or manually pre-created tag.
+
+A missing tag is a fail-closed signal that publication did not complete. Repair the
+failed gate or workflow; never create or move the tag around it.
 
 ## Verify downloaded artifacts
 
