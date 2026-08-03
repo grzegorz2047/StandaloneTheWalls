@@ -4,6 +4,14 @@ on:
   push:
     branches:
       - "publish-v0.1.0-alpha.1"
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
 
 permissions:
   contents: read
@@ -14,22 +22,33 @@ concurrency:
 
 jobs:
   resolve-candidate:
+    if: >-
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.draft == false &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       github.head_ref == 'publish-v0.1.0-alpha.1')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
       source_commit: ${{ steps.candidate.outputs.source_commit }}
+      publication_commit: ${{ steps.candidate.outputs.publication_commit }}
+      publication_ref: ${{ steps.candidate.outputs.publication_ref }}
       version: ${{ steps.candidate.outputs.version }}
       tag: ${{ steps.candidate.outputs.tag }}
     steps:
       - name: Check out publication branch
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Resolve immutable release candidate
         id: candidate
         env:
           GH_TOKEN: ${{ github.token }}
+          PUBLICATION_COMMIT: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          PUBLICATION_REF: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
         shell: bash
         run: |
           set -euo pipefail
@@ -37,7 +56,8 @@ jobs:
           TAG="v${VERSION}"
           TRIGGER=".release-trigger/${TAG}.json"
           test "$VERSION" = "0.1.0-alpha.1"
-          test "$GITHUB_REF_NAME" = "publish-${TAG}"
+          test "$PUBLICATION_REF" = "publish-${TAG}"
+          test "$(git rev-parse HEAD)" = "$PUBLICATION_COMMIT"
           test -f "$TRIGGER"
 
           read -r MANIFEST_VERSION SOURCE_COMMIT < <(
@@ -60,11 +80,12 @@ jobs:
 
           test "$MANIFEST_VERSION" = "$VERSION"
           [[ "$SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ ]]
-          test "$(git rev-parse "${GITHUB_SHA}^")" = "$SOURCE_COMMIT"
-          test "$(git diff --name-only "$SOURCE_COMMIT" "$GITHUB_SHA")" = "$TRIGGER"
+          test "$(git rev-parse "${PUBLICATION_COMMIT}^")" = "$SOURCE_COMMIT"
+          test "$(git diff --name-only "$SOURCE_COMMIT" "$PUBLICATION_COMMIT")" = "$TRIGGER"
 
-          git fetch --no-tags origin main
+          git fetch --no-tags origin main "$PUBLICATION_REF"
           test "$(git rev-parse origin/main)" = "$SOURCE_COMMIT"
+          test "$(git rev-parse "origin/${PUBLICATION_REF}")" = "$PUBLICATION_COMMIT"
           git cat-file -e "${SOURCE_COMMIT}^{commit}"
           test "$(git show "${SOURCE_COMMIT}:release/version.txt" | tr -d '\r\n')" = "$VERSION"
 
@@ -78,6 +99,8 @@ jobs:
           fi
 
           echo "source_commit=$SOURCE_COMMIT" >> "$GITHUB_OUTPUT"
+          echo "publication_commit=$PUBLICATION_COMMIT" >> "$GITHUB_OUTPUT"
+          echo "publication_ref=$PUBLICATION_REF" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
@@ -150,6 +173,8 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       SOURCE_COMMIT: ${{ needs.resolve-candidate.outputs.source_commit }}
+      PUBLICATION_COMMIT: ${{ needs.resolve-candidate.outputs.publication_commit }}
+      PUBLICATION_REF: ${{ needs.resolve-candidate.outputs.publication_ref }}
       VERSION: ${{ needs.resolve-candidate.outputs.version }}
       TAG: ${{ needs.resolve-candidate.outputs.tag }}
     steps:
@@ -183,8 +208,9 @@ jobs:
           test "$VERSION" = "0.1.0-alpha.1"
           test "$TAG" = "v${VERSION}"
           test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
-          git fetch --no-tags origin main
+          git fetch --no-tags origin main "$PUBLICATION_REF"
           test "$(git rev-parse origin/main)" = "$SOURCE_COMMIT"
+          test "$(git rev-parse "origin/${PUBLICATION_REF}")" = "$PUBLICATION_COMMIT"
           if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
             echo "Tag ${TAG} appeared during verification; refusing replacement." >&2
             exit 1
