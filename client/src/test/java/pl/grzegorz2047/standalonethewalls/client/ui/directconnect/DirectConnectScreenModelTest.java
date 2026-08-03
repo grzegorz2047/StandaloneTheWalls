@@ -38,9 +38,7 @@ class DirectConnectScreenModelTest {
     }
 
     private static DirectConnectScreenModel model(
-            DirectConnectUiPhase phase,
-            Optional<String> fingerprint,
-            List<LobbyMember> members) {
+            DirectConnectUiPhase phase, Optional<String> fingerprint, List<LobbyMember> members) {
         return new DirectConnectScreenModel(
                 phase,
                 DirectConnectUiFocus.PRIMARY_ACTION,
