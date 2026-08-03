@@ -123,3 +123,61 @@ jobs:
 
       - name: Run full quality gate
         run: .\gradlew.bat --no-daemon --no-configuration-cache check
+
+  verify-published-alpha:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.head_ref == 'agent/verify-v0.1.0-alpha.2-release'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: v0.1.0-alpha.2
+      VERSION: 0.1.0-alpha.2
+      SOURCE_COMMIT: 3c0aa7003a33e28898141384d98fc4a8b8556e54
+    steps:
+      - name: Check out audit validator
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Verify release metadata and tag target
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release view "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json tagName,targetCommitish,isDraft,isPrerelease,assets \
+            > release.json
+          jq -e --arg tag "$TAG" --arg source "$SOURCE_COMMIT" '
+            .tagName == $tag and
+            .targetCommitish == $source and
+            .isDraft == false and
+            .isPrerelease == true and
+            ([.assets[].name] | sort) == [
+              "SHA256SUMS",
+              "sunderfront-client-0.1.0-alpha.2.zip",
+              "sunderfront-server-0.1.0-alpha.2.zip"
+            ] and
+            ([.assets[].size > 0] | all)
+          ' release.json
+          test "$(gh api "repos/$GITHUB_REPOSITORY/commits/$TAG" --jq .sha)" = "$SOURCE_COMMIT"
+          jq '{tagName, targetCommitish, isDraft, isPrerelease, assets: [.assets[] | {name, size}]}' release.json
+
+      - name: Download and verify published bytes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir published
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir published
+          test "$(find published -maxdepth 1 -type f -printf '%f\n' | sort)" = "$(printf '%s\n' \
+            SHA256SUMS \
+            sunderfront-client-0.1.0-alpha.2.zip \
+            sunderfront-server-0.1.0-alpha.2.zip | sort)"
+          (
+            cd published
+            sha256sum --check SHA256SUMS
+            unzip -t sunderfront-client-0.1.0-alpha.2.zip
+            unzip -t sunderfront-server-0.1.0-alpha.2.zip
+          )
+          python3 release/verify_artifacts.py published "$VERSION"
