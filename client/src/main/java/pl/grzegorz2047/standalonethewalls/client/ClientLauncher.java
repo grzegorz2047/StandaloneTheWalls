@@ -27,7 +27,8 @@ public final class ClientLauncher {
         try {
             ClientLaunchOptions options = ClientLaunchOptions.parse(arguments);
             ClientMessages messages = ClientMessages.forLanguage(options.language());
-            SunderfrontClient application = new SunderfrontClient(messages, options.smokeMode());
+            SunderfrontClient application =
+                    new SunderfrontClient(messages, options.smokeMode(), options.dataDirectory());
             configure(application);
             if (options.smokeMode()) {
                 return runSmoke(application);
@@ -49,7 +50,7 @@ public final class ClientLauncher {
 
     private static void configure(SunderfrontClient application) {
         AppSettings settings = new AppSettings(true);
-        settings.setTitle(BuildInfo.PRODUCT_NAME);
+        settings.setTitle(BuildInfo.PRODUCT_NAME + " " + BuildInfo.VERSION);
         settings.setResolution(1280, 720);
         settings.setVSync(true);
         settings.setResizable(true);

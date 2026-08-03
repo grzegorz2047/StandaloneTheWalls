@@ -1,0 +1,82 @@
+name: Publish Direct Connect Alpha
+
+on:
+  push:
+    tags:
+      - "v0.1.0-alpha.1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-v0.1.0-alpha.1
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: write
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: v0.1.0-alpha.1
+          fetch-depth: 0
+
+      - name: Set up Java 21
+        uses: actions/setup-java@d7793b545071e98d581d3bf084a51c3213318a07
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
+        with:
+          cache-read-only: true
+
+      - name: Validate immutable release tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(tr -d '\r\n' < release/version.txt)
+          RELEASE_TAG="v${VERSION}"
+          test "$RELEASE_TAG" = "v0.1.0-alpha.1"
+          git fetch origin "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
+          test "$(git rev-parse HEAD)" = "$(git rev-list -n 1 "$RELEASE_TAG")"
+          ./gradlew --no-daemon properties --console=plain | grep -Fx "version: ${VERSION}"
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$(git rev-parse HEAD)" origin/main
+
+      - name: Run complete quality gate
+        run: ./gradlew --no-daemon check
+
+      - name: Verify release distributions
+        run: bash release/verify_release.sh
+
+      - name: Refuse silent replacement
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v0.1.0-alpha.1 >/dev/null 2>&1; then
+            echo "Release v0.1.0-alpha.1 already exists; published bytes are immutable." >&2
+            exit 1
+          fi
+
+      - name: Publish immutable prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v0.1.0-alpha.1 \
+            build/release/sunderfront-client-0.1.0-alpha.1.zip \
+            build/release/sunderfront-server-0.1.0-alpha.1.zip \
+            build/release/SHA256SUMS \
+            --verify-tag \
+            --prerelease \
+            --title "Sunderfront v0.1.0-alpha.1 — Direct Connect Alpha" \
+            --notes-file release/RELEASE_NOTES.md
