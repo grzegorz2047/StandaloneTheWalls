@@ -80,37 +80,37 @@ jobs:
 
           smoke = Path('client/src/main/java/pl/grzegorz2047/standalonethewalls/client/release/DirectConnectSmokeMain.java')
           text = smoke.read_text()
-          old_first = '''            PlayerId playerId = connected.session().playerId();
-              requireExactSelf(connected.session(), options.handle(), playerId);
-              close(connected.session());
-          '''
-          new_first = '''            ConnectedLobbySession firstSession = connected.takeSession();
+          first_pattern = re.compile(
+              r'\s*PlayerId playerId = connected\.session\(\)\.playerId\(\);\n'
+              r'\s*requireExactSelf\(connected\.session\(\), options\.handle\(\), playerId\);\n'
+              r'\s*close\(connected\.session\(\)\);'
+          )
+          first_replacement = '''
+              ConnectedLobbySession firstSession = connected.takeSession();
               PlayerId playerId = firstSession.playerId();
               requireExactSelf(firstSession, options.handle(), playerId);
-              close(firstSession);
-          '''
-          count = text.count(old_first)
+              close(firstSession);'''
+          text, count = first_pattern.subn(first_replacement, text, count=1)
           if count != 1:
               raise SystemExit(f'expected exactly one first-use smoke transfer, got {count}')
-          text = text.replace(old_first, new_first, 1)
 
-          old_returning = '''            if (!returning.session().playerId().equals(expectedPlayerId)) {
-                  throw new IllegalStateException("player identity changed after restart");
-              }
-              requireExactSelf(returning.session(), options.handle(), expectedPlayerId);
-              close(returning.session());
-          '''
-          new_returning = '''            ConnectedLobbySession returningSession = returning.takeSession();
+          returning_pattern = re.compile(
+              r'\s*if \(!returning\.session\(\)\.playerId\(\)\.equals\(expectedPlayerId\)\) \{\n'
+              r'\s*throw new IllegalStateException\("player identity changed after restart"\);\n'
+              r'\s*\}\n'
+              r'\s*requireExactSelf\(returning\.session\(\), options\.handle\(\), expectedPlayerId\);\n'
+              r'\s*close\(returning\.session\(\)\);'
+          )
+          returning_replacement = '''
+              ConnectedLobbySession returningSession = returning.takeSession();
               if (!returningSession.playerId().equals(expectedPlayerId)) {
                   throw new IllegalStateException("player identity changed after restart");
               }
               requireExactSelf(returningSession, options.handle(), expectedPlayerId);
-              close(returningSession);
-          '''
-          count = text.count(old_returning)
+              close(returningSession);'''
+          text, count = returning_pattern.subn(returning_replacement, text, count=1)
           if count != 1:
               raise SystemExit(f'expected exactly one returning smoke transfer, got {count}')
-          text = text.replace(old_returning, new_returning, 1)
           if '.session()' in text:
               raise SystemExit('legacy connected-result session accessor remains in smoke main')
           smoke.write_text(text)
