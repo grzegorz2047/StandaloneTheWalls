@@ -108,9 +108,7 @@ class MinimalLobbyRuntimeTest {
                     .extracting(LobbyMember::playerId)
                     .containsExactly(alpha.playerId(), bravo.playerId());
             assertThat(bravoSnapshot.members())
-                    .allMatch(
-                            member ->
-                                    member.team() == LobbyTeam.UNASSIGNED && !member.ready());
+                    .allMatch(member -> member.team() == LobbyTeam.UNASSIGNED && !member.ready());
             assertThat(queue.activeTransferCount()).isEqualTo(2);
         } finally {
             lobby.close();
@@ -160,15 +158,9 @@ class MinimalLobbyRuntimeTest {
             assertThat(snapshot.members())
                     .containsExactly(
                             new LobbyMember(
-                                    alpha.playerId(),
-                                    alpha.handle(),
-                                    LobbyTeam.GREEN,
-                                    true),
+                                    alpha.playerId(), alpha.handle(), LobbyTeam.GREEN, true),
                             new LobbyMember(
-                                    bravo.playerId(),
-                                    bravo.handle(),
-                                    LobbyTeam.BLUE,
-                                    true));
+                                    bravo.playerId(), bravo.handle(), LobbyTeam.BLUE, true));
             assertThat(lobby.revision()).isEqualTo(6L);
         } finally {
             lobby.close();
@@ -216,8 +208,7 @@ class MinimalLobbyRuntimeTest {
     }
 
     @Test
-    void mapsDisabledFullAndImbalancedTeamsWithoutMutatingTheRoster()
-            throws InterruptedException {
+    void mapsDisabledFullAndImbalancedTeamsWithoutMutatingTheRoster() throws InterruptedException {
         LobbyConfiguration configuration =
                 new LobbyConfiguration(EnumSet.of(TeamId.GREEN, TeamId.BLUE), 2, 1, 2);
         AuthorizedPlayerSessionQueue queue = queue(2);
@@ -361,11 +352,7 @@ class MinimalLobbyRuntimeTest {
     private static MinimalLobbyRuntime lobby(
             AuthorizedPlayerSessionQueue queue, LobbyConfiguration configuration) {
         return new MinimalLobbyRuntime(
-                queue,
-                configuration,
-                Duration.ofSeconds(1),
-                Duration.ofSeconds(2),
-                ignored -> {});
+                queue, configuration, Duration.ofSeconds(1), Duration.ofSeconds(2), ignored -> {});
     }
 
     private static AuthorizedPlayerSessionQueue queue(int capacity) {
@@ -402,11 +389,7 @@ class MinimalLobbyRuntimeTest {
     private static ProtocolEnvelope envelope(
             TestSession session, MessageType messageType, byte[] payload) {
         return new ProtocolEnvelope(
-                ProtocolVersion.CURRENT,
-                messageType,
-                session.sessionId(),
-                0L,
-                payload);
+                ProtocolVersion.CURRENT, messageType, session.sessionId(), 0L, payload);
     }
 
     private static void waitForResult(TestSession session, long requestId)
@@ -418,10 +401,7 @@ class MinimalLobbyRuntimeTest {
     }
 
     private static void assertResult(
-            TestSession session,
-            long requestId,
-            long revision,
-            LobbyCommandOutcome outcome) {
+            TestSession session, long requestId, long revision, LobbyCommandOutcome outcome) {
         assertThat(commandResultsUnchecked(session))
                 .contains(new LobbyCommandResult(requestId, revision, outcome));
     }
@@ -457,8 +437,7 @@ class MinimalLobbyRuntimeTest {
                 : Optional.of(snapshots.get(snapshots.size() - 1));
     }
 
-    private static LobbySnapshot latestSnapshot(TestSession session)
-            throws LobbyProtocolException {
+    private static LobbySnapshot latestSnapshot(TestSession session) throws LobbyProtocolException {
         return LobbyProtocolCodec.decodeSnapshot(
                 latestSnapshotMessage(session).orElseThrow().payload());
     }

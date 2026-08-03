@@ -2,7 +2,6 @@ package pl.grzegorz2047.standalonethewalls.server.lobby;
 
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -322,7 +321,8 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
                             .send(
                                     MessageType.LOBBY_JOINED,
                                     LobbyProtocolCodec.encodeJoined(
-                                            new LobbyJoined(decision.state().revision(), identity))),
+                                            new LobbyJoined(
+                                                    decision.state().revision(), identity))),
                     sendTimeout);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
@@ -424,8 +424,7 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
                             participantId -> {
                                 MemberState removed = state.members.get(participantId);
                                 if (removed != null) {
-                                    removeMember(
-                                            state, removed, EndReason.SEND_FAILED, false);
+                                    removeMember(state, removed, EndReason.SEND_FAILED, false);
                                 }
                             });
         }
@@ -442,7 +441,9 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
                     new LobbyMember(
                             member.identity.playerId(),
                             member.identity.handle(),
-                            participant.team().map(MinimalLobbyRuntime::protocolTeam)
+                            participant
+                                    .team()
+                                    .map(MinimalLobbyRuntime::protocolTeam)
                                     .orElse(LobbyTeam.UNASSIGNED),
                             participant.ready()));
         }
@@ -560,8 +561,8 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         }
     }
 
-    private static ClientCommand decodeClientCommand(
-            MemberState member, ProtocolEnvelope envelope) throws LobbyProtocolException {
+    private static ClientCommand decodeClientCommand(MemberState member, ProtocolEnvelope envelope)
+            throws LobbyProtocolException {
         return switch (envelope.messageType()) {
             case LOBBY_SELECT_TEAM -> {
                 LobbySelectTeamCommand command =
@@ -574,13 +575,13 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
                                 member.participantId, domainTeam(command.team())));
             }
             case LOBBY_SET_READY -> {
-                LobbySetReadyCommand command = LobbyProtocolCodec.decodeSetReady(envelope.payload());
+                LobbySetReadyCommand command =
+                        LobbyProtocolCodec.decodeSetReady(envelope.payload());
                 yield new ClientCommand(
                         member.participantId,
                         member.session.sessionId(),
                         command.requestId(),
-                        new LobbyRosterCommand.SetReady(
-                                member.participantId, command.ready()));
+                        new LobbyRosterCommand.SetReady(member.participantId, command.ready()));
             }
             default ->
                     throw new LobbyProtocolException(
@@ -774,8 +775,7 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         }
     }
 
-    private record SessionEnded(
-            LobbyParticipantId participantId, UUID sessionId, EndReason reason)
+    private record SessionEnded(LobbyParticipantId participantId, UUID sessionId, EndReason reason)
             implements Command {
         private SessionEnded {
             Objects.requireNonNull(participantId, "participantId");
