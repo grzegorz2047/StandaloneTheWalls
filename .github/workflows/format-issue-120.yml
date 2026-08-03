@@ -1,0 +1,50 @@
+name: Format Issue 120
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    if: github.head_ref == 'agent/issue-120-lobby-roster'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+
+      - name: Apply canonical formatting
+        run: ./gradlew --no-daemon spotlessApply
+
+      - name: Collect formatted files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/issue-120-formatted
+          cp --parents \
+            game-domain/src/main/java/pl/grzegorz2047/standalonethewalls/domain/lobby/*.java \
+            game-domain/src/test/java/pl/grzegorz2047/standalonethewalls/domain/lobby/*.java \
+            build/issue-120-formatted/
+
+      - name: Upload formatted files
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue-120-formatted-sources
+          path: build/issue-120-formatted
+          if-no-files-found: error
+          retention-days: 1
