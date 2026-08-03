@@ -43,11 +43,16 @@ distributions {
         distributionBaseName = "sunderfront-client"
         contents {
             from(rootProject.file("release/client/README.md"))
+            from(rootProject.file("release/client/README-PL.txt"))
+            from(rootProject.file("release/client/URUCHOM_KLIENTA.bat"))
+            from(rootProject.file("release/windows/require-java-21.bat")) {
+                into("tools/windows")
+            }
             from(rootProject.file("assets/assets.lock.json")) {
                 into("assets")
             }
             from(directConnectSmokeScripts) {
-                into("bin")
+                into("tools")
                 filePermissions {
                     unix("rwxr-xr-x")
                 }
