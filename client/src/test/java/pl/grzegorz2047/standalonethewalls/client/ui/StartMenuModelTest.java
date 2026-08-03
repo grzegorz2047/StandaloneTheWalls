@@ -49,7 +49,6 @@ class StartMenuModelTest {
         assertSame(selected, selected.select(2));
         assertThrows(IllegalArgumentException.class, () -> original.select(-1));
         assertThrows(
-                IllegalArgumentException.class,
-                () -> original.select(original.entries().size()));
+                IllegalArgumentException.class, () -> original.select(original.entries().size()));
     }
 }
