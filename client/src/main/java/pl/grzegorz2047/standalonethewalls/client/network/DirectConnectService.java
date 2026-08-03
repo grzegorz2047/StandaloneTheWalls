@@ -320,6 +320,12 @@ public final class DirectConnectService implements AutoCloseable {
                 if (initialSnapshot == null) {
                     return;
                 }
+                try {
+                    socket.setSoTimeout(0);
+                } catch (IOException exception) {
+                    completeFailure(DirectConnectFailureCode.INTERNAL_FAILURE);
+                    return;
+                }
                 requireActive();
 
                 ConnectedLobbySession lobbySession =
