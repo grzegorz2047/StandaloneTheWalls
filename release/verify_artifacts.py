@@ -146,9 +146,10 @@ def verify_windows_app_zip(path: pathlib.Path, root: str) -> None:
         root + "/assets/assets.lock.json",
         root + "/app/Sunderfront.cfg",
         root + "/runtime/release",
-        root + "/runtime/bin/java.exe",
+        root + "/runtime/bin/server/jvm.dll",
     }
     forbidden_tools = {
+        "java.exe",
         "javac.exe",
         "javadoc.exe",
         "jpackage.exe",
@@ -191,7 +192,7 @@ def verify_windows_app_zip(path: pathlib.Path, root: str) -> None:
             require(info.file_size > 0, f"{path.name}: empty file: {normalized}")
             require(
                 pure.name.lower() not in forbidden_tools,
-                f"{path.name}: JDK tool included: {normalized}",
+                f"{path.name}: unnecessary Java/JDK launcher included: {normalized}",
             )
             if pure.suffix.lower() not in {".jar", ".class"}:
                 payload = archive.read(info)
@@ -216,8 +217,8 @@ def verify_windows_app_zip(path: pathlib.Path, root: str) -> None:
         )
         require_pe_x64(archive.read(root + "/Sunderfront.exe"), path.name + ": Sunderfront.exe")
         require_pe_x64(
-            archive.read(root + "/runtime/bin/java.exe"),
-            path.name + ": runtime java.exe",
+            archive.read(root + "/runtime/bin/server/jvm.dll"),
+            path.name + ": runtime jvm.dll",
         )
 
 
