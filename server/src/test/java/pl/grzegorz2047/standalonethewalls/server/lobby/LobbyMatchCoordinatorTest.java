@@ -72,11 +72,10 @@ class LobbyMatchCoordinatorTest {
 
         long preparationRevision = prepared.revision();
         assertThat(coordinator.advanceTick(1L)).isEmpty();
+        assertThat(coordinator.advanceTick(2L)).isEmpty();
         assertThat(coordinator.snapshot().revision()).isEqualTo(preparationRevision);
-
-        LobbyMatchSnapshot nextPreparationTick = coordinator.advanceTick(2L).orElseThrow();
-        assertThat(nextPreparationTick.phase()).isEqualTo(MatchPhase.PREPARATION);
-        assertThat(nextPreparationTick.ticksRemaining()).isOne();
+        assertThat(coordinator.snapshot().phase()).isEqualTo(MatchPhase.PREPARATION);
+        assertThat(coordinator.snapshot().ticksRemaining()).isEqualTo(2L);
     }
 
     @Test
