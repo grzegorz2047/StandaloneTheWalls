@@ -26,6 +26,7 @@ import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectUiTestFixt
 import pl.grzegorz2047.standalonethewalls.client.network.FirstUseConfirmation;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.CanonicalHandle;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerSessionAdmissionStatus;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
 
 class DirectConnectUiControllerTest {
     private static final ClientMessages MESSAGES =
@@ -94,7 +95,12 @@ class DirectConnectUiControllerTest {
                         session, PlayerSessionAdmissionStatus.LOCAL_FIRST_USE_ACCEPTED));
 
         assertEquals(DirectConnectUiPhase.CONNECTED, controller.model().phase());
-        assertEquals(2, controller.model().members().size());
+        ConnectedLobbyScreenModel connected = controller.model().connectedLobby().orElseThrow();
+        assertEquals(2, connected.lobby().totalMembers());
+        assertEquals(LobbyTeam.UNASSIGNED, connected.lobby().ownMember().orElseThrow().team());
+        assertTrue(connected.controlsEnabled());
+        assertFalse(connected.readyAction().isBlank());
+        assertEquals(DirectConnectUiFocus.TEAM_RED, controller.model().focus());
         assertEquals("player_one", controller.model().handleText());
 
         controller.escape();
@@ -194,6 +200,7 @@ class DirectConnectUiControllerTest {
         assertEquals(expectedPhase, controller.model().phase());
         assertFalse(controller.model().detail().isBlank());
         assertTrue(controller.model().fingerprint().isEmpty());
+        assertTrue(controller.model().connectedLobby().isEmpty());
         controller.close();
     }
 
