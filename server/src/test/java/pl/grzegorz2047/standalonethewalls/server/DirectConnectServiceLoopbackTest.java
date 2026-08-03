@@ -1,6 +1,7 @@
 package pl.grzegorz2047.standalonethewalls.server;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -55,6 +56,7 @@ class DirectConnectServiceLoopbackTest {
                     assertInstanceOf(DirectConnectResult.ConfirmationRequired.class, unknown);
             FirstUseConfirmation confirmation = confirmationRequired.confirmation();
             assertEquals(endpoint, confirmation.endpoint());
+            assertFalse(firstClient.isConnecting());
 
             DirectConnectResult.Connected firstConnected =
                     assertInstanceOf(
