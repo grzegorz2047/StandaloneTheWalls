@@ -5,23 +5,28 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.file.Path;
 import java.util.Locale;
 import org.junit.jupiter.api.Test;
 import pl.grzegorz2047.standalonethewalls.client.i18n.ClientLanguage;
 
 class ClientLaunchOptionsTest {
     @Test
-    void usesSystemLanguageAndAcceptsExplicitSmokeOverride() {
+    void usesPortableDataDirectoryAndAcceptsExplicitOverrides() {
         ClientLaunchOptions defaults =
                 ClientLaunchOptions.parse(new String[0], Locale.forLanguageTag("pl-PL"));
         ClientLaunchOptions explicit =
                 ClientLaunchOptions.parse(
-                        new String[] {"--lang", "en", "--smoke"}, Locale.forLanguageTag("pl-PL"));
+                        new String[] {"--lang", "en", "--smoke", "--data-dir", "runtime/client"},
+                        Locale.forLanguageTag("pl-PL"));
 
         assertEquals(ClientLanguage.POLISH, defaults.language());
         assertFalse(defaults.smokeMode());
+        assertEquals(Path.of("data").toAbsolutePath().normalize(), defaults.dataDirectory());
         assertEquals(ClientLanguage.ENGLISH, explicit.language());
         assertTrue(explicit.smokeMode());
+        assertEquals(
+                Path.of("runtime/client").toAbsolutePath().normalize(), explicit.dataDirectory());
     }
 
     @Test
@@ -39,6 +44,20 @@ class ClientLaunchOptionsTest {
                 () ->
                         ClientLaunchOptions.parse(
                                 new String[] {"--smoke", "--smoke"}, Locale.ENGLISH));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> ClientLaunchOptions.parse(new String[] {"--data-dir"}, Locale.ENGLISH));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        ClientLaunchOptions.parse(
+                                new String[] {"--data-dir", "one", "--data-dir", "two"},
+                                Locale.ENGLISH));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        ClientLaunchOptions.parse(
+                                new String[] {"--data-dir", "--smoke"}, Locale.ENGLISH));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> ClientLaunchOptions.parse(new String[] {"--unknown"}, Locale.ENGLISH));
