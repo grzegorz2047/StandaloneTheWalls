@@ -18,6 +18,9 @@ dependencies {
     implementation(libs.slf4j.api)
     runtimeOnly(libs.logback.classic)
 
+    testImplementation(project(":client")) {
+        isTransitive = false
+    }
     testImplementation(libs.bouncycastle.provider)
     testImplementation(libs.bouncycastle.pkix)
 }
