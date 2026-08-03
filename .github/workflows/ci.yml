@@ -30,7 +30,30 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Run full quality gate
+        id: quality
+        continue-on-error: true
         run: ./gradlew --no-daemon check
+
+      - name: Generate formatted Direct Connect sources
+        if: steps.quality.outcome == 'failure'
+        run: ./gradlew --no-daemon spotlessApply
+
+      - name: Upload formatted Direct Connect sources
+        if: steps.quality.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: formatted-direct-connect-ui
+          path: |
+            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/SunderfrontClient.java
+            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/network/DirectConnectService.java
+            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/ui/directconnect/**
+            client/src/test/java/pl/grzegorz2047/standalonethewalls/client/SunderfrontClientDirectConnectSmokeTest.java
+            client/src/test/java/pl/grzegorz2047/standalonethewalls/client/network/DirectConnectServiceTest.java
+            client/src/test/java/pl/grzegorz2047/standalonethewalls/client/network/DirectConnectUiTestFixtures.java
+            client/src/test/java/pl/grzegorz2047/standalonethewalls/client/ui/directconnect/**
+            server/src/test/java/pl/grzegorz2047/standalonethewalls/server/DirectConnectUiLoopbackTest.java
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Upload quality reports
         if: always()
@@ -43,6 +66,10 @@ jobs:
             **/build/reports/tests/**
           if-no-files-found: ignore
           retention-days: 7
+
+      - name: Preserve quality-gate failure
+        if: steps.quality.outcome == 'failure'
+        run: exit 1
 
   verify-windows-main:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
