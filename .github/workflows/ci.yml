@@ -66,7 +66,9 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Apply strict UI migration
-        run: python3 .github/scripts/patch_issue_128_ui.py
+        run: |
+          python3 .github/scripts/patch_issue_128_ui.py
+          python3 .github/scripts/patch_issue_128_phase_tests.py
 
       - name: Format and validate UI migration
         run: |
@@ -78,7 +80,6 @@ jobs:
             :client:spotbugsTest \
             :server:test
           python3 - <<'PY'
-          from pathlib import Path
           import subprocess
 
           allowed = {
@@ -86,7 +87,10 @@ jobs:
               'client/src/main/java/pl/grzegorz2047/standalonethewalls/client/ui/directconnect/ConnectedLobbyMatchModel.java',
               'client/src/main/java/pl/grzegorz2047/standalonethewalls/client/ui/directconnect/ConnectedLobbyScreenModel.java',
               'client/src/main/java/pl/grzegorz2047/standalonethewalls/client/ui/directconnect/DirectConnectUiController.java',
+              'client/src/test/java/pl/grzegorz2047/standalonethewalls/client/network/DirectConnectUiTestFixtures.java',
+              'client/src/test/java/pl/grzegorz2047/standalonethewalls/client/ui/directconnect/ConnectedLobbyUiCommandTest.java',
               'client/src/test/java/pl/grzegorz2047/standalonethewalls/client/ui/directconnect/DirectConnectScreenModelTest.java',
+              'server/src/test/java/pl/grzegorz2047/standalonethewalls/server/ServerLauncherTest.java',
           }
           actual = {
               line for line in subprocess.check_output(
@@ -96,6 +100,9 @@ jobs:
           required = {
               'client/src/main/java/pl/grzegorz2047/standalonethewalls/client/SunderfrontClient.java',
               'client/src/main/java/pl/grzegorz2047/standalonethewalls/client/ui/directconnect/DirectConnectUiController.java',
+              'client/src/test/java/pl/grzegorz2047/standalonethewalls/client/network/DirectConnectUiTestFixtures.java',
+              'client/src/test/java/pl/grzegorz2047/standalonethewalls/client/ui/directconnect/ConnectedLobbyUiCommandTest.java',
+              'server/src/test/java/pl/grzegorz2047/standalonethewalls/server/ServerLauncherTest.java',
           }
           unexpected = actual - allowed
           missing = required - actual
@@ -111,7 +118,10 @@ jobs:
             client/src/main/java/pl/grzegorz2047/standalonethewalls/client/ui/directconnect/ConnectedLobbyMatchModel.java \
             client/src/main/java/pl/grzegorz2047/standalonethewalls/client/ui/directconnect/ConnectedLobbyScreenModel.java \
             client/src/main/java/pl/grzegorz2047/standalonethewalls/client/ui/directconnect/DirectConnectUiController.java \
-            client/src/test/java/pl/grzegorz2047/standalonethewalls/client/ui/directconnect/DirectConnectScreenModelTest.java
+            client/src/test/java/pl/grzegorz2047/standalonethewalls/client/network/DirectConnectUiTestFixtures.java \
+            client/src/test/java/pl/grzegorz2047/standalonethewalls/client/ui/directconnect/ConnectedLobbyUiCommandTest.java \
+            client/src/test/java/pl/grzegorz2047/standalonethewalls/client/ui/directconnect/DirectConnectScreenModelTest.java \
+            server/src/test/java/pl/grzegorz2047/standalonethewalls/server/ServerLauncherTest.java
           if git diff --cached --quiet; then
             exit 0
           fi
