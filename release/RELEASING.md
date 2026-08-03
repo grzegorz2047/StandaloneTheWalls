@@ -1,11 +1,13 @@
-# Direct Connect Alpha release procedure
+# Windows First-Run Alpha release procedure
 
-The only version handled by this milestone is `v0.1.0-alpha.1`. The build reads
-`release/version.txt`; it never discovers or substitutes a moving `latest` value.
+The release workflow in this source version handles only `v0.1.0-alpha.2`. The
+build reads `release/version.txt`; it never discovers or substitutes a moving
+`latest` value. The published `v0.1.0-alpha.1` tag and assets remain immutable and
+must not be replaced.
 
 ## Repository protection required once
 
-Create a GitHub tag ruleset for `v0.1.0-alpha.1` that permits creation by the
+Create a GitHub tag ruleset for `v0.1.0-alpha.2` that permits creation by the
 repository Actions identity used by the publication workflow and restricts later
 updates or deletion to repository maintainers. Keep `main` protected and require
 the normal CI check before merging release changes. These settings are
@@ -17,13 +19,13 @@ administrative and cannot be enforced by files inside the repository.
    green.
 2. Record the exact current `main` SHA. This is the candidate that will be built,
    tested, tagged, and published.
-3. Create branch `publish-v0.1.0-alpha.1` directly from that SHA.
-4. Add exactly one file, `.release-trigger/v0.1.0-alpha.1.json`, in exactly one
+3. Create branch `publish-v0.1.0-alpha.2` directly from that SHA.
+4. Add exactly one file, `.release-trigger/v0.1.0-alpha.2.json`, in exactly one
    ordinary commit whose parent is the recorded candidate:
 
    ```json
    {
-     "version": "0.1.0-alpha.1",
+     "version": "0.1.0-alpha.2",
      "commit": "<40-character current main SHA>"
    }
    ```
@@ -32,7 +34,7 @@ administrative and cannot be enforced by files inside the repository.
    `main` and do not add other files or commits.
 6. When an automation environment can write repository commits but its push does
    not emit a workflow event, open a same-repository draft PR from
-   `publish-v0.1.0-alpha.1` to `main`, review the one-file diff, and mark it ready
+   `publish-v0.1.0-alpha.2` to `main`, review the one-file diff, and mark it ready
    for review. The PR is only a reviewed trigger and audit record; never merge it.
 
 The workflow rejects a branch whose trigger commit is not directly on top of the
@@ -44,7 +46,7 @@ final publication.
 
 ## Automated verification and publication
 
-A push to `publish-v0.1.0-alpha.1`, or marking its reviewed same-repository trigger
+A push to `publish-v0.1.0-alpha.2`, or marking its reviewed same-repository trigger
 PR ready, runs one self-contained workflow:
 
 1. resolve and validate the immutable candidate SHA from the trigger JSON;
@@ -53,11 +55,12 @@ PR ready, runs one self-contained workflow:
 4. build the client and server ZIPs twice, compare them byte-for-byte, validate
    archive policy and SHA-256 checksums, prove a corrupted copy fails checksum
    verification, and run Direct Connect E2E from freshly unpacked distributions;
-5. run the complete Java 21 quality gate on Windows;
+5. run the complete Java 21 quality gate on Windows and execute the root Windows
+   client launcher, credential generator, and full server configuration validation;
 6. rebuild the final payload from the same candidate and recheck that `main`, the
    publication branch, the tag, and the Release have not changed;
 7. run `gh release create --target <candidate SHA>`, which creates
-   `v0.1.0-alpha.1` and the prerelease only after every gate succeeds;
+   `v0.1.0-alpha.2` and the prerelease only after every gate succeeds;
 8. verify that the resulting tag resolves to the candidate and that the Release
    contains exactly the client ZIP, server ZIP, and `SHA256SUMS`.
 
@@ -80,8 +83,8 @@ sha256sum --check SHA256SUMS
 On Windows PowerShell, compare each value with:
 
 ```powershell
-Get-FileHash .\sunderfront-client-0.1.0-alpha.1.zip -Algorithm SHA256
-Get-FileHash .\sunderfront-server-0.1.0-alpha.1.zip -Algorithm SHA256
+Get-FileHash .\sunderfront-client-0.1.0-alpha.2.zip -Algorithm SHA256
+Get-FileHash .\sunderfront-server-0.1.0-alpha.2.zip -Algorithm SHA256
 ```
 
 The names and lowercase hashes must match `SHA256SUMS` exactly.
@@ -100,4 +103,4 @@ tag. When an alpha must be withdrawn:
 5. delete the tag only for an incident requiring removal, using the protected tag
    ruleset and recording the decision in the replacement release notes.
 
-Never reuse `v0.1.0-alpha.1` for different bytes.
+Never reuse `v0.1.0-alpha.2` for different bytes.

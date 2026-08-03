@@ -3,7 +3,7 @@ name: Publish Direct Connect Alpha
 on:
   push:
     branches:
-      - "publish-v0.1.0-alpha.1"
+      - "publish-v0.1.0-alpha.2"
   pull_request:
     branches:
       - main
@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: publish-v0.1.0-alpha.1
+  group: publish-v0.1.0-alpha.2
   cancel-in-progress: false
 
 jobs:
@@ -27,7 +27,7 @@ jobs:
       (github.event_name == 'pull_request' &&
        github.event.pull_request.draft == false &&
        github.event.pull_request.head.repo.full_name == github.repository &&
-       github.head_ref == 'publish-v0.1.0-alpha.1')
+       github.head_ref == 'publish-v0.1.0-alpha.2')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
@@ -55,7 +55,7 @@ jobs:
           VERSION=$(tr -d '\r\n' < release/version.txt)
           TAG="v${VERSION}"
           TRIGGER=".release-trigger/${TAG}.json"
-          test "$VERSION" = "0.1.0-alpha.1"
+          test "$VERSION" = "0.1.0-alpha.2"
           test "$PUBLICATION_REF" = "publish-${TAG}"
           test "$(git rev-parse HEAD)" = "$PUBLICATION_COMMIT"
           test -f "$TRIGGER"
@@ -137,7 +137,7 @@ jobs:
   verify-windows:
     needs: resolve-candidate
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - name: Check out immutable candidate
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -160,6 +160,10 @@ jobs:
 
       - name: Run complete quality gate
         run: .\gradlew.bat --no-daemon --no-configuration-cache check
+
+      - name: Verify Windows first-run launchers
+        shell: pwsh
+        run: .\release\verify_windows_launchers.ps1
 
   publish:
     needs:
@@ -205,7 +209,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$VERSION" = "0.1.0-alpha.1"
+          test "$VERSION" = "0.1.0-alpha.2"
           test "$TAG" = "v${VERSION}"
           test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
           git fetch --no-tags origin main "$PUBLICATION_REF"
@@ -232,7 +236,7 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --target "$SOURCE_COMMIT" \
             --prerelease \
-            --title "Sunderfront ${TAG} — Direct Connect Alpha" \
+            --title "Sunderfront ${TAG} — Windows First-Run Alpha" \
             --notes-file release/RELEASE_NOTES.md \
             "build/release/sunderfront-client-${VERSION}.zip" \
             "build/release/sunderfront-server-${VERSION}.zip" \

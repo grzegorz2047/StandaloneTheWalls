@@ -78,10 +78,33 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  verify-windows-first-run:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Verify Windows first-run launchers
+        shell: pwsh
+        run: .\release\verify_windows_launchers.ps1
+
   verify-windows-main:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: windows-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - name: Check out repository
         uses: actions/checkout@v4

@@ -46,6 +46,20 @@ def require(condition: bool, message: str) -> None:
         raise ValueError(message)
 
 
+def verify_text_entries(
+    path: pathlib.Path,
+    expected_fragments: dict[str, tuple[str, ...]],
+) -> None:
+    with zipfile.ZipFile(path) as archive:
+        for name, fragments in expected_fragments.items():
+            text = archive.read(name).decode("utf-8")
+            for fragment in fragments:
+                require(
+                    fragment in text,
+                    f"{path.name}: {name} is missing required fragment: {fragment}",
+                )
+
+
 def verify_zip(path: pathlib.Path, root: str, required: set[str], client: bool) -> None:
     with zipfile.ZipFile(path) as archive:
         names = archive.namelist()
@@ -87,6 +101,14 @@ def verify_zip(path: pathlib.Path, root: str, required: set[str], client: bool) 
             lock_name = root + "/assets/assets.lock.json"
             parsed = json.loads(archive.read(lock_name).decode("utf-8"))
             require(parsed == EMPTY_ASSET_LOCK, f"{path.name}: asset lock is not empty alpha lock")
+            require(
+                root + "/bin/sunderfront-direct-connect-smoke" not in names,
+                f"{path.name}: smoke tool exposed in bin",
+            )
+            require(
+                root + "/bin/sunderfront-direct-connect-smoke.bat" not in names,
+                f"{path.name}: Windows smoke tool exposed in bin",
+            )
         else:
             credential_entries = [
                 name
@@ -138,11 +160,14 @@ def main() -> int:
         client_root,
         {
             client_root + "/README.md",
+            client_root + "/README-PL.txt",
+            client_root + "/URUCHOM_KLIENTA.bat",
             client_root + "/assets/assets.lock.json",
             client_root + "/bin/sunderfront-client",
             client_root + "/bin/sunderfront-client.bat",
-            client_root + "/bin/sunderfront-direct-connect-smoke",
-            client_root + "/bin/sunderfront-direct-connect-smoke.bat",
+            client_root + "/tools/sunderfront-direct-connect-smoke",
+            client_root + "/tools/sunderfront-direct-connect-smoke.bat",
+            client_root + "/tools/windows/require-java-21.bat",
         },
         True,
     )
@@ -151,6 +176,9 @@ def main() -> int:
         server_root,
         {
             server_root + "/README.md",
+            server_root + "/README-PL.txt",
+            server_root + "/1_GENERUJ_CREDENTIALS.bat",
+            server_root + "/2_URUCHOM_SERWER.bat",
             server_root + "/config/server.properties",
             server_root + "/config/identity.properties",
             server_root + "/config/tls.properties",
@@ -160,9 +188,48 @@ def main() -> int:
             server_root + "/bin/sunderfront-server.bat",
             server_root + "/bin/sunderfront-server-credentials",
             server_root + "/bin/sunderfront-server-credentials.bat",
+            server_root + "/tools/windows/require-java-21.bat",
         },
         False,
     )
+
+    java_check_fragments = (
+        "java.specification.version =",
+        "sun.arch.data.model =",
+        "os.arch =",
+        'if not "%JAVA_VERSION%"=="21"',
+        'if "%JAVA_DATA_MODEL%"=="64"',
+    )
+    verify_text_entries(
+        client_archive,
+        {
+            client_root + "/URUCHOM_KLIENTA.bat": (
+                'call "tools\\windows\\require-java-21.bat"',
+                '--data-dir "%~dp0data"',
+                "SUNDERFRONT_NO_PAUSE",
+            ),
+            client_root + "/tools/windows/require-java-21.bat": java_check_fragments,
+        },
+    )
+    verify_text_entries(
+        server_archive,
+        {
+            server_root + "/1_GENERUJ_CREDENTIALS.bat": (
+                'call "tools\\windows\\require-java-21.bat"',
+                '--output "%~dp0credentials"',
+                "SUNDERFRONT_NO_PAUSE",
+            ),
+            server_root + "/2_URUCHOM_SERWER.bat": (
+                "credentials\\server-ed25519-key.pk8",
+                '--config "%~dp0config\\server.properties"',
+                '--identity-config "%~dp0config\\identity.properties"',
+                '--tls-config "%~dp0config\\tls.properties"',
+                "SUNDERFRONT_NO_PAUSE",
+            ),
+            server_root + "/tools/windows/require-java-21.bat": java_check_fragments,
+        },
+    )
+
     verify_checksums(release_dir, [client_archive, server_archive])
     return 0
 
