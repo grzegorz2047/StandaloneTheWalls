@@ -26,6 +26,8 @@ import pl.grzegorz2047.standalonethewalls.client.ui.lobby.ConnectedLobbyModel;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.CanonicalHandle;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerSessionAdmissionStatus;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandOutcome;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhase;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhaseSnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
 
@@ -51,6 +53,7 @@ public final class DirectConnectUiController implements AutoCloseable {
     private LobbyCommandHandle pendingLobbyCommand;
     private String lobbyCommandStatus;
     private final AtomicLong connectedRevision = new AtomicLong(-1L);
+    private final AtomicLong connectedMatchRevision = new AtomicLong(-1L);
     private final AtomicLong generation = new AtomicLong();
 
     public DirectConnectUiController(
@@ -145,7 +148,7 @@ public final class DirectConnectUiController implements AutoCloseable {
         if (direction == 0) {
             return;
         }
-        List<DirectConnectUiFocus> allowed = allowedFocuses(model.phase());
+        List<DirectConnectUiFocus> allowed = allowedFocuses(model);
         int current = Math.max(0, allowed.indexOf(focus));
         focus = allowed.get(Math.floorMod(current + Integer.signum(direction), allowed.size()));
         publish(copyWithFocus(model, focus));
@@ -154,7 +157,7 @@ public final class DirectConnectUiController implements AutoCloseable {
     public boolean focus(DirectConnectUiFocus target) {
         requireOpen();
         Objects.requireNonNull(target, "target");
-        if (!allowedFocuses(model.phase()).contains(target)) {
+        if (!allowedFocuses(model).contains(target)) {
             return false;
         }
         if (focus == target) {
@@ -223,21 +226,24 @@ public final class DirectConnectUiController implements AutoCloseable {
             return;
         }
         LobbySnapshot snapshot = session.currentSnapshot();
+        LobbyMatchPhaseSnapshot matchSnapshot = session.currentMatchSnapshot();
+        if (!snapshotsSynchronized(snapshot, matchSnapshot)) {
+            return;
+        }
         boolean uiPending = pendingLobbyCommand != null;
         boolean sessionPending = session.commandInFlight();
         boolean busy = uiPending || sessionPending;
         ConnectedLobbyScreenModel current = model.connectedLobby().orElseThrow();
         boolean busyChanged = current.commandInFlight() != busy;
-        if (snapshot.revision() <= connectedRevision.get() && !busyChanged) {
+        boolean rosterChanged = snapshot.revision() > connectedRevision.get();
+        boolean matchChanged = matchSnapshot.revision() > connectedMatchRevision.get();
+        if (!rosterChanged && !matchChanged && !busyChanged) {
             return;
         }
         if (uiPending && !sessionPending) {
             return;
         }
-        if (snapshot.revision() > connectedRevision.get()) {
-            connectedRevision.set(snapshot.revision());
-        }
-        publish(connectedModel(snapshot, busy, lobbyCommandStatus));
+        publishConnectedIfSynchronized(session, snapshot, busy, lobbyCommandStatus);
     }
 
     @Override
@@ -252,6 +258,7 @@ public final class DirectConnectUiController implements AutoCloseable {
         connectedSession = null;
         pendingLobbyCommand = null;
         connectedRevision.set(-1L);
+        connectedMatchRevision.set(-1L);
         confirmation = null;
         backend.discardPendingConfirmation();
         runLifecycle(
@@ -305,7 +312,11 @@ public final class DirectConnectUiController implements AutoCloseable {
             transitionClosedLobby();
             return;
         }
-        if (!connected.controlsEnabled()) {
+        if (!connected.match().lobbyControlsAllowed()) {
+            publishLockedStatus(session);
+            return;
+        }
+        if (connected.commandInFlight()) {
             publishBusyStatus(session);
             return;
         }
@@ -318,7 +329,11 @@ public final class DirectConnectUiController implements AutoCloseable {
             transitionClosedLobby();
             return;
         }
-        if (!connected.controlsEnabled()) {
+        if (!connected.match().lobbyControlsAllowed()) {
+            publishLockedStatus(session);
+            return;
+        }
+        if (connected.commandInFlight()) {
             publishBusyStatus(session);
             return;
         }
@@ -333,7 +348,8 @@ public final class DirectConnectUiController implements AutoCloseable {
                 LobbyCommandHandle handle = submission.handle().orElseThrow();
                 pendingLobbyCommand = handle;
                 lobbyCommandStatus = messages.text("direct.lobby.command.submitting");
-                publish(connectedModel(session.currentSnapshot(), true, lobbyCommandStatus));
+                publishConnectedIfSynchronized(
+                        session, session.currentSnapshot(), true, lobbyCommandStatus);
                 long commandGeneration = generation.get();
                 handle.completion()
                         .whenComplete(
@@ -354,7 +370,14 @@ public final class DirectConnectUiController implements AutoCloseable {
 
     private void publishBusyStatus(ConnectedLobbySession session) {
         lobbyCommandStatus = messages.text("direct.lobby.command.busy");
-        publish(connectedModel(session.currentSnapshot(), true, lobbyCommandStatus));
+        publishConnectedIfSynchronized(
+                session, session.currentSnapshot(), true, lobbyCommandStatus);
+    }
+
+    private void publishLockedStatus(ConnectedLobbySession session) {
+        lobbyCommandStatus = messages.text("direct.lobby.command.match_already_started");
+        publishConnectedIfSynchronized(
+                session, session.currentSnapshot(), false, lobbyCommandStatus);
     }
 
     private void handleLobbyCommandCompletion(
@@ -382,7 +405,8 @@ public final class DirectConnectUiController implements AutoCloseable {
                 LobbySnapshot snapshot = completed.snapshot();
                 connectedRevision.set(snapshot.revision());
                 lobbyCommandStatus = commandOutcomeMessage(completed.result().outcome());
-                publish(connectedModel(snapshot, false, lobbyCommandStatus));
+                publishConnectedIfSynchronized(
+                        expectedSession, snapshot, false, lobbyCommandStatus);
             }
             case LobbyCommandResolution.Failed failed ->
                     transitionTerminalLobbyFailure(expectedSession, failed.failure());
@@ -395,6 +419,7 @@ public final class DirectConnectUiController implements AutoCloseable {
         connectedSession = null;
         pendingLobbyCommand = null;
         connectedRevision.set(-1L);
+        connectedMatchRevision.set(-1L);
         focus = DirectConnectUiFocus.PRIMARY_ACTION;
         publish(disconnectedModel(failureMessage(failure)));
         runLifecycle("lobby-command-failure", () -> awaitSessionClose(expectedSession));
@@ -405,6 +430,7 @@ public final class DirectConnectUiController implements AutoCloseable {
         connectedSession = null;
         pendingLobbyCommand = null;
         connectedRevision.set(-1L);
+        connectedMatchRevision.set(-1L);
         focus = DirectConnectUiFocus.PRIMARY_ACTION;
         publish(disconnectedModel(messages.text("direct.lobby.command.session_closed")));
     }
@@ -432,6 +458,7 @@ public final class DirectConnectUiController implements AutoCloseable {
         connectedSession = null;
         pendingLobbyCommand = null;
         connectedRevision.set(-1L);
+        connectedMatchRevision.set(-1L);
         lobbyCommandStatus = messages.text("direct.lobby.command.idle");
         focus = DirectConnectUiFocus.SECONDARY_ACTION;
         publish(progressModel(DirectConnectUiPhase.RESOLVING));
@@ -504,12 +531,17 @@ public final class DirectConnectUiController implements AutoCloseable {
                 connectedSession = transferred;
                 pendingLobbyCommand = null;
                 LobbySnapshot snapshot = transferred.currentSnapshot();
+                LobbyMatchPhaseSnapshot matchSnapshot = transferred.currentMatchSnapshot();
                 connectedRevision.set(snapshot.revision());
+                connectedMatchRevision.set(matchSnapshot.revision());
                 lobbyCommandStatus = messages.text("direct.lobby.command.idle");
                 ConnectedLobbyModel lobby =
                         ConnectedLobbyModel.from(snapshot, Optional.of(transferred.playerId()));
-                focus = focusForTeam(lobby.ownMember().orElseThrow().team());
-                publish(connectedModel(snapshot, false, lobbyCommandStatus));
+                focus =
+                        matchSnapshot.phase() == LobbyMatchPhase.PREPARATION
+                                ? DirectConnectUiFocus.PRIMARY_ACTION
+                                : focusForTeam(lobby.ownMember().orElseThrow().team());
+                publish(connectedModel(snapshot, matchSnapshot, false, lobbyCommandStatus));
                 transferred
                         .termination()
                         .whenComplete(
@@ -553,6 +585,7 @@ public final class DirectConnectUiController implements AutoCloseable {
         connectedSession = null;
         pendingLobbyCommand = null;
         connectedRevision.set(-1L);
+        connectedMatchRevision.set(-1L);
         focus = DirectConnectUiFocus.PRIMARY_ACTION;
         String detail =
                 terminationError != null
@@ -588,6 +621,7 @@ public final class DirectConnectUiController implements AutoCloseable {
         connectedSession = null;
         pendingLobbyCommand = null;
         connectedRevision.set(-1L);
+        connectedMatchRevision.set(-1L);
         focus = DirectConnectUiFocus.PRIMARY_ACTION;
         publish(disconnectedModel(messages.text("direct.status.disconnected")));
         if (session != null) {
@@ -662,15 +696,27 @@ public final class DirectConnectUiController implements AutoCloseable {
     }
 
     private DirectConnectScreenModel connectedModel(
-            LobbySnapshot snapshot, boolean commandInFlight, String commandStatus) {
+            LobbySnapshot snapshot,
+            LobbyMatchPhaseSnapshot matchSnapshot,
+            boolean commandInFlight,
+            String commandStatus) {
+        if (!snapshotsSynchronized(snapshot, matchSnapshot)) {
+            throw new IllegalArgumentException(
+                    "connected roster and match snapshot must be synchronized");
+        }
         ConnectedLobbySession session =
                 Objects.requireNonNull(connectedSession, "connected session");
         ConnectedLobbyModel lobby =
                 ConnectedLobbyModel.from(snapshot, Optional.of(session.playerId()));
+        ConnectedLobbyMatchModel match = connectedMatchModel(matchSnapshot);
+        if (!match.lobbyControlsAllowed() && isLobbyControlFocus(focus)) {
+            focus = DirectConnectUiFocus.PRIMARY_ACTION;
+        }
         boolean ready = lobby.ownMember().orElseThrow().ready();
         ConnectedLobbyScreenModel connected =
                 new ConnectedLobbyScreenModel(
                         lobby,
+                        match,
                         commandInFlight,
                         messages.text(
                                 ready
@@ -691,6 +737,65 @@ public final class DirectConnectUiController implements AutoCloseable {
                 true,
                 Optional.empty(),
                 Optional.of(connected));
+    }
+
+    private ConnectedLobbyMatchModel connectedMatchModel(LobbyMatchPhaseSnapshot snapshot) {
+        String status =
+                switch (snapshot.phase()) {
+                    case WAITING_FOR_PLAYERS -> messages.text("direct.lobby.phase.waiting");
+                    case START_COUNTDOWN ->
+                            messages.text(
+                                    "direct.lobby.phase.countdown", snapshot.ticksRemaining());
+                    case PREPARATION -> messages.text("direct.lobby.phase.preparation");
+                };
+        Optional<String> cancellation =
+                switch (snapshot.cancellationReason()) {
+                    case NONE -> Optional.empty();
+                    case INSUFFICIENT_PLAYERS ->
+                            Optional.of(
+                                    messages.text(
+                                            "direct.lobby.countdown_cancelled.insufficient_players"));
+                    case LOBBY_NOT_READY ->
+                            Optional.of(
+                                    messages.text(
+                                            "direct.lobby.countdown_cancelled.lobby_not_ready"));
+                };
+        return new ConnectedLobbyMatchModel(
+                snapshot.revision(),
+                snapshot.authoritativeTick(),
+                snapshot.phase(),
+                snapshot.ticksRemaining(),
+                status,
+                cancellation);
+    }
+
+    private boolean publishConnectedIfSynchronized(
+            ConnectedLobbySession session,
+            LobbySnapshot snapshot,
+            boolean commandInFlight,
+            String commandStatus) {
+        LobbyMatchPhaseSnapshot matchSnapshot = session.currentMatchSnapshot();
+        if (!snapshotsSynchronized(snapshot, matchSnapshot)) {
+            return false;
+        }
+        connectedRevision.set(snapshot.revision());
+        connectedMatchRevision.set(matchSnapshot.revision());
+        publish(connectedModel(snapshot, matchSnapshot, commandInFlight, commandStatus));
+        return true;
+    }
+
+    private static boolean snapshotsSynchronized(
+            LobbySnapshot roster, LobbyMatchPhaseSnapshot match) {
+        return match.rosterRevision() == roster.revision()
+                && match.connectedPlayers() == roster.members().size();
+    }
+
+    private static boolean isLobbyControlFocus(DirectConnectUiFocus candidate) {
+        return candidate == DirectConnectUiFocus.TEAM_RED
+                || candidate == DirectConnectUiFocus.TEAM_BLUE
+                || candidate == DirectConnectUiFocus.TEAM_GREEN
+                || candidate == DirectConnectUiFocus.TEAM_YELLOW
+                || candidate == DirectConnectUiFocus.READY_ACTION;
     }
 
     private DirectConnectScreenModel securityAlertModel(String detail) {
@@ -772,8 +877,8 @@ public final class DirectConnectUiController implements AutoCloseable {
         return "direct.status." + phase.name().toLowerCase(Locale.ROOT);
     }
 
-    private static List<DirectConnectUiFocus> allowedFocuses(DirectConnectUiPhase phase) {
-        return switch (phase) {
+    private static List<DirectConnectUiFocus> allowedFocuses(DirectConnectScreenModel model) {
+        return switch (model.phase()) {
             case FORM ->
                     List.of(
                             DirectConnectUiFocus.ENDPOINT,
@@ -787,15 +892,22 @@ public final class DirectConnectUiController implements AutoCloseable {
                     WAITING_ADMISSION,
                     JOINING_LOBBY ->
                     List.of(DirectConnectUiFocus.SECONDARY_ACTION);
-            case CONNECTED ->
-                    List.of(
-                            DirectConnectUiFocus.TEAM_RED,
-                            DirectConnectUiFocus.TEAM_BLUE,
-                            DirectConnectUiFocus.TEAM_GREEN,
-                            DirectConnectUiFocus.TEAM_YELLOW,
-                            DirectConnectUiFocus.READY_ACTION,
+            case CONNECTED -> {
+                ConnectedLobbyScreenModel connected = model.connectedLobby().orElseThrow();
+                if (!connected.match().lobbyControlsAllowed()) {
+                    yield List.of(
                             DirectConnectUiFocus.PRIMARY_ACTION,
                             DirectConnectUiFocus.SECONDARY_ACTION);
+                }
+                yield List.of(
+                        DirectConnectUiFocus.TEAM_RED,
+                        DirectConnectUiFocus.TEAM_BLUE,
+                        DirectConnectUiFocus.TEAM_GREEN,
+                        DirectConnectUiFocus.TEAM_YELLOW,
+                        DirectConnectUiFocus.READY_ACTION,
+                        DirectConnectUiFocus.PRIMARY_ACTION,
+                        DirectConnectUiFocus.SECONDARY_ACTION);
+            }
             case CONFIRMING_IDENTITY, SECURITY_ALERT, ADMISSION_REJECTED, FAILED, DISCONNECTED ->
                     List.of(
                             DirectConnectUiFocus.PRIMARY_ACTION,

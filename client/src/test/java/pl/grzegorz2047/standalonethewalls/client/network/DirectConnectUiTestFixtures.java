@@ -26,6 +26,7 @@ import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandResult;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCountdownCancellationReason;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhase;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhaseSnapshot;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMember;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
@@ -167,6 +168,16 @@ public final class DirectConnectUiTestFixtures {
                             SESSION_ID,
                             sequence,
                             LobbyProtocolCodec.encodeSnapshot(snapshot)));
+        }
+
+        public void deliverMatchSnapshot(LobbyMatchPhaseSnapshot snapshot, long sequence) {
+            channel.deliver(
+                    new ProtocolEnvelope(
+                            ProtocolVersion.CURRENT,
+                            MessageType.LOBBY_MATCH_SNAPSHOT,
+                            SESSION_ID,
+                            sequence,
+                            LobbyMatchProtocolCodec.encodeSnapshot(snapshot)));
         }
 
         public void deliverEof() {

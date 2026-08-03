@@ -43,7 +43,9 @@ class DirectConnectScreenModelTest {
         DirectConnectScreenModel connected =
                 model(DirectConnectUiPhase.CONNECTED, Optional.empty(), Optional.of(lobby));
 
-        assertEquals(LobbyMatchPhase.PREPARATION, connected.connectedLobby().orElseThrow().match().phase());
+        assertEquals(
+                LobbyMatchPhase.PREPARATION,
+                connected.connectedLobby().orElseThrow().match().phase());
         assertFalse(connected.connectedLobby().orElseThrow().controlsEnabled());
         assertTrue(connected.connectedLobby().orElseThrow().lobby().ownMember().isPresent());
     }
