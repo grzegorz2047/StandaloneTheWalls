@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -77,7 +78,8 @@ class VerifiedPreparationMapAdapterTest {
     }
 
     @Test
-    void rejectsHashVerifiedButStructurallyInvalidSceneAndCollision() throws Exception {
+    void rejectsHashVerifiedButStructurallyInvalidSceneAndCollision()
+            throws IOException, TwMapBundleException {
         byte[] invalidScene = replaceMember("scene.glb", new byte[] {1, 2, 3, 4});
         assertCode(
                 TwMapBundleLoader.load(invalidScene, POLICY),
@@ -90,7 +92,8 @@ class VerifiedPreparationMapAdapterTest {
     }
 
     @Test
-    void rejectsHashVerifiedGameplayThatCannotCoverManifestCapacity() throws Exception {
+    void rejectsHashVerifiedGameplayThatCannotCoverManifestCapacity()
+            throws IOException, TwMapBundleException {
         byte[] sparseGameplay = sparseGameplay().getBytes(StandardCharsets.UTF_8);
         VerifiedMapBundle bundle =
                 TwMapBundleLoader.load(replaceMember("gameplay.json", sparseGameplay), POLICY);
@@ -124,6 +127,7 @@ class VerifiedPreparationMapAdapterTest {
                                 true));
             }
         }
+        participants.sort(Comparator.comparing(LobbyParticipantState::participantId));
         return new LobbyRosterState(11L, participants);
     }
 
