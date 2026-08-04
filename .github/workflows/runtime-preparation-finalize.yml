@@ -1,0 +1,62 @@
+name: Runtime Preparation Finalize
+
+on:
+  push:
+    branches:
+      - agent/issue-129-runtime-preparation-transition
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/issue-129-runtime-preparation-transition
+          fetch-depth: 0
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+
+      - name: Generate and format final sources
+        run: |
+          python tools/runtime_preparation_export.py
+          ./gradlew --no-daemon spotlessApply
+
+      - name: Restore normal CI and remove one-shot helpers
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+          git show origin/main:.github/workflows/ci.yml > .github/workflows/ci.yml
+          rm -f \
+            .github/workflows/runtime-preparation-export-pr.yml \
+            .github/workflows/runtime-preparation-export.yml \
+            .github/workflows/runtime-preparation-finalize.yml \
+            tools/runtime_preparation_export.py
+
+      - name: Commit clean implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "OpenAI Codex"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          test -n "$(git diff --cached --name-only)"
+          git commit -m "Publish preparation transition from lobby runtime"
+          git push origin HEAD:agent/issue-129-runtime-preparation-transition
