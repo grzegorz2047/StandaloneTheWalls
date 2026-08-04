@@ -29,13 +29,15 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
-          import textwrap
 
           workflow = Path(".github/workflows/runtime-preparation-export.yml").read_text(encoding="utf-8")
           marker = "      - name: Apply deterministic runtime patch\n        shell: python\n        run: |\n"
           start = workflow.index(marker) + len(marker)
           end = workflow.index("      - name: Apply repository formatter\n", start)
-          script = textwrap.dedent(workflow[start:end])
+          script = "".join(
+              line[10:] if line.startswith("          ") else line
+              for line in workflow[start:end].splitlines(keepends=True)
+          )
           exec(compile(script, "runtime-preparation-export", "exec"), {"__name__": "__main__"})
       - name: Apply repository formatter
         run: ./gradlew --no-daemon spotlessApply
