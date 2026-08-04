@@ -127,6 +127,7 @@ jobs:
           WINDOWS_ARCHIVE="$RUNNER_TEMP/sunderfront-windows-release/sunderfront-client-windows-x64-${VERSION}.zip"
           python3 release/assemble_cross_platform_release.py build/release "$WINDOWS_ARCHIVE" "$VERSION"
           python3 release/verify_artifacts.py build/release "$VERSION" --require-windows
+          python3 release/verify_m2_documentation.py build/release "$VERSION" --require-windows
           (
             cd build/release
             sha256sum --check SHA256SUMS

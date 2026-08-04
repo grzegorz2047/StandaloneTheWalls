@@ -1,9 +1,12 @@
-# Sunderfront dedicated server 0.1.0-alpha.4
+# Sunderfront dedicated server 0.1.0-alpha.5 — Interactive Lobby Alpha
 
-This alpha dedicated server remains a portable JVM distribution. It requires a
-separately installed 64-bit Java 21 runtime. No private key, certificate,
-identity database, trust store, or registry cache is included in this archive.
-The Java-free `Sunderfront.exe` package applies only to the Windows client.
+This M2 dedicated server provides secure Direct Connect, an authoritative
+four-team lobby, ready-state countdown, and the transition into a minimal 3D
+`PREPARATION` scene with team-owned spawns. It remains a portable JVM
+distribution and requires a separately installed 64-bit Java 21 runtime. No
+private key, certificate, identity database, trust store, registry cache, or
+runtime player data is included in the archive. The Java-free `Sunderfront.exe`
+package applies only to the Windows client.
 
 ## Windows first run
 
@@ -28,16 +31,36 @@ Both launchers check for a 64-bit Java 21 runtime when Java execution is needed
 and keep the console open after an error. The second launcher refuses to start
 without the required credentials and always supplies the server, identity, and
 TLS configuration files. This is the normal Windows path that opens the reliable
-TLS listener and minimal lobby.
+TLS listener and authoritative lobby.
 
 `README-PL.txt` contains the Polish operator guide and the recovery procedure for
 a partial credential directory.
 
+## M2 authoritative lobby test
+
+The standard lobby accepts up to 40 players, up to 10 per team, and requires a
+minimum of two ready players in at least two represented teams before starting.
+
+1. Start the server and give players only the public value from
+   `credentials/server-fingerprint.txt`.
+2. Connect two clients using different identities and assign them to different
+   teams.
+3. Set both clients ready. The server must publish one fixed-tick countdown and
+   both clients must display the same value.
+4. Before zero, make one player not ready or change team. The server must cancel
+   the countdown for every client. Restoring a complete ready lobby starts a new
+   full countdown.
+5. At zero, the server must enter `PREPARATION` exactly once, reject further team
+   and ready mutations, load the verified minimal map, and provide the correct
+   authoritative spawn for every admitted player.
+6. Client movement in the preparation scene is currently local presentation. The
+   server does not yet publish realtime world movement snapshots.
+
 ## Upgrade from an older alpha
 
-Extract `sunderfront-server-0.1.0-alpha.4.zip` into a new empty directory. Back up
+Extract `sunderfront-server-0.1.0-alpha.5.zip` into a new empty directory. Back up
 both `credentials/` and `data/`. When the old credential directory contains all
-four non-empty files, copy the entire directory as one set into the alpha.4
+four non-empty files, copy the entire directory as one set into the alpha.5
 package. Do not combine individual files from different generator runs. Running
 the root credential launcher over a complete set is idempotent and does not
 change its hashes.
@@ -99,7 +122,7 @@ bin/sunderfront-server \
 
 Starting only `bin/sunderfront-server` or its `.bat` without these arguments is a
 network-disabled technical mode. It logs that local identity, reliable TLS, and
-minimal lobby are disabled and cannot accept the Direct Connect client.
+the lobby are disabled and cannot accept the Direct Connect client.
 
 The reliable TLS listener uses TCP port `27420` by default. Open or forward that
 port only when remote players should connect. LAN players can use the server's
@@ -129,8 +152,10 @@ Never publish the private key, SQLite database, or runtime data directory.
 
 ## Known limitations
 
-This alpha proves secure Direct Connect and minimal lobby membership. It has no
-gameplay, realtime world transport, reconnect, public server browser, remote
-administration, final maps/assets, automatic certificate rotation, bundled server
-runtime, server executable, or signed installer. The self-signed certificate is
+The server stops the implemented match lifecycle in minimal `PREPARATION`. It has
+no resource gathering, building, crafting, classes, inventory, wall opening,
+combat, deathmatch, results, next-round reset, authoritative realtime movement,
+reconnect, public server browser, relay, NAT traversal, remote administration,
+production art/audio, automatic certificate rotation, bundled server runtime,
+server executable, or signed installer. The self-signed certificate is
 authenticated by explicit fingerprint pinning, not public PKI.
