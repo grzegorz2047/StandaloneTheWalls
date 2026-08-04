@@ -1,6 +1,7 @@
 import java.security.MessageDigest
 import java.util.Base64
 import java.util.HexFormat
+import java.util.zip.CRC32
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
@@ -44,11 +45,33 @@ abstract class AssembleUiFontAtlasTask : DefaultTask() {
             }
         val encoded = cleanedChunks.joinToString(separator = "")
         check(encoded.length == expectedEncodedLength.get()) {
+            val insertionOffset = cleanedChunks.dropLast(1).sumOf(String::length)
+            val candidates =
+                "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+                    .mapNotNull { character ->
+                        val candidate =
+                            encoded.substring(0, insertionOffset) +
+                                character +
+                                encoded.substring(insertionOffset)
+                        val bytes =
+                            runCatching { Base64.getDecoder().decode(candidate) }.getOrNull()
+                                ?: return@mapNotNull null
+                        if (!isValidPng(bytes)) {
+                            return@mapNotNull null
+                        }
+                        val digest =
+                            HexFormat.of()
+                                .formatHex(
+                                    MessageDigest.getInstance("SHA-256").digest(bytes)
+                                )
+                        "$character:${bytes.size}:$digest"
+                    }
             "Unexpected UI font atlas Base64 length: ${encoded.length}; chunks=" +
                 chunks.files
                     .sortedBy { it.name }
                     .zip(cleanedChunks)
-                    .joinToString { (file, value) -> "${file.name}:${value.length}" }
+                    .joinToString { (file, value) -> "${file.name}:${value.length}" } +
+                "; recoveryCandidates=$candidates"
         }
         val atlas = Base64.getDecoder().decode(encoded)
         check(atlas.size == expectedDecodedSize.get()) {
@@ -63,6 +86,44 @@ abstract class AssembleUiFontAtlasTask : DefaultTask() {
         destination.parentFile.mkdirs()
         destination.writeBytes(atlas)
     }
+
+    private fun isValidPng(bytes: ByteArray): Boolean {
+        val signature = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
+        if (bytes.size < signature.size || !bytes.copyOfRange(0, 8).contentEquals(signature)) {
+            return false
+        }
+        var offset = signature.size
+        while (offset + 12 <= bytes.size) {
+            val length = readUnsignedInt(bytes, offset)
+            if (length > Int.MAX_VALUE) {
+                return false
+            }
+            val dataLength = length.toInt()
+            val typeOffset = offset + 4
+            val dataOffset = typeOffset + 4
+            val crcOffset = dataOffset + dataLength
+            if (crcOffset + 4 > bytes.size) {
+                return false
+            }
+            val crc = CRC32()
+            crc.update(bytes, typeOffset, 4 + dataLength)
+            if (crc.value != readUnsignedInt(bytes, crcOffset)) {
+                return false
+            }
+            val type = String(bytes, typeOffset, 4, Charsets.US_ASCII)
+            offset = crcOffset + 4
+            if (type == "IEND") {
+                return dataLength == 0 && offset == bytes.size
+            }
+        }
+        return false
+    }
+
+    private fun readUnsignedInt(bytes: ByteArray, offset: Int): Long =
+        ((bytes[offset].toLong() and 0xFF) shl 24) or
+            ((bytes[offset + 1].toLong() and 0xFF) shl 16) or
+            ((bytes[offset + 2].toLong() and 0xFF) shl 8) or
+            (bytes[offset + 3].toLong() and 0xFF)
 }
 
 abstract class VerifyUiFontProvenanceTask : DefaultTask() {
