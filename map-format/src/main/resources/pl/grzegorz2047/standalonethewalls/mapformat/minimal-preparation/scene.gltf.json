@@ -1,0 +1,424 @@
+{
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 24,
+      "max": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "min": [
+        -0.5,
+        -0.5,
+        -0.5
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5123,
+      "count": 36,
+      "type": "SCALAR"
+    }
+  ],
+  "asset": {
+    "generator": "Sunderfront Minimal Preparation Generator 1",
+    "version": "2.0"
+  },
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 288,
+      "byteOffset": 0,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 288,
+      "byteOffset": 288,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 72,
+      "byteOffset": 576,
+      "target": 34963
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 648
+    }
+  ],
+  "extensions": {
+    "KHR_lights_punctual": {
+      "lights": [
+        {
+          "color": [
+            1.0,
+            0.96,
+            0.9
+          ],
+          "intensity": 3.0,
+          "name": "PreparationSun",
+          "type": "directional"
+        }
+      ]
+    }
+  },
+  "extensionsUsed": [
+    "KHR_lights_punctual"
+  ],
+  "materials": [
+    {
+      "name": "Ground",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.28,
+          0.31,
+          0.34,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      }
+    },
+    {
+      "name": "Green",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.18,
+          0.52,
+          0.22,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      }
+    },
+    {
+      "name": "Blue",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.18,
+          0.34,
+          0.68,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      }
+    },
+    {
+      "name": "Red",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.68,
+          0.2,
+          0.2,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      }
+    },
+    {
+      "name": "Yellow",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.72,
+          0.58,
+          0.12,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      }
+    },
+    {
+      "name": "Walls",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.5,
+          0.54,
+          0.58,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 1,
+            "POSITION": 0
+          },
+          "indices": 2,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 1,
+            "POSITION": 0
+          },
+          "indices": 2,
+          "material": 1
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 1,
+            "POSITION": 0
+          },
+          "indices": 2,
+          "material": 2
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 1,
+            "POSITION": 0
+          },
+          "indices": 2,
+          "material": 3
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 1,
+            "POSITION": 0
+          },
+          "indices": 2,
+          "material": 4
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "NORMAL": 1,
+            "POSITION": 0
+          },
+          "indices": 2,
+          "material": 5
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "Ground",
+      "scale": [
+        40.0,
+        0.2,
+        40.0
+      ],
+      "translation": [
+        0.0,
+        -0.1,
+        0.0
+      ]
+    },
+    {
+      "mesh": 1,
+      "name": "GreenRegion",
+      "scale": [
+        17.0,
+        0.1,
+        17.0
+      ],
+      "translation": [
+        -9.5,
+        0.05,
+        -9.5
+      ]
+    },
+    {
+      "mesh": 2,
+      "name": "BlueRegion",
+      "scale": [
+        17.0,
+        0.1,
+        17.0
+      ],
+      "translation": [
+        9.5,
+        0.05,
+        -9.5
+      ]
+    },
+    {
+      "mesh": 3,
+      "name": "RedRegion",
+      "scale": [
+        17.0,
+        0.1,
+        17.0
+      ],
+      "translation": [
+        -9.5,
+        0.05,
+        9.5
+      ]
+    },
+    {
+      "mesh": 4,
+      "name": "YellowRegion",
+      "scale": [
+        17.0,
+        0.1,
+        17.0
+      ],
+      "translation": [
+        9.5,
+        0.05,
+        9.5
+      ]
+    },
+    {
+      "mesh": 5,
+      "name": "NorthWall",
+      "scale": [
+        40.0,
+        5.0,
+        1.0
+      ],
+      "translation": [
+        0.0,
+        2.5,
+        -20.0
+      ]
+    },
+    {
+      "mesh": 5,
+      "name": "SouthWall",
+      "scale": [
+        40.0,
+        5.0,
+        1.0
+      ],
+      "translation": [
+        0.0,
+        2.5,
+        20.0
+      ]
+    },
+    {
+      "mesh": 5,
+      "name": "WestWall",
+      "scale": [
+        1.0,
+        5.0,
+        40.0
+      ],
+      "translation": [
+        -20.0,
+        2.5,
+        0.0
+      ]
+    },
+    {
+      "mesh": 5,
+      "name": "EastWall",
+      "scale": [
+        1.0,
+        5.0,
+        40.0
+      ],
+      "translation": [
+        20.0,
+        2.5,
+        0.0
+      ]
+    },
+    {
+      "mesh": 5,
+      "name": "CentralWallX",
+      "scale": [
+        40.0,
+        5.0,
+        1.0
+      ],
+      "translation": [
+        0.0,
+        2.5,
+        0.0
+      ]
+    },
+    {
+      "mesh": 5,
+      "name": "CentralWallZ",
+      "scale": [
+        1.0,
+        5.0,
+        40.0
+      ],
+      "translation": [
+        0.0,
+        2.5,
+        0.0
+      ]
+    },
+    {
+      "extensions": {
+        "KHR_lights_punctual": {
+          "light": 0
+        }
+      },
+      "name": "PreparationSun",
+      "rotation": [
+        -0.2705981,
+        0.6532815,
+        0.2705981,
+        0.6532815
+      ]
+    }
+  ],
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "MinimalPreparation",
+      "nodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ]
+    }
+  ]
+}
