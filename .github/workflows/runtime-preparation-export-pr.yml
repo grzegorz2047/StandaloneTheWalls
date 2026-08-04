@@ -38,22 +38,26 @@ jobs:
               line[10:] if line.startswith("          ") else line
               for line in workflow[start:end].splitlines(keepends=True)
           )
-          original = '''def replace_once(text, old, new, label):
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f"{label}: expected one match, found {count}")
-              return text.replace(old, new, 1)
-'''
-          robust = '''def replace_once(text, old, new, label):
-              if label == "ordered preparation publication":
-                  method_start = text.index("    private void stabilizeMatchSnapshots(")
-                  method_end = text.index("    private void removeFailedMembers(", method_start)
-                  return text[:method_start] + new + "\\n" + text[method_end:]
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f"{label}: expected one match, found {count}")
-              return text.replace(old, new, 1)
-'''
+          original = "\n".join([
+              "def replace_once(text, old, new, label):",
+              "    count = text.count(old)",
+              "    if count != 1:",
+              "        raise SystemExit(f\"{label}: expected one match, found {count}\")",
+              "    return text.replace(old, new, 1)",
+              "",
+          ])
+          robust = "\n".join([
+              "def replace_once(text, old, new, label):",
+              "    if label == \"ordered preparation publication\":",
+              "        method_start = text.index(\"    private void stabilizeMatchSnapshots(\")",
+              "        method_end = text.index(\"    private void removeFailedMembers(\", method_start)",
+              "        return text[:method_start] + new + \"\\n\" + text[method_end:]",
+              "    count = text.count(old)",
+              "    if count != 1:",
+              "        raise SystemExit(f\"{label}: expected one match, found {count}\")",
+              "    return text.replace(old, new, 1)",
+              "",
+          ])
           if script.count(original) != 1:
               raise SystemExit("replace_once helper shape changed")
           script = script.replace(original, robust, 1)
