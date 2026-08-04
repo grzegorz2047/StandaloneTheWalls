@@ -3,7 +3,6 @@ package pl.grzegorz2047.standalonethewalls.mapformat;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import tools.jackson.core.JsonParser;
 import tools.jackson.core.JsonToken;
 import tools.jackson.core.ObjectReadContext;
@@ -31,8 +30,7 @@ public final class PreparationGameplayJson {
         throw new AssertionError("No instances");
     }
 
-    public static PreparationGameplay decode(byte[] encoded)
-            throws PreparationGameplayException {
+    public static PreparationGameplay decode(byte[] encoded) throws PreparationGameplayException {
         if (encoded == null || encoded.length == 0 || encoded.length > MAXIMUM_BYTES) {
             throw failure(
                     PreparationGameplayException.Code.INVALID_SIZE,
