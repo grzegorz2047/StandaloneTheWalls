@@ -62,7 +62,7 @@ class PreparationGameplayJsonTest {
                 validText().replaceFirst("\"GREEN\"", "\"green\""),
                 PreparationGameplayException.Code.INVALID_TEAM);
         assertCode(
-                validText().replaceFirst("\[-20,-1,-20\]", "[-20,-1]"),
+                validText().replace("[-20,-1,-20]", "[-20,-1]"),
                 PreparationGameplayException.Code.INVALID_VALUE);
     }
 
