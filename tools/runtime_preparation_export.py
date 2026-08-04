@@ -29,6 +29,15 @@ robust = """def replace_once(text, old, new, label):
         enum_start = text.index("    private enum State {", method_start)
         enum_end = enum_start + len("    private enum State {\\n")
         return text[:method_start] + new + text[enum_end:]
+    if label == "assignment assertions":
+        assertion_start = text.index(
+            "            assertThat(matchSnapshotCount(alpha, LobbyMatchPhase.PREPARATION))"
+        )
+        declaration_start = text.index(
+            "            int rosterSnapshotsBeforeLockedCommand", assertion_start
+        )
+        declaration_end = text.index("\\n", declaration_start) + 1
+        return text[:assertion_start] + new + text[declaration_end:]
     count = text.count(old)
     if count != 1:
         raise SystemExit(f"{label}: expected one match, found {count}")
