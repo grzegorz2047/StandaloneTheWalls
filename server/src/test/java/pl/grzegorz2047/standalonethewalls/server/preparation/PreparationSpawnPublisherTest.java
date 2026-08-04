@@ -145,20 +145,14 @@ class PreparationSpawnPublisherTest {
         assertThat(blocked.sent()).hasSize(1);
     }
 
-    private static void assertAssignment(
-            TestChannel channel, PreparationSpawnAssignment expected)
+    private static void assertAssignment(TestChannel channel, PreparationSpawnAssignment expected)
             throws PreparationProtocolException {
-        assertThat(channel.sent()).singleElement().satisfies(
-                sent -> {
-                    assertThat(sent.messageType())
-                            .isEqualTo(MessageType.PREPARATION_SPAWN_ASSIGNMENT);
-                    try {
-                        assertThat(PreparationSpawnProtocolCodec.decodeAssignment(sent.payload()))
-                                .isEqualTo(expected);
-                    } catch (PreparationProtocolException exception) {
-                        throw new AssertionError(exception);
-                    }
-                });
+        List<SentMessage> sentMessages = channel.sent();
+        assertThat(sentMessages).hasSize(1);
+        SentMessage sent = sentMessages.getFirst();
+        assertThat(sent.messageType()).isEqualTo(MessageType.PREPARATION_SPAWN_ASSIGNMENT);
+        assertThat(PreparationSpawnProtocolCodec.decodeAssignment(sent.payload()))
+                .isEqualTo(expected);
     }
 
     private static PreparationClientSpawn delivery(
