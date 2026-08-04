@@ -189,7 +189,7 @@ application {
 val uiFontSourceSha256 =
     "694d12d0f3fb2be696dbbde93eee3ccbdee766751d836eb1fbe8aab2d439d38a"
 val uiFontAtlasSha256 =
-    "8f7a0cdc32475bd7843a5cd00cf10c1d009823e209f5994709a54cb6cb0e3a65"
+    "44721d69ff470c19e9ae10809a3242434fb903644c7d0aa9375223fbd970b385"
 val uiFontMetadataSha256 =
     "d948290489c23fac65273f7e431d9bd2d345647a715000daa262479a2b807c94"
 val uiFontChunkPaths =
@@ -211,8 +211,8 @@ val assembleUiFontAtlas = tasks.register<AssembleUiFontAtlasTask>("assembleUiFon
             it.file("Interface/Fonts/SunderfrontUI-Regular.png")
         }
     )
-    expectedEncodedLength.set(40_455)
-    expectedDecodedSize.set(30_341)
+    expectedEncodedLength.set(40_476)
+    expectedDecodedSize.set(30_357)
     expectedSha256.set(uiFontAtlasSha256)
 }
 
