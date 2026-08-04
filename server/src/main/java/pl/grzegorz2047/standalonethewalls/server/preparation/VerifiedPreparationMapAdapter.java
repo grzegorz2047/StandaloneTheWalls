@@ -61,8 +61,7 @@ public final class VerifiedPreparationMapAdapter {
                     exception);
         }
         try {
-            Glb2ContainerDecoder.decode(
-                    bundle.member("collision.glb"), bundle.manifest().limits());
+            Glb2ContainerDecoder.decode(bundle.member("collision.glb"), bundle.manifest().limits());
         } catch (Glb2Exception exception) {
             throw new VerifiedPreparationMapException(
                     VerifiedPreparationMapException.Code.INVALID_COLLISION,
