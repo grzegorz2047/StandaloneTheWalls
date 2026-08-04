@@ -148,8 +148,7 @@ class ConnectedPreparationSpawnAssignmentTest {
                         -14.0d,
                         45.0d);
         prepared.lobby().deliverPreparationSpawnAssignment(assignment, 4L);
-        assertFailure(
-                prepared.session(), DirectConnectFailureCode.PREPARATION_MAP_SHA256_MISMATCH);
+        assertFailure(prepared.session(), DirectConnectFailureCode.PREPARATION_MAP_SHA256_MISMATCH);
     }
 
     @Test
