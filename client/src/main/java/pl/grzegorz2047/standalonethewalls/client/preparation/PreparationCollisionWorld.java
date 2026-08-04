@@ -1,6 +1,7 @@
 package pl.grzegorz2047.standalonethewalls.client.preparation;
 
 import com.jme3.asset.AssetManager;
+import com.jme3.bounding.BoundingSphere;
 import com.jme3.collision.CollisionResult;
 import com.jme3.collision.CollisionResults;
 import com.jme3.math.Ray;
@@ -10,12 +11,15 @@ import com.jme3.scene.Spatial;
 import java.util.Objects;
 import pl.grzegorz2047.standalonethewalls.mapformat.MapVector3;
 
-/** Point-motion collision queries backed by the verified, invisible collision GLB. */
+/** Bounded player-body collision queries backed by the verified invisible collision GLB. */
 public final class PreparationCollisionWorld {
+    public static final float PLAYER_BODY_RADIUS_METRES = 0.35f;
+
     private static final String GROUND = "GroundCollision";
     private static final String CENTRAL_WALL_X = "CentralWallXCollision";
     private static final String CENTRAL_WALL_Z = "CentralWallZCollision";
     private static final float MAXIMUM_SUPPORT_DISTANCE = 0.75f;
+    private static final float MAXIMUM_BODY_SAMPLE_SPACING_METRES = 0.05f;
     private static final float COLLISION_EPSILON = 0.0001f;
 
     private final Node graph;
@@ -58,23 +62,54 @@ public final class PreparationCollisionWorld {
 
         Vector3f start = toVector(origin);
         Vector3f end = toVector(destination);
+        if (!hasBodyClearance(start) || !hasBodyClearance(end)) {
+            return false;
+        }
+
         Vector3f movement = end.subtract(start);
         float distance = movement.length();
         if (distance <= COLLISION_EPSILON) {
             return hasGroundSupport(destination);
         }
 
-        Ray ray = new Ray(start, movement.normalize());
+        if (rayMeetsObstacle(start, movement.normalize(), distance)) {
+            return false;
+        }
+
+        int samples = Math.max(1, (int) Math.ceil(distance / MAXIMUM_BODY_SAMPLE_SPACING_METRES));
+        for (int index = 1; index < samples; index++) {
+            float fraction = (float) index / samples;
+            Vector3f sample = start.add(movement.mult(fraction));
+            if (!hasBodyClearance(sample)) {
+                return false;
+            }
+        }
+        return hasGroundSupport(destination);
+    }
+
+    private boolean hasBodyClearance(Vector3f center) {
+        CollisionResults results = new CollisionResults();
+        graph.collideWith(new BoundingSphere(PLAYER_BODY_RADIUS_METRES, center), results);
+        for (CollisionResult result : results) {
+            if (!belongsTo(result.getGeometry(), GROUND)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean rayMeetsObstacle(Vector3f start, Vector3f direction, float distance) {
+        Ray ray = new Ray(start, direction);
         ray.setLimit(distance);
         CollisionResults results = new CollisionResults();
         graph.collideWith(ray, results);
         for (CollisionResult result : results) {
             if (!belongsTo(result.getGeometry(), GROUND)
                     && result.getDistance() <= distance + COLLISION_EPSILON) {
-                return false;
+                return true;
             }
         }
-        return hasGroundSupport(destination);
+        return false;
     }
 
     private void requireNode(String name) throws PreparationSceneGraphException {
