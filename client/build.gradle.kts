@@ -1,6 +1,17 @@
 import java.security.MessageDigest
 import java.util.Base64
 import java.util.HexFormat
+import org.gradle.api.DefaultTask
+import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.OutputFile
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
+import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.application.CreateStartScripts
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.bundling.Tar
@@ -9,6 +20,112 @@ import org.gradle.language.jvm.tasks.ProcessResources
 
 plugins {
     application
+}
+
+abstract class AssembleUiFontAtlasTask : DefaultTask() {
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val chunks: ConfigurableFileCollection
+
+    @get:OutputFile abstract val outputFile: RegularFileProperty
+
+    @get:Input abstract val expectedEncodedLength: Property<Int>
+
+    @get:Input abstract val expectedDecodedSize: Property<Int>
+
+    @get:Input abstract val expectedSha256: Property<String>
+
+    @TaskAction
+    fun assemble() {
+        val cleanedChunks =
+            chunks.files.sortedBy { it.name }.map { file ->
+                check(file.isFile) { "Missing UI font atlas chunk: ${file.name}" }
+                file.readText(Charsets.US_ASCII).filterNot(Char::isWhitespace)
+            }
+        val encoded = cleanedChunks.joinToString(separator = "")
+        check(encoded.length == expectedEncodedLength.get()) {
+            "Unexpected UI font atlas Base64 length: ${encoded.length}; chunks=" +
+                chunks.files
+                    .sortedBy { it.name }
+                    .zip(cleanedChunks)
+                    .joinToString { (file, value) -> "${file.name}:${value.length}" }
+        }
+        val atlas = Base64.getDecoder().decode(encoded)
+        check(atlas.size == expectedDecodedSize.get()) {
+            "Unexpected UI font atlas size: ${atlas.size}"
+        }
+        val digest =
+            HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(atlas))
+        check(digest == expectedSha256.get()) {
+            "Unexpected UI font atlas SHA-256: $digest"
+        }
+        val destination = outputFile.get().asFile
+        destination.parentFile.mkdirs()
+        destination.writeBytes(atlas)
+    }
+}
+
+abstract class VerifyUiFontProvenanceTask : DefaultTask() {
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val defaultMetadata: RegularFileProperty
+
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val namedMetadata: RegularFileProperty
+
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val license: RegularFileProperty
+
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val manifest: RegularFileProperty
+
+    @get:Input abstract val expectedSourceSha256: Property<String>
+
+    @get:Input abstract val expectedAtlasSha256: Property<String>
+
+    @get:Input abstract val expectedMetadataSha256: Property<String>
+
+    @TaskAction
+    fun verify() {
+        fun sha256(bytes: ByteArray): String =
+            HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes))
+
+        val defaultBytes = defaultMetadata.get().asFile.readBytes()
+        val namedBytes = namedMetadata.get().asFile.readBytes()
+        check(defaultBytes.contentEquals(namedBytes)) {
+            "Default and named UI font metadata differ"
+        }
+        check(sha256(defaultBytes) == expectedMetadataSha256.get()) {
+            "Unexpected UI font metadata SHA-256"
+        }
+
+        val licenseText = license.get().asFile.readText(Charsets.UTF_8)
+        check(licenseText.contains("SIL OPEN FONT LICENSE Version 1.1")) {
+            "UI font OFL license text is missing"
+        }
+        check(licenseText.contains("Reserved Font Names \"Andika\" and \"SIL\"")) {
+            "UI font reserved-name notice is missing"
+        }
+
+        val manifestText = manifest.get().asFile.readText(Charsets.UTF_8)
+        for (
+            required in
+                listOf(
+                    "\"id\": \"sunderfront_ui_font\"",
+                    "\"license\": \"OFL-1.1\"",
+                    expectedSourceSha256.get(),
+                    expectedAtlasSha256.get(),
+                    expectedMetadataSha256.get(),
+                )
+        ) {
+            check(manifestText.contains(required)) {
+                "UI font asset manifest is missing: $required"
+            }
+        }
+    }
 }
 
 dependencies {
@@ -47,86 +164,38 @@ val uiFontChunkPaths =
         "Interface/Fonts/SunderfrontUI-Regular.png.b64.05",
     )
 val uiFontChunkFiles = uiFontChunkPaths.map { layout.projectDirectory.file("src/main/resources/$it") }
-val uiFontDefaultMetadata =
-    layout.projectDirectory.file("src/main/resources/Interface/Fonts/Default.fnt")
-val uiFontNamedMetadata =
-    layout.projectDirectory.file("src/main/resources/Interface/Fonts/SunderfrontUI-Regular.fnt")
-val uiFontLicense =
-    layout.projectDirectory.file("src/main/resources/Interface/Fonts/OFL-Andika.txt")
-val uiFontManifest = rootProject.layout.projectDirectory.file("assets/ASSET_MANIFEST.json")
 val generatedUiFontResources = layout.buildDirectory.dir("generated/ui-font-resources")
 
-val assembleUiFontAtlas = tasks.register("assembleUiFontAtlas") {
-    inputs.files(uiFontChunkFiles)
-    val outputFile =
+val assembleUiFontAtlas = tasks.register<AssembleUiFontAtlasTask>("assembleUiFontAtlas") {
+    chunks.from(uiFontChunkFiles)
+    outputFile.set(
         generatedUiFontResources.map {
             it.file("Interface/Fonts/SunderfrontUI-Regular.png")
         }
-    outputs.file(outputFile)
-
-    doLast {
-        val encoded =
-            uiFontChunkFiles.joinToString(separator = "") { chunk ->
-                val file = chunk.asFile
-                check(file.isFile) { "Missing UI font atlas chunk: ${file.name}" }
-                file.readText(Charsets.US_ASCII).filterNot(Char::isWhitespace)
-            }
-        val atlas = Base64.getDecoder().decode(encoded)
-        check(atlas.size == 30_355) {
-            "Unexpected UI font atlas size: ${atlas.size}"
-        }
-        val digest =
-            HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(atlas))
-        check(digest == uiFontAtlasSha256) {
-            "Unexpected UI font atlas SHA-256: $digest"
-        }
-        val destination = outputFile.get().asFile
-        destination.parentFile.mkdirs()
-        destination.writeBytes(atlas)
-    }
+    )
+    expectedEncodedLength.set(40_476)
+    expectedDecodedSize.set(30_355)
+    expectedSha256.set(uiFontAtlasSha256)
 }
 
-val verifyUiFontProvenance = tasks.register("verifyUiFontProvenance") {
-    inputs.files(uiFontDefaultMetadata, uiFontNamedMetadata, uiFontLicense, uiFontManifest)
-
-    doLast {
-        fun sha256(bytes: ByteArray): String =
-            HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes))
-
-        val defaultMetadata = uiFontDefaultMetadata.asFile.readBytes()
-        val namedMetadata = uiFontNamedMetadata.asFile.readBytes()
-        check(defaultMetadata.contentEquals(namedMetadata)) {
-            "Default and named UI font metadata differ"
-        }
-        check(sha256(defaultMetadata) == uiFontMetadataSha256) {
-            "Unexpected UI font metadata SHA-256"
-        }
-
-        val license = uiFontLicense.asFile.readText(Charsets.UTF_8)
-        check(license.contains("SIL OPEN FONT LICENSE Version 1.1")) {
-            "UI font OFL license text is missing"
-        }
-        check(license.contains("Reserved Font Names \"Andika\" and \"SIL\"")) {
-            "UI font reserved-name notice is missing"
-        }
-
-        val manifest = uiFontManifest.asFile.readText(Charsets.UTF_8)
-        for (
-            required in
-                listOf(
-                    "\"id\": \"sunderfront_ui_font\"",
-                    "\"license\": \"OFL-1.1\"",
-                    uiFontSourceSha256,
-                    uiFontAtlasSha256,
-                    uiFontMetadataSha256,
-                )
-        ) {
-            check(manifest.contains(required)) {
-                "UI font asset manifest is missing: $required"
-            }
-        }
+val verifyUiFontProvenance =
+    tasks.register<VerifyUiFontProvenanceTask>("verifyUiFontProvenance") {
+        defaultMetadata.set(
+            layout.projectDirectory.file("src/main/resources/Interface/Fonts/Default.fnt")
+        )
+        namedMetadata.set(
+            layout.projectDirectory.file(
+                "src/main/resources/Interface/Fonts/SunderfrontUI-Regular.fnt"
+            )
+        )
+        license.set(
+            layout.projectDirectory.file("src/main/resources/Interface/Fonts/OFL-Andika.txt")
+        )
+        manifest.set(rootProject.layout.projectDirectory.file("assets/ASSET_MANIFEST.json"))
+        expectedSourceSha256.set(uiFontSourceSha256)
+        expectedAtlasSha256.set(uiFontAtlasSha256)
+        expectedMetadataSha256.set(uiFontMetadataSha256)
     }
-}
 
 sourceSets {
     main {
