@@ -1,10 +1,10 @@
-package pl.grzegorz2047.standalonethewalls.protocol.preparation;
+package pl.grzegorz2047.standalethewalls.protocol.preparation;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
-import pl.grzegorz2047.standalonethewalls.protocol.MessageType;
-import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
+import pl.grzegorz2047.standalethewalls.protocol.MessageType;
+import pl.grzegorz2047.standalethewalls.protocol.lobby.LobbyTeam;
 
 /** Strict bounded big-endian codec for one authoritative preparation spawn assignment. */
 public final class PreparationSpawnProtocolCodec {
@@ -38,7 +38,8 @@ public final class PreparationSpawnProtocolCodec {
                         .putDouble(message.yawDegrees())
                         .array();
         if (payload.length > MessageType.PREPARATION_SPAWN_ASSIGNMENT.maximumPayloadBytes()) {
-            throw new IllegalArgumentException("preparation spawn assignment exceeds its envelope limit");
+            throw new IllegalArgumentException(
+                    "preparation spawn assignment exceeds its envelope limit");
         }
         return payload;
     }
