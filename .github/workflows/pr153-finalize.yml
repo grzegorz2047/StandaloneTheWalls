@@ -1,0 +1,58 @@
+name: PR153 Finalize Preparation Pitch
+
+on:
+  push:
+    branches:
+      - agent/issue-129-client-preparation-pitch
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/issue-129-client-preparation-pitch
+          fetch-depth: 0
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+
+      - name: Apply preparation pitch integration
+        run: python tools/pr153_apply.py
+
+      - name: Format and test preparation pitch
+        run: |
+          ./gradlew --no-daemon spotlessApply
+          ./gradlew --no-daemon :client:test \
+            --tests "pl.grzegorz2047.standalonethewalls.client.preparation.PreparationPlayerStateTest" \
+            --tests "pl.grzegorz2047.standalonethewalls.client.preparation.PreparationMovementControllerTest" \
+            --tests "pl.grzegorz2047.standalonethewalls.client.preparation.PreparationCameraPlacementTest" \
+            --tests "pl.grzegorz2047.standalonethewalls.client.SunderfrontPreparationTransitionTest"
+
+      - name: Commit clean implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/pr153-finalize.yml tools/pr153_apply.py
+          git config user.name "OpenAI Codex"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          test -n "$(git diff --cached --name-only)"
+          git commit -m "Add bounded preparation camera pitch"
+          git push origin HEAD:agent/issue-129-client-preparation-pitch
