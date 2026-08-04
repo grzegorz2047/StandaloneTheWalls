@@ -4,14 +4,21 @@ import java.util.Objects;
 import pl.grzegorz2047.standalonethewalls.mapformat.MapVector3;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationRegion;
 
-/** Immutable local preparation player state constrained to one verified team region. */
+/** Immutable local preparation player and view state constrained to one verified team region. */
 public final class PreparationPlayerState {
+    public static final double MINIMUM_PITCH_DEGREES = -85.0d;
+    public static final double MAXIMUM_PITCH_DEGREES = 85.0d;
+
     private final VerifiedPreparationScene scene;
     private final MapVector3 position;
     private final double yawDegrees;
+    private final double pitchDegrees;
 
     private PreparationPlayerState(
-            VerifiedPreparationScene scene, MapVector3 position, double yawDegrees) {
+            VerifiedPreparationScene scene,
+            MapVector3 position,
+            double yawDegrees,
+            double pitchDegrees) {
         this.scene = Objects.requireNonNull(scene, "scene");
         this.position = Objects.requireNonNull(position, "position");
         if (!scene.region().contains(position)) {
@@ -19,6 +26,7 @@ public final class PreparationPlayerState {
                     "preparation player position must remain inside the verified region");
         }
         this.yawDegrees = requireNormalizedYaw(yawDegrees);
+        this.pitchDegrees = requirePitch(pitchDegrees);
     }
 
     public static PreparationPlayerState atAuthoritativeSpawn(VerifiedPreparationScene scene) {
@@ -26,7 +34,8 @@ public final class PreparationPlayerState {
         return new PreparationPlayerState(
                 verifiedScene,
                 verifiedScene.spawn().position(),
-                normalizeYaw(verifiedScene.spawn().yawDegrees()));
+                normalizeYaw(verifiedScene.spawn().yawDegrees()),
+                0.0d);
     }
 
     public VerifiedPreparationScene scene() {
@@ -41,6 +50,10 @@ public final class PreparationPlayerState {
         return yawDegrees;
     }
 
+    public double pitchDegrees() {
+        return pitchDegrees;
+    }
+
     public PreparationPlayerState moveHorizontal(double deltaX, double deltaZ) {
         requireFinite(deltaX, "deltaX");
         requireFinite(deltaZ, "deltaZ");
@@ -53,22 +66,36 @@ public final class PreparationPlayerState {
             return this;
         }
         return new PreparationPlayerState(
-                scene, new MapVector3(nextX, position.y(), nextZ), yawDegrees);
+                scene,
+                new MapVector3(nextX, position.y(), nextZ),
+                yawDegrees,
+                pitchDegrees);
     }
 
     public PreparationPlayerState rotate(double deltaDegrees) {
-        requireFinite(deltaDegrees, "deltaDegrees");
-        double nextYaw = normalizeYaw(yawDegrees + deltaDegrees);
-        if (Double.compare(nextYaw, yawDegrees) == 0) {
+        return rotateView(deltaDegrees, 0.0d);
+    }
+
+    public PreparationPlayerState rotateView(double deltaYawDegrees, double deltaPitchDegrees) {
+        requireFinite(deltaYawDegrees, "deltaYawDegrees");
+        requireFinite(deltaPitchDegrees, "deltaPitchDegrees");
+        double nextYaw = normalizeYaw(addFinite(yawDegrees, deltaYawDegrees));
+        double nextPitch =
+                clamp(
+                        addFinite(pitchDegrees, deltaPitchDegrees),
+                        MINIMUM_PITCH_DEGREES,
+                        MAXIMUM_PITCH_DEGREES);
+        if (Double.compare(nextYaw, yawDegrees) == 0
+                && Double.compare(nextPitch, pitchDegrees) == 0) {
             return this;
         }
-        return new PreparationPlayerState(scene, position, nextYaw);
+        return new PreparationPlayerState(scene, position, nextYaw, nextPitch);
     }
 
     private static double addFinite(double value, double delta) {
         double result = value + delta;
         if (!Double.isFinite(result)) {
-            throw new IllegalArgumentException("preparation movement overflowed map space");
+            throw new IllegalArgumentException("preparation state update overflowed finite range");
         }
         return result;
     }
@@ -92,6 +119,16 @@ public final class PreparationPlayerState {
         if (!Double.isFinite(value) || value < -180.0d || value >= 180.0d) {
             throw new IllegalArgumentException(
                     "preparation player yaw must be finite and in [-180, 180)");
+        }
+        return value;
+    }
+
+    private static double requirePitch(double value) {
+        if (!Double.isFinite(value)
+                || value < MINIMUM_PITCH_DEGREES
+                || value > MAXIMUM_PITCH_DEGREES) {
+            throw new IllegalArgumentException(
+                    "preparation player pitch must be finite and in [-85, 85]");
         }
         return value;
     }
