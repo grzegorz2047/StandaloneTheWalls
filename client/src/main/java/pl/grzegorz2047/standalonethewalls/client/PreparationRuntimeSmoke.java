@@ -47,8 +47,7 @@ final class PreparationRuntimeSmoke extends SimpleApplication {
                     PreparationCollisionWorld.load(assetManager, scene);
             rootNode.attachChild(world);
 
-            PreparationPlayerState initial =
-                    PreparationPlayerState.atAuthoritativeSpawn(scene);
+            PreparationPlayerState initial = PreparationPlayerState.atAuthoritativeSpawn(scene);
             PreparationCameraPlacement.apply(cam, initial);
             if (!input.capture() || !input.captured()) {
                 throw new IllegalStateException("preparation input was not captured");
