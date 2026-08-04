@@ -36,25 +36,8 @@ jobs:
         with:
           cache-read-only: true
 
-      - name: Apply saved integration patch
-        shell: python
-        run: |
-          from pathlib import Path
-          import subprocess
-
-          saved = subprocess.check_output([
-              "git",
-              "show",
-              "0a7bb7940cb5849d99aa601475e4bb72c7d30ce6:.github/workflows/pr147-finalize.yml",
-          ], text=True)
-          marker = "      - name: Integrate verified preparation scene\n        shell: python\n        run: |\n"
-          start = saved.index(marker) + len(marker)
-          end = saved.index("      - name: Format and test client slice\n", start)
-          script = "".join(
-              line[10:] if line.startswith("          ") else line
-              for line in saved[start:end].splitlines(keepends=True)
-          )
-          exec(compile(script, "pr147-integration", "exec"), {"__name__": "__main__"})
+      - name: Apply standalone integration patch
+        run: python tools/pr147_apply.py
 
       - name: Format implementation
         run: ./gradlew --no-daemon spotlessApply
@@ -65,6 +48,7 @@ jobs:
           set -euo pipefail
           git fetch origin main --depth=1
           git show origin/main:.github/workflows/ci.yml > .github/workflows/ci.yml
+          rm -f tools/pr147_apply.py
           git config user.name "OpenAI Codex"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
