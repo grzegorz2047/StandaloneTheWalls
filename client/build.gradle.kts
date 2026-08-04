@@ -16,6 +16,7 @@ dependencies {
 
     implementation(libs.jme3.core)
     implementation(libs.jme3.desktop)
+    implementation(libs.jme3.plugins)
     runtimeOnly(libs.jme3.lwjgl3)
 
     implementation(libs.slf4j.api)
