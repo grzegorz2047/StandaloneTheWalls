@@ -45,37 +45,14 @@ abstract class AssembleUiFontAtlasTask : DefaultTask() {
             }
         val encoded = cleanedChunks.joinToString(separator = "")
         check(encoded.length == expectedEncodedLength.get()) {
-            val insertionOffset = cleanedChunks.dropLast(1).sumOf(String::length)
-            val candidates =
-                "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-                    .mapNotNull { character ->
-                        val candidate =
-                            encoded.substring(0, insertionOffset) +
-                                character +
-                                encoded.substring(insertionOffset)
-                        val bytes =
-                            runCatching { Base64.getDecoder().decode(candidate) }.getOrNull()
-                                ?: return@mapNotNull null
-                        if (!isValidPng(bytes)) {
-                            return@mapNotNull null
-                        }
-                        val digest =
-                            HexFormat.of()
-                                .formatHex(
-                                    MessageDigest.getInstance("SHA-256").digest(bytes)
-                                )
-                        "$character:${bytes.size}:$digest"
-                    }
-            "Unexpected UI font atlas Base64 length: ${encoded.length}; chunks=" +
-                chunks.files
-                    .sortedBy { it.name }
-                    .zip(cleanedChunks)
-                    .joinToString { (file, value) -> "${file.name}:${value.length}" } +
-                "; recoveryCandidates=$candidates"
+            "Unexpected UI font atlas Base64 length: ${encoded.length}"
         }
         val atlas = Base64.getDecoder().decode(encoded)
         check(atlas.size == expectedDecodedSize.get()) {
             "Unexpected UI font atlas size: ${atlas.size}"
+        }
+        check(isValidPng(atlas)) {
+            "UI font atlas is not a complete CRC-valid PNG"
         }
         val digest =
             HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(atlas))
@@ -234,8 +211,8 @@ val assembleUiFontAtlas = tasks.register<AssembleUiFontAtlasTask>("assembleUiFon
             it.file("Interface/Fonts/SunderfrontUI-Regular.png")
         }
     )
-    expectedEncodedLength.set(40_476)
-    expectedDecodedSize.set(30_355)
+    expectedEncodedLength.set(40_455)
+    expectedDecodedSize.set(30_341)
     expectedSha256.set(uiFontAtlasSha256)
 }
 
