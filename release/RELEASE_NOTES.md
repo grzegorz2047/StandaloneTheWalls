@@ -95,7 +95,9 @@ publish the private key or server data directory.
 - protocol, maps, and local data formats may change incompatibly before beta.
 
 Windows players should normally download
-`sunderfront-client-windows-x64-0.1.0-alpha.5.zip`. Server operators should use
+`sunderfront-client-windows-x64-0.1.0-alpha.5.zip`. Users with an existing Java 21
+runtime can use the technical JVM archive
+`sunderfront-client-0.1.0-alpha.5.zip`. Server operators should use
 `sunderfront-server-0.1.0-alpha.5.zip`. Download all three archives with
 `SHA256SUMS` when auditing the release, and verify the hashes before unpacking or
 running any file.
