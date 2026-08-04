@@ -6,5 +6,6 @@ cd "$ROOT_DIR"
 
 bash release/verify_reproducible.sh
 bash release/prepare_artifacts.sh
+python3 release/verify_m2_documentation.py build/release "$(tr -d '\r\n' < release/version.txt)"
 bash release/verify_checksum_failure.sh
 bash release/e2e_from_distributions.sh
