@@ -41,8 +41,7 @@ class PreparationMapDefinitionTest {
 
         assertThatThrownBy(() -> new PreparationMapDefinition("", digest(), List.of(spawn)))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(
-                        () -> new PreparationMapDefinition("map id", digest(), List.of(spawn)))
+        assertThatThrownBy(() -> new PreparationMapDefinition("map id", digest(), List.of(spawn)))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(
                         () -> new PreparationMapDefinition(overlongMapId, digest(), List.of(spawn)))
@@ -52,8 +51,7 @@ class PreparationMapDefinitionTest {
                                 new PreparationMapDefinition(
                                         "arena-one", Arrays.copyOf(digest(), 31), List.of(spawn)))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(
-                        () -> new PreparationMapDefinition("arena-one", digest(), List.of()))
+        assertThatThrownBy(() -> new PreparationMapDefinition("arena-one", digest(), List.of()))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(
                         () ->
