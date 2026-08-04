@@ -22,8 +22,7 @@ public final class PreparationCameraPlacement {
         Quaternion rotation =
                 new Quaternion()
                         .fromAngleAxis(
-                                (float) player.yawDegrees() * FastMath.DEG_TO_RAD,
-                                Vector3f.UNIT_Y);
+                                (float) player.yawDegrees() * FastMath.DEG_TO_RAD, Vector3f.UNIT_Y);
         target.setRotation(rotation);
     }
 }
