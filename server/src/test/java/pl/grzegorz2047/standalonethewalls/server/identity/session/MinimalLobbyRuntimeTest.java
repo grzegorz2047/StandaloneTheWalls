@@ -20,6 +20,7 @@ import pl.grzegorz2047.standalonethewalls.domain.TeamId;
 import pl.grzegorz2047.standalonethewalls.domain.lobby.LobbyConfiguration;
 import pl.grzegorz2047.standalonethewalls.domain.match.MatchConfiguration;
 import pl.grzegorz2047.standalonethewalls.identity.policy.HandleVerificationLevel;
+import pl.grzegorz2047.standalonethewalls.mapformat.MinimalPreparationBundle;
 import pl.grzegorz2047.standalonethewalls.protocol.MessageType;
 import pl.grzegorz2047.standalonethewalls.protocol.ProtocolEnvelope;
 import pl.grzegorz2047.standalonethewalls.protocol.ProtocolVersion;
@@ -42,6 +43,9 @@ import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySelectTeamCommand;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySetReadyCommand;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationProtocolException;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnAssignment;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.server.lobby.MinimalLobbyRuntime;
 
 class MinimalLobbyRuntimeTest {
@@ -411,6 +415,28 @@ class MinimalLobbyRuntimeTest {
             assertThat(preparation.authoritativeTick()).isEqualTo(5L);
             assertThat(matchSnapshotCount(alpha, LobbyMatchPhase.PREPARATION)).isOne();
             assertThat(matchSnapshotCount(bravo, LobbyMatchPhase.PREPARATION)).isOne();
+            waitUntil(
+                    () ->
+                            preparationAssignmentCount(alpha) == 1
+                                    && preparationAssignmentCount(bravo) == 1);
+            PreparationSpawnAssignment alphaAssignment =
+                    latestPreparationAssignmentUnchecked(alpha);
+            PreparationSpawnAssignment bravoAssignment =
+                    latestPreparationAssignmentUnchecked(bravo);
+            assertThat(alphaAssignment.mapId()).isEqualTo(MinimalPreparationBundle.MAP_ID);
+            assertThat(bravoAssignment.mapId()).isEqualTo(MinimalPreparationBundle.MAP_ID);
+            assertThat(alphaAssignment.mapSha256())
+                    .containsExactly(bravoAssignment.mapSha256())
+                    .hasSize(32);
+            assertThat(alphaAssignment.rosterRevision()).isEqualTo(8L);
+            assertThat(bravoAssignment.rosterRevision()).isEqualTo(8L);
+            assertThat(alphaAssignment.team()).isEqualTo(LobbyTeam.GREEN);
+            assertThat(bravoAssignment.team()).isEqualTo(LobbyTeam.BLUE);
+            assertThat(alphaAssignment.spawnIndex()).isNotEqualTo(bravoAssignment.spawnIndex());
+            assertThat(preparationSnapshotMessageIndex(alpha))
+                    .isLessThan(preparationAssignmentMessageIndex(alpha));
+            assertThat(preparationSnapshotMessageIndex(bravo))
+                    .isLessThan(preparationAssignmentMessageIndex(bravo));
 
             int rosterSnapshotsBeforeLockedCommand = snapshotCount(alpha);
             sendSelect(alpha, 3L, LobbyTeam.RED);
@@ -423,6 +449,8 @@ class MinimalLobbyRuntimeTest {
             waitUntil(() -> lobby.matchSnapshot().phase().name().equals("PREPARATION"));
             assertThat(latestMatchSnapshotUnchecked(alpha).revision())
                     .isEqualTo(preparation.revision());
+            assertThat(preparationAssignmentCount(alpha)).isOne();
+            assertThat(preparationAssignmentCount(bravo)).isOne();
         } finally {
             lobby.close();
             queue.close();
@@ -634,6 +662,62 @@ class MinimalLobbyRuntimeTest {
                             }
                         })
                 .toList();
+    }
+
+    private static int preparationAssignmentCount(TestSession session) {
+        return Math.toIntExact(
+                session.channel.sent().stream()
+                        .filter(
+                                message ->
+                                        message.messageType()
+                                                == MessageType.PREPARATION_SPAWN_ASSIGNMENT)
+                        .count());
+    }
+
+    private static PreparationSpawnAssignment latestPreparationAssignmentUnchecked(
+            TestSession session) {
+        SentMessage message =
+                session.channel.sent().stream()
+                        .filter(
+                                candidate ->
+                                        candidate.messageType()
+                                                == MessageType.PREPARATION_SPAWN_ASSIGNMENT)
+                        .reduce((first, second) -> second)
+                        .orElseThrow();
+        try {
+            return PreparationSpawnProtocolCodec.decodeAssignment(message.payload());
+        } catch (PreparationProtocolException exception) {
+            throw new AssertionError(exception);
+        }
+    }
+
+    private static int preparationSnapshotMessageIndex(TestSession session) {
+        List<SentMessage> messages = session.channel.sent();
+        for (int index = 0; index < messages.size(); index++) {
+            SentMessage message = messages.get(index);
+            if (message.messageType() != MessageType.LOBBY_MATCH_SNAPSHOT) {
+                continue;
+            }
+            try {
+                if (LobbyMatchProtocolCodec.decodeSnapshot(message.payload()).phase()
+                        == LobbyMatchPhase.PREPARATION) {
+                    return index;
+                }
+            } catch (LobbyProtocolException exception) {
+                throw new AssertionError(exception);
+            }
+        }
+        throw new AssertionError("preparation snapshot was not sent");
+    }
+
+    private static int preparationAssignmentMessageIndex(TestSession session) {
+        List<SentMessage> messages = session.channel.sent();
+        for (int index = 0; index < messages.size(); index++) {
+            if (messages.get(index).messageType() == MessageType.PREPARATION_SPAWN_ASSIGNMENT) {
+                return index;
+            }
+        }
+        throw new AssertionError("preparation assignment was not sent");
     }
 
     private static int snapshotCount(TestSession session) {

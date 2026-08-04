@@ -35,8 +35,15 @@ import pl.grzegorz2047.standalonethewalls.domain.lobby.LobbyRosterRejection;
 import pl.grzegorz2047.standalonethewalls.domain.lobby.LobbyRosterRules;
 import pl.grzegorz2047.standalonethewalls.domain.lobby.LobbyRosterState;
 import pl.grzegorz2047.standalonethewalls.domain.match.MatchConfiguration;
+import pl.grzegorz2047.standalonethewalls.domain.match.MatchPhase;
+import pl.grzegorz2047.standalonethewalls.mapformat.MinimalPreparationBundle;
+import pl.grzegorz2047.standalonethewalls.mapformat.TwMapBundleException;
+import pl.grzegorz2047.standalonethewalls.mapformat.TwMapBundleLoader;
+import pl.grzegorz2047.standalonethewalls.mapformat.TwMapLoadPolicy;
+import pl.grzegorz2047.standalonethewalls.mapformat.VerifiedMapBundle;
 import pl.grzegorz2047.standalonethewalls.protocol.MessageType;
 import pl.grzegorz2047.standalonethewalls.protocol.ProtocolEnvelope;
+import pl.grzegorz2047.standalonethewalls.protocol.ReliableChannel;
 import pl.grzegorz2047.standalonethewalls.protocol.ReliableSendResult;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandOutcome;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandResult;
@@ -51,6 +58,10 @@ import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
 import pl.grzegorz2047.standalonethewalls.server.identity.session.AuthorizedPlayerSession;
 import pl.grzegorz2047.standalonethewalls.server.identity.session.AuthorizedPlayerSessionQueue;
+import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationMapDefinition;
+import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationTransitionPublisher;
+import pl.grzegorz2047.standalonethewalls.server.preparation.VerifiedPreparationMapAdapter;
+import pl.grzegorz2047.standalonethewalls.server.preparation.VerifiedPreparationMapException;
 
 /**
  * Owns reliable lobby membership, the authoritative roster, and the lobby-to-preparation match
@@ -67,10 +78,13 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
     private static final Duration MAXIMUM_SHUTDOWN_TIMEOUT = Duration.ofSeconds(30);
     private static final int DEFAULT_TICK_RATE = 20;
     private static final long POLL_MILLIS = 10L;
+    private static final TwMapLoadPolicy DEFAULT_MAP_LOAD_POLICY =
+            new TwMapLoadPolicy(2 * 1024 * 1024, 4 * 1024 * 1024, 16, 100);
 
     private final AuthorizedPlayerSessionQueue source;
     private final LobbyConfiguration configuration;
     private final LobbyMatchCoordinator matchCoordinator;
+    private final PreparationMapDefinition preparationMap;
     private final Duration sendTimeout;
     private final Duration shutdownTimeout;
     private final Consumer<MinimalLobbyEvent> eventObserver;
@@ -191,6 +205,7 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
             throw new IllegalArgumentException("source capacity exceeds lobby configuration");
         }
         matchCoordinator = new LobbyMatchCoordinator(configuration, lifecycleConfiguration);
+        preparationMap = defaultPreparationMap();
         visibleMatchSnapshot = new AtomicReference<>(matchCoordinator.snapshot());
         this.sendTimeout = requireDuration(sendTimeout, "sendTimeout", MAXIMUM_SEND_TIMEOUT);
         this.shutdownTimeout =
@@ -394,8 +409,9 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
             while (nextTick <= targetTick) {
                 Optional<LobbyMatchSnapshot> changed = matchCoordinator.advanceTick(nextTick);
                 if (changed.isPresent()) {
-                    visibleMatchSnapshot.set(changed.orElseThrow());
-                    stabilizeMatchSnapshots(state);
+                    LobbyMatchSnapshot snapshot = changed.orElseThrow();
+                    visibleMatchSnapshot.set(snapshot);
+                    stabilizeMatchSnapshots(state, snapshot);
                 }
                 nextTick = Math.addExact(nextTick, 1L);
             }
@@ -566,13 +582,21 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         }
     }
 
-    private void stabilizeMatchSnapshots(LobbyState state) {
+    private void stabilizeMatchSnapshots(LobbyState state, LobbyMatchSnapshot matchSnapshot) {
         if (state.members.isEmpty()) {
+            return;
+        }
+        LobbyMatchSnapshot snapshot = Objects.requireNonNull(matchSnapshot, "matchSnapshot");
+        if (snapshot.phase() == MatchPhase.PREPARATION) {
+            if (!state.preparationTransitionAttempted) {
+                state.preparationTransitionAttempted = true;
+                publishPreparationTransition(state, snapshot);
+            }
             return;
         }
         byte[] payload =
                 LobbyMatchProtocolCodec.encodeSnapshot(
-                        LobbyMatchProtocolAdapter.toProtocol(matchCoordinator.snapshot()));
+                        LobbyMatchProtocolAdapter.toProtocol(snapshot));
         List<LobbyParticipantId> failed =
                 sendToMembers(state.members, MessageType.LOBBY_MATCH_SNAPSHOT, payload);
         if (failed.isEmpty()) {
@@ -580,6 +604,28 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         }
         removeFailedMembers(state, failed);
         stabilizeSnapshots(state);
+    }
+
+    private void publishPreparationTransition(LobbyState state, LobbyMatchSnapshot matchSnapshot) {
+        PreparationTransitionPublisher.publish(
+                preparationMap,
+                state.roster,
+                matchSnapshot,
+                preparationChannels(state),
+                sendTimeout);
+    }
+
+    private static Map<LobbyParticipantId, ReliableChannel> preparationChannels(LobbyState state) {
+        Map<LobbyParticipantId, ReliableChannel> channels = new LinkedHashMap<>();
+        for (LobbyParticipantState participant : state.roster.participants()) {
+            MemberState member = state.members.get(participant.participantId());
+            if (member == null) {
+                throw new IllegalStateException(
+                        "authoritative preparation roster contains an unowned member");
+            }
+            channels.put(participant.participantId(), member.session.reliableChannel());
+        }
+        return Map.copyOf(channels);
     }
 
     private void removeFailedMembers(LobbyState state, List<LobbyParticipantId> failed) {
@@ -920,6 +966,25 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         return current;
     }
 
+    private static PreparationMapDefinition defaultPreparationMap() {
+        return DefaultPreparationMapHolder.MAP;
+    }
+
+    private static final class DefaultPreparationMapHolder {
+        private static final PreparationMapDefinition MAP = load();
+
+        private static PreparationMapDefinition load() {
+            try {
+                VerifiedMapBundle bundle =
+                        TwMapBundleLoader.load(
+                                MinimalPreparationBundle.createArchive(), DEFAULT_MAP_LOAD_POLICY);
+                return VerifiedPreparationMapAdapter.adapt(bundle);
+            } catch (TwMapBundleException | VerifiedPreparationMapException exception) {
+                throw new ExceptionInInitializerError(exception);
+            }
+        }
+    }
+
     private enum State {
         NEW,
         RUNNING,
@@ -992,5 +1057,6 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
     private static final class LobbyState {
         private final TreeMap<LobbyParticipantId, MemberState> members = new TreeMap<>();
         private LobbyRosterState roster = LobbyRosterState.initial();
+        private boolean preparationTransitionAttempted;
     }
 }
