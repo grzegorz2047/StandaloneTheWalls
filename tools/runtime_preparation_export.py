@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# Temporary branch-local exporter. It is removed before the implementation is merged.
 WORKFLOW = Path(".github/workflows/runtime-preparation-export.yml")
 MARKER = "      - name: Apply deterministic runtime patch\n        shell: python\n        run: |\n"
 FORMATTER_STEP = "      - name: Apply repository formatter\n"
