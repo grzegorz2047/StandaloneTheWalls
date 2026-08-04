@@ -31,8 +31,7 @@ public final class PreparationMovementController {
         double normalizedForward = magnitude > 1.0d ? forwardAxis / magnitude : forwardAxis;
         double normalizedRight = magnitude > 1.0d ? rightAxis / magnitude : rightAxis;
         double step =
-                MOVEMENT_SPEED_METRES_PER_SECOND
-                        * Math.min(elapsedSeconds, MAXIMUM_STEP_SECONDS);
+                MOVEMENT_SPEED_METRES_PER_SECOND * Math.min(elapsedSeconds, MAXIMUM_STEP_SECONDS);
         double yaw = player.yawDegrees();
         double deltaX =
                 step

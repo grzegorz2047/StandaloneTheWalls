@@ -33,6 +33,9 @@ import pl.grzegorz2047.standalonethewalls.client.identity.ClientIdentityStorage;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectService;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationCameraPlacement;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationCollisionWorld;
+import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationInputState;
+import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationInputState.Direction;
+import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationMovementController;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationPlayerState;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationSceneGraphException;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationSceneGraphLoader;
@@ -66,6 +69,10 @@ public final class SunderfrontClient extends SimpleApplication
     private static final String INPUT_SELECT = "sunderfront-ui-select";
     private static final String INPUT_BACK = "sunderfront-ui-back";
     private static final String INPUT_BACKSPACE = "sunderfront-ui-backspace";
+    private static final String INPUT_MOVE_FORWARD = "sunderfront-move-forward";
+    private static final String INPUT_MOVE_BACKWARD = "sunderfront-move-backward";
+    private static final String INPUT_MOVE_LEFT = "sunderfront-move-left";
+    private static final String INPUT_MOVE_RIGHT = "sunderfront-move-right";
 
     private static final UiTargetId DIRECT_ENDPOINT_TARGET = new UiTargetId("direct.endpoint");
     private static final UiTargetId DIRECT_HANDLE_TARGET = new UiTargetId("direct.handle");
@@ -95,6 +102,7 @@ public final class SunderfrontClient extends SimpleApplication
     private final Path dataDirectory;
     private final CompletableFuture<Void> initialized = new CompletableFuture<>();
     private final UiPointerRouter pointerRouter = new UiPointerRouter();
+    private final PreparationInputState preparationInput = new PreparationInputState();
 
     private PreparationTransitionGate preparationTransitionGate = new PreparationTransitionGate();
     private StartMenuModel menu;
@@ -150,6 +158,9 @@ public final class SunderfrontClient extends SimpleApplication
                 enterPreparationIfReady();
             }
         }
+        if (screen == Screen.PREPARATION && !smokeMode) {
+            updatePreparationMovement(timePerFrame);
+        }
         if (!smokeMode && (renderedWidth != cam.getWidth() || renderedHeight != cam.getHeight())) {
             renderCurrentScreen();
         }
@@ -157,13 +168,20 @@ public final class SunderfrontClient extends SimpleApplication
 
     @Override
     public void onAction(String name, boolean isPressed, float timePerFrame) {
-        if (!isPressed || smokeMode) {
+        if (smokeMode) {
+            return;
+        }
+        if (screen == Screen.PREPARATION) {
+            handlePreparationAction(name, isPressed);
+            return;
+        }
+        if (!isPressed) {
             return;
         }
         switch (screen) {
             case START_MENU -> handleStartMenuAction(name);
             case DIRECT_CONNECT -> handleDirectConnectAction(name);
-            case PREPARATION -> handlePreparationAction(name);
+            case PREPARATION -> throw new IllegalStateException("preparation input was not routed");
         }
     }
 
@@ -196,17 +214,30 @@ public final class SunderfrontClient extends SimpleApplication
 
     @Override
     public void onMouseMotionEvent(MouseMotionEvent event) {
-        if (!smokeMode) {
-            handlePointerMotion(event.getX(), event.getY());
+        if (smokeMode) {
+            return;
         }
+        if (screen == Screen.PREPARATION) {
+            if (preparationInput.captured() && event.getDX() != 0) {
+                rotatePreparation(event.getDX());
+            }
+            return;
+        }
+        handlePointerMotion(event.getX(), event.getY());
     }
 
     @Override
     public void onMouseButtonEvent(MouseButtonEvent event) {
-        if (!smokeMode) {
-            handlePointerButton(
-                    event.getButtonIndex(), event.isPressed(), event.getX(), event.getY());
+        if (smokeMode) {
+            return;
         }
+        if (screen == Screen.PREPARATION) {
+            if (event.getButtonIndex() == UiPointerRouter.PRIMARY_BUTTON && event.isPressed()) {
+                capturePreparationInput();
+            }
+            return;
+        }
+        handlePointerButton(event.getButtonIndex(), event.isPressed(), event.getX(), event.getY());
     }
 
     @Override
@@ -329,6 +360,26 @@ public final class SunderfrontClient extends SimpleApplication
         return Optional.ofNullable(preparationCollisionWorld);
     }
 
+    boolean isPreparationInputCaptured() {
+        return preparationInput.captured();
+    }
+
+    void exercisePreparationInputCapture() {
+        if (!smokeMode || screen != Screen.PREPARATION) {
+            throw new IllegalStateException(
+                    "preparation input capture exercise requires smoke preparation mode");
+        }
+        preparationInput.capture();
+    }
+
+    void exercisePreparationInputRelease() {
+        if (!smokeMode || screen != Screen.PREPARATION) {
+            throw new IllegalStateException(
+                    "preparation input release exercise requires smoke preparation mode");
+        }
+        preparationInput.release();
+    }
+
     private void registerInputs() {
         inputManager.addMapping(INPUT_UP, new KeyTrigger(KeyInput.KEY_UP));
         inputManager.addMapping(INPUT_DOWN, new KeyTrigger(KeyInput.KEY_DOWN));
@@ -338,6 +389,10 @@ public final class SunderfrontClient extends SimpleApplication
         inputManager.addMapping(INPUT_SELECT, new KeyTrigger(KeyInput.KEY_RETURN));
         inputManager.addMapping(INPUT_BACK, new KeyTrigger(KeyInput.KEY_ESCAPE));
         inputManager.addMapping(INPUT_BACKSPACE, new KeyTrigger(KeyInput.KEY_BACK));
+        inputManager.addMapping(INPUT_MOVE_FORWARD, new KeyTrigger(KeyInput.KEY_W));
+        inputManager.addMapping(INPUT_MOVE_BACKWARD, new KeyTrigger(KeyInput.KEY_S));
+        inputManager.addMapping(INPUT_MOVE_LEFT, new KeyTrigger(KeyInput.KEY_A));
+        inputManager.addMapping(INPUT_MOVE_RIGHT, new KeyTrigger(KeyInput.KEY_D));
         inputManager.addListener(
                 this,
                 INPUT_UP,
@@ -347,7 +402,11 @@ public final class SunderfrontClient extends SimpleApplication
                 INPUT_NEXT,
                 INPUT_SELECT,
                 INPUT_BACK,
-                INPUT_BACKSPACE);
+                INPUT_BACKSPACE,
+                INPUT_MOVE_FORWARD,
+                INPUT_MOVE_BACKWARD,
+                INPUT_MOVE_LEFT,
+                INPUT_MOVE_RIGHT);
         inputManager.addRawInputListener(this);
     }
 
@@ -385,10 +444,90 @@ public final class SunderfrontClient extends SimpleApplication
         }
     }
 
-    private void handlePreparationAction(String name) {
-        if (INPUT_BACK.equals(name)) {
-            returnToStartMenu();
+    private void handlePreparationAction(String name, boolean pressed) {
+        switch (name) {
+            case INPUT_MOVE_FORWARD -> preparationInput.set(Direction.FORWARD, pressed);
+            case INPUT_MOVE_BACKWARD -> preparationInput.set(Direction.BACKWARD, pressed);
+            case INPUT_MOVE_LEFT -> preparationInput.set(Direction.LEFT, pressed);
+            case INPUT_MOVE_RIGHT -> preparationInput.set(Direction.RIGHT, pressed);
+            case INPUT_SELECT -> {
+                if (pressed) {
+                    capturePreparationInput();
+                }
+            }
+            case INPUT_BACK -> {
+                if (!pressed) {
+                    return;
+                }
+                if (preparationInput.captured()) {
+                    releasePreparationInput();
+                } else {
+                    returnToStartMenu();
+                }
+            }
+            default -> {
+                // InputManager invokes this listener only for registered mappings.
+            }
         }
+    }
+
+    private void capturePreparationInput() {
+        if (screen != Screen.PREPARATION || !preparationInput.capture()) {
+            return;
+        }
+        if (inputManager != null) {
+            inputManager.setCursorVisible(false);
+        }
+        renderCurrentScreen();
+    }
+
+    private void releasePreparationInput() {
+        if (!preparationInput.release()) {
+            return;
+        }
+        if (inputManager != null) {
+            inputManager.setCursorVisible(true);
+        }
+        renderCurrentScreen();
+    }
+
+    private void updatePreparationMovement(float timePerFrame) {
+        if (!preparationInput.captured()) {
+            return;
+        }
+        PreparationPlayerState current = preparationPlayerState;
+        PreparationCollisionWorld collisions = preparationCollisionWorld;
+        if (current == null || collisions == null || !Float.isFinite(timePerFrame)) {
+            failPreparationSceneEntry();
+            return;
+        }
+        PreparationPlayerState moved =
+                PreparationMovementController.move(
+                        current,
+                        collisions,
+                        preparationInput.forwardAxis(),
+                        preparationInput.rightAxis(),
+                        Math.max(0.0d, timePerFrame));
+        if (moved == current) {
+            return;
+        }
+        preparationPlayerState = moved;
+        PreparationCameraPlacement.apply(cam, moved);
+    }
+
+    private void rotatePreparation(double horizontalMousePixels) {
+        PreparationPlayerState current = preparationPlayerState;
+        if (current == null) {
+            failPreparationSceneEntry();
+            return;
+        }
+        PreparationPlayerState rotated =
+                PreparationMovementController.rotate(current, horizontalMousePixels);
+        if (rotated == current) {
+            return;
+        }
+        preparationPlayerState = rotated;
+        PreparationCameraPlacement.apply(cam, rotated);
     }
 
     private void handlePointerMotion(float x, float y) {
@@ -498,9 +637,11 @@ public final class SunderfrontClient extends SimpleApplication
             }
         }
         preparationPlayerState = player;
+        preparationInput.release();
         screen = Screen.PREPARATION;
         pointerRouter.replaceHitMap(UiHitMap.empty());
         if (!smokeMode) {
+            inputManager.setCursorVisible(true);
             preparationWorld = loadedWorld;
             preparationCollisionWorld = loadedCollisions;
             rootNode.attachChild(loadedWorld);
@@ -555,6 +696,7 @@ public final class SunderfrontClient extends SimpleApplication
     }
 
     private void detachPreparationWorld() {
+        preparationInput.release();
         preparationCollisionWorld = null;
         Node current = preparationWorld;
         preparationWorld = null;
@@ -585,8 +727,22 @@ public final class SunderfrontClient extends SimpleApplication
             renderStartMenu(targets);
         } else if (screen == Screen.DIRECT_CONNECT && directConnectModel != null) {
             renderDirectConnect(directConnectModel, targets);
+        } else if (screen == Screen.PREPARATION) {
+            renderPreparationHud();
         }
         pointerRouter.replaceHitMap(new UiHitMap(targets));
+    }
+
+    private void renderPreparationHud() {
+        String message =
+                messages.text(
+                        preparationInput.captured()
+                                ? "preparation.controls.captured"
+                                : "preparation.controls.capture");
+        addCenteredText(message, 17f, MUTED_TEXT, 42f);
+        if (preparationInput.captured()) {
+            addCenteredText("+", 24f, PRIMARY_TEXT, cam.getHeight() / 2.0f);
+        }
     }
 
     private void renderStartMenu(List<UiHitTarget> targets) {

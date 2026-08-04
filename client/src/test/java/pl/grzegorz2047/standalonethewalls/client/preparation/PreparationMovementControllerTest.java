@@ -45,9 +45,10 @@ class PreparationMovementControllerTest {
         assertThat(diagonal.position().z()).isCloseTo(-13.5d, within(0.000001d));
         assertThat(distance(player.position(), diagonal.position()))
                 .isCloseTo(0.5d, within(0.000001d));
-        assertThat(longFrame.position()).isEqualTo(
-                PreparationMovementController.move(player, collisions, 1.0d, 0.0d, 0.1d)
-                        .position());
+        assertThat(longFrame.position())
+                .isEqualTo(
+                        PreparationMovementController.move(player, collisions, 1.0d, 0.0d, 0.1d)
+                                .position());
     }
 
     @Test

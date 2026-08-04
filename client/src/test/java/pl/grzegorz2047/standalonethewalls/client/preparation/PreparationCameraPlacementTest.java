@@ -13,8 +13,7 @@ import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnA
 
 class PreparationCameraPlacementTest {
     @Test
-    void appliesTheExactAuthoritativeSpawnAndProtocolYaw()
-            throws PreparationSceneLoadException {
+    void appliesTheExactAuthoritativeSpawnAndProtocolYaw() throws PreparationSceneLoadException {
         PreparationPlayerState player =
                 PreparationPlayerState.atAuthoritativeSpawn(verifiedScene());
         Camera camera = new Camera(1280, 720);
