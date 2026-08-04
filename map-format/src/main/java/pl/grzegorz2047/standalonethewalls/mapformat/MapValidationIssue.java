@@ -5,8 +5,7 @@ import java.io.Serializable;
 import java.util.Objects;
 
 /** One bounded semantic validation error with a stable field path and code. */
-public record MapValidationIssue(String path, Code code, String message)
-        implements Serializable {
+public record MapValidationIssue(String path, Code code, String message) implements Serializable {
     @Serial private static final long serialVersionUID = 1L;
 
     public MapValidationIssue {
