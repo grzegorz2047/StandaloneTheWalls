@@ -22,7 +22,7 @@ public final class MinimalPreparationBundle {
     public static final String MAP_ID = "minimal_preparation";
     public static final String MAP_VERSION = "1.0.0";
     public static final String EXPECTED_ARCHIVE_SHA256 =
-            "2eb4c5e9449b5d130819e95b615fc992d109a35f9f06d6161c8bde2aa2458899";
+            "ec80f3b454699cb0a90d3d12309210939b3a97950222d7b5541fdc9ebb0e834b";
 
     private MinimalPreparationBundle() {
         throw new AssertionError("No instances");
