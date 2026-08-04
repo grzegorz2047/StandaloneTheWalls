@@ -13,13 +13,11 @@ class Glb2ContainerDecoderTest {
             new TwMapLoadPolicy(2 * 1024 * 1024, 4 * 1024 * 1024, 16, 100);
 
     @Test
-    void copiesDecodedChunksAndRejectsInvalidHeaders()
-            throws TwMapBundleException, Glb2Exception {
+    void copiesDecodedChunksAndRejectsInvalidHeaders() throws TwMapBundleException, Glb2Exception {
         VerifiedMapBundle bundle =
                 TwMapBundleLoader.load(MinimalPreparationBundle.createArchive(), POLICY);
         byte[] sceneBytes = bundle.member("scene.glb");
-        Glb2Document document =
-                Glb2ContainerDecoder.decode(sceneBytes, bundle.manifest().limits());
+        Glb2Document document = Glb2ContainerDecoder.decode(sceneBytes, bundle.manifest().limits());
 
         byte[] json = document.jsonChunk();
         byte[] binary = document.binaryChunk();
@@ -33,12 +31,10 @@ class Glb2ContainerDecoderTest {
     }
 
     @Test
-    void rejectsExternalResourcesAndSceneBudgets()
-            throws TwMapBundleException, Glb2Exception {
+    void rejectsExternalResourcesAndSceneBudgets() throws TwMapBundleException, Glb2Exception {
         String external =
                 "{\"asset\":{\"version\":\"2.0\"},\"buffers\":[{\"byteLength\":4,\"uri\":\"outside.bin\"}],\"meshes\":[{}],\"nodes\":[{\"mesh\":0}],\"scene\":0,\"scenes\":[{\"nodes\":[0]}]}";
-        assertCode(
-                glb(external, new byte[4]), limits(8), Glb2Exception.Code.EXTERNAL_RESOURCE);
+        assertCode(glb(external, new byte[4]), limits(8), Glb2Exception.Code.EXTERNAL_RESOURCE);
 
         VerifiedMapBundle bundle =
                 TwMapBundleLoader.load(MinimalPreparationBundle.createArchive(), POLICY);
@@ -61,9 +57,7 @@ class Glb2ContainerDecoderTest {
 
         String oversizedBuffer = valid.replace("\"byteLength\":4", "\"byteLength\":8");
         assertCode(
-                glb(oversizedBuffer, new byte[4]),
-                limits(8),
-                Glb2Exception.Code.INVALID_DOCUMENT);
+                glb(oversizedBuffer, new byte[4]), limits(8), Glb2Exception.Code.INVALID_DOCUMENT);
     }
 
     private static void assertCode(byte[] bytes, MapLimits limits, Glb2Exception.Code expected) {
