@@ -1,9 +1,12 @@
 package pl.grzegorz2047.standalonethewalls.server.preparation;
 
+import java.io.Serial;
 import java.util.Objects;
 
 /** Bounded fail-closed rejection produced before any preparation spawn is published. */
 public final class PreparationSpawnAllocationException extends IllegalArgumentException {
+    @Serial private static final long serialVersionUID = 1L;
+
     private final Code code;
 
     public PreparationSpawnAllocationException(Code code, String message) {
