@@ -20,6 +20,7 @@ class PreparationCollisionWorldTest {
         PreparationCollisionWorld collisions =
                 PreparationCollisionWorld.load(assetManager, verifiedGreenScene());
 
+        assertThat(PreparationCollisionWorld.PLAYER_BODY_RADIUS_METRES).isEqualTo(0.35f);
         assertThat(collisions.hasGroundSupport(new MapVector3(-15.0d, 0.5d, -14.0d))).isTrue();
     }
 
