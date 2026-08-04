@@ -138,8 +138,7 @@ class PreparationTransitionPlannerTest {
     }
 
     private static LobbyParticipantState participant(String id, TeamId team) {
-        return new LobbyParticipantState(
-                new LobbyParticipantId(id), Optional.of(team), true);
+        return new LobbyParticipantState(new LobbyParticipantId(id), Optional.of(team), true);
     }
 
     private static PreparationMapDefinition completeMap() {
