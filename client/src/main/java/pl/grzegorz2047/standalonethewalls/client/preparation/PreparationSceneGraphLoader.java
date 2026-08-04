@@ -11,7 +11,7 @@ import java.io.IOException;
 import java.util.HexFormat;
 import java.util.Objects;
 
-/** Converts already verified preparation GLB bytes into a detached jMonkeyEngine scene graph. */
+/** Converts already verified preparation GLB bytes into detached jMonkeyEngine scene graphs. */
 public final class PreparationSceneGraphLoader {
     private PreparationSceneGraphLoader() {
         throw new AssertionError("No instances");
@@ -19,29 +19,55 @@ public final class PreparationSceneGraphLoader {
 
     public static Node load(AssetManager assetManager, VerifiedPreparationScene scene)
             throws PreparationSceneGraphException {
-        AssetManager manager = Objects.requireNonNull(assetManager, "assetManager");
         VerifiedPreparationScene verified = Objects.requireNonNull(scene, "scene");
+        return loadGlb(
+                assetManager,
+                verified,
+                verified.sceneGlb(),
+                "scene.glb",
+                "verified-preparation-" + verified.mapId());
+    }
+
+    public static Node loadCollision(AssetManager assetManager, VerifiedPreparationScene scene)
+            throws PreparationSceneGraphException {
+        VerifiedPreparationScene verified = Objects.requireNonNull(scene, "scene");
+        return loadGlb(
+                assetManager,
+                verified,
+                verified.collisionGlb(),
+                "collision.glb",
+                "verified-preparation-collision-" + verified.mapId());
+    }
+
+    private static Node loadGlb(
+            AssetManager assetManager,
+            VerifiedPreparationScene verified,
+            byte[] glb,
+            String memberName,
+            String rootName)
+            throws PreparationSceneGraphException {
+        AssetManager manager = Objects.requireNonNull(assetManager, "assetManager");
         manager.registerLoader(GlbLoader.class, "glb");
         String digest = HexFormat.of().formatHex(verified.mapSha256());
-        ModelKey key = new ModelKey("verified-preparation/" + digest + "/scene.glb");
-        try (ByteArrayInputStream input = new ByteArrayInputStream(verified.sceneGlb())) {
+        ModelKey key = new ModelKey("verified-preparation/" + digest + "/" + memberName);
+        try (ByteArrayInputStream input = new ByteArrayInputStream(glb)) {
             Spatial loaded = manager.loadAssetFromStream(key, input);
             if (loaded == null) {
                 throw new PreparationSceneGraphException(
-                        "verified preparation scene loader returned no spatial");
+                        "verified preparation " + memberName + " loader returned no spatial");
             }
-            Node root = new Node("verified-preparation-" + verified.mapId());
+            Node root = new Node(rootName);
             root.attachChild(loaded);
             root.updateModelBound();
             root.updateGeometricState();
             if (root.getQuantity() == 0) {
                 throw new PreparationSceneGraphException(
-                        "verified preparation scene graph contains no spatial");
+                        "verified preparation " + memberName + " graph contains no spatial");
             }
             return root;
         } catch (AssetLoadException | IllegalArgumentException | IOException exception) {
             throw new PreparationSceneGraphException(
-                    "verified preparation scene could not be loaded", exception);
+                    "verified preparation " + memberName + " could not be loaded", exception);
         }
     }
 }

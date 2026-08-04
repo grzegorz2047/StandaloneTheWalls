@@ -29,6 +29,21 @@ class PreparationSceneGraphLoaderTest {
     }
 
     @Test
+    void loadsTheVerifiedCollisionGlbAsASeparateDetachedGraph()
+            throws PreparationSceneLoadException, PreparationSceneGraphException {
+        DesktopAssetManager assetManager = new DesktopAssetManager(true);
+        VerifiedPreparationScene verified = verifiedGreenScene();
+
+        Node graph = PreparationSceneGraphLoader.loadCollision(assetManager, verified);
+
+        assertThat(graph.getName()).isEqualTo("verified-preparation-collision-minimal_preparation");
+        assertThat(graph.getChild("GroundCollision")).isNotNull();
+        assertThat(graph.getChild("CentralWallXCollision")).isNotNull();
+        assertThat(graph.getChild("CentralWallZCollision")).isNotNull();
+        assertThat(graph.getParent()).isNull();
+    }
+
+    @Test
     void streamLoadsAreDetachedAndNotSharedThroughTheAssetCache()
             throws PreparationSceneLoadException, PreparationSceneGraphException {
         DesktopAssetManager assetManager = new DesktopAssetManager(true);
