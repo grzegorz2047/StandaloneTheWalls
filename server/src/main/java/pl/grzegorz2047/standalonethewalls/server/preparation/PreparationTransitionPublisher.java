@@ -51,8 +51,7 @@ public final class PreparationTransitionPublisher {
         publishSnapshot(availableChannels, snapshotPayload, deadline);
 
         try {
-            PreparationSpawnPublisher.publish(
-                    plan, availableChannels, remainingDuration(deadline));
+            PreparationSpawnPublisher.publish(plan, availableChannels, remainingDuration(deadline));
         } catch (PreparationSpawnPublishException exception) {
             throw new PreparationTransitionPublishException(
                     PreparationTransitionPublishException.Code.ASSIGNMENT_PUBLISH_FAILED,
@@ -75,8 +74,7 @@ public final class PreparationTransitionPublisher {
     }
 
     private static void validateCoverageAndPayloads(
-            List<PreparationClientSpawn> plan,
-            Map<LobbyParticipantId, ReliableChannel> channels) {
+            List<PreparationClientSpawn> plan, Map<LobbyParticipantId, ReliableChannel> channels) {
         Set<LobbyParticipantId> participantIds = new HashSet<>();
         for (PreparationClientSpawn delivery : plan) {
             PreparationClientSpawn candidate = Objects.requireNonNull(delivery, "delivery");
