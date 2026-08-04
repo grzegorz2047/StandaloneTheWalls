@@ -93,12 +93,9 @@ public final class MinimalPreparationBundle {
     private static String gameplay() {
         StringBuilder gameplay = new StringBuilder();
         gameplay.append("{\"regions\":[");
-        gameplay.append(
-                "{\"maximum\":[-1,6,-1],\"minimum\":[-18,0,-18],\"team\":\"GREEN\"},");
-        gameplay.append(
-                "{\"maximum\":[18,6,-1],\"minimum\":[1,0,-18],\"team\":\"BLUE\"},");
-        gameplay.append(
-                "{\"maximum\":[-1,6,18],\"minimum\":[-18,0,1],\"team\":\"RED\"},");
+        gameplay.append("{\"maximum\":[-1,6,-1],\"minimum\":[-18,0,-18],\"team\":\"GREEN\"},");
+        gameplay.append("{\"maximum\":[18,6,-1],\"minimum\":[1,0,-18],\"team\":\"BLUE\"},");
+        gameplay.append("{\"maximum\":[-1,6,18],\"minimum\":[-18,0,1],\"team\":\"RED\"},");
         gameplay.append(
                 "{\"maximum\":[18,6,18],\"minimum\":[1,0,1],\"team\":\"YELLOW\"}],\"schema\":1,\"spawns\":[");
         int index = 0;
@@ -127,12 +124,7 @@ public final class MinimalPreparationBundle {
                         new int[] {6, 14},
                         -45);
         appendSpawns(
-                gameplay,
-                index,
-                "YELLOW",
-                new int[] {3, 6, 9, 12, 15},
-                new int[] {6, 14},
-                -135);
+                gameplay, index, "YELLOW", new int[] {3, 6, 9, 12, 15}, new int[] {6, 14}, -135);
         return gameplay.append("]}").toString();
     }
 
@@ -182,8 +174,7 @@ public final class MinimalPreparationBundle {
     }
 
     private static String readTextResource(String name) {
-        String path =
-                "/pl/grzegorz2047/standalonethewalls/mapformat/minimal-preparation/" + name;
+        String path = "/pl/grzegorz2047/standalonethewalls/mapformat/minimal-preparation/" + name;
         try (InputStream input = MinimalPreparationBundle.class.getResourceAsStream(path)) {
             if (input == null) {
                 throw new AssertionError("missing embedded minimal map resource: " + name);
