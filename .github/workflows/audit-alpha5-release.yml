@@ -1,0 +1,102 @@
+name: Audit Published Alpha 5
+
+on:
+  push:
+    branches:
+      - "agent/verify-v0.1.0-alpha.5-release"
+
+permissions:
+  contents: read
+
+jobs:
+  audit-published-release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: 0.1.0-alpha.5
+      TAG: v0.1.0-alpha.5
+      EXPECTED_COMMIT: 4fee3cf173661b665a38c7c75a524bb8e79c8db6
+    steps:
+      - name: Check out release audit tools
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: v0.1.0-alpha.5
+          fetch-depth: 0
+
+      - name: Download published GitHub Release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          AUDIT_DIR="$RUNNER_TEMP/published-release"
+          mkdir -p "$AUDIT_DIR"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir "$AUDIT_DIR"
+          gh release view "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json tagName,name,isDraft,isPrerelease,targetCommitish,assets \
+            > "$RUNNER_TEMP/release-metadata.json"
+
+      - name: Verify tag, asset set, archives, M2 docs and checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          AUDIT_DIR="$RUNNER_TEMP/published-release"
+          git fetch origin "refs/tags/${TAG}:refs/tags/${TAG}"
+          test "$(git rev-list -n 1 "$TAG")" = "$EXPECTED_COMMIT"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_COMMIT"
+
+          EXPECTED=$(printf '%s\n' \
+            SHA256SUMS \
+            "sunderfront-client-windows-x64-${VERSION}.zip" \
+            "sunderfront-client-${VERSION}.zip" \
+            "sunderfront-server-${VERSION}.zip" | sort)
+          ACTUAL=$(find "$AUDIT_DIR" -maxdepth 1 -type f -printf '%f\n' | sort)
+          test "$ACTUAL" = "$EXPECTED"
+
+          python3 release/verify_artifacts.py "$AUDIT_DIR" "$VERSION" --require-windows
+          python3 release/verify_m2_documentation.py "$AUDIT_DIR" "$VERSION" --require-windows
+          (
+            cd "$AUDIT_DIR"
+            sha256sum --check SHA256SUMS | tee "$RUNNER_TEMP/checksum-audit.txt"
+          )
+
+          python3 - "$RUNNER_TEMP/release-metadata.json" "$EXPECTED_COMMIT" <<'PY'
+          import json
+          import sys
+
+          metadata_path, expected_commit = sys.argv[1:]
+          with open(metadata_path, encoding="utf-8") as handle:
+              metadata = json.load(handle)
+          if metadata["tagName"] != "v0.1.0-alpha.5":
+              raise SystemExit("unexpected release tag")
+          if metadata["name"] != "Sunderfront v0.1.0-alpha.5 — Interactive Lobby Alpha":
+              raise SystemExit("unexpected release title")
+          if metadata["isDraft"]:
+              raise SystemExit("release is still a draft")
+          if not metadata["isPrerelease"]:
+              raise SystemExit("release is not marked as a prerelease")
+          if metadata["targetCommitish"] != expected_commit:
+              raise SystemExit("release target does not match the immutable candidate")
+          names = sorted(asset["name"] for asset in metadata["assets"])
+          expected = sorted(
+              [
+                  "SHA256SUMS",
+                  "sunderfront-client-windows-x64-0.1.0-alpha.5.zip",
+                  "sunderfront-client-0.1.0-alpha.5.zip",
+                  "sunderfront-server-0.1.0-alpha.5.zip",
+              ]
+          )
+          if names != expected:
+              raise SystemExit(f"unexpected release assets: {names}")
+          PY
+
+      - name: Upload independent audit evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: alpha5-independent-release-audit
+          path: |
+            ${{ runner.temp }}/release-metadata.json
+            ${{ runner.temp }}/checksum-audit.txt
+          if-no-files-found: error
+          retention-days: 30
