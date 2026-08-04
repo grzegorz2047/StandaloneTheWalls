@@ -1,10 +1,10 @@
-package pl.grzegorz2047.standalethewalls.protocol.preparation;
+package pl.grzegorz2047.standalonethewalls.protocol.preparation;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
-import pl.grzegorz2047.standalethewalls.protocol.MessageType;
-import pl.grzegorz2047.standalethewalls.protocol.lobby.LobbyTeam;
+import pl.grzegorz2047.standalonethewalls.protocol.MessageType;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
 
 /** Strict bounded big-endian codec for one authoritative preparation spawn assignment. */
 public final class PreparationSpawnProtocolCodec {
