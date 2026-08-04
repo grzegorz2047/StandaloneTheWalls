@@ -10,57 +10,6 @@ permissions:
   contents: read
 
 jobs:
-  apply-pr150:
-    permissions:
-      contents: write
-    runs-on: ubuntu-24.04
-    timeout-minutes: 25
-    steps:
-      - name: Check out branch
-        uses: actions/checkout@v4
-        with:
-          ref: agent/issue-129-client-verified-scene-graph
-          fetch-depth: 0
-
-      - name: Set up Java 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - name: Validate Gradle wrapper
-        uses: gradle/actions/wrapper-validation@v4
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          cache-read-only: true
-
-      - name: Apply verified scene graph integration
-        run: python tools/pr150_run.py
-
-      - name: Format and test verified scene graph
-        run: |
-          ./gradlew --no-daemon spotlessApply
-          ./gradlew --no-daemon :client:test \
-            --tests "pl.grzegorz2047.standalonethewalls.client.preparation.PreparationSceneGraphLoaderTest" \
-            --tests "pl.grzegorz2047.standalonethewalls.client.preparation.PreparationCameraPlacementTest" \
-            --tests "pl.grzegorz2047.standalonethewalls.client.SunderfrontPreparationTransitionTest"
-
-      - name: Restore CI and commit clean implementation
-        shell: bash
-        run: |
-          set -euo pipefail
-          git fetch origin main --depth=1
-          git show origin/main:.github/workflows/ci.yml > .github/workflows/ci.yml
-          rm -f .github/workflows/pr150-finalize.yml tools/pr150_apply.py tools/pr150_run.py
-          git config user.name "OpenAI Codex"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          test -n "$(git diff --cached --name-only)"
-          git commit -m "Instantiate verified preparation scene graph"
-          git push origin HEAD:agent/issue-129-client-verified-scene-graph
-
   verify-linux:
     runs-on: ubuntu-latest
     timeout-minutes: 25
