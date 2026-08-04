@@ -38,6 +38,16 @@ robust = """def replace_once(text, old, new, label):
         )
         declaration_end = text.index("\\n", declaration_start) + 1
         return text[:assertion_start] + new + text[declaration_end:]
+    if label == "no duplicate assignment assertion":
+        tick_anchor = text.index(
+            "            waitUntil(() -> lobby.matchSnapshot().phase().name().equals(\"PREPARATION\"));"
+        )
+        assertion_start = text.index(
+            "            assertThat(latestMatchSnapshotUnchecked(alpha).revision())",
+            tick_anchor,
+        )
+        finally_start = text.index("        } finally {", assertion_start)
+        return text[:assertion_start] + new + text[finally_start:]
     count = text.count(old)
     if count != 1:
         raise SystemExit(f"{label}: expected one match, found {count}")
