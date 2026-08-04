@@ -7,10 +7,7 @@ import pl.grzegorz2047.standalonethewalls.client.i18n.ClientLanguage;
 
 /** Strict first-screen client command-line options. */
 public record ClientLaunchOptions(
-        ClientLanguage language,
-        boolean smokeMode,
-        boolean preparationSmoke,
-        Path dataDirectory) {
+        ClientLanguage language, boolean smokeMode, boolean preparationSmoke, Path dataDirectory) {
     private static final String JPACKAGE_APP_PATH_PROPERTY = "jpackage.app-path";
 
     public ClientLaunchOptions {
