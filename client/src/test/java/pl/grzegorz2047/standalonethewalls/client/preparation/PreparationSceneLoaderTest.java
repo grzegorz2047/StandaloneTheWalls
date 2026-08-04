@@ -1,7 +1,6 @@
 package pl.grzegorz2047.standalonethewalls.client.preparation;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
 import java.util.HexFormat;
 import org.junit.jupiter.api.Test;
@@ -56,7 +55,15 @@ class PreparationSceneLoaderTest {
     @Test
     void rejectsAReportedMapIdThatDoesNotMatchTheVerifiedBundle() {
         PreparationSpawnAssignment assignment =
-                assignment("other_map", MAP_SHA256, LobbyTeam.GREEN, 0, -15.0d, 0.5d, -14.0d, 45.0d);
+                assignment(
+                        "other_map",
+                        MAP_SHA256,
+                        LobbyTeam.GREEN,
+                        0,
+                        -15.0d,
+                        0.5d,
+                        -14.0d,
+                        45.0d);
 
         assertFailure(assignment, PreparationSceneLoadException.Code.MAP_ID_MISMATCH);
     }
@@ -145,13 +152,12 @@ class PreparationSceneLoaderTest {
 
     private static void assertFailure(
             PreparationSpawnAssignment assignment, PreparationSceneLoadException.Code code) {
-        PreparationSceneLoadException failure =
-                catchThrowableOfType(
-                        () -> PreparationSceneLoader.loadDefault(assignment),
-                        PreparationSceneLoadException.class);
-
-        assertThat(failure).isNotNull();
-        assertThat(failure.code()).isEqualTo(code);
+        try {
+            PreparationSceneLoader.loadDefault(assignment);
+            throw new AssertionError("preparation scene load unexpectedly succeeded");
+        } catch (PreparationSceneLoadException failure) {
+            assertThat(failure.code()).isEqualTo(code);
+        }
     }
 
     private static PreparationSpawnAssignment greenSpawn() {
