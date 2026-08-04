@@ -31,6 +31,8 @@ import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMember;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnAssignment;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.AuthenticatedReliableSession;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.AuthenticatedReliableSessionTestFactory;
 
@@ -178,6 +180,22 @@ public final class DirectConnectUiTestFixtures {
                             SESSION_ID,
                             sequence,
                             LobbyMatchProtocolCodec.encodeSnapshot(snapshot)));
+        }
+
+        public void deliverPreparationSpawnAssignment(
+                PreparationSpawnAssignment assignment, long sequence) {
+            deliverPreparationSpawnPayload(
+                    PreparationSpawnProtocolCodec.encodeAssignment(assignment), sequence);
+        }
+
+        public void deliverPreparationSpawnPayload(byte[] payload, long sequence) {
+            channel.deliver(
+                    new ProtocolEnvelope(
+                            ProtocolVersion.CURRENT,
+                            MessageType.PREPARATION_SPAWN_ASSIGNMENT,
+                            SESSION_ID,
+                            sequence,
+                            payload));
         }
 
         public void deliverEof() {
