@@ -218,8 +218,8 @@ public final class SunderfrontClient extends SimpleApplication
             return;
         }
         if (screen == Screen.PREPARATION) {
-            if (preparationInput.captured() && event.getDX() != 0) {
-                rotatePreparation(event.getDX());
+            if (preparationInput.captured() && (event.getDX() != 0 || event.getDY() != 0)) {
+                rotatePreparation(event.getDX(), event.getDY());
             }
             return;
         }
@@ -515,14 +515,15 @@ public final class SunderfrontClient extends SimpleApplication
         PreparationCameraPlacement.apply(cam, moved);
     }
 
-    private void rotatePreparation(double horizontalMousePixels) {
+    private void rotatePreparation(double horizontalMousePixels, double verticalMousePixels) {
         PreparationPlayerState current = preparationPlayerState;
         if (current == null) {
             failPreparationSceneEntry();
             return;
         }
         PreparationPlayerState rotated =
-                PreparationMovementController.rotate(current, horizontalMousePixels);
+                PreparationMovementController.rotate(
+                        current, horizontalMousePixels, verticalMousePixels);
         if (rotated == current) {
             return;
         }

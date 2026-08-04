@@ -20,14 +20,16 @@ class PreparationPlayerStateTest {
         assertThat(player.scene()).isSameAs(scene);
         assertThat(player.position()).isEqualTo(new MapVector3(-15.0d, 0.5d, -14.0d));
         assertThat(player.yawDegrees()).isEqualTo(45.0d);
+        assertThat(player.pitchDegrees()).isZero();
         assertThat(scene.region().contains(player.position())).isTrue();
     }
 
     @Test
-    void movesHorizontallyInsideTheRegionWithoutChangingHeight()
+    void movesHorizontallyInsideTheRegionWithoutChangingView()
             throws PreparationSceneLoadException {
         PreparationPlayerState original =
-                PreparationPlayerState.atAuthoritativeSpawn(verifiedGreenScene());
+                PreparationPlayerState.atAuthoritativeSpawn(verifiedGreenScene())
+                        .rotateView(12.0d, 20.0d);
 
         PreparationPlayerState moved = original.moveHorizontal(1.5d, 2.0d);
 
@@ -36,6 +38,7 @@ class PreparationPlayerStateTest {
         assertThat(moved.position()).isEqualTo(new MapVector3(-13.5d, 0.5d, -12.0d));
         assertThat(moved.scene().region().contains(moved.position())).isTrue();
         assertThat(moved.yawDegrees()).isEqualTo(original.yawDegrees());
+        assertThat(moved.pitchDegrees()).isEqualTo(original.pitchDegrees());
     }
 
     @Test
@@ -65,29 +68,33 @@ class PreparationPlayerStateTest {
     }
 
     @Test
-    void zeroMovementReturnsTheSameImmutableState() throws PreparationSceneLoadException {
+    void zeroMovementAndViewDeltaReturnTheSameImmutableState()
+            throws PreparationSceneLoadException {
         PreparationPlayerState player =
                 PreparationPlayerState.atAuthoritativeSpawn(verifiedGreenScene());
 
         assertThat(player.moveHorizontal(0.0d, 0.0d)).isSameAs(player);
         assertThat(player.rotate(0.0d)).isSameAs(player);
+        assertThat(player.rotateView(0.0d, 0.0d)).isSameAs(player);
     }
 
     @Test
-    void normalizesYawToTheProtocolRange() throws PreparationSceneLoadException {
+    void normalizesYawAndClampsPitchToTheViewRange() throws PreparationSceneLoadException {
         PreparationPlayerState player =
                 PreparationPlayerState.atAuthoritativeSpawn(verifiedGreenScene());
 
-        PreparationPlayerState rotated = player.rotate(180.0d);
-        PreparationPlayerState wrapped = rotated.rotate(-720.0d);
+        PreparationPlayerState rotated = player.rotateView(180.0d, 1_000.0d);
+        PreparationPlayerState wrapped = rotated.rotateView(-720.0d, -2_000.0d);
 
         assertThat(rotated.yawDegrees()).isEqualTo(-135.0d);
+        assertThat(rotated.pitchDegrees()).isEqualTo(PreparationPlayerState.MAXIMUM_PITCH_DEGREES);
         assertThat(wrapped.yawDegrees()).isEqualTo(-135.0d);
+        assertThat(wrapped.pitchDegrees()).isEqualTo(PreparationPlayerState.MINIMUM_PITCH_DEGREES);
         assertThat(rotated.position()).isEqualTo(player.position());
     }
 
     @Test
-    void rejectsNonFiniteMovementAndRotation() throws PreparationSceneLoadException {
+    void rejectsNonFiniteMovementAndViewRotation() throws PreparationSceneLoadException {
         PreparationPlayerState player =
                 PreparationPlayerState.atAuthoritativeSpawn(verifiedGreenScene());
 
@@ -102,6 +109,9 @@ class PreparationPlayerStateTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> assertThat(player.rotate(Double.NEGATIVE_INFINITY)).isNotNull());
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> assertThat(player.rotateView(0.0d, Double.NaN)).isNotNull());
     }
 
     private static VerifiedPreparationScene verifiedGreenScene()

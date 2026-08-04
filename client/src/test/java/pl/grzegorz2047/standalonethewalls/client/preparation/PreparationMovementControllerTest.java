@@ -14,9 +14,9 @@ import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnA
 
 class PreparationMovementControllerTest {
     @Test
-    void movesForwardAndRightUsingTheProtocolYawAxes()
+    void movesForwardAndRightUsingYawRegardlessOfCameraPitch()
             throws PreparationSceneLoadException, PreparationSceneGraphException {
-        PreparationPlayerState player = player();
+        PreparationPlayerState player = player().rotateView(0.0d, 60.0d);
         PreparationCollisionWorld collisions = collisions(player);
 
         PreparationPlayerState forward =
@@ -26,8 +26,10 @@ class PreparationMovementControllerTest {
 
         assertThat(forward.position().x()).isCloseTo(-14.6464466d, within(0.000001d));
         assertThat(forward.position().z()).isCloseTo(-13.6464466d, within(0.000001d));
+        assertThat(forward.pitchDegrees()).isEqualTo(60.0d);
         assertThat(right.position().x()).isCloseTo(-15.3535534d, within(0.000001d));
         assertThat(right.position().z()).isCloseTo(-13.6464466d, within(0.000001d));
+        assertThat(right.pitchDegrees()).isEqualTo(60.0d);
     }
 
     @Test
@@ -65,14 +67,16 @@ class PreparationMovementControllerTest {
     }
 
     @Test
-    void rotatesFromBoundedMouseDelta() throws PreparationSceneLoadException {
+    void rotatesYawAndPitchFromBoundedMouseDelta() throws PreparationSceneLoadException {
         PreparationPlayerState player = player();
 
-        PreparationPlayerState rotated = PreparationMovementController.rotate(player, 100.0d);
+        PreparationPlayerState rotated =
+                PreparationMovementController.rotate(player, 100.0d, 50.0d);
 
         assertThat(rotated.yawDegrees()).isEqualTo(57.0d);
+        assertThat(rotated.pitchDegrees()).isEqualTo(5.0d);
         assertThat(rotated.position()).isEqualTo(player.position());
-        assertThat(PreparationMovementController.rotate(player, 0.0d)).isSameAs(player);
+        assertThat(PreparationMovementController.rotate(player, 0.0d, 0.0d)).isSameAs(player);
     }
 
     @Test
@@ -102,7 +106,12 @@ class PreparationMovementControllerTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
-                        assertThat(PreparationMovementController.rotate(player, Double.NaN))
+                        assertThat(PreparationMovementController.rotate(player, Double.NaN, 0.0d))
+                                .isSameAs(player));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        assertThat(PreparationMovementController.rotate(player, 0.0d, Double.NaN))
                                 .isSameAs(player));
     }
 

@@ -27,6 +27,21 @@ class PreparationCameraPlacementTest {
         assertThat(camera.getDirection().z).isCloseTo(expected, within(0.00001f));
     }
 
+    @Test
+    void appliesBoundedVerticalPitchWithoutChangingYaw() throws PreparationSceneLoadException {
+        PreparationPlayerState player =
+                PreparationPlayerState.atAuthoritativeSpawn(verifiedScene())
+                        .rotateView(0.0d, 30.0d);
+        Camera camera = new Camera(1280, 720);
+
+        PreparationCameraPlacement.apply(camera, player);
+
+        float horizontal = (float) (Math.cos(Math.toRadians(30.0d)) * Math.sqrt(2.0d) / 2.0d);
+        assertThat(camera.getDirection().x).isCloseTo(horizontal, within(0.00001f));
+        assertThat(camera.getDirection().y).isCloseTo(0.5f, within(0.00001f));
+        assertThat(camera.getDirection().z).isCloseTo(horizontal, within(0.00001f));
+    }
+
     private static VerifiedPreparationScene verifiedScene() throws PreparationSceneLoadException {
         byte[] digest = HexFormat.of().parseHex(MinimalPreparationBundle.EXPECTED_ARCHIVE_SHA256);
         PreparationSpawnAssignment assignment =

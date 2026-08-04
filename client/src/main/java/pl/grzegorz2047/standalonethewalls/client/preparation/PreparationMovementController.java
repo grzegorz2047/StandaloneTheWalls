@@ -7,6 +7,7 @@ public final class PreparationMovementController {
     public static final double MOVEMENT_SPEED_METRES_PER_SECOND = 5.0d;
     public static final double MAXIMUM_STEP_SECONDS = 0.1d;
     public static final double YAW_DEGREES_PER_MOUSE_PIXEL = 0.12d;
+    public static final double PITCH_DEGREES_PER_MOUSE_PIXEL = 0.10d;
 
     private PreparationMovementController() {
         throw new AssertionError("No instances");
@@ -51,11 +52,23 @@ public final class PreparationMovementController {
 
     public static PreparationPlayerState rotate(
             PreparationPlayerState current, double horizontalMousePixels) {
+        return rotate(current, horizontalMousePixels, 0.0d);
+    }
+
+    public static PreparationPlayerState rotate(
+            PreparationPlayerState current,
+            double horizontalMousePixels,
+            double verticalMousePixels) {
         PreparationPlayerState player = Objects.requireNonNull(current, "current");
         if (!Double.isFinite(horizontalMousePixels)) {
             throw new IllegalArgumentException("horizontalMousePixels must be finite");
         }
-        return player.rotate(horizontalMousePixels * YAW_DEGREES_PER_MOUSE_PIXEL);
+        if (!Double.isFinite(verticalMousePixels)) {
+            throw new IllegalArgumentException("verticalMousePixels must be finite");
+        }
+        return player.rotateView(
+                horizontalMousePixels * YAW_DEGREES_PER_MOUSE_PIXEL,
+                verticalMousePixels * PITCH_DEGREES_PER_MOUSE_PIXEL);
     }
 
     private static void requireAxis(double value, String field) {
