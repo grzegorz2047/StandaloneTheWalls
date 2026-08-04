@@ -4,4 +4,6 @@ plugins {
 
 dependencies {
     api(project(":shared"))
+
+    implementation(libs.jackson.core)
 }
