@@ -30,8 +30,7 @@ public final class PreparationSpawnPublisher {
             List<PreparationClientSpawn> plan,
             Map<LobbyParticipantId, ReliableChannel> channels,
             Duration timeout) {
-        List<PreparationClientSpawn> deliveries =
-                List.copyOf(Objects.requireNonNull(plan, "plan"));
+        List<PreparationClientSpawn> deliveries = List.copyOf(Objects.requireNonNull(plan, "plan"));
         Map<LobbyParticipantId, ReliableChannel> availableChannels =
                 Objects.requireNonNull(channels, "channels");
         Duration boundedTimeout = requireTimeout(timeout);
@@ -73,7 +72,8 @@ public final class PreparationSpawnPublisher {
         for (PendingDelivery delivery : pending) {
             sends.add(startSend(delivery));
         }
-        CompletableFuture<Void> all = CompletableFuture.allOf(sends.toArray(CompletableFuture[]::new));
+        CompletableFuture<Void> all =
+                CompletableFuture.allOf(sends.toArray(CompletableFuture[]::new));
         try {
             all.get(boundedTimeout.toNanos(), TimeUnit.NANOSECONDS);
         } catch (InterruptedException exception) {
@@ -100,9 +100,10 @@ public final class PreparationSpawnPublisher {
         try {
             stage =
                     Objects.requireNonNull(
-                            delivery.channel().send(
-                                    MessageType.PREPARATION_SPAWN_ASSIGNMENT,
-                                    delivery.payload()),
+                            delivery.channel()
+                                    .send(
+                                            MessageType.PREPARATION_SPAWN_ASSIGNMENT,
+                                            delivery.payload()),
                             "preparation spawn send stage");
         } catch (RuntimeException exception) {
             throw new PreparationSpawnPublishException(
