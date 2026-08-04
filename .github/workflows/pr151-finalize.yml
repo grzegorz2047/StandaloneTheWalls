@@ -1,0 +1,57 @@
+name: PR151 Finalize Collision World
+
+on:
+  push:
+    branches:
+      - agent/issue-129-client-collision-world
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/issue-129-client-collision-world
+          fetch-depth: 0
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: true
+
+      - name: Apply collision world integration
+        run: python tools/pr151_apply.py
+
+      - name: Format and test collision world
+        run: |
+          ./gradlew --no-daemon spotlessApply
+          ./gradlew --no-daemon :client:test \
+            --tests "pl.grzegorz2047.standalonethewalls.client.preparation.PreparationSceneGraphLoaderTest" \
+            --tests "pl.grzegorz2047.standalonethewalls.client.preparation.PreparationCollisionWorldTest" \
+            --tests "pl.grzegorz2047.standalonethewalls.client.SunderfrontPreparationTransitionTest"
+
+      - name: Commit clean implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/pr151-finalize.yml tools/pr151_apply.py
+          git config user.name "OpenAI Codex"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          test -n "$(git diff --cached --name-only)"
+          git commit -m "Load verified preparation collision world"
+          git push origin HEAD:agent/issue-129-client-collision-world
