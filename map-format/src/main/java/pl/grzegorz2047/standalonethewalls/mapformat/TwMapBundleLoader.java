@@ -47,7 +47,8 @@ public final class TwMapBundleLoader {
 
         byte[] manifestJson = locateManifest(archive, loadPolicy);
         MapManifest manifest = parseManifest(manifestJson, archive.length, loadPolicy);
-        Map<String, byte[]> members = readAndVerifyMembers(archive, manifestJson, manifest, loadPolicy);
+        Map<String, byte[]> members =
+                readAndVerifyMembers(archive, manifestJson, manifest, loadPolicy);
         PreparationGameplay gameplay = parseGameplay(members.get("gameplay.json"));
         return new VerifiedMapBundle(
                 manifest,
@@ -63,8 +64,7 @@ public final class TwMapBundleLoader {
         byte[] manifestJson = null;
         int entries = 0;
         try (ZipInputStream zip =
-                new ZipInputStream(
-                        new ByteArrayInputStream(archive), StandardCharsets.UTF_8)) {
+                new ZipInputStream(new ByteArrayInputStream(archive), StandardCharsets.UTF_8)) {
             ZipEntry entry;
             while ((entry = zip.getNextEntry()) != null) {
                 String path = requireSafeFileEntry(entry);
@@ -82,11 +82,7 @@ public final class TwMapBundleLoader {
                 }
                 if (MANIFEST_PATH.equals(path)) {
                     manifestJson =
-                            readEntry(
-                                    zip,
-                                    entry,
-                                    MapManifestJson.MAXIMUM_BYTES,
-                                    "map manifest");
+                            readEntry(zip, entry, MapManifestJson.MAXIMUM_BYTES, "map manifest");
                 }
                 zip.closeEntry();
             }
@@ -153,14 +149,11 @@ public final class TwMapBundleLoader {
         Set<String> seen = new HashSet<>();
         Map<String, byte[]> members = new LinkedHashMap<>();
         long maximumUncompressed =
-                Math.min(
-                        policy.maximumUncompressedBytes(),
-                        manifest.limits().uncompressedBytes());
+                Math.min(policy.maximumUncompressedBytes(), manifest.limits().uncompressedBytes());
         long totalUncompressed = 0L;
 
         try (ZipInputStream zip =
-                new ZipInputStream(
-                        new ByteArrayInputStream(archive), StandardCharsets.UTF_8)) {
+                new ZipInputStream(new ByteArrayInputStream(archive), StandardCharsets.UTF_8)) {
             ZipEntry entry;
             while ((entry = zip.getNextEntry()) != null) {
                 String path = requireSafeFileEntry(entry);
@@ -178,8 +171,7 @@ public final class TwMapBundleLoader {
                 if (remaining < 0L) {
                     throw expansionFailure();
                 }
-                int entryLimit =
-                        (int) Math.min(remaining, TwMapLoadPolicy.MAXIMUM_IN_MEMORY_BYTES);
+                int entryLimit = (int) Math.min(remaining, TwMapLoadPolicy.MAXIMUM_IN_MEMORY_BYTES);
                 if (MANIFEST_PATH.equals(path)) {
                     entryLimit = Math.min(entryLimit, MapManifestJson.MAXIMUM_BYTES);
                 }
@@ -334,8 +326,7 @@ public final class TwMapBundleLoader {
                         || (bytes[2] == 7 && bytes[3] == 8));
     }
 
-    private static TwMapBundleException failure(
-            TwMapBundleException.Code code, String message) {
+    private static TwMapBundleException failure(TwMapBundleException.Code code, String message) {
         return new TwMapBundleException(code, message);
     }
 }
