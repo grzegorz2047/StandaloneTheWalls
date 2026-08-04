@@ -32,14 +32,12 @@ public final class OneTimeRealtimeTicketStore implements AutoCloseable {
         this.config = Objects.requireNonNull(config, "config");
     }
 
-    public static OneTimeRealtimeTicketStore createProduction(
-            RealtimeTicketStoreConfig config) {
+    public static OneTimeRealtimeTicketStore createProduction(RealtimeTicketStoreConfig config) {
         return new OneTimeRealtimeTicketStore(
                 Clock.systemUTC(), new SecureRealtimeTicketEntropy(), config);
     }
 
-    public synchronized IssuedRealtimeTicket issue(
-            RealtimeTicketContext context, Duration lifetime)
+    public synchronized IssuedRealtimeTicket issue(RealtimeTicketContext context, Duration lifetime)
             throws RealtimeTicketStoreException {
         requireOpen();
         Objects.requireNonNull(context, "context");
@@ -128,8 +126,7 @@ public final class OneTimeRealtimeTicketStore implements AutoCloseable {
         tickets.clear();
     }
 
-    private RealtimeTicketIdentity generateUniqueIdentity()
-            throws RealtimeTicketStoreException {
+    private RealtimeTicketIdentity generateUniqueIdentity() throws RealtimeTicketStoreException {
         for (int attempt = 0; attempt < MAXIMUM_IDENTITY_GENERATION_ATTEMPTS; attempt++) {
             RealtimeTicketIdentity identity =
                     new RealtimeTicketIdentity(randomBytes(RealtimeTicketIdentity.LENGTH_BYTES));
@@ -186,8 +183,7 @@ public final class OneTimeRealtimeTicketStore implements AutoCloseable {
         private final Instant expiresAt;
         private boolean destroyed;
 
-        private StoredTicket(
-                byte[] keyBytes, RealtimeTicketContext context, Instant expiresAt) {
+        private StoredTicket(byte[] keyBytes, RealtimeTicketContext context, Instant expiresAt) {
             this.keyBytes = keyBytes.clone();
             this.context = context;
             this.expiresAt = expiresAt;

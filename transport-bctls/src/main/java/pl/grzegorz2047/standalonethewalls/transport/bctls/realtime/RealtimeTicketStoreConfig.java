@@ -9,8 +9,7 @@ public record RealtimeTicketStoreConfig(int maximumActiveTickets, Duration maxim
     public static final Duration HARD_MAXIMUM_LIFETIME = Duration.ofMinutes(5);
 
     public RealtimeTicketStoreConfig {
-        if (maximumActiveTickets < 1
-                || maximumActiveTickets > HARD_MAXIMUM_ACTIVE_TICKETS) {
+        if (maximumActiveTickets < 1 || maximumActiveTickets > HARD_MAXIMUM_ACTIVE_TICKETS) {
             throw new IllegalArgumentException("maximumActiveTickets is outside hard bounds");
         }
         Objects.requireNonNull(maximumLifetime, "maximumLifetime");

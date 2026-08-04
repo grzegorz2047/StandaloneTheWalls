@@ -49,8 +49,7 @@ class OneTimeRealtimeTicketStoreTest {
         RealtimeTicketRedemption replay = store.redeem(issued.identity());
 
         assertThat(first.status()).isEqualTo(RealtimeTicketRedemption.Status.REDEEMED);
-        assertThat(replay.status())
-                .isEqualTo(RealtimeTicketRedemption.Status.UNKNOWN_OR_REPLAYED);
+        assertThat(replay.status()).isEqualTo(RealtimeTicketRedemption.Status.UNKNOWN_OR_REPLAYED);
         try (RedeemedRealtimeTicket redeemed = first.ticket().orElseThrow()) {
             assertThat(redeemed.context()).isEqualTo(CONTEXT);
             assertThat(redeemed.expiresAt()).isEqualTo(START.plusSeconds(30));
@@ -68,9 +67,7 @@ class OneTimeRealtimeTicketStoreTest {
         MutableClock clock = new MutableClock(START);
         OneTimeRealtimeTicketStore store =
                 new OneTimeRealtimeTicketStore(
-                        clock,
-                        new QueueEntropy(filled(16, 3), filled(32, 4)),
-                        CONFIG);
+                        clock, new QueueEntropy(filled(16, 3), filled(32, 4)), CONFIG);
         IssuedRealtimeTicket issued = store.issue(CONTEXT, Duration.ofSeconds(10));
 
         clock.advance(Duration.ofSeconds(10));
@@ -78,8 +75,7 @@ class OneTimeRealtimeTicketStoreTest {
         RealtimeTicketRedemption second = store.redeem(issued.identity());
 
         assertThat(expired.status()).isEqualTo(RealtimeTicketRedemption.Status.EXPIRED);
-        assertThat(second.status())
-                .isEqualTo(RealtimeTicketRedemption.Status.UNKNOWN_OR_REPLAYED);
+        assertThat(second.status()).isEqualTo(RealtimeTicketRedemption.Status.UNKNOWN_OR_REPLAYED);
         assertThat(expired.ticket()).isEmpty();
         issued.close();
         store.close();
@@ -89,16 +85,10 @@ class OneTimeRealtimeTicketStoreTest {
     void capacityDoesNotEvictValidTicketsButExpiredEntriesAreCleaned() throws Exception {
         MutableClock clock = new MutableClock(START);
         QueueEntropy entropy =
-                new QueueEntropy(
-                        filled(16, 5),
-                        filled(32, 6),
-                        filled(16, 7),
-                        filled(32, 8));
+                new QueueEntropy(filled(16, 5), filled(32, 6), filled(16, 7), filled(32, 8));
         OneTimeRealtimeTicketStore store =
                 new OneTimeRealtimeTicketStore(
-                        clock,
-                        entropy,
-                        new RealtimeTicketStoreConfig(1, Duration.ofSeconds(30)));
+                        clock, entropy, new RealtimeTicketStoreConfig(1, Duration.ofSeconds(30)));
         IssuedRealtimeTicket first = store.issue(CONTEXT, Duration.ofSeconds(10));
 
         assertThatThrownBy(() -> store.issue(CONTEXT, Duration.ofSeconds(10)))

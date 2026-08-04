@@ -16,8 +16,7 @@ class RealtimeTicketValuesTest {
     void contextRejectsZeroSessionNegativeEpochAndWrongDigestLength() {
         ServerId serverId = new ServerId("sfs1_" + "a".repeat(52));
         PlayerId playerId = new PlayerId("sf1_" + "b".repeat(52));
-        RealtimeChannelBindingDigest digest =
-                new RealtimeChannelBindingDigest(filled(32, 1));
+        RealtimeChannelBindingDigest digest = new RealtimeChannelBindingDigest(filled(32, 1));
 
         assertThatIllegalArgumentException()
                 .isThrownBy(
@@ -85,8 +84,8 @@ class RealtimeTicketValuesTest {
                         () ->
                                 new RealtimeTicketStoreConfig(
                                         1,
-                                        RealtimeTicketStoreConfig.HARD_MAXIMUM_LIFETIME
-                                                .plusNanos(1)));
+                                        RealtimeTicketStoreConfig.HARD_MAXIMUM_LIFETIME.plusNanos(
+                                                1)));
     }
 
     private static byte[] filled(int length, int value) {

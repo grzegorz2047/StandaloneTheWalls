@@ -19,7 +19,8 @@ public final class RealtimeTicketRedemption {
     }
 
     public static RealtimeTicketRedemption redeemed(RedeemedRealtimeTicket ticket) {
-        return new RealtimeTicketRedemption(Status.REDEEMED, Objects.requireNonNull(ticket, "ticket"));
+        return new RealtimeTicketRedemption(
+                Status.REDEEMED, Objects.requireNonNull(ticket, "ticket"));
     }
 
     public static RealtimeTicketRedemption unknownOrReplayed() {
