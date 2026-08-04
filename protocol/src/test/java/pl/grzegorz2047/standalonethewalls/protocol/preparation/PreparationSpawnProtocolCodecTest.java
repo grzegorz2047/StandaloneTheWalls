@@ -29,7 +29,10 @@ class PreparationSpawnProtocolCodecTest {
         PreparationSpawnAssignment assignment = validAssignment();
         byte[] mapId = MAP_ID.getBytes(StandardCharsets.US_ASCII);
         byte[] expected =
-                ByteBuffer.allocate(PreparationSpawnProtocolCodec.MINIMUM_ASSIGNMENT_BYTES - 1 + mapId.length)
+                ByteBuffer.allocate(
+                                PreparationSpawnProtocolCodec.MINIMUM_ASSIGNMENT_BYTES
+                                        - 1
+                                        + mapId.length)
                         .put((byte) 1)
                         .putLong(7L)
                         .putLong(2L)
@@ -139,7 +142,9 @@ class PreparationSpawnProtocolCodecTest {
 
         byte[] spawnIndex = validPayload();
         ByteBuffer.wrap(spawnIndex)
-                .putShort(SPAWN_INDEX_OFFSET, (short) (PreparationSpawnAssignment.MAXIMUM_SPAWN_INDEX + 1));
+                .putShort(
+                        SPAWN_INDEX_OFFSET,
+                        (short) (PreparationSpawnAssignment.MAXIMUM_SPAWN_INDEX + 1));
         assertCode(spawnIndex, PreparationProtocolException.Code.INVALID_SPAWN_INDEX);
     }
 
