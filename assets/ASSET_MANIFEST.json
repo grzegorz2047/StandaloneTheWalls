@@ -1,4 +1,29 @@
 {
   "schemaVersion": 1,
-  "assets": []
+  "assets": [
+    {
+      "id": "minimal_preparation_scene",
+      "path": "map-format/src/main/resources/pl/grzegorz2047/standalonethewalls/mapformat/minimal-preparation/scene.gltf.json",
+      "author": "Sunderfront Team",
+      "license": "CC0-1.0",
+      "source": "deterministic project generator",
+      "redistribution": "generated into the minimal_preparation map bundle"
+    },
+    {
+      "id": "minimal_preparation_collision",
+      "path": "map-format/src/main/resources/pl/grzegorz2047/standalonethewalls/mapformat/minimal-preparation/collision.gltf.json",
+      "author": "Sunderfront Team",
+      "license": "CC0-1.0",
+      "source": "deterministic project generator",
+      "redistribution": "generated into the minimal_preparation map bundle"
+    },
+    {
+      "id": "minimal_preparation_thumbnail",
+      "path": "map-format/src/main/resources/pl/grzegorz2047/standalonethewalls/mapformat/minimal-preparation/thumbnail.webp.b64",
+      "author": "Sunderfront Team",
+      "license": "CC0-1.0",
+      "source": "project-authored four-team preview",
+      "redistribution": "decoded into the minimal_preparation map bundle"
+    }
+  ]
 }
