@@ -31,8 +31,7 @@ class ConnectedPreparationSpawnAssignmentTest {
 
         assertThat(prepared.session().currentPreparationSpawnAssignment()).contains(assignment);
         assertThat(prepared.session().terminalFailure()).isEmpty();
-        prepared
-                .session()
+        prepared.session()
                 .closeAsync()
                 .toCompletableFuture()
                 .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
@@ -57,8 +56,7 @@ class ConnectedPreparationSpawnAssignmentTest {
 
         lobby.deliverPreparationSpawnAssignment(assignment(1L, 1L, LobbyTeam.GREEN), 2L);
 
-        assertFailure(
-                session, DirectConnectFailureCode.PREPARATION_SPAWN_UNEXPECTED_PHASE);
+        assertFailure(session, DirectConnectFailureCode.PREPARATION_SPAWN_UNEXPECTED_PHASE);
     }
 
     @Test
@@ -79,10 +77,7 @@ class ConnectedPreparationSpawnAssignmentTest {
             throws InterruptedException, ExecutionException, TimeoutException {
         PreparedLobby prepared = preparedLobby();
 
-        prepared
-                .lobby()
-                .deliverPreparationSpawnAssignment(
-                        assignment(3L, 1L, LobbyTeam.GREEN), 4L);
+        prepared.lobby().deliverPreparationSpawnAssignment(assignment(3L, 1L, LobbyTeam.GREEN), 4L);
 
         assertFailure(
                 prepared.session(), DirectConnectFailureCode.PREPARATION_SPAWN_ROSTER_MISMATCH);
@@ -93,10 +88,7 @@ class ConnectedPreparationSpawnAssignmentTest {
             throws InterruptedException, ExecutionException, TimeoutException {
         PreparedLobby prepared = preparedLobby();
 
-        prepared
-                .lobby()
-                .deliverPreparationSpawnAssignment(
-                        assignment(2L, 2L, LobbyTeam.GREEN), 4L);
+        prepared.lobby().deliverPreparationSpawnAssignment(assignment(2L, 2L, LobbyTeam.GREEN), 4L);
 
         assertFailure(
                 prepared.session(), DirectConnectFailureCode.PREPARATION_SPAWN_ROUND_MISMATCH);
@@ -107,9 +99,7 @@ class ConnectedPreparationSpawnAssignmentTest {
             throws InterruptedException, ExecutionException, TimeoutException {
         PreparedLobby prepared = preparedLobby();
 
-        prepared
-                .lobby()
-                .deliverPreparationSpawnAssignment(assignment(2L, 1L, LobbyTeam.BLUE), 4L);
+        prepared.lobby().deliverPreparationSpawnAssignment(assignment(2L, 1L, LobbyTeam.BLUE), 4L);
 
         assertFailure(
                 prepared.session(), DirectConnectFailureCode.PREPARATION_SPAWN_TEAM_MISMATCH);
