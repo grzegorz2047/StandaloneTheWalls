@@ -23,11 +23,23 @@ class ClientLaunchOptionsTest {
 
         assertEquals(ClientLanguage.POLISH, defaults.language());
         assertFalse(defaults.smokeMode());
+        assertFalse(defaults.preparationSmoke());
         assertEquals(Path.of("data").toAbsolutePath().normalize(), defaults.dataDirectory());
         assertEquals(ClientLanguage.ENGLISH, explicit.language());
         assertTrue(explicit.smokeMode());
+        assertFalse(explicit.preparationSmoke());
         assertEquals(
                 Path.of("runtime/client").toAbsolutePath().normalize(), explicit.dataDirectory());
+    }
+
+    @Test
+    void preparationSmokeSelectsTheBoundedHeadlessScenario() {
+        ClientLaunchOptions options =
+                ClientLaunchOptions.parse(
+                        new String[] {"--preparation-smoke"}, Locale.ENGLISH, null);
+
+        assertTrue(options.smokeMode());
+        assertTrue(options.preparationSmoke());
     }
 
     @Test
@@ -60,6 +72,25 @@ class ClientLaunchOptionsTest {
                 () ->
                         ClientLaunchOptions.parse(
                                 new String[] {"--smoke", "--smoke"}, Locale.ENGLISH, null));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        ClientLaunchOptions.parse(
+                                new String[] {"--smoke", "--preparation-smoke"},
+                                Locale.ENGLISH,
+                                null));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        ClientLaunchOptions.parse(
+                                new String[] {"--preparation-smoke", "--preparation-smoke"},
+                                Locale.ENGLISH,
+                                null));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        new ClientLaunchOptions(
+                                ClientLanguage.ENGLISH, false, true, Path.of("data")));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> ClientLaunchOptions.parse(new String[] {"--data-dir"}, Locale.ENGLISH, null));

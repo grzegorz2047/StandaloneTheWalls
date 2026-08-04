@@ -1,5 +1,6 @@
 package pl.grzegorz2047.standalonethewalls.client;
 
+import com.jme3.app.SimpleApplication;
 import com.jme3.system.AppSettings;
 import com.jme3.system.JmeContext;
 import java.time.Duration;
@@ -17,6 +18,7 @@ public final class ClientLauncher {
     public static final int EXIT_USAGE = 2;
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientLauncher.class);
     private static final Duration INITIALIZATION_TIMEOUT = Duration.ofSeconds(20);
+    private static final Duration PREPARATION_SMOKE_TIMEOUT = Duration.ofSeconds(20);
 
     private ClientLauncher() {
         throw new AssertionError("No instances");
@@ -26,6 +28,11 @@ public final class ClientLauncher {
         Objects.requireNonNull(arguments, "arguments");
         try {
             ClientLaunchOptions options = ClientLaunchOptions.parse(arguments);
+            if (options.preparationSmoke()) {
+                PreparationRuntimeSmoke application = new PreparationRuntimeSmoke();
+                configure(application);
+                return runPreparationSmoke(application);
+            }
             ClientMessages messages = ClientMessages.forLanguage(options.language());
             SunderfrontClient application =
                     new SunderfrontClient(messages, options.smokeMode(), options.dataDirectory());
@@ -48,7 +55,7 @@ public final class ClientLauncher {
         }
     }
 
-    private static void configure(SunderfrontClient application) {
+    private static void configure(SimpleApplication application) {
         AppSettings settings = new AppSettings(true);
         settings.setTitle(BuildInfo.PRODUCT_NAME + " " + BuildInfo.VERSION);
         settings.setResolution(1280, 720);
@@ -64,6 +71,19 @@ public final class ClientLauncher {
         try {
             application.start(JmeContext.Type.Headless, true);
             application.awaitInitialization(INITIALIZATION_TIMEOUT);
+            return EXIT_OK;
+        } finally {
+            if (application.getContext() != null) {
+                application.stop(true);
+            }
+        }
+    }
+
+    private static int runPreparationSmoke(PreparationRuntimeSmoke application)
+            throws InterruptedException, TimeoutException {
+        try {
+            application.start(JmeContext.Type.Headless, true);
+            application.awaitCompletion(PREPARATION_SMOKE_TIMEOUT);
             return EXIT_OK;
         } finally {
             if (application.getContext() != null) {

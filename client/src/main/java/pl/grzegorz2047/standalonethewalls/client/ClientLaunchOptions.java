@@ -6,11 +6,15 @@ import java.util.Objects;
 import pl.grzegorz2047.standalonethewalls.client.i18n.ClientLanguage;
 
 /** Strict first-screen client command-line options. */
-public record ClientLaunchOptions(ClientLanguage language, boolean smokeMode, Path dataDirectory) {
+public record ClientLaunchOptions(
+        ClientLanguage language, boolean smokeMode, boolean preparationSmoke, Path dataDirectory) {
     private static final String JPACKAGE_APP_PATH_PROPERTY = "jpackage.app-path";
 
     public ClientLaunchOptions {
         Objects.requireNonNull(language, "language");
+        if (preparationSmoke && !smokeMode) {
+            throw new IllegalArgumentException("preparation smoke requires smoke mode");
+        }
         dataDirectory =
                 Objects.requireNonNull(dataDirectory, "dataDirectory").toAbsolutePath().normalize();
     }
@@ -31,6 +35,7 @@ public record ClientLaunchOptions(ClientLanguage language, boolean smokeMode, Pa
         boolean languageSet = false;
         boolean dataDirectorySet = false;
         boolean smoke = false;
+        boolean preparationSmoke = false;
         for (int index = 0; index < arguments.length; index++) {
             String argument = requireArgument(arguments[index]);
             switch (argument) {
@@ -51,9 +56,16 @@ public record ClientLaunchOptions(ClientLanguage language, boolean smokeMode, Pa
                 }
                 case "--smoke" -> {
                     if (smoke) {
-                        throw new IllegalArgumentException("--smoke may be supplied only once");
+                        throw new IllegalArgumentException("smoke mode may be supplied only once");
                     }
                     smoke = true;
+                }
+                case "--preparation-smoke" -> {
+                    if (smoke) {
+                        throw new IllegalArgumentException("smoke mode may be supplied only once");
+                    }
+                    smoke = true;
+                    preparationSmoke = true;
                 }
                 default -> throw new IllegalArgumentException("unknown argument: " + argument);
             }
@@ -61,7 +73,7 @@ public record ClientLaunchOptions(ClientLanguage language, boolean smokeMode, Pa
         if (!dataDirectorySet) {
             dataDirectory = defaultDataDirectory(packagedLauncherPath);
         }
-        return new ClientLaunchOptions(language, smoke, dataDirectory);
+        return new ClientLaunchOptions(language, smoke, preparationSmoke, dataDirectory);
     }
 
     private static Path defaultDataDirectory(String packagedLauncherPath) {
