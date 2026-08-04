@@ -78,15 +78,7 @@ public record PreparationSpawnAssignment(
     public int hashCode() {
         int result =
                 Objects.hash(
-                        rosterRevision,
-                        roundNumber,
-                        mapId,
-                        team,
-                        spawnIndex,
-                        x,
-                        y,
-                        z,
-                        yawDegrees);
+                        rosterRevision, roundNumber, mapId, team, spawnIndex, x, y, z, yawDegrees);
         return 31 * result + Arrays.hashCode(mapSha256);
     }
 
