@@ -46,6 +46,8 @@ subprocess.run(
         "--no-configuration-cache",
         ":client:dependencies",
         "--write-locks",
+        "--write-verification-metadata",
+        "sha256",
     ],
     check=True,
 )
