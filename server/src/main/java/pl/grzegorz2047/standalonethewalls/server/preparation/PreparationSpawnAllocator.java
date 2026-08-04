@@ -26,8 +26,7 @@ public final class PreparationSpawnAllocator {
                     "preparation spawn allocation requires at least one participant");
         }
 
-        Map<TeamId, List<LobbyParticipantState>> participantsByTeam =
-                new EnumMap<>(TeamId.class);
+        Map<TeamId, List<LobbyParticipantState>> participantsByTeam = new EnumMap<>(TeamId.class);
         for (LobbyParticipantState participant : authoritativeRoster.participants()) {
             TeamId team =
                     participant
@@ -50,11 +49,16 @@ public final class PreparationSpawnAllocator {
                         PreparationSpawnAllocationException.Code.DUPLICATE_SPAWN_INDEX,
                         "preparation spawn indices must be globally unique");
             }
-            spawnsByTeam.computeIfAbsent(candidate.team(), ignored -> new ArrayList<>())
+            spawnsByTeam
+                    .computeIfAbsent(candidate.team(), ignored -> new ArrayList<>())
                     .add(candidate);
         }
-        spawnsByTeam.values().forEach(
-                teamSpawns -> teamSpawns.sort(Comparator.comparingInt(PreparationSpawnPoint::index)));
+        spawnsByTeam
+                .values()
+                .forEach(
+                        teamSpawns ->
+                                teamSpawns.sort(
+                                        Comparator.comparingInt(PreparationSpawnPoint::index)));
 
         List<PreparationSpawnAssignment> assignments =
                 new ArrayList<>(authoritativeRoster.participants().size());
