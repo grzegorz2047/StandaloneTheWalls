@@ -15,6 +15,7 @@ import com.jme3.input.event.MouseButtonEvent;
 import com.jme3.input.event.MouseMotionEvent;
 import com.jme3.input.event.TouchEvent;
 import com.jme3.math.ColorRGBA;
+import com.jme3.scene.Node;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -30,7 +31,10 @@ import java.util.stream.Collectors;
 import pl.grzegorz2047.standalonethewalls.client.i18n.ClientMessages;
 import pl.grzegorz2047.standalonethewalls.client.identity.ClientIdentityStorage;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectService;
+import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationCameraPlacement;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationPlayerState;
+import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationSceneGraphException;
+import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationSceneGraphLoader;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationTransitionGate;
 import pl.grzegorz2047.standalonethewalls.client.preparation.VerifiedPreparationScene;
 import pl.grzegorz2047.standalonethewalls.client.ui.StartMenuAction;
@@ -99,6 +103,7 @@ public final class SunderfrontClient extends SimpleApplication
     private DirectConnectUiController directConnectController;
     private DirectConnectScreenModel directConnectModel;
     private PreparationPlayerState preparationPlayerState;
+    private Node preparationWorld;
     private volatile int renderedWidth = -1;
     private volatile int renderedHeight = -1;
     private volatile boolean shuttingDown;
@@ -122,6 +127,7 @@ public final class SunderfrontClient extends SimpleApplication
             if (!smokeMode) {
                 viewPort.setBackgroundColor(BACKGROUND);
                 inputManager.setCursorVisible(true);
+                flyCam.setEnabled(false);
                 font = assetManager.loadFont("Interface/Fonts/Default.fnt");
                 registerInputs();
                 renderCurrentScreen();
@@ -208,6 +214,7 @@ public final class SunderfrontClient extends SimpleApplication
     public void destroy() {
         shuttingDown = true;
         pointerRouter.replaceHitMap(UiHitMap.empty());
+        detachPreparationWorld();
         closeDirectConnectController();
         if (!smokeMode && inputManager != null) {
             inputManager.removeListener(this);
@@ -440,6 +447,7 @@ public final class SunderfrontClient extends SimpleApplication
     }
 
     private void openDirectConnectScreen() {
+        detachPreparationWorld();
         closeDirectConnectController();
         preparationTransitionGate = new PreparationTransitionGate();
         preparationPlayerState = null;
@@ -471,9 +479,37 @@ public final class SunderfrontClient extends SimpleApplication
         if (screen != Screen.DIRECT_CONNECT) {
             return;
         }
-        preparationPlayerState = Objects.requireNonNull(entered, "entered");
+        PreparationPlayerState player = Objects.requireNonNull(entered, "entered");
+        Node loadedWorld = null;
+        if (!smokeMode) {
+            try {
+                loadedWorld = PreparationSceneGraphLoader.load(assetManager, player.scene());
+            } catch (PreparationSceneGraphException exception) {
+                failPreparationSceneEntry();
+                return;
+            }
+        }
+        preparationPlayerState = player;
         screen = Screen.PREPARATION;
         pointerRouter.replaceHitMap(UiHitMap.empty());
+        if (!smokeMode) {
+            preparationWorld = loadedWorld;
+            rootNode.attachChild(loadedWorld);
+            PreparationCameraPlacement.apply(cam, player);
+        }
+        renderCurrentScreen();
+    }
+
+    private void failPreparationSceneEntry() {
+        screen = Screen.START_MENU;
+        menuStatus = messages.text("preparation.scene_load_failed");
+        preparationTransitionGate = new PreparationTransitionGate();
+        preparationPlayerState = null;
+        detachPreparationWorld();
+        if (!smokeMode && inputManager != null) {
+            inputManager.setCursorVisible(true);
+        }
+        closeDirectConnectController();
         renderCurrentScreen();
     }
 
@@ -501,11 +537,20 @@ public final class SunderfrontClient extends SimpleApplication
         menuStatus = "";
         preparationTransitionGate = new PreparationTransitionGate();
         preparationPlayerState = null;
+        detachPreparationWorld();
         if (!smokeMode && inputManager != null) {
             inputManager.setCursorVisible(true);
         }
         closeDirectConnectController();
         renderCurrentScreen();
+    }
+
+    private void detachPreparationWorld() {
+        Node current = preparationWorld;
+        preparationWorld = null;
+        if (current != null) {
+            current.removeFromParent();
+        }
     }
 
     private void closeDirectConnectController() {
