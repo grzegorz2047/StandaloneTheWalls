@@ -59,4 +59,6 @@ org.slf4j:slf4j-api:2.0.17=compileClasspath,runtimeClasspath,spotbugsSlf4j,testC
 org.slf4j:slf4j-api:2.0.18=spotbugs
 org.slf4j:slf4j-simple:2.0.17=spotbugsSlf4j
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
+tools.jackson.core:jackson-core:3.2.1=runtimeClasspath,testRuntimeClasspath
+tools.jackson:jackson-bom:3.2.1=runtimeClasspath,testRuntimeClasspath
 empty=annotationProcessor,spotbugsPlugins,testAnnotationProcessor
