@@ -22,6 +22,7 @@ public final class OneTimeRealtimeTicketStore implements AutoCloseable {
     private final Clock clock;
     private final RealtimeTicketEntropy entropy;
     private final RealtimeTicketStoreConfig config;
+    private final Object lock = new Object();
     private final Map<RealtimeTicketIdentity, StoredTicket> tickets = new HashMap<>();
     private boolean closed;
 
@@ -37,93 +38,103 @@ public final class OneTimeRealtimeTicketStore implements AutoCloseable {
                 Clock.systemUTC(), new SecureRealtimeTicketEntropy(), config);
     }
 
-    public synchronized IssuedRealtimeTicket issue(RealtimeTicketContext context, Duration lifetime)
+    public IssuedRealtimeTicket issue(RealtimeTicketContext context, Duration lifetime)
             throws RealtimeTicketStoreException {
-        requireOpen();
-        Objects.requireNonNull(context, "context");
-        Objects.requireNonNull(lifetime, "lifetime");
-        if (lifetime.isZero()
-                || lifetime.isNegative()
-                || lifetime.compareTo(config.maximumLifetime()) > 0) {
-            throw new RealtimeTicketStoreException(
-                    RealtimeTicketStoreException.Code.INVALID_LIFETIME);
-        }
+        synchronized (lock) {
+            requireOpen();
+            Objects.requireNonNull(context, "context");
+            Objects.requireNonNull(lifetime, "lifetime");
+            if (lifetime.isZero()
+                    || lifetime.isNegative()
+                    || lifetime.compareTo(config.maximumLifetime()) > 0) {
+                throw new RealtimeTicketStoreException(
+                        RealtimeTicketStoreException.Code.INVALID_LIFETIME);
+            }
 
-        Instant now = clock.instant();
-        removeExpired(now);
-        if (tickets.size() >= config.maximumActiveTickets()) {
-            throw new RealtimeTicketStoreException(
-                    RealtimeTicketStoreException.Code.CAPACITY_EXHAUSTED);
-        }
+            Instant now = clock.instant();
+            removeExpired(now);
+            if (tickets.size() >= config.maximumActiveTickets()) {
+                throw new RealtimeTicketStoreException(
+                        RealtimeTicketStoreException.Code.CAPACITY_EXHAUSTED);
+            }
 
-        Instant expiresAt;
-        try {
-            expiresAt = now.plus(lifetime);
-        } catch (ArithmeticException | DateTimeException exception) {
-            throw new RealtimeTicketStoreException(
-                    RealtimeTicketStoreException.Code.INVALID_LIFETIME);
-        }
+            Instant expiresAt;
+            try {
+                expiresAt = now.plus(lifetime);
+            } catch (ArithmeticException | DateTimeException exception) {
+                throw new RealtimeTicketStoreException(
+                        RealtimeTicketStoreException.Code.INVALID_LIFETIME);
+            }
 
-        RealtimeTicketIdentity identity = generateUniqueIdentity();
-        byte[] keyBytes = randomBytes(RealtimePreSharedKey.LENGTH_BYTES);
-        try {
-            tickets.put(identity, new StoredTicket(keyBytes, context, expiresAt));
-            return new IssuedRealtimeTicket(
-                    identity, new RealtimePreSharedKey(keyBytes), expiresAt);
-        } finally {
-            Arrays.fill(keyBytes, (byte) 0);
+            RealtimeTicketIdentity identity = generateUniqueIdentity();
+            byte[] keyBytes = randomBytes(RealtimePreSharedKey.LENGTH_BYTES);
+            try {
+                tickets.put(identity, new StoredTicket(keyBytes, context, expiresAt));
+                return new IssuedRealtimeTicket(
+                        identity, new RealtimePreSharedKey(keyBytes), expiresAt);
+            } finally {
+                Arrays.fill(keyBytes, (byte) 0);
+            }
         }
     }
 
-    public synchronized RealtimeTicketRedemption redeem(RealtimeTicketIdentity identity)
+    public RealtimeTicketRedemption redeem(RealtimeTicketIdentity identity)
             throws RealtimeTicketStoreException {
-        requireOpen();
-        Objects.requireNonNull(identity, "identity");
-        StoredTicket stored = tickets.remove(identity);
-        if (stored == null) {
-            return RealtimeTicketRedemption.unknownOrReplayed();
-        }
+        synchronized (lock) {
+            requireOpen();
+            Objects.requireNonNull(identity, "identity");
+            StoredTicket stored = tickets.remove(identity);
+            if (stored == null) {
+                return RealtimeTicketRedemption.unknownOrReplayed();
+            }
 
-        Instant now = clock.instant();
-        if (!now.isBefore(stored.expiresAt())) {
-            stored.destroy();
-            return RealtimeTicketRedemption.expired();
-        }
+            Instant now = clock.instant();
+            if (!now.isBefore(stored.expiresAt())) {
+                stored.destroy();
+                return RealtimeTicketRedemption.expired();
+            }
 
-        byte[] keyBytes = stored.takeKeyBytes();
-        try {
-            return RealtimeTicketRedemption.redeemed(
-                    new RedeemedRealtimeTicket(
-                            identity,
-                            new RealtimePreSharedKey(keyBytes),
-                            stored.context(),
-                            stored.expiresAt()));
-        } finally {
-            Arrays.fill(keyBytes, (byte) 0);
+            byte[] keyBytes = stored.takeKeyBytes();
+            try {
+                return RealtimeTicketRedemption.redeemed(
+                        new RedeemedRealtimeTicket(
+                                identity,
+                                new RealtimePreSharedKey(keyBytes),
+                                stored.context(),
+                                stored.expiresAt()));
+            } finally {
+                Arrays.fill(keyBytes, (byte) 0);
+            }
         }
     }
 
-    public synchronized int removeExpired() throws RealtimeTicketStoreException {
-        requireOpen();
-        return removeExpired(clock.instant());
+    public int removeExpired() throws RealtimeTicketStoreException {
+        synchronized (lock) {
+            requireOpen();
+            return removeExpired(clock.instant());
+        }
     }
 
-    public synchronized int activeTicketCount() throws RealtimeTicketStoreException {
-        requireOpen();
-        removeExpired(clock.instant());
-        return tickets.size();
+    public int activeTicketCount() throws RealtimeTicketStoreException {
+        synchronized (lock) {
+            requireOpen();
+            removeExpired(clock.instant());
+            return tickets.size();
+        }
     }
 
     @Override
-    public synchronized void close() {
-        if (closed) {
-            return;
+    public void close() {
+        synchronized (lock) {
+            if (closed) {
+                return;
+            }
+            closed = true;
+            for (StoredTicket ticket : tickets.values()) {
+                ticket.destroy();
+            }
+            tickets.clear();
         }
-        closed = true;
-        for (StoredTicket ticket : tickets.values()) {
-            ticket.destroy();
-        }
-        tickets.clear();
     }
 
     private RealtimeTicketIdentity generateUniqueIdentity() throws RealtimeTicketStoreException {
