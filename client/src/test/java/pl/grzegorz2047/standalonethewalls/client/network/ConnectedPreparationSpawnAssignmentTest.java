@@ -65,14 +65,22 @@ class ConnectedPreparationSpawnAssignmentTest {
     }
 
     @Test
-    void closesOnDuplicateAssignment()
+    void closesOnDuplicateAssignmentWithoutReplacingTheVerifiedState()
             throws InterruptedException, ExecutionException, TimeoutException {
         PreparedLobby prepared = preparedLobby();
         PreparationSpawnAssignment assignment = assignment(2L, 1L, LobbyTeam.GREEN);
         prepared.lobby().deliverPreparationSpawnAssignment(assignment, 4L);
         waitUntil(() -> prepared.session().currentVerifiedPreparationScene().isPresent());
+
+        VerifiedPreparationScene scene =
+                prepared.session().currentVerifiedPreparationScene().orElseThrow();
         prepared.lobby().deliverPreparationSpawnAssignment(assignment, 5L);
-        assertFailure(prepared.session(), DirectConnectFailureCode.PREPARATION_SPAWN_DUPLICATE);
+
+        assertThat(awaitFailure(prepared.session()).code())
+                .isEqualTo(DirectConnectFailureCode.PREPARATION_SPAWN_DUPLICATE);
+        assertThat(prepared.session().currentPreparationSpawnAssignment()).contains(assignment);
+        assertThat(prepared.session().currentVerifiedPreparationScene()).contains(scene);
+        assertThat(prepared.session().isOpen()).isFalse();
     }
 
     @Test
@@ -140,7 +148,8 @@ class ConnectedPreparationSpawnAssignmentTest {
                         -14.0d,
                         45.0d);
         prepared.lobby().deliverPreparationSpawnAssignment(assignment, 4L);
-        assertFailure(prepared.session(), DirectConnectFailureCode.PREPARATION_MAP_SHA256_MISMATCH);
+        assertFailure(
+                prepared.session(), DirectConnectFailureCode.PREPARATION_MAP_SHA256_MISMATCH);
     }
 
     @Test
@@ -232,15 +241,19 @@ class ConnectedPreparationSpawnAssignmentTest {
     private static void assertFailure(
             ConnectedLobbySession session, DirectConnectFailureCode expected)
             throws InterruptedException, ExecutionException, TimeoutException {
+        assertThat(awaitFailure(session).code()).isEqualTo(expected);
+        assertThat(session.currentPreparationSpawnAssignment()).isEmpty();
+        assertThat(session.currentVerifiedPreparationScene()).isEmpty();
+        assertThat(session.isOpen()).isFalse();
+    }
+
+    private static DirectConnectFailure awaitFailure(ConnectedLobbySession session)
+            throws InterruptedException, ExecutionException, TimeoutException {
         Optional<DirectConnectFailure> failure =
                 session.termination()
                         .toCompletableFuture()
                         .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
-        assertThat(failure).isPresent();
-        assertThat(failure.orElseThrow().code()).isEqualTo(expected);
-        assertThat(session.currentPreparationSpawnAssignment()).isEmpty();
-        assertThat(session.currentVerifiedPreparationScene()).isEmpty();
-        assertThat(session.isOpen()).isFalse();
+        return failure.orElseThrow();
     }
 
     private static void waitUntil(BooleanSupplier condition) throws InterruptedException {
