@@ -33,9 +33,7 @@ public final class PreparationSceneLoader {
             throws PreparationSceneLoadException {
         VerifiedMapBundle bundle;
         try {
-            bundle =
-                    TwMapBundleLoader.load(
-                            MinimalPreparationBundle.createArchive(), LOAD_POLICY);
+            bundle = TwMapBundleLoader.load(MinimalPreparationBundle.createArchive(), LOAD_POLICY);
         } catch (TwMapBundleException exception) {
             throw new PreparationSceneLoadException(
                     PreparationSceneLoadException.Code.BUNDLE_LOAD_FAILED,
@@ -59,8 +57,7 @@ public final class PreparationSceneLoader {
 
         byte[] verifiedArchiveSha256 =
                 HexFormat.of().parseHex(verifiedBundle.archiveSha256().value());
-        if (!MessageDigest.isEqual(
-                verifiedArchiveSha256, authoritativeAssignment.mapSha256())) {
+        if (!MessageDigest.isEqual(verifiedArchiveSha256, authoritativeAssignment.mapSha256())) {
             throw failure(
                     PreparationSceneLoadException.Code.MAP_SHA256_MISMATCH,
                     "preparation assignment digest does not match the verified archive");
@@ -84,7 +81,9 @@ public final class PreparationSceneLoader {
                                                 "verified gameplay has no region for the assigned team"));
         PreparationMapSpawn spawn =
                 gameplay.spawns().stream()
-                        .filter(candidate -> candidate.index() == authoritativeAssignment.spawnIndex())
+                        .filter(
+                                candidate ->
+                                        candidate.index() == authoritativeAssignment.spawnIndex())
                         .findFirst()
                         .orElseThrow(
                                 () ->
@@ -141,9 +140,7 @@ public final class PreparationSceneLoader {
     }
 
     private static void requireMatchingSpawn(
-            PreparationMapSpawn spawn,
-            PreparationTeam team,
-            PreparationSpawnAssignment assignment)
+            PreparationMapSpawn spawn, PreparationTeam team, PreparationSpawnAssignment assignment)
             throws PreparationSceneLoadException {
         if (spawn.team() != team
                 || Double.compare(spawn.position().x(), assignment.x()) != 0

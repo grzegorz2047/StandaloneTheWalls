@@ -14,8 +14,7 @@ class PreparationSceneLoaderTest {
             HexFormat.of().parseHex(MinimalPreparationBundle.EXPECTED_ARCHIVE_SHA256);
 
     @Test
-    void loadsTheVerifiedSceneForTheAuthoritativeSpawn()
-            throws PreparationSceneLoadException {
+    void loadsTheVerifiedSceneForTheAuthoritativeSpawn() throws PreparationSceneLoadException {
         VerifiedPreparationScene scene = PreparationSceneLoader.loadDefault(greenSpawn());
 
         assertThat(scene.mapId()).isEqualTo(MinimalPreparationBundle.MAP_ID);
@@ -56,14 +55,7 @@ class PreparationSceneLoaderTest {
     void rejectsAReportedMapIdThatDoesNotMatchTheVerifiedBundle() {
         PreparationSpawnAssignment assignment =
                 assignment(
-                        "other_map",
-                        MAP_SHA256,
-                        LobbyTeam.GREEN,
-                        0,
-                        -15.0d,
-                        0.5d,
-                        -14.0d,
-                        45.0d);
+                        "other_map", MAP_SHA256, LobbyTeam.GREEN, 0, -15.0d, 0.5d, -14.0d, 45.0d);
 
         assertFailure(assignment, PreparationSceneLoadException.Code.MAP_ID_MISMATCH);
     }
@@ -182,15 +174,6 @@ class PreparationSceneLoaderTest {
             double z,
             double yawDegrees) {
         return new PreparationSpawnAssignment(
-                8L,
-                1L,
-                mapId,
-                digest,
-                team,
-                spawnIndex,
-                x,
-                y,
-                z,
-                yawDegrees);
+                8L, 1L, mapId, digest, team, spawnIndex, x, y, z, yawDegrees);
     }
 }
