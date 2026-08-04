@@ -68,7 +68,9 @@ function Assert-NoRuntimeData {
 function Invoke-AppImageSmoke {
     param(
         [Parameter(Mandatory = $true)][string] $Image,
-        [Parameter(Mandatory = $true)][string] $WorkingDirectory
+        [Parameter(Mandatory = $true)][string] $WorkingDirectory,
+        [Parameter(Mandatory = $true)][string[]] $Arguments,
+        [Parameter(Mandatory = $true)][string] $Label
     )
 
     $executable = Join-Path $Image 'Sunderfront.exe'
@@ -105,12 +107,12 @@ function Invoke-AppImageSmoke {
         $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
         $process = Start-Process `
             -FilePath $executable `
-            -ArgumentList '--smoke' `
+            -ArgumentList $Arguments `
             -WorkingDirectory $WorkingDirectory `
             -Wait `
             -PassThru
         if ($process.ExitCode -ne 0) {
-            throw "Sunderfront.exe --smoke failed with exit code $($process.ExitCode)"
+            throw "Sunderfront.exe $Label failed with exit code $($process.ExitCode)"
         }
     }
     finally {
@@ -122,6 +124,25 @@ function Invoke-AppImageSmoke {
         }
         $env:PATH = $savedPath
     }
+    Assert-NoRuntimeData $Image
+}
+
+function Invoke-AppImageSmokes {
+    param(
+        [Parameter(Mandatory = $true)][string] $Image,
+        [Parameter(Mandatory = $true)][string] $WorkingRoot
+    )
+
+    Invoke-AppImageSmoke `
+        -Image $Image `
+        -WorkingDirectory (Join-Path $WorkingRoot 'startup') `
+        -Arguments @('--smoke') `
+        -Label '--smoke'
+    Invoke-AppImageSmoke `
+        -Image $Image `
+        -WorkingDirectory (Join-Path $WorkingRoot 'preparation') `
+        -Arguments @('--preparation-smoke') `
+        -Label '--preparation-smoke'
 }
 
 if (-not $IsWindows) {
@@ -146,7 +167,7 @@ try {
     }
     & .\release\windows\build_app_image.ps1 -Destination $firstRoot | Out-Host
     $firstImage = Join-Path $firstRoot 'image/Sunderfront'
-    Invoke-AppImageSmoke $firstImage (Join-Path $temporaryRoot 'working-first')
+    Invoke-AppImageSmokes $firstImage (Join-Path $temporaryRoot 'working-first')
     & python .\release\windows\package_app_image.py $firstImage $firstZip $archiveBase
     if ($LASTEXITCODE -ne 0) {
         throw "First deterministic archive failed with exit code $LASTEXITCODE"
@@ -155,7 +176,7 @@ try {
     New-Item -ItemType Directory -Force -Path $relocatedRoot | Out-Null
     $relocatedImage = Join-Path $relocatedRoot 'Sunderfront'
     Move-Item -LiteralPath $firstImage -Destination $relocatedImage
-    Invoke-AppImageSmoke $relocatedImage (Join-Path $temporaryRoot 'working-relocated')
+    Invoke-AppImageSmokes $relocatedImage (Join-Path $temporaryRoot 'working-relocated')
 
     & .\gradlew.bat --no-daemon --no-configuration-cache clean :client:installDist
     if ($LASTEXITCODE -ne 0) {
@@ -163,7 +184,7 @@ try {
     }
     & .\release\windows\build_app_image.ps1 -Destination $secondRoot | Out-Host
     $secondImage = Join-Path $secondRoot 'image/Sunderfront'
-    Invoke-AppImageSmoke $secondImage (Join-Path $temporaryRoot 'working-second')
+    Invoke-AppImageSmokes $secondImage (Join-Path $temporaryRoot 'working-second')
     & python .\release\windows\package_app_image.py $secondImage $secondZip $archiveBase
     if ($LASTEXITCODE -ne 0) {
         throw "Second deterministic archive failed with exit code $LASTEXITCODE"
