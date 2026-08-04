@@ -70,8 +70,8 @@ class PreparationGameplayJsonTest {
     void rejectsOverlappingRegionsDuplicateIndicesAndSpawnOutsideItsRegion() {
         String overlapping =
                 validText().replace(
-                                "[1,-1,-20],[20,20,-1]",
-                                "[-10,-1,-20],[20,20,-1]");
+                                "\"minimum\":[1,-1,-20]",
+                                "\"minimum\":[-10,-1,-20]");
         assertCode(overlapping, PreparationGameplayException.Code.INVALID_LAYOUT);
 
         String duplicateIndex = validText().replace("\"index\":8", "\"index\":2");
@@ -98,7 +98,7 @@ class PreparationGameplayJsonTest {
 
     @Test
     void rejectsNullEmptyAndOversizedPayloads() {
-        assertCode(null, PreparationGameplayException.Code.INVALID_SIZE);
+        assertCode((byte[]) null, PreparationGameplayException.Code.INVALID_SIZE);
         assertCode(new byte[0], PreparationGameplayException.Code.INVALID_SIZE);
         assertCode(
                 new byte[PreparationGameplayJson.MAXIMUM_BYTES + 1],
@@ -150,9 +150,7 @@ class PreparationGameplayJsonTest {
     }
 
     private static void assertCode(String json, PreparationGameplayException.Code expected) {
-        assertCode(
-                json == null ? null : json.getBytes(StandardCharsets.UTF_8),
-                expected);
+        assertCode(json == null ? null : json.getBytes(StandardCharsets.UTF_8), expected);
     }
 
     private static void assertCode(byte[] json, PreparationGameplayException.Code expected) {
