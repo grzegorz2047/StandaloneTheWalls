@@ -55,8 +55,7 @@ class VerifiedPreparationMapAdapterTest {
                 .isEqualTo(new PreparationSpawnPoint(0, TeamId.GREEN, -15.0d, 0.5d, -14.0d, 45.0d));
         assertThat(map.spawnPoints().getLast())
                 .isEqualTo(
-                        new PreparationSpawnPoint(
-                                39, TeamId.YELLOW, 15.0d, 0.5d, 14.0d, -135.0d));
+                        new PreparationSpawnPoint(39, TeamId.YELLOW, 15.0d, 0.5d, 14.0d, -135.0d));
 
         LobbyRosterState roster = fullRoster();
         List<PreparationClientSpawn> plan =
