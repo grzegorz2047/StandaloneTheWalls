@@ -27,8 +27,13 @@ new = """    private void returnToStartMenu() {
         detachPreparationWorld();
         if (!smokeMode && inputManager != null) {
 """
-if client.count(old) != 1:
+old_count = client.count(old)
+new_count = client.count(new)
+if old_count == 1 and new_count == 0:
+    client = client.replace(old, new, 1)
+elif old_count != 0 or new_count != 1:
     raise SystemExit(
-        f"return-to-menu world detach: expected one match, found {client.count(old)}"
+        "return-to-menu world detach: expected one patched or one unpatched block, "
+        f"found old={old_count}, new={new_count}"
     )
-client_path.write_text(client.replace(old, new, 1), encoding="utf-8")
+client_path.write_text(client, encoding="utf-8")
