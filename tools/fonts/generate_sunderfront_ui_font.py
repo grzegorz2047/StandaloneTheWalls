@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 from pathlib import Path
 
@@ -17,6 +18,8 @@ SPACING = 1
 ATLAS_WIDTH = 1024
 FONT_FACE = "SunderfrontUI-Regular"
 PNG_NAME = "SunderfrontUI-Regular.png"
+FNT_NAMES = ("SunderfrontUI-Regular.fnt", "Default.fnt")
+BASE64_CHUNK_SIZE = 8000
 REQUIRED_SYMBOLS = "–—…„”’←→✓✗°×"
 
 
@@ -36,6 +39,23 @@ def sha256(path: Path) -> str:
 
 def next_power_of_two(value: int) -> int:
     return 1 if value <= 1 else 1 << (value - 1).bit_length()
+
+
+def write_base64_chunks(png_path: Path, output: Path) -> int:
+    encoded = base64.b64encode(png_path.read_bytes()).decode("ascii")
+    chunk_base = output / f"{PNG_NAME}.b64"
+    for stale in output.glob(f"{PNG_NAME}.b64*"):
+        stale.unlink()
+    chunks = [
+        encoded[offset : offset + BASE64_CHUNK_SIZE]
+        for offset in range(0, len(encoded), BASE64_CHUNK_SIZE)
+    ]
+    for index, chunk in enumerate(chunks):
+        suffix = "" if index == 0 else f".{index:02d}"
+        chunk_base.with_name(chunk_base.name + suffix).write_text(
+            chunk + "\n", encoding="ascii", newline="\n"
+        )
+    return len(chunks)
 
 
 def main() -> None:
@@ -103,8 +123,8 @@ def main() -> None:
             row_height = max(row_height, cell_height)
 
     atlas_height = next_power_of_two(y + row_height + SPACING)
-    atlas = Image.new("RGBA", (ATLAS_WIDTH, atlas_height), (255, 255, 255, 0))
-    draw = ImageDraw.Draw(atlas)
+    rgba_atlas = Image.new("RGBA", (ATLAS_WIDTH, atlas_height), (255, 255, 255, 0))
+    draw = ImageDraw.Draw(rgba_atlas)
     for glyph in glyphs:
         if glyph["width"] == 0:
             continue
@@ -121,7 +141,18 @@ def main() -> None:
     output = args.output_directory.resolve()
     output.mkdir(parents=True, exist_ok=True)
     png_path = output / PNG_NAME
-    atlas.save(png_path, format="PNG", optimize=False, compress_level=9)
+    alpha = rgba_atlas.getchannel("A")
+    indexed_atlas = Image.new("P", rgba_atlas.size, 0)
+    indexed_atlas.putpalette([255, 255, 255] * 256)
+    indexed_atlas.putdata(list(alpha.getdata()))
+    transparency = bytes(range(256))
+    indexed_atlas.save(
+        png_path,
+        format="PNG",
+        optimize=True,
+        compress_level=9,
+        transparency=transparency,
+    )
 
     kerning: list[tuple[int, int, int]] = []
     for first in requested:
@@ -154,16 +185,18 @@ def main() -> None:
     fnt_lines.append(f"kernings count={len(kerning)}")
     for first, second, amount in kerning:
         fnt_lines.append(f"kerning first={first} second={second} amount={amount}")
-    fnt_path = output / "SunderfrontUI-Regular.fnt"
-    fnt_path.write_text(
-        "\n".join(fnt_lines) + "\n", encoding="utf-8", newline="\n"
-    )
+    fnt_text = "\n".join(fnt_lines) + "\n"
+    for fnt_name in FNT_NAMES:
+        (output / fnt_name).write_text(
+            fnt_text, encoding="utf-8", newline="\n"
+        )
 
+    chunks = write_base64_chunks(png_path, output)
     print(f"source_sha256={sha256(source)}")
     print(f"png_sha256={sha256(png_path)}")
-    print(f"fnt_sha256={sha256(fnt_path)}")
+    print(f"fnt_sha256={sha256(output / FNT_NAMES[0])}")
     print(f"atlas={ATLAS_WIDTH}x{atlas_height}")
-    print(f"glyphs={len(glyphs)} kernings={len(kerning)}")
+    print(f"glyphs={len(glyphs)} kernings={len(kerning)} chunks={chunks}")
 
 
 if __name__ == "__main__":
