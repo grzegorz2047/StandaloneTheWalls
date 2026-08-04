@@ -13,7 +13,7 @@ public final class VerifiedMapBundle {
     private final byte[] manifestJson;
     private final Map<String, byte[]> members;
 
-    public VerifiedMapBundle(
+    VerifiedMapBundle(
             MapManifest manifest,
             PreparationGameplay gameplay,
             Sha256Digest archiveSha256,
