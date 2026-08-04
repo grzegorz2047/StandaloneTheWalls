@@ -101,8 +101,7 @@ class ConnectedPreparationSpawnAssignmentTest {
 
         prepared.lobby().deliverPreparationSpawnAssignment(assignment(2L, 1L, LobbyTeam.BLUE), 4L);
 
-        assertFailure(
-                prepared.session(), DirectConnectFailureCode.PREPARATION_SPAWN_TEAM_MISMATCH);
+        assertFailure(prepared.session(), DirectConnectFailureCode.PREPARATION_SPAWN_TEAM_MISMATCH);
     }
 
     private static PreparedLobby preparedLobby() throws InterruptedException {
