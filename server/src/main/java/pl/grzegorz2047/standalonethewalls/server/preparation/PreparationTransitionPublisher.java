@@ -17,9 +17,11 @@ import pl.grzegorz2047.standalonethewalls.domain.lobby.LobbyRosterState;
 import pl.grzegorz2047.standalonethewalls.protocol.MessageType;
 import pl.grzegorz2047.standalonethewalls.protocol.ReliableChannel;
 import pl.grzegorz2047.standalonethewalls.protocol.ReliableSendResult;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCountdownCancellationReason;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhase;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhaseSnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnProtocolCodec;
-import pl.grzegorz2047.standalonethewalls.server.lobby.LobbyMatchProtocolAdapter;
 import pl.grzegorz2047.standalonethewalls.server.lobby.LobbyMatchSnapshot;
 
 /** Publishes one complete ordered transition: phase snapshot first, then client-specific spawns. */
@@ -45,8 +47,7 @@ public final class PreparationTransitionPublisher {
 
         long deadline = System.nanoTime() + boundedTimeout.toNanos();
         byte[] snapshotPayload =
-                LobbyMatchProtocolCodec.encodeSnapshot(
-                        LobbyMatchProtocolAdapter.toProtocol(matchSnapshot));
+                LobbyMatchProtocolCodec.encodeSnapshot(preparationSnapshot(matchSnapshot));
         publishSnapshot(availableChannels, snapshotPayload, deadline);
 
         try {
@@ -58,6 +59,19 @@ public final class PreparationTransitionPublisher {
                     "preparation spawn assignment publication failed",
                     exception);
         }
+    }
+
+    private static LobbyMatchPhaseSnapshot preparationSnapshot(LobbyMatchSnapshot source) {
+        LobbyMatchSnapshot snapshot = Objects.requireNonNull(source, "matchSnapshot");
+        return new LobbyMatchPhaseSnapshot(
+                snapshot.revision(),
+                snapshot.rosterRevision(),
+                snapshot.authoritativeTick(),
+                LobbyMatchPhase.PREPARATION,
+                snapshot.ticksRemaining(),
+                snapshot.connectedPlayers(),
+                snapshot.roundNumber(),
+                LobbyCountdownCancellationReason.NONE);
     }
 
     private static void validateCoverageAndPayloads(
