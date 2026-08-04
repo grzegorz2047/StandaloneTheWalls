@@ -351,8 +351,7 @@ public final class ConnectedLobbySession implements AutoCloseable {
             assignment = PreparationSpawnProtocolCodec.decodeAssignment(payload);
         } catch (PreparationProtocolException exception) {
             return Optional.of(
-                    DirectConnectFailure.of(
-                            DirectConnectFailureCode.PREPARATION_SPAWN_MALFORMED));
+                    DirectConnectFailure.of(DirectConnectFailureCode.PREPARATION_SPAWN_MALFORMED));
         }
 
         synchronized (commandLock) {
