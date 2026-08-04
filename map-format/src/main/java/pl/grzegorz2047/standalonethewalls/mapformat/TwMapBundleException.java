@@ -1,6 +1,7 @@
 package pl.grzegorz2047.standalonethewalls.mapformat;
 
 import java.io.Serial;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -9,7 +10,7 @@ public final class TwMapBundleException extends Exception {
     @Serial private static final long serialVersionUID = 1L;
 
     private final Code code;
-    private final List<MapValidationIssue> manifestIssues;
+    private final ArrayList<MapValidationIssue> manifestIssues;
 
     public TwMapBundleException(Code code, String message) {
         this(code, message, null, List.of());
@@ -31,7 +32,8 @@ public final class TwMapBundleException extends Exception {
             List<MapValidationIssue> manifestIssues) {
         super(Objects.requireNonNull(message, "message"), cause);
         this.code = Objects.requireNonNull(code, "code");
-        this.manifestIssues = List.copyOf(Objects.requireNonNull(manifestIssues, "manifestIssues"));
+        this.manifestIssues =
+                new ArrayList<>(Objects.requireNonNull(manifestIssues, "manifestIssues"));
     }
 
     public Code code() {
@@ -39,7 +41,7 @@ public final class TwMapBundleException extends Exception {
     }
 
     public List<MapValidationIssue> manifestIssues() {
-        return manifestIssues;
+        return List.copyOf(manifestIssues);
     }
 
     public enum Code {
