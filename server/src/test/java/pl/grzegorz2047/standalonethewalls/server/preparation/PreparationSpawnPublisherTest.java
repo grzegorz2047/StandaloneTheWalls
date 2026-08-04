@@ -243,8 +243,7 @@ class PreparationSpawnPublisherTest {
         }
 
         @Override
-        public CompletionStage<ReliableSendResult> send(
-                MessageType messageType, byte[] payload) {
+        public CompletionStage<ReliableSendResult> send(MessageType messageType, byte[] payload) {
             sent.add(new SentMessage(messageType, payload));
             return behavior.send();
         }
