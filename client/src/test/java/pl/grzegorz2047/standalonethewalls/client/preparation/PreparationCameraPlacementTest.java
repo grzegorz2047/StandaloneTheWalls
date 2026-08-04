@@ -1,9 +1,8 @@
 package pl.grzegorz2047.standalonethewalls.client.preparation;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
-import com.jme3.math.FastMath;
-import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
 import java.util.HexFormat;
@@ -14,21 +13,22 @@ import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnA
 
 class PreparationCameraPlacementTest {
     @Test
-    void appliesTheExactAuthoritativeSpawnAndYaw() throws PreparationSceneLoadException {
+    void appliesTheExactAuthoritativeSpawnAndProtocolYaw()
+            throws PreparationSceneLoadException {
         PreparationPlayerState player =
-                PreparationPlayerState.atAuthoritativeSpawn(verifiedGreenScene());
+                PreparationPlayerState.atAuthoritativeSpawn(verifiedScene());
         Camera camera = new Camera(1280, 720);
 
         PreparationCameraPlacement.apply(camera, player);
 
         assertThat(camera.getLocation()).isEqualTo(new Vector3f(-15.0f, 0.5f, -14.0f));
-        Quaternion expected =
-                new Quaternion().fromAngleAxis(45.0f * FastMath.DEG_TO_RAD, Vector3f.UNIT_Y);
-        assertThat(camera.getRotation()).isEqualTo(expected);
+        float expected = (float) (Math.sqrt(2.0d) / 2.0d);
+        assertThat(camera.getDirection().x).isCloseTo(expected, within(0.00001f));
+        assertThat(camera.getDirection().y).isCloseTo(0.0f, within(0.00001f));
+        assertThat(camera.getDirection().z).isCloseTo(expected, within(0.00001f));
     }
 
-    private static VerifiedPreparationScene verifiedGreenScene()
-            throws PreparationSceneLoadException {
+    private static VerifiedPreparationScene verifiedScene() throws PreparationSceneLoadException {
         byte[] digest = HexFormat.of().parseHex(MinimalPreparationBundle.EXPECTED_ARCHIVE_SHA256);
         PreparationSpawnAssignment assignment =
                 new PreparationSpawnAssignment(
