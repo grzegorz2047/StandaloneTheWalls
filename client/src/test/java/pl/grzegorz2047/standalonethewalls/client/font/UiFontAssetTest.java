@@ -13,8 +13,7 @@ import org.junit.jupiter.api.Test;
 
 class UiFontAssetTest {
     private static final String DEFAULT_FONT = "Interface/Fonts/Default.fnt";
-    private static final String NAMED_FONT =
-            "Interface/Fonts/SunderfrontUI-Regular.fnt";
+    private static final String NAMED_FONT = "Interface/Fonts/SunderfrontUI-Regular.fnt";
     private static final String REQUIRED_POLISH = "ĄĆĘŁŃÓŚŹŻąćęłńóśźż";
     private static final String REQUIRED_SYMBOLS = "–—…„”’←→✓✗°×";
 
@@ -42,9 +41,7 @@ class UiFontAssetTest {
         Set<Integer> required = new LinkedHashSet<>();
         collectBundleCodePoints(required, Locale.ENGLISH);
         collectBundleCodePoints(required, Locale.forLanguageTag("pl-PL"));
-        (REQUIRED_POLISH + REQUIRED_SYMBOLS)
-                .codePoints()
-                .forEach(required::add);
+        (REQUIRED_POLISH + REQUIRED_SYMBOLS).codePoints().forEach(required::add);
 
         Set<String> missing = new LinkedHashSet<>();
         for (int codePoint : required) {
@@ -63,11 +60,7 @@ class UiFontAssetTest {
         BitmapFont font = assetManager.loadFont(DEFAULT_FONT);
 
         assertFits(font, "Połączenie bezpośrednie", 32.0f, 1200.0f);
-        assertFits(
-                font,
-                "Strzałki góra/dół i Enter. Esc: koniec.",
-                18.0f,
-                1200.0f);
+        assertFits(font, "Strzałki góra/dół i Enter. Esc: koniec.", 18.0f, 1200.0f);
         assertFits(
                 font,
                 "Nie udało się załadować zweryfikowanej sceny przygotowania.",
@@ -82,8 +75,7 @@ class UiFontAssetTest {
         }
     }
 
-    private static void assertFits(
-            BitmapFont font, String value, float size, float maximumWidth) {
+    private static void assertFits(BitmapFont font, String value, float size, float maximumWidth) {
         BitmapText text = new BitmapText(font);
         text.setSize(size);
         text.setText(value);
