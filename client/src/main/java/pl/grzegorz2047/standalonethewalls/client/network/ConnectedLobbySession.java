@@ -9,6 +9,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.LongFunction;
+import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationSceneLoadException;
+import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationSceneLoader;
+import pl.grzegorz2047.standalonethewalls.client.preparation.VerifiedPreparationScene;
 import pl.grzegorz2047.standalonethewalls.protocol.MessageType;
 import pl.grzegorz2047.standalonethewalls.protocol.ProtocolEnvelope;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.CanonicalHandle;
@@ -37,8 +40,7 @@ public final class ConnectedLobbySession implements AutoCloseable {
     private final CanonicalHandle handle;
     private final AtomicReference<LobbySnapshot> snapshot;
     private final AtomicReference<LobbyMatchPhaseSnapshot> matchSnapshot;
-    private final AtomicReference<PreparationSpawnAssignment> preparationSpawnAssignment =
-            new AtomicReference<>();
+    private final AtomicReference<PreparationState> preparationState = new AtomicReference<>();
     private final AtomicReference<DirectConnectFailure> terminalFailure = new AtomicReference<>();
     private final AtomicBoolean receiverStarted = new AtomicBoolean();
     private final AtomicBoolean closing = new AtomicBoolean();
@@ -86,7 +88,13 @@ public final class ConnectedLobbySession implements AutoCloseable {
     }
 
     public Optional<PreparationSpawnAssignment> currentPreparationSpawnAssignment() {
-        return Optional.ofNullable(preparationSpawnAssignment.get());
+        PreparationState current = preparationState.get();
+        return current == null ? Optional.empty() : Optional.of(current.assignment());
+    }
+
+    public Optional<VerifiedPreparationScene> currentVerifiedPreparationScene() {
+        PreparationState current = preparationState.get();
+        return current == null ? Optional.empty() : Optional.of(current.scene());
     }
 
     public boolean isOpen() {
@@ -355,7 +363,7 @@ public final class ConnectedLobbySession implements AutoCloseable {
         }
 
         synchronized (commandLock) {
-            if (preparationSpawnAssignment.get() != null) {
+            if (preparationState.get() != null) {
                 return Optional.of(
                         DirectConnectFailure.of(
                                 DirectConnectFailureCode.PREPARATION_SPAWN_DUPLICATE));
@@ -384,7 +392,14 @@ public final class ConnectedLobbySession implements AutoCloseable {
                         DirectConnectFailure.of(
                                 DirectConnectFailureCode.PREPARATION_SPAWN_TEAM_MISMATCH));
             }
-            preparationSpawnAssignment.set(assignment);
+            VerifiedPreparationScene scene;
+            try {
+                scene = PreparationSceneLoader.loadDefault(assignment);
+            } catch (PreparationSceneLoadException exception) {
+                return Optional.of(
+                        DirectConnectFailure.of(preparationSceneFailureCode(exception.code())));
+            }
+            preparationState.set(new PreparationState(assignment, scene));
         }
         return Optional.empty();
     }
@@ -517,6 +532,27 @@ public final class ConnectedLobbySession implements AutoCloseable {
                 || initialMatchSnapshot.connectedPlayers() != initialSnapshot.members().size()) {
             throw new IllegalArgumentException(
                     "initial match snapshot must describe the initial lobby roster");
+        }
+    }
+
+    private static DirectConnectFailureCode preparationSceneFailureCode(
+            PreparationSceneLoadException.Code code) {
+        return switch (Objects.requireNonNull(code, "code")) {
+            case BUNDLE_LOAD_FAILED -> DirectConnectFailureCode.PREPARATION_MAP_UNAVAILABLE;
+            case MAP_ID_MISMATCH -> DirectConnectFailureCode.PREPARATION_MAP_ID_MISMATCH;
+            case MAP_SHA256_MISMATCH -> DirectConnectFailureCode.PREPARATION_MAP_SHA256_MISMATCH;
+            case SCENE_INVALID, COLLISION_INVALID ->
+                    DirectConnectFailureCode.PREPARATION_SCENE_INVALID;
+            case REGION_MISSING, SPAWN_MISSING, SPAWN_STATE_MISMATCH ->
+                    DirectConnectFailureCode.PREPARATION_SPAWN_NOT_IN_MAP;
+        };
+    }
+
+    private record PreparationState(
+            PreparationSpawnAssignment assignment, VerifiedPreparationScene scene) {
+        private PreparationState {
+            Objects.requireNonNull(assignment, "assignment");
+            Objects.requireNonNull(scene, "scene");
         }
     }
 
