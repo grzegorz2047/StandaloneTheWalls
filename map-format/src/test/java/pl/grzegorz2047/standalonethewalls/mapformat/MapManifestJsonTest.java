@@ -10,7 +10,8 @@ class MapManifestJsonTest {
     @Test
     void decodesCompleteManifestDraftWithoutApplyingSemanticDefaults()
             throws MapManifestJsonException {
-        MapManifestDraft draft = MapManifestJson.decode(validJson().getBytes(StandardCharsets.UTF_8));
+        MapManifestDraft draft =
+                MapManifestJson.decode(validJson().getBytes(StandardCharsets.UTF_8));
 
         assertThat(draft.schemaVersion()).isEqualTo(1);
         assertThat(draft.id()).isEqualTo("minimal_preparation");
@@ -26,12 +27,14 @@ class MapManifestJsonTest {
                 validJson().replace("\"schemaVersion\":1", "\"schemaVersion\":1,\"x\":0"),
                 MapManifestJsonException.Code.UNKNOWN_FIELD);
         assertCode(
-                validJson().replace(
+                validJson()
+                        .replace(
                                 "\"requiredProtocol\":{\"major\":1,\"minor\":0}",
                                 "\"requiredProtocol\":{\"major\":1,\"minor\":0,\"x\":0}"),
                 MapManifestJsonException.Code.UNKNOWN_FIELD);
         assertCode(
-                validJson().replace("\"schemaVersion\":1", "\"schemaVersion\":1,\"schemaVersion\":1"),
+                validJson()
+                        .replace("\"schemaVersion\":1", "\"schemaVersion\":1,\"schemaVersion\":1"),
                 MapManifestJsonException.Code.MALFORMED_JSON);
         assertCode(validJson() + "{}", MapManifestJsonException.Code.MALFORMED_JSON);
         assertCode(
