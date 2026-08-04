@@ -39,6 +39,9 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerTrustStore;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandOutcome;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandResult;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyJoined;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhase;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhaseSnapshot;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMember;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolException;
@@ -202,6 +205,10 @@ class ServerLauncherTest {
             LobbySnapshot snapshot = LobbyProtocolCodec.decodeSnapshot(snapshotEnvelope.payload());
             assertEquals(joined.revision(), snapshot.revision());
             assertEquals(java.util.List.of(joined.self()), snapshot.members());
+            LobbyMatchPhaseSnapshot initialMatch = receiveMatchSnapshot(authenticated);
+            assertEquals(snapshot.revision(), initialMatch.rosterRevision());
+            assertEquals(snapshot.members().size(), initialMatch.connectedPlayers());
+            assertEquals(LobbyMatchPhase.WAITING_FOR_PLAYERS, initialMatch.phase());
 
             send(
                     authenticated,
@@ -216,6 +223,9 @@ class ServerLauncherTest {
                             new LobbyMember(identity.playerId(), handle, LobbyTeam.GREEN, false)),
                     teamSnapshot.members());
             assertEquals(2L, teamSnapshot.revision());
+            LobbyMatchPhaseSnapshot teamMatch = receiveMatchSnapshot(authenticated);
+            assertEquals(teamSnapshot.revision(), teamMatch.rosterRevision());
+            assertEquals(LobbyMatchPhase.WAITING_FOR_PLAYERS, teamMatch.phase());
 
             send(
                     authenticated,
@@ -229,6 +239,9 @@ class ServerLauncherTest {
                             new LobbyMember(identity.playerId(), handle, LobbyTeam.GREEN, true)),
                     readySnapshot.members());
             assertEquals(3L, readySnapshot.revision());
+            LobbyMatchPhaseSnapshot readyMatch = receiveMatchSnapshot(authenticated);
+            assertEquals(readySnapshot.revision(), readyMatch.rosterRevision());
+            assertEquals(LobbyMatchPhase.WAITING_FOR_PLAYERS, readyMatch.phase());
 
             authenticated
                     .closeAsync()
@@ -354,6 +367,17 @@ class ServerLauncherTest {
         ProtocolEnvelope envelope = receive(session);
         assertEquals(MessageType.LOBBY_SNAPSHOT, envelope.messageType());
         return LobbyProtocolCodec.decodeSnapshot(envelope.payload());
+    }
+
+    private static LobbyMatchPhaseSnapshot receiveMatchSnapshot(
+            AuthenticatedReliableSession session)
+            throws InterruptedException,
+                    ExecutionException,
+                    TimeoutException,
+                    LobbyProtocolException {
+        ProtocolEnvelope envelope = receive(session);
+        assertEquals(MessageType.LOBBY_MATCH_SNAPSHOT, envelope.messageType());
+        return LobbyMatchProtocolCodec.decodeSnapshot(envelope.payload());
     }
 
     private static ProtocolEnvelope receive(AuthenticatedReliableSession session)

@@ -1,6 +1,7 @@
 package pl.grzegorz2047.standalonethewalls.client.ui.directconnect;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import pl.grzegorz2047.standalonethewalls.client.ui.lobby.ConnectedLobbyModel;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.CanonicalHandle;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhase;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMember;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
@@ -21,7 +23,7 @@ class DirectConnectScreenModelTest {
 
     @Test
     void requiresStructuredLobbyExactlyWhileConnected() {
-        ConnectedLobbyScreenModel lobby = connectedLobby();
+        ConnectedLobbyScreenModel lobby = connectedLobby(LobbyMatchPhase.WAITING_FOR_PLAYERS);
         DirectConnectScreenModel connected =
                 model(DirectConnectUiPhase.CONNECTED, Optional.empty(), Optional.of(lobby));
 
@@ -36,6 +38,19 @@ class DirectConnectScreenModelTest {
     }
 
     @Test
+    void preparationLocksTeamAndReadinessControlsWithoutHidingTheLobby() {
+        ConnectedLobbyScreenModel lobby = connectedLobby(LobbyMatchPhase.PREPARATION);
+        DirectConnectScreenModel connected =
+                model(DirectConnectUiPhase.CONNECTED, Optional.empty(), Optional.of(lobby));
+
+        assertEquals(
+                LobbyMatchPhase.PREPARATION,
+                connected.connectedLobby().orElseThrow().match().phase());
+        assertFalse(connected.connectedLobby().orElseThrow().controlsEnabled());
+        assertTrue(connected.connectedLobby().orElseThrow().lobby().ownMember().isPresent());
+    }
+
+    @Test
     void restrictsSensitivePresentationDataToIdentityConfirmation() {
         assertThrows(
                 IllegalArgumentException.class,
@@ -46,10 +61,28 @@ class DirectConnectScreenModelTest {
                                 Optional.empty()));
     }
 
-    private static ConnectedLobbyScreenModel connectedLobby() {
+    @Test
+    void cancellationMessageIsValidOnlyWhileWaiting() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        new ConnectedLobbyMatchModel(
+                                1L,
+                                2L,
+                                LobbyMatchPhase.START_COUNTDOWN,
+                                20L,
+                                "Countdown",
+                                Optional.of("Cancelled")));
+    }
+
+    private static ConnectedLobbyScreenModel connectedLobby(LobbyMatchPhase phase) {
         LobbySnapshot snapshot = new LobbySnapshot(1L, List.of(MEMBER));
         ConnectedLobbyModel model = ConnectedLobbyModel.from(snapshot, Optional.of(PLAYER_ID));
-        return new ConnectedLobbyScreenModel(model, false, "Ready", "");
+        long ticksRemaining = phase == LobbyMatchPhase.WAITING_FOR_PLAYERS ? 0L : 20L;
+        ConnectedLobbyMatchModel match =
+                new ConnectedLobbyMatchModel(
+                        1L, 2L, phase, ticksRemaining, "Match status", Optional.empty());
+        return new ConnectedLobbyScreenModel(model, match, false, "Ready", "");
     }
 
     private static DirectConnectScreenModel model(

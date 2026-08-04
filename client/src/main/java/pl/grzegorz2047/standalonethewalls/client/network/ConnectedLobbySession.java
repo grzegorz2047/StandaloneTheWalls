@@ -15,6 +15,8 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.CanonicalHandle;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandOutcome;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandResult;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhaseSnapshot;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMember;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolException;
@@ -24,12 +26,13 @@ import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.AuthenticatedReliableSession;
 
-/** Owns one admitted reliable session, monotonic snapshots, and one correlated lobby command. */
+/** Owns one admitted reliable session, strict snapshots, and one correlated lobby command. */
 public final class ConnectedLobbySession implements AutoCloseable {
     private final AuthenticatedReliableSession session;
     private final PlayerId playerId;
     private final CanonicalHandle handle;
     private final AtomicReference<LobbySnapshot> snapshot;
+    private final AtomicReference<LobbyMatchPhaseSnapshot> matchSnapshot;
     private final AtomicReference<DirectConnectFailure> terminalFailure = new AtomicReference<>();
     private final AtomicBoolean receiverStarted = new AtomicBoolean();
     private final AtomicBoolean closing = new AtomicBoolean();
@@ -45,14 +48,19 @@ public final class ConnectedLobbySession implements AutoCloseable {
     ConnectedLobbySession(
             AuthenticatedReliableSession session,
             LobbySnapshot initialSnapshot,
+            LobbyMatchPhaseSnapshot initialMatchSnapshot,
             Consumer<ConnectedLobbySession> ownershipReleased) {
         this.session = Objects.requireNonNull(session, "session");
         playerId = session.playerId();
         handle = session.handle();
         snapshot =
                 new AtomicReference<>(Objects.requireNonNull(initialSnapshot, "initialSnapshot"));
+        matchSnapshot =
+                new AtomicReference<>(
+                        Objects.requireNonNull(initialMatchSnapshot, "initialMatchSnapshot"));
         this.ownershipReleased = Objects.requireNonNull(ownershipReleased, "ownershipReleased");
         requireExactSelf(initialSnapshot, playerId, handle);
+        requireMatchingInitialSnapshots(initialSnapshot, initialMatchSnapshot);
     }
 
     public PlayerId playerId() {
@@ -65,6 +73,10 @@ public final class ConnectedLobbySession implements AutoCloseable {
 
     public LobbySnapshot currentSnapshot() {
         return snapshot.get();
+    }
+
+    public LobbyMatchPhaseSnapshot currentMatchSnapshot() {
+        return matchSnapshot.get();
     }
 
     public boolean isOpen() {
@@ -234,6 +246,7 @@ public final class ConnectedLobbySession implements AutoCloseable {
     private Optional<DirectConnectFailure> processEnvelope(ProtocolEnvelope envelope) {
         return switch (envelope.messageType()) {
             case LOBBY_SNAPSHOT -> processSnapshot(envelope.payload());
+            case LOBBY_MATCH_SNAPSHOT -> processMatchSnapshot(envelope.payload());
             case LOBBY_COMMAND_RESULT -> processCommandResult(envelope.payload());
             default ->
                     Optional.of(
@@ -276,6 +289,46 @@ public final class ConnectedLobbySession implements AutoCloseable {
         }
         if (completed != null) {
             completed.completion.complete(resolution);
+        }
+        return Optional.empty();
+    }
+
+    private Optional<DirectConnectFailure> processMatchSnapshot(byte[] payload) {
+        LobbyMatchPhaseSnapshot next;
+        try {
+            next = LobbyMatchProtocolCodec.decodeSnapshot(payload);
+        } catch (LobbyProtocolException exception) {
+            return Optional.of(
+                    DirectConnectFailure.of(
+                            DirectConnectFailureCode.LOBBY_MATCH_SNAPSHOT_MALFORMED));
+        }
+
+        synchronized (commandLock) {
+            LobbyMatchPhaseSnapshot current = matchSnapshot.get();
+            if (next.revision() < current.revision()) {
+                return Optional.of(
+                        DirectConnectFailure.of(
+                                DirectConnectFailureCode.LOBBY_MATCH_SNAPSHOT_STALE));
+            }
+            if (next.revision() == current.revision()) {
+                return Optional.of(
+                        DirectConnectFailure.of(
+                                DirectConnectFailureCode.LOBBY_MATCH_SNAPSHOT_DUPLICATE));
+            }
+            if (current.revision() == Long.MAX_VALUE
+                    || next.revision() != current.revision() + 1L) {
+                return Optional.of(
+                        DirectConnectFailure.of(
+                                DirectConnectFailureCode.LOBBY_MATCH_SNAPSHOT_REVISION_GAP));
+            }
+            LobbySnapshot currentRoster = snapshot.get();
+            if (next.rosterRevision() != currentRoster.revision()
+                    || next.connectedPlayers() != currentRoster.members().size()) {
+                return Optional.of(
+                        DirectConnectFailure.of(
+                                DirectConnectFailureCode.LOBBY_MATCH_SNAPSHOT_ROSTER_MISMATCH));
+            }
+            matchSnapshot.set(next);
         }
         return Optional.empty();
     }
@@ -390,6 +443,15 @@ public final class ConnectedLobbySession implements AutoCloseable {
         if (!containsExactSelf(initialSnapshot, playerId, handle)) {
             throw new IllegalArgumentException(
                     "initial lobby snapshot must contain the authenticated player");
+        }
+    }
+
+    private static void requireMatchingInitialSnapshots(
+            LobbySnapshot initialSnapshot, LobbyMatchPhaseSnapshot initialMatchSnapshot) {
+        if (initialMatchSnapshot.rosterRevision() != initialSnapshot.revision()
+                || initialMatchSnapshot.connectedPlayers() != initialSnapshot.members().size()) {
+            throw new IllegalArgumentException(
+                    "initial match snapshot must describe the initial lobby roster");
         }
     }
 

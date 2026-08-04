@@ -4,7 +4,7 @@ package pl.grzegorz2047.standalonethewalls.domain.match;
 public sealed interface MatchCommand
         permits MatchCommand.BeginMapLoad,
                 MatchCommand.CompleteMapLoad,
-                MatchCommand.UpdatePlayerCount,
+                MatchCommand.UpdateLobbyState,
                 MatchCommand.Tick,
                 MatchCommand.FinishMatch {
 
@@ -12,7 +12,7 @@ public sealed interface MatchCommand
 
     record CompleteMapLoad() implements MatchCommand {}
 
-    record UpdatePlayerCount(int connectedPlayers) implements MatchCommand {}
+    record UpdateLobbyState(int connectedPlayers, boolean readyToStart) implements MatchCommand {}
 
     record Tick() implements MatchCommand {}
 

@@ -12,8 +12,12 @@ The target match loop is:
 6. move surviving players to the central deathmatch arena;
 7. finish when one team remains alive, show results, and reset for another round.
 
-The complete phase model will be implemented in issue #21. This document records
-product rules, not current implementation status.
+The renderer-independent match lifecycle from issue #21 models all target phases
+with deterministic tick-based timing. The production server currently connects the
+authoritative lobby only through `WAITING_FOR_PLAYERS`, `START_COUNTDOWN`, and the
+single transition to `PREPARATION`. It deliberately freezes there until map
+loading, spawning, and the world runtime are implemented. This document records
+both the product rules and that current integration boundary.
 
 ## Canonical teams
 
@@ -32,9 +36,17 @@ least two teams are represented.
 The reliable minimal lobby accepts bounded team and ready intents for the already
 authenticated session, applies only the domain rules, returns a correlated result,
 and broadcasts a complete canonical roster after an actual change. Membership-
-only schema-v1 snapshots remain readable as unassigned and not ready. Client UI,
-class choice, localized command results, countdown wiring, and round start remain
-separate follow-up work.
+only schema-v1 snapshots remain readable as unassigned and not ready.
+
+The server now feeds the roster's authoritative `readyToStart` state into the match
+lifecycle. A complete ready lobby starts a fixed-tick countdown; leaving, changing
+teams, becoming not ready, or joining as an unassigned participant cancels it
+before preparation. Re-establishing readiness starts the full countdown again.
+Every client receives a versioned full phase snapshot and displays the same
+remaining ticks and bounded cancellation reason without a local timer. The final
+tick enters `PREPARATION` exactly once and locks team and ready commands. Class
+choice, map loading, spawning, and later match phases remain separate follow-up
+work.
 
 ## Preparation
 

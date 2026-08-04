@@ -33,6 +33,8 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerTrustDecision;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerTrustService;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerTrustStoreException;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyJoined;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhaseSnapshot;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolException;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
@@ -360,6 +362,11 @@ public final class DirectConnectService implements AutoCloseable {
                 if (initialSnapshot == null) {
                     return;
                 }
+                LobbyMatchPhaseSnapshot initialMatchSnapshot =
+                        receiveInitialMatchSnapshot(authenticated, initialSnapshot);
+                if (initialMatchSnapshot == null) {
+                    return;
+                }
                 try {
                     socket.setSoTimeout(0);
                 } catch (IOException exception) {
@@ -372,6 +379,7 @@ public final class DirectConnectService implements AutoCloseable {
                         new ConnectedLobbySession(
                                 authenticated,
                                 initialSnapshot,
+                                initialMatchSnapshot,
                                 session -> connected.compareAndSet(session, null));
                 if (!connected.compareAndSet(null, lobbySession)) {
                     awaitClose(lobbySession.closeAsync());
@@ -569,6 +577,35 @@ public final class DirectConnectService implements AutoCloseable {
                 return snapshot;
             } catch (LobbyProtocolException exception) {
                 completeFailure(DirectConnectFailureCode.LOBBY_SNAPSHOT_MALFORMED);
+                return null;
+            }
+        }
+
+        private LobbyMatchPhaseSnapshot receiveInitialMatchSnapshot(
+                AuthenticatedReliableSession authenticated, LobbySnapshot initialSnapshot) {
+            ProtocolEnvelope envelope =
+                    receive(
+                            authenticated,
+                            DirectConnectFailureCode.LOBBY_MATCH_SNAPSHOT_TIMEOUT,
+                            DirectConnectFailureCode.LOBBY_MATCH_SNAPSHOT_MALFORMED);
+            if (envelope == null) {
+                return null;
+            }
+            if (envelope.messageType() != MessageType.LOBBY_MATCH_SNAPSHOT) {
+                completeFailure(DirectConnectFailureCode.UNEXPECTED_MESSAGE);
+                return null;
+            }
+            try {
+                LobbyMatchPhaseSnapshot matchSnapshot =
+                        LobbyMatchProtocolCodec.decodeSnapshot(envelope.payload());
+                if (matchSnapshot.rosterRevision() != initialSnapshot.revision()
+                        || matchSnapshot.connectedPlayers() != initialSnapshot.members().size()) {
+                    completeFailure(DirectConnectFailureCode.LOBBY_MATCH_SNAPSHOT_ROSTER_MISMATCH);
+                    return null;
+                }
+                return matchSnapshot;
+            } catch (LobbyProtocolException exception) {
+                completeFailure(DirectConnectFailureCode.LOBBY_MATCH_SNAPSHOT_MALFORMED);
                 return null;
             }
         }

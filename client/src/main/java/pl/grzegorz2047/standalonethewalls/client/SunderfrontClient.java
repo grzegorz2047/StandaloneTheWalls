@@ -587,6 +587,16 @@ public final class SunderfrontClient extends SimpleApplication
                     new UiHitTarget(teamTarget(panel.team()), bounds, connected.controlsEnabled()));
         }
 
+        addCenteredText(
+                connected.match().status(),
+                16f,
+                connected.match().lobbyControlsAllowed() ? MUTED_TEXT : WARNING_TEXT,
+                244f);
+        connected
+                .match()
+                .cancellationMessage()
+                .ifPresent(message -> addCenteredText(message, 14f, WARNING_TEXT, 220f));
+
         String unassigned =
                 connected.lobby().unassignedMembers().isEmpty()
                         ? messages.text("direct.lobby.unassigned.none")
@@ -594,12 +604,12 @@ public final class SunderfrontClient extends SimpleApplication
                                 .map(this::memberLine)
                                 .collect(Collectors.joining(", "));
         addCenteredText(
-                messages.text("direct.lobby.unassigned", unassigned), 14f, MUTED_TEXT, 210f);
+                messages.text("direct.lobby.unassigned", unassigned), 14f, MUTED_TEXT, 194f);
         addCenteredText(
                 connected.commandStatus(),
                 15f,
                 connected.commandInFlight() ? WARNING_TEXT : MUTED_TEXT,
-                178f);
+                164f);
 
         BitmapText ready =
                 addText(
@@ -612,8 +622,8 @@ public final class SunderfrontClient extends SimpleApplication
                                 screenModel.focus() == DirectConnectUiFocus.READY_ACTION,
                                 connected.controlsEnabled()),
                         0f,
-                        135f);
-        ready.setLocalTranslation(Math.max(20f, (width - ready.getLineWidth()) / 2f), 135f, 0f);
+                        124f);
+        ready.setLocalTranslation(Math.max(20f, (width - ready.getLineWidth()) / 2f), 124f, 0f);
         targets.add(
                 new UiHitTarget(
                         DIRECT_READY_TARGET,

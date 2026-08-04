@@ -24,10 +24,14 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.CanonicalHandle;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerSessionAdmissionStatus;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandOutcome;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandResult;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCountdownCancellationReason;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhase;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhaseSnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolException;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySelectTeamCommand;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySetReadyCommand;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
 
 class ConnectedLobbyUiCommandTest {
@@ -73,14 +77,17 @@ class ConnectedLobbyUiCommandTest {
                 LobbyTeam.UNASSIGNED,
                 connected(controller).lobby().ownMember().orElseThrow().team());
 
-        lobby.deliverSnapshot(
+        LobbySnapshot teamRoster =
                 DirectConnectUiTestFixtures.snapshot(
-                        2L, LobbyTeam.GREEN, false, LobbyTeam.BLUE, false),
-                2L);
+                        2L, LobbyTeam.GREEN, false, LobbyTeam.BLUE, false);
+        lobby.deliverSnapshot(teamRoster, 2L);
+        lobby.deliverMatchSnapshot(waitingMatchSnapshot(2L, teamRoster), 3L);
         waitUntil(
-                () ->
-                        connected(controller).lobby().revision() == 2L
-                                && connected(controller).controlsEnabled());
+                () -> {
+                    controller.refreshConnectedSnapshot();
+                    return connected(controller).lobby().revision() == 2L
+                            && connected(controller).controlsEnabled();
+                });
         assertEquals(
                 LobbyTeam.GREEN, connected(controller).lobby().ownMember().orElseThrow().team());
         assertEquals(
@@ -94,15 +101,18 @@ class ConnectedLobbyUiCommandTest {
         assertEquals(
                 new LobbySetReadyCommand(2L, true),
                 LobbyProtocolCodec.decodeSetReady(ready.payload()));
-        lobby.deliverResult(new LobbyCommandResult(2L, 3L, LobbyCommandOutcome.APPLIED), 3L);
-        lobby.deliverSnapshot(
+        lobby.deliverResult(new LobbyCommandResult(2L, 3L, LobbyCommandOutcome.APPLIED), 4L);
+        LobbySnapshot readyRoster =
                 DirectConnectUiTestFixtures.snapshot(
-                        3L, LobbyTeam.GREEN, true, LobbyTeam.BLUE, false),
-                4L);
+                        3L, LobbyTeam.GREEN, true, LobbyTeam.BLUE, false);
+        lobby.deliverSnapshot(readyRoster, 5L);
+        lobby.deliverMatchSnapshot(waitingMatchSnapshot(3L, readyRoster), 6L);
         waitUntil(
-                () ->
-                        connected(controller).lobby().revision() == 3L
-                                && connected(controller).controlsEnabled());
+                () -> {
+                    controller.refreshConnectedSnapshot();
+                    return connected(controller).lobby().revision() == 3L
+                            && connected(controller).controlsEnabled();
+                });
         assertTrue(connected(controller).lobby().ownMember().orElseThrow().ready());
         assertEquals(
                 MESSAGES.text("direct.lobby.action.not_ready"),
@@ -111,16 +121,17 @@ class ConnectedLobbyUiCommandTest {
         controller.focus(DirectConnectUiFocus.TEAM_GREEN);
         controller.activate();
         onlyCommand(lobby, 3);
-        lobby.deliverResult(new LobbyCommandResult(3L, 3L, LobbyCommandOutcome.NO_CHANGE), 5L);
+        lobby.deliverResult(new LobbyCommandResult(3L, 3L, LobbyCommandOutcome.NO_CHANGE), 7L);
         waitUntil(() -> connected(controller).controlsEnabled());
         assertEquals(
                 MESSAGES.text("direct.lobby.command.no_change"),
                 connected(controller).commandStatus());
 
-        lobby.deliverSnapshot(
+        LobbySnapshot externalRoster =
                 DirectConnectUiTestFixtures.snapshot(
-                        4L, LobbyTeam.GREEN, true, LobbyTeam.BLUE, true),
-                6L);
+                        4L, LobbyTeam.GREEN, true, LobbyTeam.BLUE, true);
+        lobby.deliverSnapshot(externalRoster, 8L);
+        lobby.deliverMatchSnapshot(waitingMatchSnapshot(4L, externalRoster), 9L);
         waitUntil(
                 () -> {
                     controller.refreshConnectedSnapshot();
@@ -131,7 +142,7 @@ class ConnectedLobbyUiCommandTest {
                 connected(controller).lobby().panel(LobbyTeam.BLUE).members().getFirst().ready());
 
         long requestId = 4L;
-        long sequence = 7L;
+        long sequence = 10L;
         for (LobbyCommandOutcome rejection : REJECTIONS) {
             controller.focus(DirectConnectUiFocus.TEAM_RED);
             controller.activate();
@@ -221,6 +232,19 @@ class ConnectedLobbyUiCommandTest {
     private static void assertBusy(DirectConnectUiController controller) {
         assertTrue(connected(controller).commandInFlight());
         assertFalse(connected(controller).controlsEnabled());
+    }
+
+    private static LobbyMatchPhaseSnapshot waitingMatchSnapshot(
+            long revision, LobbySnapshot roster) {
+        return new LobbyMatchPhaseSnapshot(
+                revision,
+                roster.revision(),
+                revision - 1L,
+                LobbyMatchPhase.WAITING_FOR_PLAYERS,
+                0L,
+                roster.members().size(),
+                1L,
+                LobbyCountdownCancellationReason.NONE);
     }
 
     private static void waitUntil(java.util.function.BooleanSupplier condition)

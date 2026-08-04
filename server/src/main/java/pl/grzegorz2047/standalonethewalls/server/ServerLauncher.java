@@ -11,8 +11,11 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import pl.grzegorz2047.standalonethewalls.domain.lobby.LobbyConfiguration;
+import pl.grzegorz2047.standalonethewalls.domain.match.MatchConfiguration;
 import pl.grzegorz2047.standalonethewalls.identity.policy.LocalIdentityAdministratorId;
 import pl.grzegorz2047.standalonethewalls.identity.policy.sqlite.SqliteLocalHandleStoreException;
 import pl.grzegorz2047.standalonethewalls.registry.RegistrySnapshotException;
@@ -189,6 +192,7 @@ public final class ServerLauncher {
             ReliableTlsProcessConfiguration tlsConfiguration)
             throws InterruptedException {
         AtomicLong executedTicks = new AtomicLong();
+        AtomicReference<MinimalLobbyRuntime> lobbyTickTarget = new AtomicReference<>();
         FixedTickLoop loop =
                 new FixedTickLoop(
                         configuration.tickRate(),
@@ -200,6 +204,11 @@ public final class ServerLauncher {
                 new ServerRuntime(
                         loop,
                         tickNumber -> {
+                            MinimalLobbyRuntime lobby = lobbyTickTarget.get();
+                            if (lobby != null && !lobby.offerSimulationTick(tickNumber)) {
+                                throw new IllegalStateException(
+                                        "minimal lobby rejected an authoritative simulation tick");
+                            }
                             long count = executedTicks.incrementAndGet();
                             if (runForTicks != null && count >= runForTicks) {
                                 loop.requestStop();
@@ -224,6 +233,8 @@ public final class ServerLauncher {
                 lobbyRuntime =
                         new MinimalLobbyRuntime(
                                 tlsRuntime.authorizedSessions(),
+                                LobbyConfiguration.standard(),
+                                MatchConfiguration.defaults(configuration.tickRate()),
                                 LOBBY_SEND_TIMEOUT,
                                 LOBBY_SHUTDOWN_TIMEOUT,
                                 event ->
@@ -233,6 +244,7 @@ public final class ServerLauncher {
                                                 event.memberCount(),
                                                 event.revision()),
                                 runtime::close);
+                lobbyTickTarget.set(lobbyRuntime);
             }
             registryRefreshScheduler =
                     identityRuntime == null
@@ -307,6 +319,7 @@ public final class ServerLauncher {
             return EXIT_RUNTIME_FAILURE;
         } finally {
             closeRuntime(runtime, registryRefreshScheduler, tlsRuntime, lobbyRuntime);
+            lobbyTickTarget.set(null);
             if (hookInstalled && shutdownHook != null) {
                 removeShutdownHookIfPossible(shutdownHook);
             }
@@ -326,6 +339,11 @@ public final class ServerLauncher {
                 failures.add(exception);
             }
         }
+        try {
+            runtime.close();
+        } catch (RuntimeException exception) {
+            failures.add(exception);
+        }
         if (lobbyRuntime != null) {
             try {
                 lobbyRuntime.close();
@@ -335,11 +353,6 @@ public final class ServerLauncher {
         }
         try {
             registryRefreshScheduler.close();
-        } catch (RuntimeException exception) {
-            failures.add(exception);
-        }
-        try {
-            runtime.close();
         } catch (RuntimeException exception) {
             failures.add(exception);
         }
