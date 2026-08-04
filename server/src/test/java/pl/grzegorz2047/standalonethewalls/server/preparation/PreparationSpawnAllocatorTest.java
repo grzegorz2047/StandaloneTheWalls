@@ -112,8 +112,7 @@ class PreparationSpawnAllocatorTest {
     }
 
     private static LobbyParticipantState assigned(String id, TeamId team) {
-        return new LobbyParticipantState(
-                new LobbyParticipantId(id), Optional.of(team), true);
+        return new LobbyParticipantState(new LobbyParticipantId(id), Optional.of(team), true);
     }
 
     private static PreparationSpawnPoint spawn(int index, TeamId team, double x) {
