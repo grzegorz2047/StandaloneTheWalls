@@ -15,6 +15,7 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.CanonicalHandle;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandOutcome;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandResult;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhase;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhaseSnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMember;
@@ -24,6 +25,9 @@ import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySelectTeamCommand;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySetReadyCommand;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationProtocolException;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnAssignment;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.AuthenticatedReliableSession;
 
 /** Owns one admitted reliable session, strict snapshots, and one correlated lobby command. */
@@ -33,6 +37,8 @@ public final class ConnectedLobbySession implements AutoCloseable {
     private final CanonicalHandle handle;
     private final AtomicReference<LobbySnapshot> snapshot;
     private final AtomicReference<LobbyMatchPhaseSnapshot> matchSnapshot;
+    private final AtomicReference<PreparationSpawnAssignment> preparationSpawnAssignment =
+            new AtomicReference<>();
     private final AtomicReference<DirectConnectFailure> terminalFailure = new AtomicReference<>();
     private final AtomicBoolean receiverStarted = new AtomicBoolean();
     private final AtomicBoolean closing = new AtomicBoolean();
@@ -77,6 +83,10 @@ public final class ConnectedLobbySession implements AutoCloseable {
 
     public LobbyMatchPhaseSnapshot currentMatchSnapshot() {
         return matchSnapshot.get();
+    }
+
+    public Optional<PreparationSpawnAssignment> currentPreparationSpawnAssignment() {
+        return Optional.ofNullable(preparationSpawnAssignment.get());
     }
 
     public boolean isOpen() {
@@ -247,6 +257,8 @@ public final class ConnectedLobbySession implements AutoCloseable {
         return switch (envelope.messageType()) {
             case LOBBY_SNAPSHOT -> processSnapshot(envelope.payload());
             case LOBBY_MATCH_SNAPSHOT -> processMatchSnapshot(envelope.payload());
+            case PREPARATION_SPAWN_ASSIGNMENT ->
+                    processPreparationSpawnAssignment(envelope.payload());
             case LOBBY_COMMAND_RESULT -> processCommandResult(envelope.payload());
             default ->
                     Optional.of(
@@ -329,6 +341,51 @@ public final class ConnectedLobbySession implements AutoCloseable {
                                 DirectConnectFailureCode.LOBBY_MATCH_SNAPSHOT_ROSTER_MISMATCH));
             }
             matchSnapshot.set(next);
+        }
+        return Optional.empty();
+    }
+
+    private Optional<DirectConnectFailure> processPreparationSpawnAssignment(byte[] payload) {
+        PreparationSpawnAssignment assignment;
+        try {
+            assignment = PreparationSpawnProtocolCodec.decodeAssignment(payload);
+        } catch (PreparationProtocolException exception) {
+            return Optional.of(
+                    DirectConnectFailure.of(
+                            DirectConnectFailureCode.PREPARATION_SPAWN_MALFORMED));
+        }
+
+        synchronized (commandLock) {
+            if (preparationSpawnAssignment.get() != null) {
+                return Optional.of(
+                        DirectConnectFailure.of(
+                                DirectConnectFailureCode.PREPARATION_SPAWN_DUPLICATE));
+            }
+            LobbyMatchPhaseSnapshot currentMatch = matchSnapshot.get();
+            if (currentMatch.phase() != LobbyMatchPhase.PREPARATION) {
+                return Optional.of(
+                        DirectConnectFailure.of(
+                                DirectConnectFailureCode.PREPARATION_SPAWN_UNEXPECTED_PHASE));
+            }
+            LobbySnapshot currentRoster = snapshot.get();
+            if (assignment.rosterRevision() != currentRoster.revision()
+                    || assignment.rosterRevision() != currentMatch.rosterRevision()) {
+                return Optional.of(
+                        DirectConnectFailure.of(
+                                DirectConnectFailureCode.PREPARATION_SPAWN_ROSTER_MISMATCH));
+            }
+            if (assignment.roundNumber() != currentMatch.roundNumber()) {
+                return Optional.of(
+                        DirectConnectFailure.of(
+                                DirectConnectFailureCode.PREPARATION_SPAWN_ROUND_MISMATCH));
+            }
+            Optional<LobbyTeam> selfTeam = selfTeam(currentRoster);
+            if (selfTeam.isEmpty() || assignment.team() != selfTeam.orElseThrow()) {
+                return Optional.of(
+                        DirectConnectFailure.of(
+                                DirectConnectFailureCode.PREPARATION_SPAWN_TEAM_MISMATCH));
+            }
+            preparationSpawnAssignment.set(assignment);
         }
         return Optional.empty();
     }
@@ -436,6 +493,15 @@ public final class ConnectedLobbySession implements AutoCloseable {
                     new IllegalStateException("connected lobby session close failed"));
         }
         termination.complete(failure);
+    }
+
+    private Optional<LobbyTeam> selfTeam(LobbySnapshot currentRoster) {
+        for (LobbyMember member : currentRoster.members()) {
+            if (member.playerId().equals(playerId) && member.handle().equals(handle)) {
+                return Optional.of(member.team());
+            }
+        }
+        return Optional.empty();
     }
 
     private static void requireExactSelf(
