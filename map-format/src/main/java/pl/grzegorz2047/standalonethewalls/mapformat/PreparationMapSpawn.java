@@ -9,12 +9,14 @@ public record PreparationMapSpawn(
 
     public PreparationMapSpawn {
         if (index < 0 || index > MAXIMUM_INDEX) {
-            throw new IllegalArgumentException("preparation spawn index is outside the supported range");
+            throw new IllegalArgumentException(
+                    "preparation spawn index is outside the supported range");
         }
         Objects.requireNonNull(team, "team");
         Objects.requireNonNull(position, "position");
         if (!Double.isFinite(yawDegrees) || yawDegrees < -180.0d || yawDegrees >= 180.0d) {
-            throw new IllegalArgumentException("preparation spawn yaw must be finite and in [-180, 180)");
+            throw new IllegalArgumentException(
+                    "preparation spawn yaw must be finite and in [-180, 180)");
         }
     }
 }
