@@ -165,8 +165,7 @@ public final class MapManifestJson {
             String property = parser.currentName();
             JsonToken value = parser.nextToken();
             switch (property) {
-                case "archiveBytes" ->
-                        archiveBytes = readLong(parser, value, "archiveBytes");
+                case "archiveBytes" -> archiveBytes = readLong(parser, value, "archiveBytes");
                 case "uncompressedBytes" ->
                         uncompressedBytes = readLong(parser, value, "uncompressedBytes");
                 case "fileCount" -> fileCount = readInteger(parser, value, "fileCount");
