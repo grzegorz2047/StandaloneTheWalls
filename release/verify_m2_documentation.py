@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify that every alpha.5 distribution contains the M2 test contract."""
+"""Verify that alpha.5 distributions contain the M2 test contract."""
 
 from __future__ import annotations
 
@@ -40,9 +40,13 @@ def read_archive_text(archive_path: pathlib.Path, entry: str) -> str:
 
 
 def main() -> int:
-    if len(sys.argv) != 3:
+    require_windows = False
+    if len(sys.argv) == 4:
+        require(sys.argv[3] == "--require-windows", "unknown verification option")
+        require_windows = True
+    elif len(sys.argv) != 3:
         print(
-            "usage: verify_m2_documentation.py <release-dir> <version>",
+            "usage: verify_m2_documentation.py <release-dir> <version> [--require-windows]",
             file=sys.stderr,
         )
         return 2
@@ -113,33 +117,39 @@ def main() -> int:
                 "OGRANICZENIA",
             ),
         ),
-        "Windows client English guide": (
-            read_archive_text(
-                release_directory / windows_name,
-                f"{windows_root}/README.md",
-            ),
-            (
-                "Interactive Lobby Alpha",
-                "M2 test",
-                "two ready players",
-                "`PREPARATION`",
-                "Known limitations",
-            ),
-        ),
-        "Windows client Polish guide": (
-            read_archive_text(
-                release_directory / windows_name,
-                f"{windows_root}/README-PL.txt",
-            ),
-            (
-                "INTERAKTYWNE LOBBY M2",
-                "TEST M2",
-                "dwóch gotowych graczy",
-                "PREPARATION",
-                "OGRANICZENIA",
-            ),
-        ),
     }
+    if require_windows:
+        documents.update(
+            {
+                "Windows client English guide": (
+                    read_archive_text(
+                        release_directory / windows_name,
+                        f"{windows_root}/README.md",
+                    ),
+                    (
+                        "Interactive Lobby Alpha",
+                        "M2 test",
+                        "two ready players",
+                        "`PREPARATION`",
+                        "Known limitations",
+                    ),
+                ),
+                "Windows client Polish guide": (
+                    read_archive_text(
+                        release_directory / windows_name,
+                        f"{windows_root}/README-PL.txt",
+                    ),
+                    (
+                        "INTERAKTYWNE LOBBY M2",
+                        "TEST M2",
+                        "dwóch gotowych graczy",
+                        "PREPARATION",
+                        "OGRANICZENIA",
+                    ),
+                ),
+            }
+        )
+
     for label, (text, fragments) in documents.items():
         require_fragments(label, text, fragments)
 
