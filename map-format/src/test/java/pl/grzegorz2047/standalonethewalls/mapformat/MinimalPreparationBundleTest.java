@@ -71,13 +71,17 @@ class MinimalPreparationBundleTest {
         }
         assertThat(gameplay.spawns())
                 .extracting(PreparationMapSpawn::index)
-                .containsExactlyElementsOf(java.util.stream.IntStream.range(0, 40).boxed().toList());
+                .containsExactlyElementsOf(
+                        java.util.stream.IntStream.range(0, 40).boxed().toList());
         assertThat(gameplay.spawns())
                 .allSatisfy(
                         spawn ->
                                 assertThat(
                                                 gameplay.regions().stream()
-                                                        .filter(region -> region.team() == spawn.team())
+                                                        .filter(
+                                                                region ->
+                                                                        region.team()
+                                                                                == spawn.team())
                                                         .findFirst()
                                                         .orElseThrow()
                                                         .contains(spawn.position()))
