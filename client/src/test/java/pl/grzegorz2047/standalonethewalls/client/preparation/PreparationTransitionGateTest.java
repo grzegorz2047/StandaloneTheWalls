@@ -33,13 +33,10 @@ class PreparationTransitionGateTest {
     }
 
     @Test
-    void repeatedPollingCannotReplaceTheFirstVerifiedScene()
-            throws PreparationSceneLoadException {
+    void repeatedPollingCannotReplaceTheFirstVerifiedScene() throws PreparationSceneLoadException {
         PreparationTransitionGate gate = new PreparationTransitionGate();
-        VerifiedPreparationScene first =
-                verifiedScene(LobbyTeam.GREEN, 0, -15.0d, -14.0d, 45.0d);
-        VerifiedPreparationScene later =
-                verifiedScene(LobbyTeam.BLUE, 10, 3.0d, -14.0d, 135.0d);
+        VerifiedPreparationScene first = verifiedScene(LobbyTeam.GREEN, 0, -15.0d, -14.0d, 45.0d);
+        VerifiedPreparationScene later = verifiedScene(LobbyTeam.BLUE, 10, 3.0d, -14.0d, 135.0d);
 
         PreparationPlayerState entered = gate.poll(Optional.of(first)).orElseThrow();
 

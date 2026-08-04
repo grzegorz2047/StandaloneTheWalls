@@ -20,8 +20,7 @@ class SunderfrontPreparationTransitionTest {
             ClientMessages.forLanguage(ClientLanguage.ENGLISH);
 
     @Test
-    void leavesTheLobbyShellAtTheVerifiedAuthoritativeSpawn()
-            throws PreparationSceneLoadException {
+    void leavesTheLobbyShellAtTheVerifiedAuthoritativeSpawn() throws PreparationSceneLoadException {
         SunderfrontClient client = new SunderfrontClient(MESSAGES, true);
         VerifiedPreparationScene scene = verifiedScene(LobbyTeam.GREEN, 0, -15.0d, -14.0d, 45.0d);
 
@@ -37,10 +36,8 @@ class SunderfrontPreparationTransitionTest {
     @Test
     void laterFramesCannotReplaceTheEnteredScene() throws PreparationSceneLoadException {
         SunderfrontClient client = new SunderfrontClient(MESSAGES, true);
-        VerifiedPreparationScene first =
-                verifiedScene(LobbyTeam.GREEN, 0, -15.0d, -14.0d, 45.0d);
-        VerifiedPreparationScene later =
-                verifiedScene(LobbyTeam.BLUE, 10, 3.0d, -14.0d, 135.0d);
+        VerifiedPreparationScene first = verifiedScene(LobbyTeam.GREEN, 0, -15.0d, -14.0d, 45.0d);
+        VerifiedPreparationScene later = verifiedScene(LobbyTeam.BLUE, 10, 3.0d, -14.0d, 135.0d);
 
         client.exercisePreparationTransition(first);
         PreparationPlayerState entered = client.currentPreparationPlayerState().orElseThrow();

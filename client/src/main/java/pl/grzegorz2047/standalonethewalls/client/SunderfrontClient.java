@@ -30,6 +30,9 @@ import java.util.stream.Collectors;
 import pl.grzegorz2047.standalonethewalls.client.i18n.ClientMessages;
 import pl.grzegorz2047.standalonethewalls.client.identity.ClientIdentityStorage;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectService;
+import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationPlayerState;
+import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationTransitionGate;
+import pl.grzegorz2047.standalonethewalls.client.preparation.VerifiedPreparationScene;
 import pl.grzegorz2047.standalonethewalls.client.ui.StartMenuAction;
 import pl.grzegorz2047.standalonethewalls.client.ui.StartMenuModel;
 import pl.grzegorz2047.standalonethewalls.client.ui.directconnect.ConnectedLobbyScreenModel;
@@ -88,12 +91,14 @@ public final class SunderfrontClient extends SimpleApplication
     private final CompletableFuture<Void> initialized = new CompletableFuture<>();
     private final UiPointerRouter pointerRouter = new UiPointerRouter();
 
+    private PreparationTransitionGate preparationTransitionGate = new PreparationTransitionGate();
     private StartMenuModel menu;
     private Screen screen = Screen.START_MENU;
     private String menuStatus = "";
     private BitmapFont font;
     private DirectConnectUiController directConnectController;
     private DirectConnectScreenModel directConnectModel;
+    private PreparationPlayerState preparationPlayerState;
     private volatile int renderedWidth = -1;
     private volatile int renderedHeight = -1;
     private volatile boolean shuttingDown;
@@ -130,8 +135,12 @@ public final class SunderfrontClient extends SimpleApplication
 
     @Override
     public void simpleUpdate(float timePerFrame) {
-        if (screen == Screen.DIRECT_CONNECT && directConnectController != null) {
+        if ((screen == Screen.DIRECT_CONNECT || screen == Screen.PREPARATION)
+                && directConnectController != null) {
             directConnectController.refreshConnectedSnapshot();
+            if (screen == Screen.DIRECT_CONNECT) {
+                enterPreparationIfReady();
+            }
         }
         if (!smokeMode && (renderedWidth != cam.getWidth() || renderedHeight != cam.getHeight())) {
             renderCurrentScreen();
@@ -143,10 +152,10 @@ public final class SunderfrontClient extends SimpleApplication
         if (!isPressed || smokeMode) {
             return;
         }
-        if (screen == Screen.START_MENU) {
-            handleStartMenuAction(name);
-        } else {
-            handleDirectConnectAction(name);
+        switch (screen) {
+            case START_MENU -> handleStartMenuAction(name);
+            case DIRECT_CONNECT -> handleDirectConnectAction(name);
+            case PREPARATION -> handlePreparationAction(name);
         }
     }
 
@@ -287,6 +296,26 @@ public final class SunderfrontClient extends SimpleApplication
         }
     }
 
+    void exercisePreparationTransition(VerifiedPreparationScene scene) {
+        if (!smokeMode) {
+            throw new IllegalStateException("preparation transition exercise requires smoke mode");
+        }
+        if (screen == Screen.START_MENU) {
+            screen = Screen.DIRECT_CONNECT;
+        }
+        preparationTransitionGate
+                .poll(Optional.of(Objects.requireNonNull(scene, "scene")))
+                .ifPresent(this::enterPreparation);
+    }
+
+    boolean isPreparationActive() {
+        return screen == Screen.PREPARATION;
+    }
+
+    Optional<PreparationPlayerState> currentPreparationPlayerState() {
+        return Optional.ofNullable(preparationPlayerState);
+    }
+
     private void registerInputs() {
         inputManager.addMapping(INPUT_UP, new KeyTrigger(KeyInput.KEY_UP));
         inputManager.addMapping(INPUT_DOWN, new KeyTrigger(KeyInput.KEY_DOWN));
@@ -340,6 +369,12 @@ public final class SunderfrontClient extends SimpleApplication
             default -> {
                 // InputManager invokes this listener only for registered mappings.
             }
+        }
+    }
+
+    private void handlePreparationAction(String name) {
+        if (INPUT_BACK.equals(name)) {
+            returnToStartMenu();
         }
     }
 
@@ -406,6 +441,8 @@ public final class SunderfrontClient extends SimpleApplication
 
     private void openDirectConnectScreen() {
         closeDirectConnectController();
+        preparationTransitionGate = new PreparationTransitionGate();
+        preparationPlayerState = null;
         screen = Screen.DIRECT_CONNECT;
         menuStatus = "";
         DirectConnectService service =
@@ -418,6 +455,26 @@ public final class SunderfrontClient extends SimpleApplication
                         this::acceptDirectConnectModel,
                         this::returnToStartMenu);
         directConnectController.open();
+    }
+
+    private void enterPreparationIfReady() {
+        DirectConnectUiController controller = directConnectController;
+        if (controller == null) {
+            return;
+        }
+        preparationTransitionGate
+                .poll(controller.currentVerifiedPreparationScene())
+                .ifPresent(this::enterPreparation);
+    }
+
+    private void enterPreparation(PreparationPlayerState entered) {
+        if (screen != Screen.DIRECT_CONNECT) {
+            return;
+        }
+        preparationPlayerState = Objects.requireNonNull(entered, "entered");
+        screen = Screen.PREPARATION;
+        pointerRouter.replaceHitMap(UiHitMap.empty());
+        renderCurrentScreen();
     }
 
     private void acceptDirectConnectModel(DirectConnectScreenModel next) {
@@ -442,6 +499,11 @@ public final class SunderfrontClient extends SimpleApplication
     private void returnToStartMenu() {
         screen = Screen.START_MENU;
         menuStatus = "";
+        preparationTransitionGate = new PreparationTransitionGate();
+        preparationPlayerState = null;
+        if (!smokeMode && inputManager != null) {
+            inputManager.setCursorVisible(true);
+        }
         closeDirectConnectController();
         renderCurrentScreen();
     }
@@ -466,7 +528,7 @@ public final class SunderfrontClient extends SimpleApplication
         List<UiHitTarget> targets = new ArrayList<>();
         if (screen == Screen.START_MENU) {
             renderStartMenu(targets);
-        } else if (directConnectModel != null) {
+        } else if (screen == Screen.DIRECT_CONNECT && directConnectModel != null) {
             renderDirectConnect(directConnectModel, targets);
         }
         pointerRouter.replaceHitMap(new UiHitMap(targets));
@@ -890,6 +952,7 @@ public final class SunderfrontClient extends SimpleApplication
 
     private enum Screen {
         START_MENU,
-        DIRECT_CONNECT
+        DIRECT_CONNECT,
+        PREPARATION
     }
 }

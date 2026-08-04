@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -24,9 +25,15 @@ import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectResult;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectStage;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectUiTestFixtures;
 import pl.grzegorz2047.standalonethewalls.client.network.FirstUseConfirmation;
+import pl.grzegorz2047.standalonethewalls.mapformat.MinimalPreparationBundle;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.CanonicalHandle;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerSessionAdmissionStatus;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCountdownCancellationReason;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhase;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhaseSnapshot;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnAssignment;
 
 class DirectConnectUiControllerTest {
     private static final ClientMessages MESSAGES =
@@ -106,6 +113,60 @@ class DirectConnectUiControllerTest {
         controller.escape();
         assertEquals(DirectConnectUiPhase.DISCONNECTED, controller.model().phase());
         waitUntil(() -> !session.isOpen());
+        controller.close();
+    }
+
+    @Test
+    void exposesTheVerifiedPreparationSceneAfterTheAuthoritativeAssignment()
+            throws DirectConnectEndpointException, InterruptedException {
+        FakeBackend backend = new FakeBackend();
+        DirectConnectUiController controller = controller(backend);
+        controller.open();
+        startConnection(controller);
+        DirectConnectUiTestFixtures.ControlledLobby lobby =
+                DirectConnectUiTestFixtures.controlledLobby();
+        backend.connectAttempts
+                .getFirst()
+                .complete(
+                        lobby.connectedResult(
+                                PlayerSessionAdmissionStatus.LOCAL_FIRST_USE_ACCEPTED));
+
+        assertTrue(controller.currentVerifiedPreparationScene().isEmpty());
+        LobbySnapshot roster =
+                DirectConnectUiTestFixtures.snapshot(
+                        2L, LobbyTeam.GREEN, true, LobbyTeam.BLUE, true);
+        lobby.deliverSnapshot(roster, 2L);
+        lobby.deliverMatchSnapshot(
+                new LobbyMatchPhaseSnapshot(
+                        2L,
+                        roster.revision(),
+                        10L,
+                        LobbyMatchPhase.PREPARATION,
+                        100L,
+                        roster.members().size(),
+                        1L,
+                        LobbyCountdownCancellationReason.NONE),
+                3L);
+        byte[] digest = HexFormat.of().parseHex(MinimalPreparationBundle.EXPECTED_ARCHIVE_SHA256);
+        lobby.deliverPreparationSpawnAssignment(
+                new PreparationSpawnAssignment(
+                        roster.revision(),
+                        1L,
+                        MinimalPreparationBundle.MAP_ID,
+                        digest,
+                        LobbyTeam.GREEN,
+                        0,
+                        -15.0d,
+                        0.5d,
+                        -14.0d,
+                        45.0d),
+                4L);
+
+        waitUntil(() -> controller.currentVerifiedPreparationScene().isPresent());
+        assertEquals(
+                MinimalPreparationBundle.MAP_ID,
+                controller.currentVerifiedPreparationScene().orElseThrow().mapId());
+        assertEquals(0, controller.currentVerifiedPreparationScene().orElseThrow().spawn().index());
         controller.close();
     }
 

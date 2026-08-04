@@ -17,8 +17,7 @@ public final class PreparationTransitionGate {
         if (enteredState != null || verified.isEmpty()) {
             return Optional.empty();
         }
-        enteredState =
-                PreparationPlayerState.atAuthoritativeSpawn(verified.orElseThrow());
+        enteredState = PreparationPlayerState.atAuthoritativeSpawn(verified.orElseThrow());
         return Optional.of(enteredState);
     }
 
