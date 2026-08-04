@@ -101,9 +101,7 @@ class PreparationSpawnAllocatorTest {
                                         1, TeamId.GREEN, Double.NaN, 0.0d, 0.0d, 0.0d))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(
-                        () ->
-                                new PreparationSpawnPoint(
-                                        1, TeamId.GREEN, 0.0d, 0.0d, 0.0d, 180.0d))
+                        () -> new PreparationSpawnPoint(1, TeamId.GREEN, 0.0d, 0.0d, 0.0d, 180.0d))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
