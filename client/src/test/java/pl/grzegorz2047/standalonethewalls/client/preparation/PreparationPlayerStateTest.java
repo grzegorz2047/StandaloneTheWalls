@@ -91,11 +91,17 @@ class PreparationPlayerStateTest {
         PreparationPlayerState player =
                 PreparationPlayerState.atAuthoritativeSpawn(verifiedGreenScene());
 
-        assertThrows(IllegalArgumentException.class, () -> player.moveHorizontal(Double.NaN, 0.0d));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> player.moveHorizontal(0.0d, Double.POSITIVE_INFINITY));
-        assertThrows(IllegalArgumentException.class, () -> player.rotate(Double.NEGATIVE_INFINITY));
+                () -> assertThat(player.moveHorizontal(Double.NaN, 0.0d)).isNotNull());
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        assertThat(player.moveHorizontal(0.0d, Double.POSITIVE_INFINITY))
+                                .isNotNull());
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> assertThat(player.rotate(Double.NEGATIVE_INFINITY)).isNotNull());
     }
 
     private static VerifiedPreparationScene verifiedGreenScene()
