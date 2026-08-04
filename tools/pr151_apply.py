@@ -30,6 +30,26 @@ text = replace_once(
 )
 text = replace_once(
     text,
+    """    Optional<PreparationPlayerState> currentPreparationPlayerState() {
+        return Optional.ofNullable(preparationPlayerState);
+    }
+
+    private void registerInputs() {
+""",
+    """    Optional<PreparationPlayerState> currentPreparationPlayerState() {
+        return Optional.ofNullable(preparationPlayerState);
+    }
+
+    Optional<PreparationCollisionWorld> currentPreparationCollisionWorld() {
+        return Optional.ofNullable(preparationCollisionWorld);
+    }
+
+    private void registerInputs() {
+""",
+    "collision world accessor",
+)
+text = replace_once(
+    text,
     """        Node loadedWorld = null;
         if (!smokeMode) {
             try {
