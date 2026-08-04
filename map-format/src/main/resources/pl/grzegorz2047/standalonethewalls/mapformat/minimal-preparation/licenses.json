@@ -1,0 +1,23 @@
+{
+  "assets": [
+    {
+      "author": "Sunderfront Team",
+      "license": "CC0-1.0",
+      "path": "scene.glb",
+      "source": "deterministic project generator"
+    },
+    {
+      "author": "Sunderfront Team",
+      "license": "CC0-1.0",
+      "path": "collision.glb",
+      "source": "deterministic project generator"
+    },
+    {
+      "author": "Sunderfront Team",
+      "license": "CC0-1.0",
+      "path": "thumbnail.webp",
+      "source": "project-authored four-team preview"
+    }
+  ],
+  "schema": 1
+}
