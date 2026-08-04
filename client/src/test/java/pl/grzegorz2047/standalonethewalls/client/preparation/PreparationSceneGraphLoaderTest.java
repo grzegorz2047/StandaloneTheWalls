@@ -36,8 +36,7 @@ class PreparationSceneGraphLoaderTest {
 
         Node graph = PreparationSceneGraphLoader.loadCollision(assetManager, verified);
 
-        assertThat(graph.getName())
-                .isEqualTo("verified-preparation-collision-minimal_preparation");
+        assertThat(graph.getName()).isEqualTo("verified-preparation-collision-minimal_preparation");
         assertThat(graph.getChild("GroundCollision")).isNotNull();
         assertThat(graph.getChild("CentralWallXCollision")).isNotNull();
         assertThat(graph.getChild("CentralWallZCollision")).isNotNull();

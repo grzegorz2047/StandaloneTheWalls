@@ -20,8 +20,7 @@ class PreparationCollisionWorldTest {
         PreparationCollisionWorld collisions =
                 PreparationCollisionWorld.load(assetManager, verifiedGreenScene());
 
-        assertThat(collisions.hasGroundSupport(new MapVector3(-15.0d, 0.5d, -14.0d)))
-                .isTrue();
+        assertThat(collisions.hasGroundSupport(new MapVector3(-15.0d, 0.5d, -14.0d))).isTrue();
     }
 
     @Test
@@ -29,10 +28,8 @@ class PreparationCollisionWorldTest {
             throws PreparationSceneLoadException, PreparationSceneGraphException {
         PreparationCollisionWorld collisions = collisionWorld();
 
-        assertThat(collisions.hasGroundSupport(new MapVector3(10.0d, 0.5d, 10.0d)))
-                .isTrue();
-        assertThat(collisions.hasGroundSupport(new MapVector3(25.0d, 0.5d, 25.0d)))
-                .isFalse();
+        assertThat(collisions.hasGroundSupport(new MapVector3(10.0d, 0.5d, 10.0d))).isTrue();
+        assertThat(collisions.hasGroundSupport(new MapVector3(25.0d, 0.5d, 25.0d))).isFalse();
         assertThat(
                         collisions.permitsHorizontal(
                                 new MapVector3(10.0d, 0.5d, 10.0d),

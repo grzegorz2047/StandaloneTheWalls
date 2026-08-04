@@ -32,6 +32,7 @@ import pl.grzegorz2047.standalonethewalls.client.i18n.ClientMessages;
 import pl.grzegorz2047.standalonethewalls.client.identity.ClientIdentityStorage;
 import pl.grzegorz2047.standalonethewalls.client.network.DirectConnectService;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationCameraPlacement;
+import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationCollisionWorld;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationPlayerState;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationSceneGraphException;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationSceneGraphLoader;
@@ -103,6 +104,7 @@ public final class SunderfrontClient extends SimpleApplication
     private DirectConnectUiController directConnectController;
     private DirectConnectScreenModel directConnectModel;
     private PreparationPlayerState preparationPlayerState;
+    private PreparationCollisionWorld preparationCollisionWorld;
     private Node preparationWorld;
     private volatile int renderedWidth = -1;
     private volatile int renderedHeight = -1;
@@ -323,6 +325,10 @@ public final class SunderfrontClient extends SimpleApplication
         return Optional.ofNullable(preparationPlayerState);
     }
 
+    Optional<PreparationCollisionWorld> currentPreparationCollisionWorld() {
+        return Optional.ofNullable(preparationCollisionWorld);
+    }
+
     private void registerInputs() {
         inputManager.addMapping(INPUT_UP, new KeyTrigger(KeyInput.KEY_UP));
         inputManager.addMapping(INPUT_DOWN, new KeyTrigger(KeyInput.KEY_DOWN));
@@ -481,9 +487,11 @@ public final class SunderfrontClient extends SimpleApplication
         }
         PreparationPlayerState player = Objects.requireNonNull(entered, "entered");
         Node loadedWorld = null;
+        PreparationCollisionWorld loadedCollisions = null;
         if (!smokeMode) {
             try {
                 loadedWorld = PreparationSceneGraphLoader.load(assetManager, player.scene());
+                loadedCollisions = PreparationCollisionWorld.load(assetManager, player.scene());
             } catch (PreparationSceneGraphException exception) {
                 failPreparationSceneEntry();
                 return;
@@ -494,6 +502,7 @@ public final class SunderfrontClient extends SimpleApplication
         pointerRouter.replaceHitMap(UiHitMap.empty());
         if (!smokeMode) {
             preparationWorld = loadedWorld;
+            preparationCollisionWorld = loadedCollisions;
             rootNode.attachChild(loadedWorld);
             PreparationCameraPlacement.apply(cam, player);
         }
@@ -546,6 +555,7 @@ public final class SunderfrontClient extends SimpleApplication
     }
 
     private void detachPreparationWorld() {
+        preparationCollisionWorld = null;
         Node current = preparationWorld;
         preparationWorld = null;
         if (current != null) {
