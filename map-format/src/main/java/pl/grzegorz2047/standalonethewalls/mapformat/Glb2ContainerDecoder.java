@@ -46,7 +46,9 @@ public final class Glb2ContainerDecoder {
         }
         byte[] bytes = encoded.clone();
         ByteBuffer input = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN);
-        if (input.getInt() != MAGIC || input.getInt() != VERSION || input.getInt() != bytes.length) {
+        if (input.getInt() != MAGIC
+                || input.getInt() != VERSION
+                || input.getInt() != bytes.length) {
             throw failure(Glb2Exception.Code.INVALID_HEADER, "GLB 2.0 header is invalid");
         }
 
@@ -87,7 +89,10 @@ public final class Glb2ContainerDecoder {
         }
         int length = input.getInt();
         int type = input.getInt();
-        if (length <= 0 || (length & 3) != 0 || length > input.remaining() || type != expectedType) {
+        if (length <= 0
+                || (length & 3) != 0
+                || length > input.remaining()
+                || type != expectedType) {
             throw failure(Glb2Exception.Code.INVALID_CHUNK, "GLB chunk layout is invalid");
         }
         byte[] chunk = new byte[length];
@@ -275,8 +280,7 @@ public final class Glb2ContainerDecoder {
             throws Glb2Exception {
         if (actual != expected) {
             throw failure(
-                    Glb2Exception.Code.INVALID_JSON,
-                    description + " has an invalid JSON token");
+                    Glb2Exception.Code.INVALID_JSON, description + " has an invalid JSON token");
         }
     }
 
