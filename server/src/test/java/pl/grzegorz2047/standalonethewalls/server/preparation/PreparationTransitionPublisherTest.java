@@ -42,11 +42,7 @@ class PreparationTransitionPublisherTest {
         TestChannel alphaChannel = TestChannel.completed();
         TestChannel bravoChannel = TestChannel.completed();
 
-        publish(
-                roster,
-                matchSnapshot,
-                Map.of(alpha, alphaChannel, bravo, bravoChannel),
-                TIMEOUT);
+        publish(roster, matchSnapshot, Map.of(alpha, alphaChannel, bravo, bravoChannel), TIMEOUT);
 
         assertOrderedDelivery(alphaChannel, TeamId.GREEN, 2, matchSnapshot);
         assertOrderedDelivery(bravoChannel, TeamId.BLUE, 8, matchSnapshot);
@@ -151,10 +147,7 @@ class PreparationTransitionPublisherTest {
 
     private static LobbyRosterState roster() {
         return new LobbyRosterState(
-                7L,
-                List.of(
-                        participant("alpha", TeamId.GREEN),
-                        participant("bravo", TeamId.BLUE)));
+                7L, List.of(participant("alpha", TeamId.GREEN), participant("bravo", TeamId.BLUE)));
     }
 
     private static LobbyParticipantState participant(String id, TeamId team) {
@@ -230,8 +223,7 @@ class PreparationTransitionPublisherTest {
 
         private static TestChannel failedImmediately() {
             return new TestChannel(
-                    ignored ->
-                            CompletableFuture.failedFuture(new IllegalStateException("failed")));
+                    ignored -> CompletableFuture.failedFuture(new IllegalStateException("failed")));
         }
 
         private static TestChannel failSecondSend() {
@@ -240,7 +232,8 @@ class PreparationTransitionPublisherTest {
                             invocation == 2
                                     ? CompletableFuture.failedFuture(
                                             new IllegalStateException("failed"))
-                                    : CompletableFuture.completedFuture(new ReliableSendResult(1L)));
+                                    : CompletableFuture.completedFuture(
+                                            new ReliableSendResult(1L)));
         }
 
         private static TestChannel blocked() {
