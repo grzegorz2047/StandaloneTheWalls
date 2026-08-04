@@ -156,9 +156,7 @@ class PreparationSpawnProtocolCodecTest {
 
         byte[] y = validPayload();
         ByteBuffer.wrap(y)
-                .putDouble(
-                        Y_OFFSET,
-                        PreparationSpawnAssignment.MAXIMUM_ABSOLUTE_COORDINATE + 1.0d);
+                .putDouble(Y_OFFSET, PreparationSpawnAssignment.MAXIMUM_ABSOLUTE_COORDINATE + 1.0d);
         assertCode(y, PreparationProtocolException.Code.INVALID_COORDINATE);
 
         byte[] z = validPayload();
@@ -208,16 +206,7 @@ class PreparationSpawnProtocolCodecTest {
 
     private static PreparationSpawnAssignment assignmentWithDigest(byte[] mapSha256) {
         return new PreparationSpawnAssignment(
-                7L,
-                2L,
-                MAP_ID,
-                mapSha256,
-                LobbyTeam.GREEN,
-                33,
-                10.5d,
-                2.0d,
-                -4.25d,
-                90.0d);
+                7L, 2L, MAP_ID, mapSha256, LobbyTeam.GREEN, 33, 10.5d, 2.0d, -4.25d, 90.0d);
     }
 
     private static byte[] digest() {
