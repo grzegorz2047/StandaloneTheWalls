@@ -68,8 +68,7 @@ class PreparationSpawnProtocolAdapterTest {
         assertThatThrownBy(
                         () -> PreparationSpawnProtocolAdapter.toProtocol(null, 0L, 1L, allocation))
                 .isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(
-                        () -> PreparationSpawnProtocolAdapter.toProtocol(map, 0L, 1L, null))
+        assertThatThrownBy(() -> PreparationSpawnProtocolAdapter.toProtocol(map, 0L, 1L, null))
                 .isInstanceOf(NullPointerException.class);
         assertThatThrownBy(
                         () -> PreparationSpawnProtocolAdapter.toProtocol(map, -1L, 1L, allocation))
