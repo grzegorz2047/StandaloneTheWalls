@@ -40,7 +40,7 @@ robust = """def replace_once(text, old, new, label):
         return text[:assertion_start] + new + text[declaration_end:]
     if label == "no duplicate assignment assertion":
         tick_anchor = text.index(
-            "            waitUntil(() -> lobby.matchSnapshot().phase().name().equals(\"PREPARATION\"));"
+            "            waitUntil(() -> lobby.matchSnapshot().phase().name().equals("
         )
         assertion_start = text.index(
             "            assertThat(latestMatchSnapshotUnchecked(alpha).revision())",
