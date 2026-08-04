@@ -221,6 +221,7 @@ class TwMapBundleLoaderTest {
         return """
                 {"author":"Sunderfront Team","files":{%s},"id":"minimal_preparation","license":"CC0-1.0","limits":{"archiveBytes":1048576,"fileCount":%d,"sceneNodes":100,"textureDimension":256,"triangles":1000,"uncompressedBytes":2097152},"maximumPlayers":40,"minimumPlayers":4,"name":"Minimal Preparation","playersPerTeam":10,"requiredProtocol":{"major":1,"minor":0},"schemaVersion":1,"teamCount":4,"version":"1.0.0"}
                 """
+                .stripTrailing()
                 .formatted(files, members.size());
     }
 
