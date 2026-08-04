@@ -18,7 +18,6 @@ public final class PreparationSpawnAllocationException extends IllegalArgumentEx
     public enum Code {
         EMPTY_ROSTER,
         UNASSIGNED_PARTICIPANT,
-        DUPLICATE_PARTICIPANT,
         DUPLICATE_SPAWN_INDEX,
         INSUFFICIENT_TEAM_SPAWNS
     }
