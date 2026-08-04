@@ -24,6 +24,8 @@ import pl.grzegorz2047.standalonethewalls.protocol.ReliableChannel;
 import pl.grzegorz2047.standalonethewalls.protocol.ReliableSendResult;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhase;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchProtocolCodec;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolException;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationProtocolException;
 import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.server.lobby.LobbyMatchSnapshot;
 
@@ -34,7 +36,8 @@ class PreparationTransitionPublisherTest {
     };
 
     @Test
-    void publishesPreparationSnapshotBeforeEveryClientSpecificSpawn() throws Exception {
+    void publishesPreparationSnapshotBeforeEveryClientSpecificSpawn()
+            throws LobbyProtocolException, PreparationProtocolException {
         LobbyRosterState roster = roster();
         LobbyMatchSnapshot matchSnapshot = preparation(roster);
         LobbyParticipantId alpha = new LobbyParticipantId("alpha");
@@ -129,7 +132,7 @@ class PreparationTransitionPublisherTest {
             TeamId expectedTeam,
             int expectedSpawnIndex,
             LobbyMatchSnapshot expectedMatch)
-            throws Exception {
+            throws LobbyProtocolException, PreparationProtocolException {
         List<SentMessage> sent = channel.sent();
         assertMessageTypes(channel, COMPLETE_TRANSITION);
         var match = LobbyMatchProtocolCodec.decodeSnapshot(sent.get(0).payload());
