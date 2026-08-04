@@ -26,10 +26,7 @@ public final class TwMapBundleException extends Exception {
     }
 
     private TwMapBundleException(
-            Code code,
-            String message,
-            Throwable cause,
-            List<MapValidationIssue> manifestIssues) {
+            Code code, String message, Throwable cause, List<MapValidationIssue> manifestIssues) {
         super(Objects.requireNonNull(message, "message"), cause);
         this.code = Objects.requireNonNull(code, "code");
         this.manifestIssues =
