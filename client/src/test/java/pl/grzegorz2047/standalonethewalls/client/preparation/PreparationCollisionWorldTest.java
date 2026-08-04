@@ -20,6 +20,7 @@ class PreparationCollisionWorldTest {
         PreparationCollisionWorld collisions =
                 PreparationCollisionWorld.load(assetManager, verifiedGreenScene());
 
+        assertThat(PreparationCollisionWorld.PLAYER_BODY_RADIUS_METRES).isEqualTo(0.35f);
         assertThat(collisions.hasGroundSupport(new MapVector3(-15.0d, 0.5d, -14.0d))).isTrue();
     }
 
@@ -52,6 +53,32 @@ class PreparationCollisionWorldTest {
                                 new MapVector3(-10.0d, 0.5d, -2.0d),
                                 new MapVector3(-10.0d, 0.5d, 2.0d)))
                 .isFalse();
+    }
+
+    @Test
+    void blocksParallelMovementWhenThePlayerBodyOverlapsTheCentralWall()
+            throws PreparationSceneLoadException, PreparationSceneGraphException {
+        PreparationCollisionWorld collisions = collisionWorld();
+
+        assertThat(
+                        collisions.permitsHorizontal(
+                                new MapVector3(-0.8d, 0.5d, -10.0d),
+                                new MapVector3(-0.8d, 0.5d, -9.0d)))
+                .isFalse();
+        assertThat(
+                        collisions.permitsHorizontal(
+                                new MapVector3(-0.9d, 0.5d, -10.0d),
+                                new MapVector3(-0.9d, 0.5d, -9.0d)))
+                .isTrue();
+    }
+
+    @Test
+    void rejectsAStationaryBodyThatAlreadyOverlapsAnObstacle()
+            throws PreparationSceneLoadException, PreparationSceneGraphException {
+        PreparationCollisionWorld collisions = collisionWorld();
+        MapVector3 overlapping = new MapVector3(-0.8d, 0.5d, -10.0d);
+
+        assertThat(collisions.permitsHorizontal(overlapping, overlapping)).isFalse();
     }
 
     @Test
