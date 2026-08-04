@@ -17,6 +17,7 @@ public final class ClientLauncher {
     public static final int EXIT_USAGE = 2;
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientLauncher.class);
     private static final Duration INITIALIZATION_TIMEOUT = Duration.ofSeconds(20);
+    private static final Duration PREPARATION_SMOKE_TIMEOUT = Duration.ofSeconds(20);
 
     private ClientLauncher() {
         throw new AssertionError("No instances");
@@ -31,7 +32,7 @@ public final class ClientLauncher {
                     new SunderfrontClient(messages, options.smokeMode(), options.dataDirectory());
             configure(application);
             if (options.smokeMode()) {
-                return runSmoke(application);
+                return runSmoke(application, options.preparationSmoke());
             }
             application.start();
             return EXIT_OK;
@@ -59,11 +60,14 @@ public final class ClientLauncher {
         application.setPauseOnLostFocus(false);
     }
 
-    private static int runSmoke(SunderfrontClient application)
+    private static int runSmoke(SunderfrontClient application, boolean preparationSmoke)
             throws InterruptedException, TimeoutException {
         try {
             application.start(JmeContext.Type.Headless, true);
             application.awaitInitialization(INITIALIZATION_TIMEOUT);
+            if (preparationSmoke) {
+                PreparationRuntimeSmoke.run(application, PREPARATION_SMOKE_TIMEOUT);
+            }
             return EXIT_OK;
         } finally {
             if (application.getContext() != null) {
