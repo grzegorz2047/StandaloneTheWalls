@@ -66,10 +66,7 @@ public final class PreparationPlayerState {
             return this;
         }
         return new PreparationPlayerState(
-                scene,
-                new MapVector3(nextX, position.y(), nextZ),
-                yawDegrees,
-                pitchDegrees);
+                scene, new MapVector3(nextX, position.y(), nextZ), yawDegrees, pitchDegrees);
     }
 
     public PreparationPlayerState rotate(double deltaDegrees) {

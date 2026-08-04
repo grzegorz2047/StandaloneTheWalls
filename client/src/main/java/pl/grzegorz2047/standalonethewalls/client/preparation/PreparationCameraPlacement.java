@@ -21,11 +21,9 @@ public final class PreparationCameraPlacement {
         double horizontal = Math.cos(pitchRadians);
         target.lookAtDirection(
                 new Vector3f(
-                        (float)
-                                (PreparationFacing.forwardX(player.yawDegrees()) * horizontal),
+                        (float) (PreparationFacing.forwardX(player.yawDegrees()) * horizontal),
                         (float) Math.sin(pitchRadians),
-                        (float)
-                                (PreparationFacing.forwardZ(player.yawDegrees()) * horizontal)),
+                        (float) (PreparationFacing.forwardZ(player.yawDegrees()) * horizontal)),
                 Vector3f.UNIT_Y);
     }
 }

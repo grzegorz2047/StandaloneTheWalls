@@ -31,6 +31,7 @@ class SunderfrontPreparationTransitionTest {
         assertThat(player.scene()).isSameAs(scene);
         assertThat(player.position()).isEqualTo(new MapVector3(-15.0d, 0.5d, -14.0d));
         assertThat(player.yawDegrees()).isEqualTo(45.0d);
+        assertThat(player.pitchDegrees()).isZero();
         assertThat(client.isPreparationInputCaptured()).isFalse();
 
         client.exercisePreparationInputCapture();
