@@ -22,6 +22,7 @@ import pl.grzegorz2047.standalonethewalls.client.network.FirstUseConfirmation;
 import pl.grzegorz2047.standalonethewalls.client.network.LobbyCommandHandle;
 import pl.grzegorz2047.standalonethewalls.client.network.LobbyCommandResolution;
 import pl.grzegorz2047.standalonethewalls.client.network.LobbyCommandSubmission;
+import pl.grzegorz2047.standalonethewalls.client.preparation.VerifiedPreparationScene;
 import pl.grzegorz2047.standalonethewalls.client.ui.lobby.ConnectedLobbyModel;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.CanonicalHandle;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerSessionAdmissionStatus;
@@ -244,6 +245,16 @@ public final class DirectConnectUiController implements AutoCloseable {
             return;
         }
         publishConnectedIfSynchronized(session, snapshot, busy, lobbyCommandStatus);
+    }
+
+    /** Returns the session-owned scene only after all preparation checks succeeded. */
+    public Optional<VerifiedPreparationScene> currentVerifiedPreparationScene() {
+        requireOpen();
+        ConnectedLobbySession session = connectedSession;
+        if (session == null || model.phase() != DirectConnectUiPhase.CONNECTED) {
+            return Optional.empty();
+        }
+        return session.currentVerifiedPreparationScene();
     }
 
     @Override
