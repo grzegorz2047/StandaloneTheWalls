@@ -22,3 +22,4 @@ Thumbs.db
 *.sftr.*.tmp
 runtime/
 .asset-cache/
+client/src/main/resources/Interface/Fonts/SunderfrontUI-Regular.png.b64*

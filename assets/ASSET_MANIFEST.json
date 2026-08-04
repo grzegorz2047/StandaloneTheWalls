@@ -24,6 +24,18 @@
       "license": "CC0-1.0",
       "source": "project-authored four-team preview",
       "redistribution": "decoded into the minimal_preparation map bundle"
+    },
+    {
+      "id": "sunderfront_ui_font",
+      "path": "client/src/main/resources/Interface/Fonts/Default.fnt",
+      "author": "SIL International",
+      "license": "OFL-1.1",
+      "source": "Andika Regular 6.200 from the silnrsi/font-andika GitHub release",
+      "sourceSha256": "694d12d0f3fb2be696dbbde93eee3ccbdee766751d836eb1fbe8aab2d439d38a",
+      "generatedAtlasSha256": "44721d69ff470c19e9ae10809a3242434fb903644c7d0aa9375223fbd970b385",
+      "generatedMetadataSha256": "d948290489c23fac65273f7e431d9bd2d345647a715000daa262479a2b807c94",
+      "modifications": "Renamed to SunderfrontUI-Regular to respect the reserved font names, subset to the explicit PL/EN UI character set, rasterized at 48 px and packed into a 1024x256 antialiased BMFont atlas by tools/fonts/generate_sunderfront_ui_font.py using the versions pinned in tools/fonts/requirements.txt.",
+      "redistribution": "embedded in the client runtime with client/src/main/resources/Interface/Fonts/OFL-Andika.txt"
     }
   ]
 }
