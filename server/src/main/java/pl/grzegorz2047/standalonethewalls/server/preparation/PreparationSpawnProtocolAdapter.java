@@ -10,16 +10,14 @@ public final class PreparationSpawnProtocolAdapter {
         throw new AssertionError("No instances");
     }
 
-    public static pl.grzegorz2047.standalonethewalls.protocol.preparation
-                    .PreparationSpawnAssignment
+    public static pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnAssignment
             toProtocol(
                     PreparationMapDefinition map,
                     long rosterRevision,
                     long roundNumber,
                     PreparationSpawnAssignment assignment) {
         PreparationMapDefinition pinnedMap = Objects.requireNonNull(map, "map");
-        PreparationSpawnAssignment authoritative =
-                Objects.requireNonNull(assignment, "assignment");
+        PreparationSpawnAssignment authoritative = Objects.requireNonNull(assignment, "assignment");
         PreparationSpawnPoint spawn = authoritative.spawnPoint();
         return new pl.grzegorz2047.standalonethewalls.protocol.preparation
                 .PreparationSpawnAssignment(
