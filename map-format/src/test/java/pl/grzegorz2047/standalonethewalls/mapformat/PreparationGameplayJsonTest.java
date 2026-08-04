@@ -69,9 +69,7 @@ class PreparationGameplayJsonTest {
     @Test
     void rejectsOverlappingRegionsDuplicateIndicesAndSpawnOutsideItsRegion() {
         String overlapping =
-                validText().replace(
-                                "\"minimum\":[1,-1,-20]",
-                                "\"minimum\":[-10,-1,-20]");
+                validText().replace("\"minimum\":[1,-1,-20]", "\"minimum\":[-10,-1,-20]");
         assertCode(overlapping, PreparationGameplayException.Code.INVALID_LAYOUT);
 
         String duplicateIndex = validText().replace("\"index\":8", "\"index\":2");
@@ -84,15 +82,17 @@ class PreparationGameplayJsonTest {
     @Test
     void rejectsMissingTeamSpawnAndUnsupportedRegionCount() {
         String missingYellowSpawn =
-                validText().replace(
-                        ",{\"index\":9,\"position\":[10,2,10],\"team\":\"YELLOW\",\"yaw\":-180}",
-                        "");
+                validText()
+                        .replace(
+                                ",{\"index\":9,\"position\":[10,2,10],\"team\":\"YELLOW\",\"yaw\":-180}",
+                                "");
         assertCode(missingYellowSpawn, PreparationGameplayException.Code.INVALID_LAYOUT);
 
         String threeRegions =
-                validText().replace(
-                        ",{\"maximum\":[20,20,20],\"minimum\":[1,-1,1],\"team\":\"YELLOW\"}",
-                        "");
+                validText()
+                        .replace(
+                                ",{\"maximum\":[20,20,20],\"minimum\":[1,-1,1],\"team\":\"YELLOW\"}",
+                                "");
         assertCode(threeRegions, PreparationGameplayException.Code.INVALID_LAYOUT);
     }
 
