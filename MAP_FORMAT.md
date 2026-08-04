@@ -92,6 +92,45 @@ maximum expanded-byte ceiling. Large-map disk extraction and atomic cache
 activation must use a separate bounded implementation rather than increasing this
 ceiling or exposing temporary unverified files.
 
+## Embedded GLB 2.0 boundary
+
+`Glb2ContainerDecoder` validates a map member before a renderer or collision system
+can consume it. The current boundary requires:
+
+- a correct GLB 2.0 magic, version, total length and aligned JSON/BIN chunk order;
+- strict duplicate-aware JSON parsing with one default scene, at least one node and
+  mesh, and exactly one declared buffer;
+- a BIN chunk whose padded size matches the declared buffer byte length;
+- no external buffer or image `uri` references;
+- scene and mesh counts within the manifest's `sceneNodes` budget;
+- defensive copies of both verified chunks and bounded metadata.
+
+This is a structural and self-containment gate. Accessor ranges, primitive triangle
+counts, texture dimensions and gameplay-specific collision topology still require
+dedicated validation before arbitrary user maps are treated as production-ready.
+
+## Deterministic minimal preparation bundle
+
+`MinimalPreparationBundle` generates the project-authored `minimal_preparation`
+map version `1.0.0` without committing `.glb` or `.twmap` binaries to Git history.
+Its text resources describe:
+
+- a 40×40 ground plane and four visibly distinct team regions;
+- four perimeter walls plus central X/Z preparation walls;
+- one directional light and six reusable visual materials;
+- matching ground, perimeter and central collision boxes;
+- four exclusive preparation regions with ten deterministic spawns each;
+- project-authored CC0 provenance and a 64×64 four-team WebP preview.
+
+The generator uses a fixed entry order, ZIP `STORED` mode, fixed CRC values and a
+1980-01-01 timestamp. The resulting archive is 15,641 bytes with SHA-256
+`ec80f3b454699cb0a90d3d12309210939b3a97950222d7b5541fdc9ebb0e834b`.
+Tests regenerate it twice, verify the exact fingerprint, load it through
+`TwMapBundleLoader`, decode both GLBs and check all 40 spawn assignments.
+
+This minimal bundle is an integration baseline for #129, not a claim that final art,
+terrain, gameplay systems or production collision validation are complete.
+
 ## Hard semantic caps in v1
 
 | Budget | Maximum |
@@ -103,9 +142,9 @@ ceiling or exposing temporary unverified files.
 | triangles | 2,000,000 |
 | texture dimension | 4,096 |
 
-Manifest limits do not replace GLB validation. Actual node/triangle traversal,
-texture inspection, collision semantics and atomic disk-cache activation remain
-separate work.
+Manifest limits do not replace full GLB validation. Actual primitive triangle
+traversal, texture inspection, collision semantics and atomic disk-cache activation
+remain separate work.
 
 ## Validation result
 
