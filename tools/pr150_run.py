@@ -1,4 +1,5 @@
 from pathlib import Path
+import subprocess
 
 source_path = Path("tools/pr150_apply.py")
 source = source_path.read_text(encoding="utf-8")
@@ -37,3 +38,14 @@ elif old_count != 0 or new_count != 1:
         f"found old={old_count}, new={new_count}"
     )
 client_path.write_text(client, encoding="utf-8")
+
+subprocess.run(
+    [
+        "./gradlew",
+        "--no-daemon",
+        "--no-configuration-cache",
+        ":client:dependencies",
+        "--write-locks",
+    ],
+    check=True,
+)
