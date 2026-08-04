@@ -39,8 +39,7 @@ class PreparationPlayerStateTest {
     }
 
     @Test
-    void clampsEveryHorizontalBoundaryOfTheVerifiedRegion()
-            throws PreparationSceneLoadException {
+    void clampsEveryHorizontalBoundaryOfTheVerifiedRegion() throws PreparationSceneLoadException {
         PreparationPlayerState player =
                 PreparationPlayerState.atAuthoritativeSpawn(verifiedGreenScene());
 
@@ -59,8 +58,7 @@ class PreparationPlayerStateTest {
         PreparationPlayerState player =
                 PreparationPlayerState.atAuthoritativeSpawn(verifiedGreenScene());
 
-        PreparationPlayerState moved =
-                player.moveHorizontal(Double.MAX_VALUE, -Double.MAX_VALUE);
+        PreparationPlayerState moved = player.moveHorizontal(Double.MAX_VALUE, -Double.MAX_VALUE);
 
         assertThat(moved.position()).isEqualTo(new MapVector3(-1.0d, 0.5d, -18.0d));
         assertThat(player.scene().region().contains(moved.position())).isTrue();
@@ -93,9 +91,7 @@ class PreparationPlayerStateTest {
         PreparationPlayerState player =
                 PreparationPlayerState.atAuthoritativeSpawn(verifiedGreenScene());
 
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> player.moveHorizontal(Double.NaN, 0.0d));
+        assertThrows(IllegalArgumentException.class, () -> player.moveHorizontal(Double.NaN, 0.0d));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> player.moveHorizontal(0.0d, Double.POSITIVE_INFINITY));
@@ -104,8 +100,7 @@ class PreparationPlayerStateTest {
 
     private static VerifiedPreparationScene verifiedGreenScene()
             throws PreparationSceneLoadException {
-        byte[] digest =
-                HexFormat.of().parseHex(MinimalPreparationBundle.EXPECTED_ARCHIVE_SHA256);
+        byte[] digest = HexFormat.of().parseHex(MinimalPreparationBundle.EXPECTED_ARCHIVE_SHA256);
         PreparationSpawnAssignment assignment =
                 new PreparationSpawnAssignment(
                         8L,

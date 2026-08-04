@@ -45,10 +45,11 @@ public final class PreparationPlayerState {
         requireFinite(deltaX, "deltaX");
         requireFinite(deltaZ, "deltaZ");
         PreparationRegion region = scene.region();
-        double nextX = clamp(addFinite(position.x(), deltaX), region.minimum().x(), region.maximum().x());
-        double nextZ = clamp(addFinite(position.z(), deltaZ), region.minimum().z(), region.maximum().z());
-        if (Double.compare(nextX, position.x()) == 0
-                && Double.compare(nextZ, position.z()) == 0) {
+        double nextX =
+                clamp(addFinite(position.x(), deltaX), region.minimum().x(), region.maximum().x());
+        double nextZ =
+                clamp(addFinite(position.z(), deltaZ), region.minimum().z(), region.maximum().z());
+        if (Double.compare(nextX, position.x()) == 0 && Double.compare(nextZ, position.z()) == 0) {
             return this;
         }
         return new PreparationPlayerState(
