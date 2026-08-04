@@ -4,12 +4,25 @@ on:
   push:
     branches:
       - "agent/verify-v0.1.0-alpha.5-release"
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
 
 permissions:
   contents: read
 
 jobs:
   audit-published-release:
+    if: >-
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       github.head_ref == 'agent/verify-v0.1.0-alpha.5-release')
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
