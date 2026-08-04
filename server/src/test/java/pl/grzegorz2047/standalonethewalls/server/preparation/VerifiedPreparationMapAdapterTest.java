@@ -12,6 +12,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.zip.ZipEntry;
@@ -48,11 +49,10 @@ class VerifiedPreparationMapAdapterTest {
         assertThat(map.spawnPoints()).hasSize(40);
         assertThat(map.spawnPoints())
                 .extracting(PreparationSpawnPoint::index)
-                .containsExactlyElementsOf(java.util.stream.IntStream.range(0, 40).boxed().toList());
+                .containsExactlyElementsOf(
+                        java.util.stream.IntStream.range(0, 40).boxed().toList());
         assertThat(map.spawnPoints().getFirst())
-                .isEqualTo(
-                        new PreparationSpawnPoint(
-                                0, TeamId.GREEN, -15.0d, 0.5d, -14.0d, 45.0d));
+                .isEqualTo(new PreparationSpawnPoint(0, TeamId.GREEN, -15.0d, 0.5d, -14.0d, 45.0d));
         assertThat(map.spawnPoints().getLast())
                 .isEqualTo(
                         new PreparationSpawnPoint(
@@ -120,7 +120,7 @@ class VerifiedPreparationMapAdapterTest {
                 participants.add(
                         new LobbyParticipantState(
                                 new LobbyParticipantId(
-                                        team.name().toLowerCase() + "-" + String.format("%02d", index)),
+                                        team.name().toLowerCase(Locale.ROOT) + "-0" + index),
                                 Optional.of(team),
                                 true));
             }
