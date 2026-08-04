@@ -29,19 +29,20 @@ import pl.grzegorz2047.standalonethewalls.server.lobby.LobbyMatchSnapshot;
 
 class PreparationTransitionPublisherTest {
     private static final Duration TIMEOUT = Duration.ofSeconds(1);
+    private static final MessageType[] COMPLETE_TRANSITION = {
+        MessageType.LOBBY_MATCH_SNAPSHOT, MessageType.PREPARATION_SPAWN_ASSIGNMENT
+    };
 
     @Test
     void publishesPreparationSnapshotBeforeEveryClientSpecificSpawn() throws Exception {
         LobbyRosterState roster = roster();
         LobbyMatchSnapshot matchSnapshot = preparation(roster);
-        PreparationMapDefinition map = map();
         LobbyParticipantId alpha = new LobbyParticipantId("alpha");
         LobbyParticipantId bravo = new LobbyParticipantId("bravo");
         TestChannel alphaChannel = TestChannel.completed();
         TestChannel bravoChannel = TestChannel.completed();
 
-        PreparationTransitionPublisher.publish(
-                map,
+        publish(
                 roster,
                 matchSnapshot,
                 Map.of(alpha, alphaChannel, bravo, bravoChannel),
@@ -55,15 +56,11 @@ class PreparationTransitionPublisherTest {
     void rejectsChannelMismatchBeforeStartingAnySend() {
         LobbyRosterState roster = roster();
         TestChannel channel = TestChannel.completed();
+        Map<LobbyParticipantId, ReliableChannel> channels =
+                Map.of(new LobbyParticipantId("alpha"), channel);
 
         assertCode(
-                () ->
-                        PreparationTransitionPublisher.publish(
-                                map(),
-                                roster,
-                                preparation(roster),
-                                Map.of(new LobbyParticipantId("alpha"), channel),
-                                TIMEOUT),
+                () -> publish(roster, preparation(roster), channels, TIMEOUT),
                 PreparationTransitionPublishException.Code.CHANNEL_COVERAGE_MISMATCH);
         assertThat(channel.sent()).isEmpty();
     }
@@ -75,22 +72,14 @@ class PreparationTransitionPublisherTest {
         LobbyParticipantId bravo = new LobbyParticipantId("bravo");
         TestChannel alphaChannel = TestChannel.failedImmediately();
         TestChannel bravoChannel = TestChannel.completed();
+        Map<LobbyParticipantId, ReliableChannel> channels =
+                Map.of(alpha, alphaChannel, bravo, bravoChannel);
 
         assertCode(
-                () ->
-                        PreparationTransitionPublisher.publish(
-                                map(),
-                                roster,
-                                preparation(roster),
-                                Map.of(alpha, alphaChannel, bravo, bravoChannel),
-                                TIMEOUT),
+                () -> publish(roster, preparation(roster), channels, TIMEOUT),
                 PreparationTransitionPublishException.Code.SNAPSHOT_SEND_FAILED);
-        assertThat(alphaChannel.sent())
-                .extracting(SentMessage::messageType)
-                .containsExactly(MessageType.LOBBY_MATCH_SNAPSHOT);
-        assertThat(bravoChannel.sent())
-                .extracting(SentMessage::messageType)
-                .containsExactly(MessageType.LOBBY_MATCH_SNAPSHOT);
+        assertMessageTypes(alphaChannel, MessageType.LOBBY_MATCH_SNAPSHOT);
+        assertMessageTypes(bravoChannel, MessageType.LOBBY_MATCH_SNAPSHOT);
     }
 
     @Test
@@ -100,26 +89,14 @@ class PreparationTransitionPublisherTest {
         LobbyParticipantId bravo = new LobbyParticipantId("bravo");
         TestChannel alphaChannel = TestChannel.failSecondSend();
         TestChannel bravoChannel = TestChannel.completed();
+        Map<LobbyParticipantId, ReliableChannel> channels =
+                Map.of(alpha, alphaChannel, bravo, bravoChannel);
 
         assertCode(
-                () ->
-                        PreparationTransitionPublisher.publish(
-                                map(),
-                                roster,
-                                preparation(roster),
-                                Map.of(alpha, alphaChannel, bravo, bravoChannel),
-                                TIMEOUT),
+                () -> publish(roster, preparation(roster), channels, TIMEOUT),
                 PreparationTransitionPublishException.Code.ASSIGNMENT_PUBLISH_FAILED);
-        assertThat(alphaChannel.sent())
-                .extracting(SentMessage::messageType)
-                .containsExactly(
-                        MessageType.LOBBY_MATCH_SNAPSHOT,
-                        MessageType.PREPARATION_SPAWN_ASSIGNMENT);
-        assertThat(bravoChannel.sent())
-                .extracting(SentMessage::messageType)
-                .containsExactly(
-                        MessageType.LOBBY_MATCH_SNAPSHOT,
-                        MessageType.PREPARATION_SPAWN_ASSIGNMENT);
+        assertMessageTypes(alphaChannel, COMPLETE_TRANSITION);
+        assertMessageTypes(bravoChannel, COMPLETE_TRANSITION);
     }
 
     @Test
@@ -129,22 +106,26 @@ class PreparationTransitionPublisherTest {
         LobbyParticipantId bravo = new LobbyParticipantId("bravo");
         TestChannel alphaChannel = TestChannel.blocked();
         TestChannel bravoChannel = TestChannel.completed();
+        Map<LobbyParticipantId, ReliableChannel> channels =
+                Map.of(alpha, alphaChannel, bravo, bravoChannel);
 
         assertCode(
-                () ->
-                        PreparationTransitionPublisher.publish(
-                                map(),
-                                roster,
-                                preparation(roster),
-                                Map.of(alpha, alphaChannel, bravo, bravoChannel),
-                                Duration.ofMillis(20)),
+                () -> publish(roster, preparation(roster), channels, Duration.ofMillis(20)),
                 PreparationTransitionPublishException.Code.TIMEOUT);
-        assertThat(alphaChannel.sent())
-                .extracting(SentMessage::messageType)
-                .containsExactly(MessageType.LOBBY_MATCH_SNAPSHOT);
-        assertThat(bravoChannel.sent())
-                .extracting(SentMessage::messageType)
-                .containsExactly(MessageType.LOBBY_MATCH_SNAPSHOT);
+        assertMessageTypes(alphaChannel, MessageType.LOBBY_MATCH_SNAPSHOT);
+        assertMessageTypes(bravoChannel, MessageType.LOBBY_MATCH_SNAPSHOT);
+    }
+
+    private static void publish(
+            LobbyRosterState roster,
+            LobbyMatchSnapshot matchSnapshot,
+            Map<LobbyParticipantId, ReliableChannel> channels,
+            Duration timeout) {
+        PreparationTransitionPublisher.publish(map(), roster, matchSnapshot, channels, timeout);
+    }
+
+    private static void assertMessageTypes(TestChannel channel, MessageType... expected) {
+        assertThat(channel.sent()).extracting(SentMessage::messageType).containsExactly(expected);
     }
 
     private static void assertOrderedDelivery(
@@ -154,11 +135,7 @@ class PreparationTransitionPublisherTest {
             LobbyMatchSnapshot expectedMatch)
             throws Exception {
         List<SentMessage> sent = channel.sent();
-        assertThat(sent)
-                .extracting(SentMessage::messageType)
-                .containsExactly(
-                        MessageType.LOBBY_MATCH_SNAPSHOT,
-                        MessageType.PREPARATION_SPAWN_ASSIGNMENT);
+        assertMessageTypes(channel, COMPLETE_TRANSITION);
         var match = LobbyMatchProtocolCodec.decodeSnapshot(sent.get(0).payload());
         assertThat(match.phase()).isEqualTo(LobbyMatchPhase.PREPARATION);
         assertThat(match.rosterRevision()).isEqualTo(expectedMatch.rosterRevision());
@@ -181,8 +158,7 @@ class PreparationTransitionPublisherTest {
     }
 
     private static LobbyParticipantState participant(String id, TeamId team) {
-        return new LobbyParticipantState(
-                new LobbyParticipantId(id), Optional.of(team), true);
+        return new LobbyParticipantState(new LobbyParticipantId(id), Optional.of(team), true);
     }
 
     private static LobbyMatchSnapshot preparation(LobbyRosterState roster) {
@@ -199,14 +175,11 @@ class PreparationTransitionPublisherTest {
     }
 
     private static PreparationMapDefinition map() {
-        return new PreparationMapDefinition(
-                "arena-one",
-                digest(),
-                List.of(
-                        new PreparationSpawnPoint(
-                                8, TeamId.BLUE, 80.0d, 2.0d, 0.0d, 90.0d),
-                        new PreparationSpawnPoint(
-                                2, TeamId.GREEN, 20.0d, 2.0d, 0.0d, 0.0d)));
+        PreparationSpawnPoint blue =
+                new PreparationSpawnPoint(8, TeamId.BLUE, 80.0d, 2.0d, 0.0d, 90.0d);
+        PreparationSpawnPoint green =
+                new PreparationSpawnPoint(2, TeamId.GREEN, 20.0d, 2.0d, 0.0d, 0.0d);
+        return new PreparationMapDefinition("arena-one", digest(), List.of(blue, green));
     }
 
     private static byte[] digest() {
