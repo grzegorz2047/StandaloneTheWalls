@@ -83,13 +83,8 @@ class TwMapBundleLoaderTest {
         Map<String, byte[]> unsafe = copyMembers(members);
         unsafe.put("../escape.bin", new byte[] {1});
         assertCode(
-                archive(manifest(members), unsafe),
-                POLICY,
-                TwMapBundleException.Code.UNSAFE_ENTRY);
-        assertCode(
-                archive(null, members),
-                POLICY,
-                TwMapBundleException.Code.MISSING_MANIFEST);
+                archive(manifest(members), unsafe), POLICY, TwMapBundleException.Code.UNSAFE_ENTRY);
+        assertCode(archive(null, members), POLICY, TwMapBundleException.Code.MISSING_MANIFEST);
     }
 
     @Test
@@ -99,8 +94,7 @@ class TwMapBundleLoaderTest {
         assertCode(
                 archive(
                         validManifest.replace(
-                                "\"schemaVersion\":1",
-                                "\"schemaVersion\":1,\"unknown\":0"),
+                                "\"schemaVersion\":1", "\"schemaVersion\":1,\"unknown\":0"),
                         members),
                 POLICY,
                 TwMapBundleException.Code.INVALID_MANIFEST_JSON);
@@ -134,20 +128,13 @@ class TwMapBundleLoaderTest {
         byte[] archive = archive(manifest(members), members);
         TwMapLoadPolicy archiveTooSmall =
                 new TwMapLoadPolicy(archive.length - 1, 4 * 1024 * 1024, 16, 100);
-        assertCode(
-                archive,
-                archiveTooSmall,
-                TwMapBundleException.Code.INVALID_ARCHIVE_SIZE);
+        assertCode(archive, archiveTooSmall, TwMapBundleException.Code.INVALID_ARCHIVE_SIZE);
 
         Map<String, byte[]> compressible = validMembers();
         compressible.put("scene.glb", new byte[128 * 1024]);
         byte[] compressedArchive = archive(manifest(compressible), compressible);
-        TwMapLoadPolicy ratioOne =
-                new TwMapLoadPolicy(2 * 1024 * 1024, 2 * 1024 * 1024, 16, 1);
-        assertCode(
-                compressedArchive,
-                ratioOne,
-                TwMapBundleException.Code.EXPANSION_LIMIT);
+        TwMapLoadPolicy ratioOne = new TwMapLoadPolicy(2 * 1024 * 1024, 2 * 1024 * 1024, 16, 1);
+        assertCode(compressedArchive, ratioOne, TwMapBundleException.Code.EXPANSION_LIMIT);
     }
 
     @Test
@@ -160,12 +147,8 @@ class TwMapBundleLoaderTest {
         Map<String, byte[]> members = validMembers();
         String oversizedBudget =
                 manifest(members)
-                        .replace(
-                                "\"archiveBytes\":1048576",
-                                "\"archiveBytes\":3145728")
-                        .replace(
-                                "\"uncompressedBytes\":2097152",
-                                "\"uncompressedBytes\":4194304");
+                        .replace("\"archiveBytes\":1048576", "\"archiveBytes\":3145728")
+                        .replace("\"uncompressedBytes\":2097152", "\"uncompressedBytes\":4194304");
         assertCode(
                 archive(oversizedBudget, members),
                 POLICY,
@@ -196,12 +179,14 @@ class TwMapBundleLoaderTest {
         return copy;
     }
 
-    private static byte[] archive(String manifest, Map<String, byte[]> members)
-            throws IOException {
+    private static byte[] archive(String manifest, Map<String, byte[]> members) throws IOException {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         try (ZipOutputStream zip = new ZipOutputStream(output, StandardCharsets.UTF_8)) {
             if (manifest != null) {
-                writeEntry(zip, TwMapBundleLoader.MANIFEST_PATH, manifest.getBytes(StandardCharsets.UTF_8));
+                writeEntry(
+                        zip,
+                        TwMapBundleLoader.MANIFEST_PATH,
+                        manifest.getBytes(StandardCharsets.UTF_8));
             }
             for (Map.Entry<String, byte[]> member : members.entrySet()) {
                 writeEntry(zip, member.getKey(), member.getValue());
