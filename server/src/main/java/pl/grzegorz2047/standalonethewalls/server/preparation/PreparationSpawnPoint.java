@@ -24,7 +24,8 @@ public record PreparationSpawnPoint(
 
     private static void requireCoordinate(double value, String field) {
         if (!Double.isFinite(value) || Math.abs(value) > MAXIMUM_ABSOLUTE_COORDINATE) {
-            throw new IllegalArgumentException(field + " coordinate is outside the supported range");
+            throw new IllegalArgumentException(
+                    field + " coordinate is outside the supported range");
         }
     }
 }
