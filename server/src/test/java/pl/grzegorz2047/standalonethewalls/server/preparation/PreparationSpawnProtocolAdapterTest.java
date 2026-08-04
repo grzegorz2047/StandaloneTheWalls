@@ -21,8 +21,7 @@ class PreparationSpawnProtocolAdapterTest {
                 new PreparationSpawnAssignment(
                         new LobbyParticipantId("player-one"), TeamId.RED, spawn);
 
-        pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnAssignment
-                protocol = PreparationSpawnProtocolAdapter.toProtocol(map, 7L, 2L, allocation);
+        var protocol = PreparationSpawnProtocolAdapter.toProtocol(map, 7L, 2L, allocation);
 
         assertThat(protocol.rosterRevision()).isEqualTo(7L);
         assertThat(protocol.roundNumber()).isEqualTo(2L);
@@ -48,12 +47,9 @@ class PreparationSpawnProtocolAdapterTest {
                     new PreparationMapDefinition("arena-one", digest(), List.of(spawn));
             PreparationSpawnAssignment allocation =
                     new PreparationSpawnAssignment(
-                            new LobbyParticipantId("player-" + team.name().toLowerCase()),
-                            team,
-                            spawn);
+                            new LobbyParticipantId("player-" + team.ordinal()), team, spawn);
 
-            pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnAssignment
-                    protocol = PreparationSpawnProtocolAdapter.toProtocol(map, 0L, 1L, allocation);
+            var protocol = PreparationSpawnProtocolAdapter.toProtocol(map, 0L, 1L, allocation);
 
             assertThat(protocol.team().name()).isEqualTo(team.name());
         }
