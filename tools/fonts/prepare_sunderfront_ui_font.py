@@ -16,7 +16,7 @@ import zipfile
 
 RELEASE_API = "https://api.github.com/repos/silnrsi/font-andika/releases/tags/v6.200"
 EXPECTED_SOURCE_SHA256 = "694d12d0f3fb2be696dbbde93eee3ccbdee766751d836eb1fbe8aab2d439d38a"
-EXPECTED_ATLAS_SHA256 = "8f7a0cdc32475bd7843a5cd00cf10c1d009823e209f5994709a54cb6cb0e3a65"
+EXPECTED_ATLAS_SHA256 = "44721d69ff470c19e9ae10809a3242434fb903644c7d0aa9375223fbd970b385"
 EXPECTED_METADATA_SHA256 = "d948290489c23fac65273f7e431d9bd2d345647a715000daa262479a2b807c94"
 MAX_DOWNLOAD_BYTES = 100 * 1024 * 1024
 USER_AGENT = "StandaloneTheWalls-ui-font-builder/1"
@@ -167,10 +167,15 @@ def main() -> None:
     if unexpected:
         raise SystemExit(f"generator produced unexpected chunks: {unexpected}")
 
+    encoded_length = sum(
+        len(chunk.read_text(encoding="ascii").strip()) for chunk in expected_chunks
+    )
     print(f"release_url={archive_url}")
     print(f"source_sha256={EXPECTED_SOURCE_SHA256}")
     print(f"atlas_sha256={EXPECTED_ATLAS_SHA256}")
     print(f"metadata_sha256={EXPECTED_METADATA_SHA256}")
+    print(f"atlas_size={atlas.stat().st_size}")
+    print(f"encoded_length={encoded_length}")
     print(f"output={output}")
 
 
