@@ -7,6 +7,7 @@ import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import com.jme3.scene.plugins.gltf.GlbLoader;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.util.HexFormat;
 import java.util.Objects;
 
@@ -38,7 +39,7 @@ public final class PreparationSceneGraphLoader {
                         "verified preparation scene graph contains no spatial");
             }
             return root;
-        } catch (AssetLoadException | IllegalArgumentException exception) {
+        } catch (AssetLoadException | IllegalArgumentException | IOException exception) {
             throw new PreparationSceneGraphException(
                     "verified preparation scene could not be loaded", exception);
         }
