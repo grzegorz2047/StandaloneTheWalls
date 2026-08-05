@@ -44,10 +44,10 @@ replace_once(
 
 replace_once(
     "client/src/main/java/pl/grzegorz2047/standalonethewalls/client/SunderfrontClient.java",
-    """                rootNode.attachChild(loadedWorld);
-                rootNode.attachChild(preparationRemotePlayers.root());
+    """            rootNode.attachChild(loadedWorld);
+            rootNode.attachChild(preparationRemotePlayers.root());
 """,
-    """                rootNode.attachChild(loadedWorld);
-                preparationRemotePlayers.attachTo(rootNode);
+    """            rootNode.attachChild(loadedWorld);
+            preparationRemotePlayers.attachTo(rootNode);
 """,
 )
