@@ -1,0 +1,57 @@
+name: Fix PR 164 localization
+
+on:
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  fix-localization:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out implementation branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: agent/issue-163-realtime-ticket-provisioning
+          fetch-depth: 0
+
+      - name: Add realtime ticket failure messages
+        shell: python
+        run: |
+          from pathlib import Path
+
+          additions = {
+              Path("client/src/main/resources/i18n/messages_en.properties"): [
+                  "direct.failure.realtime_ticket_send_failed=The realtime ticket request could not be sent. The secure connection was closed.",
+                  "direct.failure.realtime_ticket_result_malformed=The server returned an invalid realtime ticket result.",
+                  "direct.failure.realtime_ticket_result_unexpected=The server returned an unexpected or mismatched realtime ticket result.",
+              ],
+              Path("client/src/main/resources/i18n/messages_pl.properties"): [
+                  "direct.failure.realtime_ticket_send_failed=Nie udalo sie wyslac zadania biletu realtime. Bezpieczne polaczenie zostalo zamkniete.",
+                  "direct.failure.realtime_ticket_result_malformed=Serwer zwrocil nieprawidlowy wynik biletu realtime.",
+                  "direct.failure.realtime_ticket_result_unexpected=Serwer zwrocil nieoczekiwany albo niedopasowany wynik biletu realtime.",
+              ],
+          }
+          anchor = "direct.failure.lobby_command_revision_mismatch="
+          for path, lines in additions.items():
+              text = path.read_text()
+              if all(line in text for line in lines):
+                  continue
+              source = text.splitlines()
+              index = next(i for i, line in enumerate(source) if line.startswith(anchor)) + 1
+              source[index:index] = lines
+              path.write_text("\n".join(source) + "\n")
+
+      - name: Commit localization fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/fix-pr164-localization.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "Localize realtime ticket failures"
+          git push origin HEAD:agent/issue-163-realtime-ticket-provisioning
