@@ -27,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import pl.grzegorz2047.standalonethewalls.client.i18n.ClientMessages;
 import pl.grzegorz2047.standalonethewalls.client.identity.ClientIdentityStorage;
@@ -123,10 +124,10 @@ public final class SunderfrontClient extends SimpleApplication
     private PreparationRemotePlayerRenderer preparationRemotePlayers;
     private Node preparationWorld;
     private PlayerId preparationPlayerId;
-    private long preparationRoundNumber;
-    private long nextPreparationInputSequence = 1L;
-    private long appliedPreparationSnapshotTick = -1L;
-    private double preparationInputAccumulator;
+    private volatile long preparationRoundNumber;
+    private final AtomicLong nextPreparationInputSequence = new AtomicLong(1L);
+    private volatile long appliedPreparationSnapshotTick = -1L;
+    private volatile double preparationInputAccumulator;
     private volatile int renderedWidth = -1;
     private volatile int renderedHeight = -1;
     private volatile boolean shuttingDown;
@@ -594,20 +595,21 @@ public final class SunderfrontClient extends SimpleApplication
             return;
         }
         preparationInputAccumulator %= PREPARATION_INPUT_INTERVAL_SECONDS;
-        if (nextPreparationInputSequence == Long.MAX_VALUE) {
+        long inputSequence = nextPreparationInputSequence.get();
+        if (inputSequence == Long.MAX_VALUE) {
             failPreparationSceneEntry();
             return;
         }
         PreparationInput input =
                 new PreparationInput(
                         preparationRoundNumber,
-                        nextPreparationInputSequence,
+                        inputSequence,
                         quantizeAxis(preparationInput.forwardAxis()),
                         quantizeAxis(preparationInput.rightAxis()),
                         quantizeYaw(current.yawDegrees()),
                         quantizePitch(current.pitchDegrees()));
         if (controller.submitPreparationInput(input)) {
-            nextPreparationInputSequence++;
+            nextPreparationInputSequence.incrementAndGet();
         }
     }
 
@@ -767,12 +769,12 @@ public final class SunderfrontClient extends SimpleApplication
             preparationCollisionWorld = loadedCollisions;
             preparationRoundNumber = assignment.orElseThrow().roundNumber();
             preparationPlayerId = localPlayerId.orElseThrow();
-            nextPreparationInputSequence = 1L;
+            nextPreparationInputSequence.set(1L);
             appliedPreparationSnapshotTick = -1L;
             preparationInputAccumulator = 0.0d;
             preparationRemotePlayers = new PreparationRemotePlayerRenderer(assetManager);
             rootNode.attachChild(loadedWorld);
-            rootNode.attachChild(preparationRemotePlayers.root());
+            preparationRemotePlayers.attachTo(rootNode);
             PreparationCameraPlacement.apply(cam, player);
         }
         renderCurrentScreen();
@@ -828,7 +830,7 @@ public final class SunderfrontClient extends SimpleApplication
         preparationCollisionWorld = null;
         preparationPlayerId = null;
         preparationRoundNumber = 0L;
-        nextPreparationInputSequence = 1L;
+        nextPreparationInputSequence.set(1L);
         appliedPreparationSnapshotTick = -1L;
         preparationInputAccumulator = 0.0d;
         PreparationRemotePlayerRenderer remotePlayers = preparationRemotePlayers;

@@ -35,8 +35,8 @@ public final class PreparationRemotePlayerRenderer implements AutoCloseable {
         material.setColor("Color", new ColorRGBA(0.25f, 0.82f, 0.95f, 1.0f));
     }
 
-    public Node root() {
-        return root;
+    public void attachTo(Node parent) {
+        Objects.requireNonNull(parent, "parent").attachChild(root);
     }
 
     public void apply(PreparationWorldSnapshot snapshot, PlayerId localPlayerId) {
