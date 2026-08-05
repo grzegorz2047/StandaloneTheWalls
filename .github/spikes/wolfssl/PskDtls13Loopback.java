@@ -11,6 +11,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -122,8 +123,10 @@ public final class PskDtls13Loopback {
 
             WolfSSLSession ownedServerSession = serverSession;
             WolfSSLSession ownedClientSession = clientSession;
-            Future<Integer> serverResult = executor.submit(ownedServerSession::accept);
-            Future<Integer> clientResult = executor.submit(ownedClientSession::connect);
+            Future<Integer> serverResult =
+                    executor.submit((Callable<Integer>) () -> ownedServerSession.accept());
+            Future<Integer> clientResult =
+                    executor.submit((Callable<Integer>) () -> ownedClientSession.connect());
 
             boolean successful =
                     awaitSuccess(serverResult, clientResult, serverSocket, clientSocket);
