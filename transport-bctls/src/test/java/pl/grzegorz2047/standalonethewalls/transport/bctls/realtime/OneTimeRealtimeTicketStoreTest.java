@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -34,7 +35,8 @@ class OneTimeRealtimeTicketStoreTest {
                     19L);
 
     @Test
-    void issuesAndRedeemsExactlyOnceWithDefensiveCopies() throws Exception {
+    void issuesAndRedeemsExactlyOnceWithDefensiveCopies()
+            throws RealtimeTicketStoreException {
         QueueEntropy entropy = new QueueEntropy(filled(16, 1), filled(32, 2));
         OneTimeRealtimeTicketStore store =
                 new OneTimeRealtimeTicketStore(Clock.fixed(START, ZoneOffset.UTC), entropy, CONFIG);
@@ -63,7 +65,7 @@ class OneTimeRealtimeTicketStoreTest {
     }
 
     @Test
-    void expiresAtTheExactBoundaryAndThenLooksUnknown() throws Exception {
+    void expiresAtTheExactBoundaryAndThenLooksUnknown() throws RealtimeTicketStoreException {
         MutableClock clock = new MutableClock(START);
         OneTimeRealtimeTicketStore store =
                 new OneTimeRealtimeTicketStore(
@@ -82,7 +84,8 @@ class OneTimeRealtimeTicketStoreTest {
     }
 
     @Test
-    void capacityDoesNotEvictValidTicketsButExpiredEntriesAreCleaned() throws Exception {
+    void capacityDoesNotEvictValidTicketsButExpiredEntriesAreCleaned()
+            throws RealtimeTicketStoreException {
         MutableClock clock = new MutableClock(START);
         QueueEntropy entropy =
                 new QueueEntropy(filled(16, 5), filled(32, 6), filled(16, 7), filled(32, 8));
@@ -111,7 +114,8 @@ class OneTimeRealtimeTicketStoreTest {
     }
 
     @Test
-    void concurrentRedemptionHasExactlyOneWinner() throws Exception {
+    void concurrentRedemptionHasExactlyOneWinner()
+            throws RealtimeTicketStoreException, InterruptedException, ExecutionException {
         OneTimeRealtimeTicketStore store =
                 new OneTimeRealtimeTicketStore(
                         Clock.fixed(START, ZoneOffset.UTC),
@@ -151,7 +155,8 @@ class OneTimeRealtimeTicketStoreTest {
     }
 
     @Test
-    void closeIsIdempotentDestroysClientKeyAndRejectsFurtherOperations() throws Exception {
+    void closeIsIdempotentDestroysClientKeyAndRejectsFurtherOperations()
+            throws RealtimeTicketStoreException {
         OneTimeRealtimeTicketStore store =
                 new OneTimeRealtimeTicketStore(
                         Clock.fixed(START, ZoneOffset.UTC),
@@ -175,7 +180,8 @@ class OneTimeRealtimeTicketStoreTest {
     }
 
     @Test
-    void rejectsInvalidLifetimeEntropyAndRepeatedIdentityCollisions() throws Exception {
+    void rejectsInvalidLifetimeEntropyAndRepeatedIdentityCollisions()
+            throws RealtimeTicketStoreException {
         OneTimeRealtimeTicketStore invalidEntropy =
                 new OneTimeRealtimeTicketStore(
                         Clock.fixed(START, ZoneOffset.UTC),
