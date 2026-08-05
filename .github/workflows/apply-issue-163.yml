@@ -17,6 +17,18 @@ jobs:
           ref: agent/issue-163-realtime-ticket-provisioning
           fetch-depth: 0
 
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tools/fonts/requirements.txt
+
+      - name: Generate licensed UI font inputs
+        run: |
+          python -m pip install --disable-pip-version-check --requirement tools/fonts/requirements.txt
+          python tools/fonts/prepare_sunderfront_ui_font.py
+
       - name: Set up Java 21
         uses: actions/setup-java@d7793b545071e98d581d3bf084a51c3213318a07
         with:
@@ -52,7 +64,7 @@ jobs:
         run: ./gradlew --no-daemon spotlessApply
 
       - name: Verify focused implementation
-        run: ./gradlew --no-daemon :protocol:test :transport-bctls:test :server:test
+        run: ./gradlew --no-daemon :protocol:test :transport-bctls:test :server:test :client:compileTestJava
 
       - name: Commit implementation
         shell: bash
