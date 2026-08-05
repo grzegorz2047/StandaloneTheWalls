@@ -18,6 +18,14 @@ class ClientMessagesTest {
                     "menu.exit",
                     "menu.unavailable",
                     "menu.help");
+    private static final List<String> PREPARATION_NETWORK_KEYS =
+            List.of(
+                    "preparation.network.summary",
+                    "preparation.network.age.unavailable",
+                    "preparation.network.quality.waiting",
+                    "preparation.network.quality.good",
+                    "preparation.network.quality.delayed",
+                    "preparation.network.quality.stale");
 
     @Test
     void loadsEnglishAndPolishStartScreenText() {
@@ -38,6 +46,20 @@ class ClientMessagesTest {
             ClientMessages messages = ClientMessages.forLanguage(language);
             for (String key : START_SCREEN_KEYS) {
                 assertFalse(messages.text(key).isBlank());
+            }
+        }
+    }
+
+    @Test
+    void providesLocalizedPreparationNetworkDiagnostics() {
+        for (ClientLanguage language : ClientLanguage.values()) {
+            ClientMessages messages = ClientMessages.forLanguage(language);
+            for (String key : PREPARATION_NETWORK_KEYS) {
+                String text =
+                        key.equals("preparation.network.summary")
+                                ? messages.text(key, "GOOD", "100", 2L, 6)
+                                : messages.text(key);
+                assertFalse(text.isBlank());
             }
         }
     }

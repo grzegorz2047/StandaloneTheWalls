@@ -37,6 +37,7 @@ import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationCollisio
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationInputState;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationInputState.Direction;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationMovementController;
+import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationMovementDiagnostics;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationPlayerState;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationPredictionHistory;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationRemotePlayerRenderer;
@@ -119,10 +120,12 @@ public final class SunderfrontClient extends SimpleApplication
     private Screen screen = Screen.START_MENU;
     private String menuStatus = "";
     private BitmapFont font;
+    private BitmapText preparationDiagnosticsText;
     private DirectConnectUiController directConnectController;
     private DirectConnectScreenModel directConnectModel;
     private PreparationPlayerState preparationPlayerState;
     private PreparationCollisionWorld preparationCollisionWorld;
+    private PreparationMovementDiagnostics preparationMovementDiagnostics;
     private PreparationPredictionHistory preparationPredictionHistory;
     private PreparationRemotePlayerRenderer preparationRemotePlayers;
     private PreparationRemoteSnapshotInterpolator preparationRemoteInterpolator;
@@ -177,10 +180,12 @@ public final class SunderfrontClient extends SimpleApplication
             }
         }
         if (screen == Screen.PREPARATION && !smokeMode) {
+            advancePreparationMovementDiagnostics(timePerFrame);
             applyPreparationSnapshot();
             updatePreparationRemotePlayers(timePerFrame);
             updatePreparationMovement(timePerFrame);
             submitPreparationInput(timePerFrame);
+            refreshPreparationMovementDiagnosticsHud();
         }
         if (!smokeMode && (renderedWidth != cam.getWidth() || renderedHeight != cam.getHeight())) {
             renderCurrentScreen();
@@ -518,9 +523,11 @@ public final class SunderfrontClient extends SimpleApplication
         }
         PreparationPlayerState current = preparationPlayerState;
         PreparationCollisionWorld collisions = preparationCollisionWorld;
+        PreparationMovementDiagnostics movementDiagnostics = preparationMovementDiagnostics;
         PreparationPredictionHistory predictionHistory = preparationPredictionHistory;
         if (current == null
                 || collisions == null
+                || movementDiagnostics == null
                 || predictionHistory == null
                 || !Float.isFinite(timePerFrame)
                 || timePerFrame < 0.0f) {
@@ -538,6 +545,9 @@ public final class SunderfrontClient extends SimpleApplication
                             Math.min(
                                     timePerFrame,
                                     PreparationMovementController.MAXIMUM_STEP_SECONDS));
+            movementDiagnostics.observeLocalState(
+                    predictionHistory.highestSubmittedSequence(),
+                    predictionHistory.pendingStepCount());
             if (moved != current) {
                 preparationPlayerState = moved;
                 PreparationCameraPlacement.apply(cam, moved);
@@ -552,12 +562,14 @@ public final class SunderfrontClient extends SimpleApplication
         PreparationPlayerState current = preparationPlayerState;
         PlayerId localPlayerId = preparationPlayerId;
         PreparationCollisionWorld collisions = preparationCollisionWorld;
+        PreparationMovementDiagnostics movementDiagnostics = preparationMovementDiagnostics;
         PreparationPredictionHistory predictionHistory = preparationPredictionHistory;
         PreparationRemoteSnapshotInterpolator remoteInterpolator = preparationRemoteInterpolator;
         if (controller == null
                 || current == null
                 || localPlayerId == null
                 || collisions == null
+                || movementDiagnostics == null
                 || predictionHistory == null
                 || remoteInterpolator == null) {
             failPreparationSceneEntry();
@@ -592,11 +604,15 @@ public final class SunderfrontClient extends SimpleApplication
                             authoritative.zMetres(),
                             authoritative.yawDegrees(),
                             authoritative.pitchDegrees());
+            long acknowledgedSequence = authoritative.lastProcessedInputSequence();
             preparationPlayerState =
                     predictionHistory.reconcile(
-                            authoritativeState,
-                            collisions,
-                            authoritative.lastProcessedInputSequence());
+                            authoritativeState, collisions, acknowledgedSequence);
+            movementDiagnostics.acceptSnapshot(
+                    snapshot.authoritativeTick(),
+                    acknowledgedSequence,
+                    predictionHistory.highestSubmittedSequence(),
+                    predictionHistory.pendingStepCount());
             PreparationCameraPlacement.apply(cam, preparationPlayerState);
             remoteInterpolator.offer(snapshot);
             appliedPreparationSnapshotTick = snapshot.authoritativeTick();
@@ -651,13 +667,17 @@ public final class SunderfrontClient extends SimpleApplication
                         quantizeYaw(current.yawDegrees()),
                         quantizePitch(current.pitchDegrees()));
         if (controller.submitPreparationInput(input)) {
+            PreparationMovementDiagnostics movementDiagnostics = preparationMovementDiagnostics;
             PreparationPredictionHistory predictionHistory = preparationPredictionHistory;
-            if (predictionHistory == null) {
+            if (movementDiagnostics == null || predictionHistory == null) {
                 failPreparationSceneEntry();
                 return;
             }
             try {
                 predictionHistory.markSubmitted(inputSequence);
+                movementDiagnostics.observeLocalState(
+                        predictionHistory.highestSubmittedSequence(),
+                        predictionHistory.pendingStepCount());
                 nextPreparationInputSequence.incrementAndGet();
             } catch (IllegalArgumentException exception) {
                 failPreparationSceneEntry();
@@ -824,6 +844,7 @@ public final class SunderfrontClient extends SimpleApplication
             nextPreparationInputSequence.set(1L);
             appliedPreparationSnapshotTick = -1L;
             preparationInputAccumulator = 0.0d;
+            preparationMovementDiagnostics = new PreparationMovementDiagnostics();
             preparationPredictionHistory = new PreparationPredictionHistory();
             preparationRemoteInterpolator =
                     new PreparationRemoteSnapshotInterpolator(
@@ -885,8 +906,10 @@ public final class SunderfrontClient extends SimpleApplication
         preparationInput.release();
         preparationCollisionWorld = null;
         preparationPlayerId = null;
+        preparationMovementDiagnostics = null;
         preparationPredictionHistory = null;
         preparationRemoteInterpolator = null;
+        preparationDiagnosticsText = null;
         preparationRoundNumber = 0L;
         nextPreparationInputSequence.set(1L);
         appliedPreparationSnapshotTick = -1L;
@@ -920,6 +943,7 @@ public final class SunderfrontClient extends SimpleApplication
         renderedHeight = cam.getHeight();
         pointerRouter.replaceHitMap(UiHitMap.empty());
         guiNode.detachAllChildren();
+        preparationDiagnosticsText = null;
         List<UiHitTarget> targets = new ArrayList<>();
         if (screen == Screen.START_MENU) {
             renderStartMenu(targets);
@@ -941,6 +965,77 @@ public final class SunderfrontClient extends SimpleApplication
         if (preparationInput.captured()) {
             addCenteredText("+", 24f, PRIMARY_TEXT, cam.getHeight() / 2.0f);
         }
+        PreparationMovementDiagnostics diagnostics = preparationMovementDiagnostics;
+        if (diagnostics != null) {
+            PreparationMovementDiagnostics.Snapshot snapshot = diagnostics.current();
+            preparationDiagnosticsText =
+                    addText(
+                            preparationDiagnosticsLine(snapshot),
+                            15f,
+                            preparationDiagnosticsColor(snapshot.quality()),
+                            0f,
+                            cam.getHeight() - 28f);
+            centerPreparationDiagnosticsText(preparationDiagnosticsText);
+        }
+    }
+
+    private void advancePreparationMovementDiagnostics(float timePerFrame) {
+        PreparationMovementDiagnostics diagnostics = preparationMovementDiagnostics;
+        if (diagnostics == null || !Float.isFinite(timePerFrame) || timePerFrame < 0.0f) {
+            failPreparationSceneEntry();
+            return;
+        }
+        try {
+            diagnostics.advanceFrame(
+                    Math.min(timePerFrame, PreparationMovementDiagnostics.MAXIMUM_FRAME_SECONDS));
+        } catch (IllegalArgumentException exception) {
+            failPreparationSceneEntry();
+        }
+    }
+
+    private void refreshPreparationMovementDiagnosticsHud() {
+        PreparationMovementDiagnostics diagnostics = preparationMovementDiagnostics;
+        BitmapText diagnosticsText = preparationDiagnosticsText;
+        if (diagnostics == null || diagnosticsText == null) {
+            return;
+        }
+        PreparationMovementDiagnostics.Snapshot snapshot = diagnostics.current();
+        diagnosticsText.setText(preparationDiagnosticsLine(snapshot));
+        diagnosticsText.setColor(preparationDiagnosticsColor(snapshot.quality()));
+        centerPreparationDiagnosticsText(diagnosticsText);
+    }
+
+    private String preparationDiagnosticsLine(PreparationMovementDiagnostics.Snapshot snapshot) {
+        String quality =
+                messages.text(
+                        "preparation.network.quality."
+                                + snapshot.quality().name().toLowerCase(Locale.ROOT));
+        String age =
+                snapshot.snapshotAvailable()
+                        ? Long.toString(snapshot.snapshotAgeMillis())
+                        : messages.text("preparation.network.age.unavailable");
+        return messages.text(
+                "preparation.network.summary",
+                quality,
+                age,
+                snapshot.acknowledgementLagInputs(),
+                snapshot.pendingPredictionSteps());
+    }
+
+    private static ColorRGBA preparationDiagnosticsColor(
+            PreparationMovementDiagnostics.Quality quality) {
+        return switch (quality) {
+            case WAITING -> MUTED_TEXT;
+            case GOOD -> SUCCESS_TEXT;
+            case DELAYED -> WARNING_TEXT;
+            case STALE -> ERROR_TEXT;
+        };
+    }
+
+    private void centerPreparationDiagnosticsText(BitmapText diagnosticsText) {
+        float y = cam.getHeight() - 28f;
+        diagnosticsText.setLocalTranslation(
+                Math.max(20f, (cam.getWidth() - diagnosticsText.getLineWidth()) / 2f), y, 0f);
     }
 
     private void renderStartMenu(List<UiHitTarget> targets) {

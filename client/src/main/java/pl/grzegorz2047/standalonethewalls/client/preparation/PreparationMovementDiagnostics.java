@@ -23,7 +23,8 @@ public final class PreparationMovementDiagnostics {
         if (!Double.isFinite(elapsedSeconds)
                 || elapsedSeconds < 0.0d
                 || elapsedSeconds > MAXIMUM_FRAME_SECONDS) {
-            throw new IllegalArgumentException("elapsedSeconds is outside the diagnostic frame range");
+            throw new IllegalArgumentException(
+                    "elapsedSeconds is outside the diagnostic frame range");
         }
         if (!snapshotReceived || elapsedSeconds == 0.0d) {
             return;
@@ -133,7 +134,8 @@ public final class PreparationMovementDiagnostics {
                 throw new IllegalArgumentException("missing snapshot must have WAITING quality");
             }
             if (snapshotAvailable && quality == Quality.WAITING) {
-                throw new IllegalArgumentException("available snapshot cannot have WAITING quality");
+                throw new IllegalArgumentException(
+                        "available snapshot cannot have WAITING quality");
             }
         }
     }

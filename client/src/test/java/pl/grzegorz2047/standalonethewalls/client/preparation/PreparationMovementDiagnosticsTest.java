@@ -77,8 +77,7 @@ class PreparationMovementDiagnosticsTest {
     @Test
     void classifiesAcknowledgementLagWithoutTreatingPredictionStepsAsAuthority() {
         PreparationMovementDiagnostics diagnostics = new PreparationMovementDiagnostics();
-        diagnostics.acceptSnapshot(
-                1L, 0L, 3L, PreparationPredictionHistory.DEFAULT_MAXIMUM_STEPS);
+        diagnostics.acceptSnapshot(1L, 0L, 3L, PreparationPredictionHistory.DEFAULT_MAXIMUM_STEPS);
         assertThat(diagnostics.current().quality())
                 .isEqualTo(PreparationMovementDiagnostics.Quality.GOOD);
 
@@ -103,11 +102,8 @@ class PreparationMovementDiagnosticsTest {
                         diagnostics.advanceFrame(
                                 PreparationMovementDiagnostics.MAXIMUM_FRAME_SECONDS + 0.01d));
         assertThrows(
-                IllegalArgumentException.class,
-                () -> diagnostics.acceptSnapshot(-1L, 0L, 0L, 0));
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> diagnostics.observeLocalState(0L, -1));
+                IllegalArgumentException.class, () -> diagnostics.acceptSnapshot(-1L, 0L, 0L, 0));
+        assertThrows(IllegalArgumentException.class, () -> diagnostics.observeLocalState(0L, -1));
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
@@ -116,21 +112,16 @@ class PreparationMovementDiagnosticsTest {
 
         diagnostics.acceptSnapshot(1L, 1L, 1L, 0);
         assertThrows(
-                IllegalArgumentException.class,
-                () -> diagnostics.acceptSnapshot(1L, 1L, 1L, 0));
+                IllegalArgumentException.class, () -> diagnostics.acceptSnapshot(1L, 1L, 1L, 0));
         assertThrows(
-                IllegalArgumentException.class,
-                () -> diagnostics.acceptSnapshot(2L, 0L, 1L, 0));
+                IllegalArgumentException.class, () -> diagnostics.acceptSnapshot(2L, 0L, 1L, 0));
         assertThrows(
-                IllegalArgumentException.class,
-                () -> diagnostics.acceptSnapshot(2L, 2L, 1L, 0));
+                IllegalArgumentException.class, () -> diagnostics.acceptSnapshot(2L, 2L, 1L, 0));
         assertThrows(
-                IllegalArgumentException.class,
-                () -> diagnostics.acceptSnapshot(2L, 1L, 0L, 0));
+                IllegalArgumentException.class, () -> diagnostics.acceptSnapshot(2L, 1L, 0L, 0));
         assertThrows(IllegalArgumentException.class, () -> diagnostics.observeLocalState(0L, 0));
         assertThrows(
-                IllegalArgumentException.class,
-                () -> diagnostics.acceptSnapshot(2L, 1L, 1L, -1));
+                IllegalArgumentException.class, () -> diagnostics.acceptSnapshot(2L, 1L, 1L, -1));
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
