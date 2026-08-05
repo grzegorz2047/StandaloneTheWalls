@@ -35,8 +35,7 @@ class OneTimeRealtimeTicketStoreTest {
                     19L);
 
     @Test
-    void issuesAndRedeemsExactlyOnceWithDefensiveCopies()
-            throws RealtimeTicketStoreException {
+    void issuesAndRedeemsExactlyOnceWithDefensiveCopies() throws RealtimeTicketStoreException {
         QueueEntropy entropy = new QueueEntropy(filled(16, 1), filled(32, 2));
         OneTimeRealtimeTicketStore store =
                 new OneTimeRealtimeTicketStore(Clock.fixed(START, ZoneOffset.UTC), entropy, CONFIG);
