@@ -33,6 +33,12 @@ public final class PreparationProtocolException extends Exception {
         INVALID_TEAM,
         INVALID_SPAWN_INDEX,
         INVALID_COORDINATE,
-        INVALID_STATE
+        INVALID_STATE,
+        INVALID_SEQUENCE,
+        INVALID_AXIS,
+        INVALID_TICK,
+        INVALID_PLAYER_COUNT,
+        INVALID_PLAYER_ID,
+        INVALID_PLAYER_ORDER
     }
 }

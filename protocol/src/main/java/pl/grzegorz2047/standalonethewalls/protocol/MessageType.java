@@ -21,7 +21,9 @@ public enum MessageType {
     LOBBY_MATCH_SNAPSHOT(15, 64, Channel.RELIABLE),
     PREPARATION_SPAWN_ASSIGNMENT(16, 160, Channel.RELIABLE),
     REALTIME_TICKET_REQUEST(17, 16, Channel.RELIABLE),
-    REALTIME_TICKET_RESULT(18, 96, Channel.RELIABLE);
+    REALTIME_TICKET_RESULT(18, 96, Channel.RELIABLE),
+    PREPARATION_INPUT(19, 32, Channel.BOTH),
+    PREPARATION_SNAPSHOT(20, 4 * 1024, Channel.BOTH);
 
     private final int wireId;
     private final int maximumPayloadBytes;
@@ -65,6 +67,8 @@ public enum MessageType {
             case 16 -> Optional.of(PREPARATION_SPAWN_ASSIGNMENT);
             case 17 -> Optional.of(REALTIME_TICKET_REQUEST);
             case 18 -> Optional.of(REALTIME_TICKET_RESULT);
+            case 19 -> Optional.of(PREPARATION_INPUT);
+            case 20 -> Optional.of(PREPARATION_SNAPSHOT);
             default -> Optional.empty();
         };
     }
