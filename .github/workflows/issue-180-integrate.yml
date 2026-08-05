@@ -1,0 +1,73 @@
+name: Integrate issue 180 movement diagnostics
+
+on:
+  push:
+    branches:
+      - agent/issue-180-movement-diagnostics
+
+permissions:
+  contents: write
+
+jobs:
+  integrate-issue-180:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out diagnostics branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: agent/issue-180-movement-diagnostics
+          fetch-depth: 0
+
+      - name: Set up Java 21
+        uses: actions/setup-java@d7793b545071e98d581d3bf084a51c3213318a07
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tools/fonts/requirements.txt
+
+      - name: Install pinned font tooling
+        run: python -m pip install --disable-pip-version-check --requirement tools/fonts/requirements.txt
+
+      - name: Generate pinned UI font inputs
+        run: python tools/fonts/prepare_sunderfront_ui_font.py
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
+
+      - name: Integrate diagnostics into the client HUD
+        run: python tools/issue_180_integrate.py
+
+      - name: Format and verify client diagnostics
+        run: |
+          ./gradlew --no-daemon spotlessApply
+          ./gradlew --no-daemon :client:test :client:spotbugsMain :client:spotbugsTest
+
+      - name: Commit tested integration and remove helper files
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f client/src/main/resources/Interface/Fonts/SunderfrontUI-Regular.png.b64*
+          rm -f tools/issue_180_integrate.py
+          rm -f .github/workflows/issue-180-integrate.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/SunderfrontClient.java \
+            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationMovementDiagnostics.java \
+            client/src/main/resources/i18n/messages_en.properties \
+            client/src/main/resources/i18n/messages_pl.properties \
+            client/src/test/java/pl/grzegorz2047/standalonethewalls/client/i18n/ClientMessagesTest.java \
+            client/src/test/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationMovementDiagnosticsTest.java \
+            tools/issue_180_integrate.py \
+            .github/workflows/issue-180-integrate.yml
+          git diff --cached --check
+          git commit -m "Add preparation movement diagnostics HUD"
+          git push origin HEAD:agent/issue-180-movement-diagnostics
