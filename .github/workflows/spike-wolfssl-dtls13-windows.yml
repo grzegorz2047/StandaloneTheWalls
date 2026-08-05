@@ -1,0 +1,244 @@
+name: Spike wolfSSL DTLS 1.3 Windows
+
+on:
+  push:
+    branches:
+      - agent/issue-167-wolfjsse-dtls13-spike
+    paths:
+      - .github/workflows/spike-wolfssl-dtls13-windows.yml
+      - .github/spikes/wolfssl/PskDtls13Loopback.java
+  pull_request:
+    paths:
+      - .github/workflows/spike-wolfssl-dtls13-windows.yml
+      - .github/spikes/wolfssl/PskDtls13Loopback.java
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spike-wolfssl-dtls13-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  WOLFSSL_COMMIT: 1d363f3adceba9d1478230ede476a37b0dcdef24
+  WOLFSSLJNI_COMMIT: 2eebdb8db88c1d8f5531e92060a3a2741dd694de
+  ANT_VERSION: 1.10.15
+
+jobs:
+  windows-x64-proof:
+    runs-on: windows-2022
+    timeout-minutes: 40
+    steps:
+      - name: Check out spike
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up MSBuild x64
+        uses: microsoft/setup-msbuild@v2
+        with:
+          msbuild-architecture: x64
+
+      - name: Install pinned Apache Ant
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $archive = Join-Path $env:RUNNER_TEMP "apache-ant.zip"
+          $home = Join-Path $env:RUNNER_TEMP "apache-ant-$env:ANT_VERSION"
+          Invoke-WebRequest `
+            -Uri "https://archive.apache.org/dist/ant/binaries/apache-ant-$env:ANT_VERSION-bin.zip" `
+            -OutFile $archive
+          Expand-Archive -Path $archive -DestinationPath $env:RUNNER_TEMP
+          if (-not (Test-Path (Join-Path $home "bin\ant.bat"))) {
+            throw "Pinned Apache Ant archive did not contain the expected executable"
+          }
+          "ANT_HOME=$home" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          (Join-Path $home "bin") | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Fetch exact upstream commits
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $root = Join-Path $env:RUNNER_TEMP "wolfssl-spike"
+          New-Item -ItemType Directory -Force -Path $root | Out-Null
+
+          git clone --filter=blob:none https://github.com/wolfSSL/wolfssl.git (Join-Path $root "wolfssl")
+          git -C (Join-Path $root "wolfssl") checkout --detach $env:WOLFSSL_COMMIT
+          if ((git -C (Join-Path $root "wolfssl") rev-parse HEAD).Trim() -ne $env:WOLFSSL_COMMIT) {
+            throw "wolfSSL commit mismatch"
+          }
+
+          git clone --filter=blob:none https://github.com/wolfSSL/wolfssljni.git (Join-Path $root "wolfssljni")
+          git -C (Join-Path $root "wolfssljni") checkout --detach $env:WOLFSSLJNI_COMMIT
+          if ((git -C (Join-Path $root "wolfssljni") rev-parse HEAD).Trim() -ne $env:WOLFSSLJNI_COMMIT) {
+            throw "wolfSSL JNI commit mismatch"
+          }
+
+          "WOLFSSL_SPIKE_ROOT=$root" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Enable JNI, DTLS 1.3 and PSK in the Windows native build
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $settings = Join-Path $env:WOLFSSL_SPIKE_ROOT "wolfssl\IDE\WIN\user_settings.h"
+          $content = Get-Content $settings -Raw
+
+          $content = $content -replace '(?m)^\s*#define\s+NO_PSK\s*$', '/* NO_PSK disabled for the external-PSK DTLS 1.3 spike */'
+          $required = @(
+            '#define WOLFSSL_JNI',
+            '#define HAVE_EX_DATA',
+            '#define NO_OLD_TLS',
+            '#define WOLFSSL_ALWAYS_KEEP_SNI'
+          ) -join "`r`n"
+          $content = $content -replace '(#define _WIN_USER_SETTINGS_H_\s*)', "`$1`r`n$required`r`n"
+          Set-Content -Path $settings -Value $content -Encoding ascii
+
+          $verified = Get-Content $settings -Raw
+          foreach ($symbol in @('WOLFSSL_TLS13', 'WOLFSSL_DTLS', 'WOLFSSL_DTLS13', 'HAVE_HKDF', 'WOLFSSL_SEND_HRR_COOKIE', 'WOLFSSL_JNI', 'HAVE_EX_DATA')) {
+            if ($verified -notmatch "(?m)^\s*#define\s+$symbol\b") {
+              throw "Required native symbol is missing: $symbol"
+            }
+          }
+          if ($verified -match '(?m)^\s*#define\s+NO_PSK\b') {
+            throw "NO_PSK remains enabled"
+          }
+
+      - name: Build native wolfSSL DLL with DTLS 1.3 and PSK
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $wolfssl = Join-Path $env:WOLFSSL_SPIKE_ROOT "wolfssl"
+          msbuild (Join-Path $wolfssl "wolfssl64.sln") `
+            -p:Configuration="DLL Release" `
+            -p:Platform=x64 `
+            -p:PlatformToolset=v143 `
+            -nologo `
+            -verbosity:minimal
+          if ($LASTEXITCODE -ne 0) {
+            throw "wolfSSL native build failed"
+          }
+
+          $dll = Get-ChildItem $wolfssl -Recurse -Filter wolfssl.dll |
+            Where-Object { $_.FullName -match 'DLL Release.*x64' } |
+            Select-Object -First 1
+          if ($null -eq $dll) {
+            throw "wolfssl.dll was not produced"
+          }
+          "WOLFSSL_DLL=$($dll.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "WOLFSSL_DLL_DIR=$($dll.DirectoryName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build wolfSSL JNI DLL and Java JAR
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $jni = Join-Path $env:WOLFSSL_SPIKE_ROOT "wolfssljni"
+          ant -version
+          msbuild (Join-Path $jni "IDE\WIN\wolfssljni.sln") `
+            -p:Configuration="DLL Release" `
+            -p:Platform=x64 `
+            -p:PlatformToolset=v143 `
+            -p:RunPostBuildEvent=Never `
+            -nologo `
+            -verbosity:minimal
+          if ($LASTEXITCODE -ne 0) {
+            throw "wolfSSL JNI native build failed"
+          }
+
+          Push-Location $jni
+          try {
+            ant
+            if ($LASTEXITCODE -ne 0) {
+              throw "wolfSSL JNI Java build failed"
+            }
+          } finally {
+            Pop-Location
+          }
+
+          $jniDll = Get-ChildItem $jni -Recurse -Filter wolfssljni.dll |
+            Where-Object { $_.FullName -match 'DLL Release.*x64' } |
+            Select-Object -First 1
+          $jar = Get-ChildItem $jni -Recurse -Filter wolfssl-jsse.jar | Select-Object -First 1
+          if ($null -eq $jniDll -or $null -eq $jar) {
+            throw "wolfSSL JNI DLL or JSSE JAR was not produced"
+          }
+          "WOLFSSLJNI_DLL=$($jniDll.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "WOLFSSLJNI_DLL_DIR=$($jniDll.DirectoryName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "WOLFSSLJNI_JAR=$($jar.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Verify Windows DTLS 1.3 API and native artifacts
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $report = Join-Path $env:GITHUB_WORKSPACE "wolfssl-dtls13-windows-api-report.txt"
+          $output = @()
+          $output += "wolfssl_commit=$env:WOLFSSL_COMMIT"
+          $output += "wolfssljni_commit=$env:WOLFSSLJNI_COMMIT"
+          $output += "java_version=$((java -version 2>&1 | Select-Object -First 1))"
+          $output += "jar=$([IO.Path]::GetFileName($env:WOLFSSLJNI_JAR))"
+          $output += "wolfssl_dll=$([IO.Path]::GetFileName($env:WOLFSSL_DLL))"
+          $output += "wolfssljni_dll=$([IO.Path]::GetFileName($env:WOLFSSLJNI_DLL))"
+          $output += ""
+          $output += "== WolfSSL DTLS 1.3 methods =="
+          $output += (javap -classpath $env:WOLFSSLJNI_JAR com.wolfssl.WolfSSL | Select-String 'DTLSv1_3_(Method|ServerMethod|ClientMethod)').Line
+          $output += ""
+          $output += "== Artifact checksums =="
+          foreach ($path in @($env:WOLFSSLJNI_JAR, $env:WOLFSSL_DLL, $env:WOLFSSLJNI_DLL)) {
+            $hash = Get-FileHash -Algorithm SHA256 $path
+            $output += "$($hash.Hash.ToLowerInvariant())  $path"
+          }
+          $output | Set-Content -Path $report -Encoding utf8
+          Get-Content $report
+
+          $joined = $output -join "`n"
+          foreach ($method in @('DTLSv1_3_ServerMethod', 'DTLSv1_3_ClientMethod')) {
+            if ($joined -notmatch $method) {
+              throw "Missing Windows DTLS 1.3 API: $method"
+            }
+          }
+
+      - name: Compile one-time ticket store
+        shell: pwsh
+        run: .\gradlew.bat --no-daemon :transport-bctls:classes
+
+      - name: Run Windows one-time external-PSK DTLS 1.3 loopback
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $projectClasspath = "$env:GITHUB_WORKSPACE\protocol\build\classes\java\main;$env:GITHUB_WORKSPACE\transport-bctls\build\classes\java\main"
+          $classes = Join-Path $env:RUNNER_TEMP "spike-classes"
+          New-Item -ItemType Directory -Force -Path $classes | Out-Null
+
+          javac `
+            -Xlint:all `
+            -Werror `
+            -classpath "$env:WOLFSSLJNI_JAR;$projectClasspath" `
+            -d $classes `
+            .github\spikes\wolfssl\PskDtls13Loopback.java
+          if ($LASTEXITCODE -ne 0) {
+            throw "Windows loopback compilation failed"
+          }
+
+          $env:PATH = "$env:WOLFSSLJNI_DLL_DIR;$env:WOLFSSL_DLL_DIR;$env:PATH"
+          java `
+            "-Djava.library.path=$env:WOLFSSLJNI_DLL_DIR;$env:WOLFSSL_DLL_DIR" `
+            -classpath "$classes;$env:WOLFSSLJNI_JAR;$projectClasspath" `
+            PskDtls13Loopback | Tee-Object -FilePath wolfssl-dtls13-windows-loopback-report.txt
+          if ($LASTEXITCODE -ne 0) {
+            throw "Windows DTLS 1.3 loopback failed"
+          }
+          if ((Get-Content wolfssl-dtls13-windows-loopback-report.txt -Raw) -notmatch 'loopback passed; replay rejected; secrets redacted') {
+            throw "Windows loopback did not emit the expected redacted proof"
+          }
+
+      - name: Upload Windows API and loopback proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: wolfssl-dtls13-api-proof-windows-x64
+          path: |
+            wolfssl-dtls13-windows-api-report.txt
+            wolfssl-dtls13-windows-loopback-report.txt
+          retention-days: 30
