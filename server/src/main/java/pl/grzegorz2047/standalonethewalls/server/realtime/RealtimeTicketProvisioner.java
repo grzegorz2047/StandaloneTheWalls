@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import pl.grzegorz2047.standalonethewalls.server.identity.session.AuthorizedPlayerSession;
+import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.BouncyCastleDtls13Support;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.IssuedRealtimeTicket;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.OneTimeRealtimeTicketStore;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.RealtimeChannelBindingDigest;
@@ -14,43 +15,83 @@ import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.RealtimeTicke
 import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.RealtimeTicketIdentity;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.RealtimeTicketStoreConfig;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.RealtimeTicketStoreException;
+import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.RealtimeTransportCapability;
 
 /** Process-owned bridge from an admitted reliable session to one-time realtime credentials. */
 public final class RealtimeTicketProvisioner implements AutoCloseable {
     public static final int PROFILE_VERSION = 1;
+    private static final RealtimeTransportCapability INJECTED_TRANSPORT_CAPABILITY =
+            RealtimeTransportCapability.available("injected-realtime-transport", "composed");
+    private static final RealtimeTransportCapability DISABLED_TRANSPORT_CAPABILITY =
+            RealtimeTransportCapability.unavailable(
+                    "realtime-transport",
+                    "not-configured",
+                    RealtimeTransportCapability.Reason.EXPLICITLY_DISABLED);
 
     private final OneTimeRealtimeTicketStore store;
     private final Duration lifetime;
-    private final boolean enabled;
+    private final RealtimeTransportCapability transportCapability;
     private final AtomicBoolean closed = new AtomicBoolean();
 
     public RealtimeTicketProvisioner(OneTimeRealtimeTicketStore store, Duration lifetime) {
-        this.store = Objects.requireNonNull(store, "store");
-        this.lifetime = requireLifetime(lifetime);
-        enabled = true;
+        this(
+                Objects.requireNonNull(store, "store"),
+                requireLifetime(lifetime),
+                INJECTED_TRANSPORT_CAPABILITY);
     }
 
-    private RealtimeTicketProvisioner() {
-        store = null;
-        lifetime = Duration.ZERO;
-        enabled = false;
+    private RealtimeTicketProvisioner(
+            OneTimeRealtimeTicketStore store,
+            Duration lifetime,
+            RealtimeTransportCapability transportCapability) {
+        this.store = store;
+        this.lifetime = Objects.requireNonNull(lifetime, "lifetime");
+        this.transportCapability =
+                Objects.requireNonNull(transportCapability, "transportCapability");
+        if (transportCapability.available() != (store != null)) {
+            throw new IllegalArgumentException(
+                    "available transport requires a store and unavailable transport forbids one");
+        }
     }
 
     public static RealtimeTicketProvisioner createProduction(
             int maximumActiveTickets, Duration lifetime) {
+        return createProduction(
+                maximumActiveTickets, lifetime, BouncyCastleDtls13Support.current());
+    }
+
+    public static RealtimeTicketProvisioner createProduction(
+            int maximumActiveTickets,
+            Duration lifetime,
+            RealtimeTransportCapability transportCapability) {
         Duration boundedLifetime = requireLifetime(lifetime);
+        RealtimeTicketStoreConfig configuration =
+                new RealtimeTicketStoreConfig(maximumActiveTickets, boundedLifetime);
+        RealtimeTransportCapability capability =
+                Objects.requireNonNull(transportCapability, "transportCapability");
+        if (!capability.available()) {
+            return new RealtimeTicketProvisioner(null, boundedLifetime, capability);
+        }
         return new RealtimeTicketProvisioner(
-                OneTimeRealtimeTicketStore.createProduction(
-                        new RealtimeTicketStoreConfig(maximumActiveTickets, boundedLifetime)),
-                boundedLifetime);
+                OneTimeRealtimeTicketStore.createProduction(configuration),
+                boundedLifetime,
+                capability);
     }
 
     public static RealtimeTicketProvisioner disabled() {
-        return new RealtimeTicketProvisioner();
+        return new RealtimeTicketProvisioner(null, Duration.ZERO, DISABLED_TRANSPORT_CAPABILITY);
+    }
+
+    public boolean isTransportAvailable() {
+        return transportCapability.available() && !closed.get();
+    }
+
+    public RealtimeTransportCapability capability() {
+        return transportCapability;
     }
 
     public boolean isEnabled() {
-        return enabled && !closed.get();
+        return store != null && isTransportAvailable();
     }
 
     public boolean supportsProfile(int profileVersion) {
@@ -60,7 +101,8 @@ public final class RealtimeTicketProvisioner implements AutoCloseable {
     public IssuedRealtimeTicket issue(AuthorizedPlayerSession session, long roundEpoch)
             throws RealtimeTicketStoreException {
         AuthorizedPlayerSession authorized = Objects.requireNonNull(session, "session");
-        if (!isEnabled() || !authorized.isOpen()) {
+        OneTimeRealtimeTicketStore activeStore = store;
+        if (activeStore == null || !isTransportAvailable() || !authorized.isOpen()) {
             throw new RealtimeTicketStoreException(RealtimeTicketStoreException.Code.CLOSED);
         }
         if (roundEpoch < 1L) {
@@ -71,7 +113,7 @@ public final class RealtimeTicketProvisioner implements AutoCloseable {
         byte[] digest = sha256(channelBinding);
         Arrays.fill(channelBinding, (byte) 0);
         try {
-            return store.issue(
+            return activeStore.issue(
                     new RealtimeTicketContext(
                             authorized.serverId(),
                             authorized.sessionId(),
@@ -85,10 +127,11 @@ public final class RealtimeTicketProvisioner implements AutoCloseable {
     }
 
     public boolean revoke(RealtimeTicketIdentity identity) throws RealtimeTicketStoreException {
-        if (!isEnabled()) {
+        OneTimeRealtimeTicketStore activeStore = store;
+        if (activeStore == null || !isTransportAvailable()) {
             throw new RealtimeTicketStoreException(RealtimeTicketStoreException.Code.CLOSED);
         }
-        return store.revoke(Objects.requireNonNull(identity, "identity"));
+        return activeStore.revoke(Objects.requireNonNull(identity, "identity"));
     }
 
     @Override
@@ -100,7 +143,11 @@ public final class RealtimeTicketProvisioner implements AutoCloseable {
 
     @Override
     public String toString() {
-        return "RealtimeTicketProvisioner[enabled=" + isEnabled() + ", secrets=redacted]";
+        return "RealtimeTicketProvisioner[enabled="
+                + isEnabled()
+                + ", capability="
+                + transportCapability
+                + ", secrets=redacted]";
     }
 
     private static byte[] sha256(byte[] value) {

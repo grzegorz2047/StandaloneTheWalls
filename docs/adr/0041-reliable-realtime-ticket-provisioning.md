@@ -90,8 +90,12 @@ the single-active-credential rule for this slice.
 
 ### Send, revocation and ownership
 
-The process owns one `RealtimeTicketProvisioner` and one underlying
-`OneTimeRealtimeTicketStore`. Lobby members do not construct stores.
+The process owns one `RealtimeTicketProvisioner` and, only when an explicitly
+reviewed realtime transport capability is available, one underlying
+`OneTimeRealtimeTicketStore`. Lobby members do not construct stores. The pinned
+Bouncy Castle 1.84 provider is unavailable for production DTLS 1.3 under ADR 0042,
+so the production factory does not allocate a store and returns the stable
+`TEMPORARILY_UNAVAILABLE` result.
 
 Issuance creates two independent secret owners:
 
@@ -137,7 +141,9 @@ zeroes every retained PSK.
 
 ### Limitations
 
-- This slice does not open UDP or perform a DTLS handshake.
+- This slice does not open UDP or perform a DTLS handshake. Production ticket
+  issuance is additionally gated off while the pinned provider lacks the reviewed
+  DTLS 1.3 server path; see ADR 0042.
 - A delivered client ticket remains valuable until expiry or one-time redemption;
   client process memory protection remains required.
 - The one-per-round policy deliberately rejects replacement after a successful
@@ -152,7 +158,9 @@ Tests must prove:
 - exact request, issued-result and rejected-result layouts and all malformed cases;
 - client defensive copies, redaction and idempotent secret destruction;
 - context derivation from the admitted session and authoritative round;
-- a successful real TLS + identity + admission + lobby request/result loopback;
+- a real TLS + identity + admission + lobby request/result loopback that returns
+  `TEMPORARILY_UNAVAILABLE` while the production capability is gated, plus an
+  injected provisioner loopback that proves successful issue and redemption;
 - same-round second request rejection and monotonic request IDs;
 - send failure revocation and zero active retained tickets;
 - session removal and shutdown revocation;
@@ -163,8 +171,9 @@ The complete repository quality gate remains required.
 
 ## Follow-up
 
-- Compose a bounded DTLS 1.3 listener with stateless cookie validation and the
-  one-time external-PSK lookup.
+- Resolve the fail-closed provider capability gate in ADR 0042, then compose a
+  bounded DTLS 1.3 listener with stateless cookie validation and the one-time
+  external-PSK lookup.
 - Define realtime application envelopes, sequencing, freshness and snapshot rules.
 - Add reconnect, resume and NAT rebinding only through separate threat-modelled
   decisions.

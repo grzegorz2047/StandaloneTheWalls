@@ -51,9 +51,11 @@ and its per-record replay protection is not a replacement for gameplay sequence
 validation. These properties match an authoritative snapshot channel when both
 layers are explicit.
 
-Bouncy Castle already supplies the project's low-level TLS adapter and supports a
-future DTLS adapter without introducing a second cryptographic design. DTLS 1.3
-is selected for the first realtime implementation.
+Bouncy Castle already supplies the project's low-level TLS adapter, so it was the
+first provider evaluated for the future DTLS adapter. The exact pinned 1.84
+release does not yet implement the DTLS 1.3 server path; ADR 0042 therefore gates
+production ticket issuance and forbids a DTLS 1.2 fallback. DTLS 1.3 remains the
+selected protocol decision, not a claim that the current provider can run it.
 
 ### QUIC
 
@@ -213,8 +215,8 @@ policy before the realtime domain contract exists.
 
 - Reliable request/result provisioning and send-failure revocation are defined by
   ADR 0041 and issue #163.
-- Implement bounded DTLS 1.3 cookie, handshake and active-channel ownership using
-  this store.
+- Resolve the provider capability gate in ADR 0042, then implement bounded DTLS
+  1.3 cookie, handshake and active-channel ownership using this store.
 - Define authoritative realtime envelopes, round/session binding, monotonic
 sequences and snapshot freshness.
 - Add reconnect/resume and NAT rebinding only through separate threat-modelled ADRs.
