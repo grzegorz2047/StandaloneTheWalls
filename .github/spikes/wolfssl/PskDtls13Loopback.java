@@ -1,11 +1,17 @@
 import com.wolfssl.WolfSSL;
 import com.wolfssl.WolfSSLContext;
+import com.wolfssl.WolfSSLIORecvCallback;
+import com.wolfssl.WolfSSLIOSendCallback;
 import com.wolfssl.WolfSSLSession;
 import com.wolfssl.WolfSSLPskClientCallback;
 import com.wolfssl.WolfSSLPskServerCallback;
+import java.io.IOException;
+import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
@@ -90,6 +96,7 @@ public final class PskDtls13Loopback {
         InetAddress loopback = InetAddress.getLoopbackAddress();
         RedeemingServerCallback serverCallback =
                 new RedeemingServerCallback(store, wireIdentity);
+        DatagramCallbacks datagramCallbacks = new DatagramCallbacks();
         WolfSSLContext serverContext = null;
         WolfSSLContext clientContext = null;
         WolfSSLSession serverSession = null;
@@ -107,11 +114,17 @@ public final class PskDtls13Loopback {
             clientContext = new WolfSSLContext(WolfSSL.DTLSv1_3_ClientMethod());
             serverContext.setPskServerCb(serverCallback);
             clientContext.setPskClientCb(new FixedClientCallback(wireIdentity, clientKey));
+            serverContext.setIORecv(datagramCallbacks);
+            serverContext.setIOSend(datagramCallbacks);
+            clientContext.setIORecv(datagramCallbacks);
+            clientContext.setIOSend(datagramCallbacks);
 
-            serverSession = new WolfSSLSession(serverContext);
-            clientSession = new WolfSSLSession(clientContext);
-            requireSuccess(serverSession.setFd(serverSocket), "server setFd");
-            requireSuccess(clientSession.setFd(clientSocket), "client setFd");
+            serverSession = new WolfSSLSession(serverContext, false);
+            clientSession = new WolfSSLSession(clientContext, false);
+            serverSession.setIOReadCtx(serverSocket);
+            serverSession.setIOWriteCtx(serverSocket);
+            clientSession.setIOReadCtx(clientSocket);
+            clientSession.setIOWriteCtx(clientSocket);
             requireSuccess(
                     serverSession.dtlsSetPeer(
                             new InetSocketAddress(loopback, clientSocket.getLocalPort())),
@@ -209,6 +222,52 @@ public final class PskDtls13Loopback {
             } catch (Exception ignored) {
                 // Best-effort cleanup in an isolated process that terminates after the spike.
             }
+        }
+    }
+
+    private static final class DatagramCallbacks
+            implements WolfSSLIORecvCallback, WolfSSLIOSendCallback {
+        @Override
+        public int receiveCallback(WolfSSLSession session, byte[] buffer, int size, Object context) {
+            DatagramSocket socket = requireSocket(context);
+            DatagramPacket packet = new DatagramPacket(buffer, Math.min(size, buffer.length));
+            try {
+                socket.receive(packet);
+                return packet.getLength();
+            } catch (SocketTimeoutException exception) {
+                return WolfSSL.WOLFSSL_CBIO_ERR_TIMEOUT;
+            } catch (SocketException exception) {
+                return socket.isClosed()
+                        ? WolfSSL.WOLFSSL_CBIO_ERR_CONN_CLOSE
+                        : WolfSSL.WOLFSSL_CBIO_ERR_CONN_RST;
+            } catch (IOException exception) {
+                return WolfSSL.WOLFSSL_CBIO_ERR_GENERAL;
+            }
+        }
+
+        @Override
+        public int sendCallback(WolfSSLSession session, byte[] buffer, int size, Object context) {
+            DatagramSocket socket = requireSocket(context);
+            int length = Math.min(size, buffer.length);
+            DatagramPacket packet =
+                    new DatagramPacket(buffer, length, socket.getRemoteSocketAddress());
+            try {
+                socket.send(packet);
+                return length;
+            } catch (SocketException exception) {
+                return socket.isClosed()
+                        ? WolfSSL.WOLFSSL_CBIO_ERR_CONN_CLOSE
+                        : WolfSSL.WOLFSSL_CBIO_ERR_CONN_RST;
+            } catch (IOException exception) {
+                return WolfSSL.WOLFSSL_CBIO_ERR_GENERAL;
+            }
+        }
+
+        private static DatagramSocket requireSocket(Object context) {
+            if (context instanceof DatagramSocket socket) {
+                return socket;
+            }
+            throw new IllegalArgumentException("wolfSSL datagram callback context is invalid");
         }
     }
 
