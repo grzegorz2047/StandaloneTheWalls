@@ -196,7 +196,7 @@ public final class PreparationMovementProtocolCodec {
 
     private static int requireAxis(byte raw) throws PreparationProtocolException {
         int value = raw;
-        if (value < -PreparationInput.MAXIMUM_AXIS || value > PreparationInput.MAXIMUM_AXIS) {
+        if (value < -PreparationInput.MAXIMUM_AXIS) {
             throw failure(
                     PreparationProtocolException.Code.INVALID_AXIS,
                     "preparation input axis is invalid");
