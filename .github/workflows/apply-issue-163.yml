@@ -1,9 +1,7 @@
 name: Apply issue 163 implementation
 
 on:
-  push:
-    branches:
-      - agent/issue-163-realtime-ticket-provisioning
+  pull_request:
 
 permissions:
   contents: write
@@ -13,9 +11,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - name: Check out repository
+      - name: Check out implementation branch
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
+          ref: agent/issue-163-realtime-ticket-provisioning
           fetch-depth: 0
 
       - name: Restore implementation payload
