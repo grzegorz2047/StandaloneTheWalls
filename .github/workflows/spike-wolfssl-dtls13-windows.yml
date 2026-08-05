@@ -92,13 +92,14 @@ jobs:
             '#define WOLFSSL_JNI',
             '#define HAVE_EX_DATA',
             '#define NO_OLD_TLS',
-            '#define WOLFSSL_ALWAYS_KEEP_SNI'
+            '#define WOLFSSL_ALWAYS_KEEP_SNI',
+            '#define WOLFSSL_CERT_REQ'
           ) -join "`r`n"
           $content = $content -replace '(#define _WIN_USER_SETTINGS_H_\s*)', "`$1`r`n$required`r`n"
           Set-Content -Path $settings -Value $content -Encoding ascii
 
           $verified = Get-Content $settings -Raw
-          foreach ($symbol in @('WOLFSSL_TLS13', 'WOLFSSL_DTLS', 'WOLFSSL_DTLS13', 'HAVE_HKDF', 'WOLFSSL_SEND_HRR_COOKIE', 'WOLFSSL_JNI', 'HAVE_EX_DATA')) {
+          foreach ($symbol in @('WOLFSSL_TLS13', 'WOLFSSL_DTLS', 'WOLFSSL_DTLS13', 'HAVE_HKDF', 'WOLFSSL_SEND_HRR_COOKIE', 'WOLFSSL_JNI', 'HAVE_EX_DATA', 'WOLFSSL_CERT_REQ')) {
             if ($verified -notmatch "(?m)^\s*#define\s+$symbol\b") {
               throw "Required native symbol is missing: $symbol"
             }
