@@ -1,5 +1,6 @@
 package pl.grzegorz2047.standalonethewalls.client.preparation;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -63,7 +64,7 @@ public final class PreparationRemoteSnapshotInterpolator {
                 nextStart.put(
                         entry.getKey(), presented.getOrDefault(entry.getKey(), entry.getValue()));
             }
-            start = Map.copyOf(nextStart);
+            start = immutableOrdered(nextStart);
             target = nextTarget;
             presented = start;
             elapsedSeconds = 0.0d;
@@ -99,7 +100,7 @@ public final class PreparationRemoteSnapshotInterpolator {
             PreparationRemotePlayerPose source = start.getOrDefault(entry.getKey(), destination);
             result.put(entry.getKey(), interpolate(source, destination, alpha));
         }
-        return Map.copyOf(result);
+        return immutableOrdered(result);
     }
 
     private static PreparationRemotePlayerPose interpolate(
@@ -131,7 +132,12 @@ public final class PreparationRemoteSnapshotInterpolator {
                                 player.pitchDegrees()));
             }
         }
-        return Map.copyOf(poses);
+        return immutableOrdered(poses);
+    }
+
+    private static Map<PlayerId, PreparationRemotePlayerPose> immutableOrdered(
+            Map<PlayerId, PreparationRemotePlayerPose> poses) {
+        return Collections.unmodifiableMap(new LinkedHashMap<>(poses));
     }
 
     private static double interpolateYaw(double source, double destination, double alpha) {
