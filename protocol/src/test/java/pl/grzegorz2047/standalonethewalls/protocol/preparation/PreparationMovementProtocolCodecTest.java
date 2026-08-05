@@ -85,13 +85,11 @@ class PreparationMovementProtocolCodecTest {
         assertThat(player.zMetres()).isEqualTo(-4.5d);
         assertThat(player.yawDegrees()).isEqualTo(45.0d);
         assertThat(player.pitchDegrees()).isEqualTo(-1.25d);
-        assertThat(MessageType.PREPARATION_SNAPSHOT.channel())
-                .isEqualTo(MessageType.Channel.BOTH);
+        assertThat(MessageType.PREPARATION_SNAPSHOT.channel()).isEqualTo(MessageType.Channel.BOTH);
     }
 
     @Test
-    void maximumFortyPlayerSnapshotRemainsBelowFourKilobytes()
-            throws PreparationProtocolException {
+    void maximumFortyPlayerSnapshotRemainsBelowFourKilobytes() throws PreparationProtocolException {
         List<PreparationPlayerSnapshot> players = new ArrayList<>();
         for (int index = 0; index < PreparationWorldSnapshot.MAXIMUM_PLAYERS; index++) {
             char first = (char) ('a' + index / 26);
@@ -150,8 +148,8 @@ class PreparationMovementProtocolCodecTest {
     void rejectsMalformedSnapshotEnvelopeAndFields() {
         assertSnapshotCode(null, PreparationProtocolException.Code.INVALID_SIZE);
         assertSnapshotCode(
-                new byte[
-                        PreparationMovementProtocolCodec.SNAPSHOT_HEADER_BYTES
+                new byte
+                        [PreparationMovementProtocolCodec.SNAPSHOT_HEADER_BYTES
                                 + PreparationMovementProtocolCodec.PLAYER_SNAPSHOT_BYTES
                                 - 1],
                 PreparationProtocolException.Code.INVALID_SIZE);
@@ -188,8 +186,7 @@ class PreparationMovementProtocolCodecTest {
         ByteBuffer.wrap(coordinate)
                 .putInt(
                         FIRST_X_OFFSET,
-                        PreparationPlayerSnapshot.MAXIMUM_ABSOLUTE_COORDINATE_MILLIMETRES
-                                + 1);
+                        PreparationPlayerSnapshot.MAXIMUM_ABSOLUTE_COORDINATE_MILLIMETRES + 1);
         assertSnapshotCode(coordinate, PreparationProtocolException.Code.INVALID_COORDINATE);
     }
 
@@ -199,9 +196,7 @@ class PreparationMovementProtocolCodecTest {
                 new PreparationWorldSnapshot(
                         1L,
                         2L,
-                        List.of(
-                                player("a", 1L, 0, 0, 0, 0, 0),
-                                player("b", 1L, 0, 0, 0, 0, 0)));
+                        List.of(player("a", 1L, 0, 0, 0, 0, 0), player("b", 1L, 0, 0, 0, 0, 0)));
         byte[] encoded = PreparationMovementProtocolCodec.encodeSnapshot(snapshot);
         int secondPlayerOffset =
                 FIRST_PLAYER_OFFSET + PreparationMovementProtocolCodec.PLAYER_SNAPSHOT_BYTES;
@@ -228,10 +223,7 @@ class PreparationMovementProtocolCodecTest {
     void valueObjectsRejectOutOfRangeConstruction() {
         assertThatThrownBy(() -> new PreparationInput(1L, 1L, 128, 0, 0, 0))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(
-                        () ->
-                                new PreparationPlayerSnapshot(
-                                        playerId("a"), -1L, 0, 0, 0, 0, 0))
+        assertThatThrownBy(() -> new PreparationPlayerSnapshot(playerId("a"), -1L, 0, 0, 0, 0, 0))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new PreparationWorldSnapshot(1L, 0L, List.of()))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -244,18 +236,11 @@ class PreparationMovementProtocolCodecTest {
 
     private static byte[] validSnapshotPayload() {
         return PreparationMovementProtocolCodec.encodeSnapshot(
-                new PreparationWorldSnapshot(
-                        1L, 0L, List.of(player("a", 0L, 0, 0, 0, 0, 0))));
+                new PreparationWorldSnapshot(1L, 0L, List.of(player("a", 0L, 0, 0, 0, 0, 0))));
     }
 
     private static PreparationPlayerSnapshot player(
-            String suffixCharacter,
-            long sequence,
-            int x,
-            int y,
-            int z,
-            int yaw,
-            int pitch) {
+            String suffixCharacter, long sequence, int x, int y, int z, int yaw, int pitch) {
         return new PreparationPlayerSnapshot(
                 playerId(suffixCharacter), sequence, x, y, z, yaw, pitch);
     }
@@ -271,8 +256,7 @@ class PreparationMovementProtocolCodecTest {
                         exception -> assertThat(exception.code()).isEqualTo(code));
     }
 
-    private static void assertSnapshotCode(
-            byte[] payload, PreparationProtocolException.Code code) {
+    private static void assertSnapshotCode(byte[] payload, PreparationProtocolException.Code code) {
         assertThatThrownBy(() -> PreparationMovementProtocolCodec.decodeSnapshot(payload))
                 .isInstanceOfSatisfying(
                         PreparationProtocolException.class,

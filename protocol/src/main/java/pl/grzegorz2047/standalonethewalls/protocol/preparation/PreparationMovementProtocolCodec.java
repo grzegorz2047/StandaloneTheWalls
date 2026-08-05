@@ -35,8 +35,7 @@ public final class PreparationMovementProtocolCodec {
                 .array();
     }
 
-    public static PreparationInput decodeInput(byte[] payload)
-            throws PreparationProtocolException {
+    public static PreparationInput decodeInput(byte[] payload) throws PreparationProtocolException {
         if (payload == null || payload.length != INPUT_BYTES) {
             throw failure(
                     PreparationProtocolException.Code.INVALID_SIZE,
@@ -51,12 +50,7 @@ public final class PreparationMovementProtocolCodec {
         int yawCentidegrees = requireYaw(input.getShort());
         int pitchCentidegrees = requirePitch(input.getShort());
         return new PreparationInput(
-                roundNumber,
-                sequence,
-                forwardAxis,
-                rightAxis,
-                yawCentidegrees,
-                pitchCentidegrees);
+                roundNumber, sequence, forwardAxis, rightAxis, yawCentidegrees, pitchCentidegrees);
     }
 
     public static byte[] encodeSnapshot(PreparationWorldSnapshot snapshot) {
@@ -116,8 +110,7 @@ public final class PreparationMovementProtocolCodec {
             byte[] playerIdBytes = new byte[PLAYER_ID_BYTES];
             input.get(playerIdBytes);
             PlayerId playerId = decodePlayerId(playerIdBytes);
-            if (previousPlayerId != null
-                    && previousPlayerId.compareTo(playerId.value()) >= 0) {
+            if (previousPlayerId != null && previousPlayerId.compareTo(playerId.value()) >= 0) {
                 throw failure(
                         PreparationProtocolException.Code.INVALID_PLAYER_ORDER,
                         "preparation snapshot players are not strictly ordered");
@@ -216,8 +209,7 @@ public final class PreparationMovementProtocolCodec {
         if (value < PreparationInput.MINIMUM_YAW_CENTIDEGREES
                 || value > PreparationInput.MAXIMUM_YAW_CENTIDEGREES) {
             throw failure(
-                    PreparationProtocolException.Code.INVALID_STATE,
-                    "preparation yaw is invalid");
+                    PreparationProtocolException.Code.INVALID_STATE, "preparation yaw is invalid");
         }
         return value;
     }
@@ -235,8 +227,7 @@ public final class PreparationMovementProtocolCodec {
 
     private static int requireCoordinate(int value) throws PreparationProtocolException {
         if (value < -PreparationPlayerSnapshot.MAXIMUM_ABSOLUTE_COORDINATE_MILLIMETRES
-                || value
-                        > PreparationPlayerSnapshot.MAXIMUM_ABSOLUTE_COORDINATE_MILLIMETRES) {
+                || value > PreparationPlayerSnapshot.MAXIMUM_ABSOLUTE_COORDINATE_MILLIMETRES) {
             throw failure(
                     PreparationProtocolException.Code.INVALID_COORDINATE,
                     "preparation snapshot coordinate is invalid");
