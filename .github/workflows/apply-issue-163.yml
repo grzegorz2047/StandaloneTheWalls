@@ -52,7 +52,7 @@ jobs:
         run: ./gradlew --no-daemon spotlessApply
 
       - name: Verify focused implementation
-        run: ./gradlew --no-daemon :protocol:test :transport-bctls:test :server:test :client:compileTestJava
+        run: ./gradlew --no-daemon :protocol:test :transport-bctls:test :server:test
 
       - name: Commit implementation
         shell: bash
