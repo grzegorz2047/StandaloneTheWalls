@@ -10,14 +10,13 @@ import com.jme3.scene.Node;
 import com.jme3.scene.shape.Box;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
-import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationPlayerSnapshot;
-import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationWorldSnapshot;
 
-/** Reuses jMonkeyEngine primitives to present remote authoritative preparation players. */
+/** Reuses jMonkeyEngine primitives to present interpolated remote preparation players. */
 public final class PreparationRemotePlayerRenderer implements AutoCloseable {
     private static final float HALF_WIDTH = 0.35f;
     private static final float HALF_HEIGHT = 0.9f;
@@ -39,25 +38,25 @@ public final class PreparationRemotePlayerRenderer implements AutoCloseable {
         Objects.requireNonNull(parent, "parent").attachChild(root);
     }
 
-    public void apply(PreparationWorldSnapshot snapshot, PlayerId localPlayerId) {
-        PreparationWorldSnapshot authoritative = Objects.requireNonNull(snapshot, "snapshot");
-        PlayerId local = Objects.requireNonNull(localPlayerId, "localPlayerId");
+    public void apply(List<PreparationRemotePlayerPose> players) {
+        List<PreparationRemotePlayerPose> presented =
+                List.copyOf(Objects.requireNonNull(players, "players"));
         Set<PlayerId> retained = new HashSet<>();
-        for (PreparationPlayerSnapshot player : authoritative.players()) {
-            if (player.playerId().equals(local)) {
-                continue;
+        for (PreparationRemotePlayerPose player : presented) {
+            PreparationRemotePlayerPose pose = Objects.requireNonNull(player, "player");
+            if (!retained.add(pose.playerId())) {
+                throw new IllegalArgumentException("remote player poses contain a duplicate player");
             }
-            retained.add(player.playerId());
-            Geometry geometry = geometries.computeIfAbsent(player.playerId(), this::createGeometry);
+            Geometry geometry = geometries.computeIfAbsent(pose.playerId(), this::createGeometry);
             geometry.setLocalTranslation(
                     new Vector3f(
-                            (float) player.xMetres(),
-                            (float) player.yMetres() + HALF_HEIGHT,
-                            (float) player.zMetres()));
+                            (float) pose.xMetres(),
+                            (float) pose.yMetres() + HALF_HEIGHT,
+                            (float) pose.zMetres()));
             geometry.setLocalRotation(
                     new Quaternion()
                             .fromAngleAxis(
-                                    (float) Math.toRadians(-player.yawDegrees()), Vector3f.UNIT_Y));
+                                    (float) Math.toRadians(-pose.yawDegrees()), Vector3f.UNIT_Y));
         }
         geometries
                 .entrySet()
