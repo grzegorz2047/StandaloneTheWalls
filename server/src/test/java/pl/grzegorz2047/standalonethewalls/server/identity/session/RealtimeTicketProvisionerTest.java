@@ -33,6 +33,7 @@ import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.RealtimeTicke
 import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.RealtimeTicketRedemption;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.RealtimeTicketStoreConfig;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.RealtimeTicketStoreException;
+import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.RealtimeTransportCapability;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.RedeemedRealtimeTicket;
 
 class RealtimeTicketProvisionerTest {
@@ -71,6 +72,39 @@ class RealtimeTicketProvisionerTest {
         assertThat(issued.toString()).contains("redacted").doesNotContain("09090909");
 
         issued.close();
+        provisioner.close();
+    }
+
+    @Test
+    void explicitlyReviewedCapabilityEnablesTheProductionStore() {
+        RealtimeTicketProvisioner provisioner =
+                RealtimeTicketProvisioner.createProduction(
+                        2,
+                        Duration.ofSeconds(20),
+                        RealtimeTransportCapability.available("reviewed-provider", "1.0"));
+
+        assertThat(provisioner.isTransportAvailable()).isTrue();
+        assertThat(provisioner.isEnabled()).isTrue();
+        assertThat(provisioner.supportsProfile(RealtimeTicketProvisioner.PROFILE_VERSION)).isTrue();
+
+        provisioner.close();
+        assertThat(provisioner.isTransportAvailable()).isFalse();
+    }
+
+    @Test
+    void productionFactoryFailsClosedWhenTheReviewedProviderCannotOfferDtls13() {
+        RealtimeTicketProvisioner provisioner =
+                RealtimeTicketProvisioner.createProduction(2, Duration.ofSeconds(20));
+
+        assertThat(provisioner.isTransportAvailable()).isFalse();
+        assertThat(provisioner.isEnabled()).isFalse();
+        assertThat(provisioner.supportsProfile(RealtimeTicketProvisioner.PROFILE_VERSION))
+                .isFalse();
+        assertThat(provisioner.capability().reason())
+                .isEqualTo(RealtimeTransportCapability.Reason.DTLS_1_3_NOT_IMPLEMENTED);
+        assertThat(provisioner.toString()).contains("redacted").doesNotContain("psk");
+
+        provisioner.close();
         provisioner.close();
     }
 

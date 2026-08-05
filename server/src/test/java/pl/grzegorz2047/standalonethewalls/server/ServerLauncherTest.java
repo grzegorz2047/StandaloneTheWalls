@@ -49,9 +49,9 @@ import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySelectTeamCommand;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySetReadyCommand;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
-import pl.grzegorz2047.standalonethewalls.protocol.realtime.ClientRealtimeTicket;
 import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketProtocolException;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketRejection;
 import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketRequest;
 import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketResult;
 import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketResultStatus;
@@ -225,12 +225,10 @@ class ServerLauncherTest {
             assertEquals(MessageType.REALTIME_TICKET_RESULT, ticketEnvelope.messageType());
             try (RealtimeTicketResult ticketResult =
                     RealtimeTicketProtocolCodec.decodeResult(ticketEnvelope.payload())) {
-                assertEquals(RealtimeTicketResultStatus.ISSUED, ticketResult.status());
-                ClientRealtimeTicket ticket = ticketResult.ticket().orElseThrow();
-                assertEquals(1L, ticket.requestId());
-                assertEquals(1, ticket.profileVersion());
-                assertEquals(16, ticket.copyIdentity().length);
-                assertEquals(32, ticket.copyPreSharedKey().length);
+                assertEquals(RealtimeTicketResultStatus.REJECTED, ticketResult.status());
+                assertEquals(
+                        Optional.of(RealtimeTicketRejection.TEMPORARILY_UNAVAILABLE),
+                        ticketResult.rejection());
             }
 
             send(

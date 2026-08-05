@@ -580,6 +580,37 @@ class MinimalLobbyRuntimeTest {
     }
 
     @Test
+    void rejectsProductionTicketRequestsWhenDtls13ProviderCapabilityIsUnavailable()
+            throws InterruptedException, RealtimeTicketProtocolException {
+        AuthorizedPlayerSessionQueue queue = queue(1);
+        TestSession transport = new TestSession(30, playerId('q'), "provider_gate");
+        enqueue(queue, transport);
+        RealtimeTicketProvisioner provisioner =
+                RealtimeTicketProvisioner.createProduction(1, Duration.ofSeconds(20));
+        MinimalLobbyRuntime lobby = realtimeLobby(queue, provisioner);
+
+        try {
+            lobby.start();
+            waitUntil(() -> lobby.memberCount() == 1);
+
+            sendRealtimeTicketRequest(transport, 1L, RealtimeTicketProvisioner.PROFILE_VERSION);
+            waitUntil(() -> realtimeTicketMessages(transport).size() == 1);
+
+            try (RealtimeTicketResult result =
+                    RealtimeTicketProtocolCodec.decodeResult(
+                            realtimeTicketMessages(transport).getFirst().payload())) {
+                assertThat(result.status()).isEqualTo(RealtimeTicketResultStatus.REJECTED);
+                assertThat(result.rejection())
+                        .contains(RealtimeTicketRejection.TEMPORARILY_UNAVAILABLE);
+            }
+        } finally {
+            lobby.close();
+            provisioner.close();
+            queue.close();
+        }
+    }
+
+    @Test
     void provisionsOneTicketFromTrustedSessionContextAndRejectsASecondInTheRound()
             throws InterruptedException,
                     RealtimeTicketProtocolException,

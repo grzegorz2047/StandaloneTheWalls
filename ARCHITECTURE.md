@@ -197,13 +197,17 @@ sequences continue across authentication. See ADR 0010 and issue #55.
 Cryptographic proof does not authorize a handle. The server therefore applies
 bounded identity admission before transferring the session to the reliable lobby.
 That lobby is the single owner of the post-admission receive loop and the
-monotonic request-ID space. It also provisions one bounded external-PSK realtime
+monotonic request-ID space. It can provision one bounded external-PSK realtime
 ticket per session and authoritative round through the existing confidential TLS
-channel. Every trusted ticket field is derived from the admitted session and
-round state; failed delivery revokes the retained credential. The client receives
-a destroyable, redacted ticket owner. The UDP socket, DTLS handshake, stateless
-cookie, realtime gameplay envelopes, public-PKI validation and reconnect remain
-separate adapters and work items. See ADR 0028, ADR 0034, ADR 0040 and ADR 0041.
+channel only when an explicitly reviewed realtime transport capability is
+available. Every trusted ticket field is derived from the admitted session and
+round state; failed delivery revokes the retained credential. The pinned Bouncy
+Castle 1.84 provider does not implement the selected DTLS 1.3 server path, so the
+production process fails closed with `TEMPORARILY_UNAVAILABLE` and allocates no
+ticket store. Injected provisioners keep the credential contract testable. The
+UDP socket, DTLS handshake, stateless cookie, realtime gameplay envelopes,
+public-PKI validation and reconnect remain separate adapters and work items. See
+ADR 0028, ADR 0034, ADR 0040, ADR 0041 and ADR 0042.
 
 ## Fixed-tick simulation
 
@@ -248,5 +252,6 @@ and issue #33.
 - Integration of authenticated commands with the fixed-tick command queue.
 - Client connection ownership, DNS resolution and reconnect policy.
 - Public-PKI certificate validation as a separate trust adapter.
-- Realtime DTLS/UDP listener, cookie admission and gameplay packet sequencing.
+- Maintained DTLS 1.3 provider approval, then the realtime UDP listener, cookie
+  admission and gameplay packet sequencing.
 - Persistent player/server trust stores and production key provisioning.

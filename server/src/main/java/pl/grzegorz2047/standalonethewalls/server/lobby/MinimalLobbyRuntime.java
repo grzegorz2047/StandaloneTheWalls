@@ -570,6 +570,11 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         if (!acceptRequestId(state, member, request.requestId())) {
             return;
         }
+        if (!realtimeTicketProvisioner.isTransportAvailable()) {
+            sendRealtimeTicketRejection(
+                    state, member, request, RealtimeTicketRejection.TEMPORARILY_UNAVAILABLE);
+            return;
+        }
         if (!realtimeTicketProvisioner.supportsProfile(request.profileVersion())) {
             sendRealtimeTicketRejection(
                     state, member, request, RealtimeTicketRejection.UNSUPPORTED_PROFILE);

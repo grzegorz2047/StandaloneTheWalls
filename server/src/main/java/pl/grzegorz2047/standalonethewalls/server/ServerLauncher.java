@@ -285,7 +285,7 @@ public final class ServerLauncher {
             }
             runtime.start();
             LOGGER.info(
-                    "{} dedicated server '{}' started at {} Hz; reliable port {}, realtime port {}, max {} players; local identity {}; reliable TLS {}; minimal lobby {}.",
+                    "{} dedicated server '{}' started at {} Hz; reliable port {}, configured realtime port {}, max {} players; local identity {}; reliable TLS {}; minimal lobby {}; realtime tickets {}.",
                     BuildInfo.PRODUCT_NAME,
                     configuration.name(),
                     configuration.tickRate(),
@@ -294,7 +294,10 @@ public final class ServerLauncher {
                     configuration.maximumPlayers(),
                     identityRuntime == null ? "disabled" : "enabled",
                     tlsRuntime == null ? "disabled" : "enabled",
-                    lobbyRuntime == null ? "disabled" : "enabled");
+                    lobbyRuntime == null ? "disabled" : "enabled",
+                    realtimeTicketProvisioner == null
+                            ? "disabled"
+                            : realtimeTicketProvisioner.capability().reason());
 
             boolean terminated;
             if (runForTicks == null) {
