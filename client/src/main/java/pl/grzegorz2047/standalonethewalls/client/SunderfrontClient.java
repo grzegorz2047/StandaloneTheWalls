@@ -38,6 +38,7 @@ import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationInputSta
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationInputState.Direction;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationMovementController;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationPlayerState;
+import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationPredictionHistory;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationRemotePlayerRenderer;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationRemoteSnapshotInterpolator;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationSceneGraphException;
@@ -122,6 +123,7 @@ public final class SunderfrontClient extends SimpleApplication
     private DirectConnectScreenModel directConnectModel;
     private PreparationPlayerState preparationPlayerState;
     private PreparationCollisionWorld preparationCollisionWorld;
+    private PreparationPredictionHistory preparationPredictionHistory;
     private PreparationRemotePlayerRenderer preparationRemotePlayers;
     private PreparationRemoteSnapshotInterpolator preparationRemoteInterpolator;
     private Node preparationWorld;
@@ -516,32 +518,47 @@ public final class SunderfrontClient extends SimpleApplication
         }
         PreparationPlayerState current = preparationPlayerState;
         PreparationCollisionWorld collisions = preparationCollisionWorld;
-        if (current == null || collisions == null || !Float.isFinite(timePerFrame)) {
+        PreparationPredictionHistory predictionHistory = preparationPredictionHistory;
+        if (current == null
+                || collisions == null
+                || predictionHistory == null
+                || !Float.isFinite(timePerFrame)
+                || timePerFrame < 0.0f) {
             failPreparationSceneEntry();
             return;
         }
-        PreparationPlayerState moved =
-                PreparationMovementController.move(
-                        current,
-                        collisions,
-                        preparationInput.forwardAxis(),
-                        preparationInput.rightAxis(),
-                        Math.max(0.0d, timePerFrame));
-        if (moved == current) {
-            return;
+        try {
+            PreparationPlayerState moved =
+                    predictionHistory.predict(
+                            current,
+                            collisions,
+                            nextPreparationInputSequence.get(),
+                            preparationInput.forwardAxis(),
+                            preparationInput.rightAxis(),
+                            Math.min(
+                                    timePerFrame,
+                                    PreparationMovementController.MAXIMUM_STEP_SECONDS));
+            if (moved != current) {
+                preparationPlayerState = moved;
+                PreparationCameraPlacement.apply(cam, moved);
+            }
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            failPreparationSceneEntry();
         }
-        preparationPlayerState = moved;
-        PreparationCameraPlacement.apply(cam, moved);
     }
 
     private void applyPreparationSnapshot() {
         DirectConnectUiController controller = directConnectController;
         PreparationPlayerState current = preparationPlayerState;
         PlayerId localPlayerId = preparationPlayerId;
+        PreparationCollisionWorld collisions = preparationCollisionWorld;
+        PreparationPredictionHistory predictionHistory = preparationPredictionHistory;
         PreparationRemoteSnapshotInterpolator remoteInterpolator = preparationRemoteInterpolator;
         if (controller == null
                 || current == null
                 || localPlayerId == null
+                || collisions == null
+                || predictionHistory == null
                 || remoteInterpolator == null) {
             failPreparationSceneEntry();
             return;
@@ -568,13 +585,18 @@ public final class SunderfrontClient extends SimpleApplication
         }
         PreparationPlayerSnapshot authoritative = ownSnapshot.orElseThrow();
         try {
-            preparationPlayerState =
+            PreparationPlayerState authoritativeState =
                     current.withAuthoritativeState(
                             authoritative.xMetres(),
                             authoritative.yMetres(),
                             authoritative.zMetres(),
                             authoritative.yawDegrees(),
                             authoritative.pitchDegrees());
+            preparationPlayerState =
+                    predictionHistory.reconcile(
+                            authoritativeState,
+                            collisions,
+                            authoritative.lastProcessedInputSequence());
             PreparationCameraPlacement.apply(cam, preparationPlayerState);
             remoteInterpolator.offer(snapshot);
             appliedPreparationSnapshotTick = snapshot.authoritativeTick();
@@ -629,7 +651,17 @@ public final class SunderfrontClient extends SimpleApplication
                         quantizeYaw(current.yawDegrees()),
                         quantizePitch(current.pitchDegrees()));
         if (controller.submitPreparationInput(input)) {
-            nextPreparationInputSequence.incrementAndGet();
+            PreparationPredictionHistory predictionHistory = preparationPredictionHistory;
+            if (predictionHistory == null) {
+                failPreparationSceneEntry();
+                return;
+            }
+            try {
+                predictionHistory.markSubmitted(inputSequence);
+                nextPreparationInputSequence.incrementAndGet();
+            } catch (IllegalArgumentException exception) {
+                failPreparationSceneEntry();
+            }
         }
     }
 
@@ -792,6 +824,7 @@ public final class SunderfrontClient extends SimpleApplication
             nextPreparationInputSequence.set(1L);
             appliedPreparationSnapshotTick = -1L;
             preparationInputAccumulator = 0.0d;
+            preparationPredictionHistory = new PreparationPredictionHistory();
             preparationRemoteInterpolator =
                     new PreparationRemoteSnapshotInterpolator(
                             preparationRoundNumber, preparationPlayerId);
@@ -852,6 +885,7 @@ public final class SunderfrontClient extends SimpleApplication
         preparationInput.release();
         preparationCollisionWorld = null;
         preparationPlayerId = null;
+        preparationPredictionHistory = null;
         preparationRemoteInterpolator = null;
         preparationRoundNumber = 0L;
         nextPreparationInputSequence.set(1L);
