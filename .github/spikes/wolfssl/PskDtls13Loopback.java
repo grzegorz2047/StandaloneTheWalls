@@ -114,13 +114,13 @@ public final class PskDtls13Loopback {
             clientContext = new WolfSSLContext(WolfSSL.DTLSv1_3_ClientMethod());
             serverContext.setPskServerCb(serverCallback);
             clientContext.setPskClientCb(new FixedClientCallback(wireIdentity, clientKey));
-            serverContext.setIORecv(datagramCallbacks);
-            serverContext.setIOSend(datagramCallbacks);
-            clientContext.setIORecv(datagramCallbacks);
-            clientContext.setIOSend(datagramCallbacks);
 
             serverSession = new WolfSSLSession(serverContext, false);
             clientSession = new WolfSSLSession(clientContext, false);
+            serverSession.setIORecv(datagramCallbacks);
+            serverSession.setIOSend(datagramCallbacks);
+            clientSession.setIORecv(datagramCallbacks);
+            clientSession.setIOSend(datagramCallbacks);
             serverSession.setIOReadCtx(serverSocket);
             serverSession.setIOWriteCtx(serverSocket);
             clientSession.setIOReadCtx(clientSocket);
