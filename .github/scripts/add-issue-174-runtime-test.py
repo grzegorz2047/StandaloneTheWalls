@@ -120,7 +120,11 @@ replace_once(
             bravo.channel.completeEof();
             waitUntil(() -> lobby.memberCount() == 1 && bravo.closeCount() == 1);
             long removalSnapshotTick = authoritativeMovement.authoritativeTick() + 2L;
-            assertThat(lobby.offerSimulationTick(removalSnapshotTick)).isTrue();
+            for (long tick = authoritativeMovement.authoritativeTick() + 1L;
+                    tick <= removalSnapshotTick;
+                    tick++) {
+                assertThat(lobby.offerSimulationTick(tick)).isTrue();
+            }
             waitUntil(
                     () ->
                             latestPreparationWorldSnapshotUnchecked(alpha)
