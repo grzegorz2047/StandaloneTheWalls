@@ -42,9 +42,29 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Add runtime test and client SpotBugs fixes
+        shell: bash
         run: |
+          set -euo pipefail
           python .github/scripts/add-issue-174-runtime-test.py
           python .github/scripts/fix-issue-174-client-spotbugs.py
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("server/src/test/java/pl/grzegorz2047/standalonethewalls/server/identity/session/MinimalLobbyRuntimeTest.java")
+          text = path.read_text(encoding="utf-8")
+          old = """            assertThat(latestMatchSnapshotUnchecked(alpha).revision())
+                              .isEqualTo(preparation.revision());
+          """
+          new = """            LobbyMatchPhaseSnapshot afterDisconnect = latestMatchSnapshotUnchecked(alpha);
+                      assertThat(afterDisconnect.phase()).isEqualTo(LobbyMatchPhase.PREPARATION);
+                      assertThat(afterDisconnect.connectedPlayers()).isEqualTo(1);
+                      assertThat(afterDisconnect.revision())
+                              .isEqualTo(preparation.revision() + 1L);
+          """
+          if text.count(old) != 1:
+              raise RuntimeError("expected exactly one stale post-disconnect revision assertion")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
 
       - name: Format Java and run focused gates
         run: ./gradlew --no-daemon spotlessJavaApply :server:test :client:spotbugsMain
