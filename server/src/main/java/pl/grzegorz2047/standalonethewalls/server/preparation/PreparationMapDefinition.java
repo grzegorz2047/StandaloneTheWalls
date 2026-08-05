@@ -1,15 +1,27 @@
 package pl.grzegorz2047.standalonethewalls.server.preparation;
 
+import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import pl.grzegorz2047.standalonethewalls.domain.TeamId;
 
-/** Immutable server-owned preparation map identity and its exclusive spawn candidates. */
+/** Immutable server-owned preparation map identity, regions, and exclusive spawn candidates. */
 public record PreparationMapDefinition(
-        String mapId, byte[] mapSha256, List<PreparationSpawnPoint> spawnPoints) {
+        String mapId,
+        byte[] mapSha256,
+        List<PreparationSpawnPoint> spawnPoints,
+        Map<TeamId, PreparationRegionBounds> regions) {
     public static final int MAXIMUM_MAP_ID_BYTES = 64;
     public static final int SHA_256_BYTES = 32;
+    private static final int LEGACY_FIXTURE_PADDING_MILLIMETRES = 100_000;
+
+    public PreparationMapDefinition(
+            String mapId, byte[] mapSha256, List<PreparationSpawnPoint> spawnPoints) {
+        this(mapId, mapSha256, spawnPoints, deriveFixtureRegions(spawnPoints));
+    }
 
     public PreparationMapDefinition {
         mapId = requireCanonicalMapId(mapId);
@@ -32,11 +44,90 @@ public record PreparationMapDefinition(
             }
         }
         spawnPoints = copiedSpawns;
+
+        EnumMap<TeamId, PreparationRegionBounds> copiedRegions = new EnumMap<>(TeamId.class);
+        copiedRegions.putAll(Objects.requireNonNull(regions, "regions"));
+        if (copiedRegions.isEmpty()) {
+            throw new IllegalArgumentException("preparation map must contain team regions");
+        }
+        for (Map.Entry<TeamId, PreparationRegionBounds> entry : copiedRegions.entrySet()) {
+            TeamId team = Objects.requireNonNull(entry.getKey(), "region team");
+            PreparationRegionBounds region = Objects.requireNonNull(entry.getValue(), "region");
+            if (region.team() != team) {
+                throw new IllegalArgumentException("preparation region key does not match its team");
+            }
+        }
+        for (PreparationSpawnPoint spawnPoint : copiedSpawns) {
+            PreparationRegionBounds region = copiedRegions.get(spawnPoint.team());
+            if (region == null
+                    || !region.contains(
+                            toMillimetres(spawnPoint.x()),
+                            toMillimetres(spawnPoint.y()),
+                            toMillimetres(spawnPoint.z()))) {
+                throw new IllegalArgumentException(
+                        "preparation spawn is outside its authoritative team region");
+            }
+        }
+        regions = Map.copyOf(copiedRegions);
     }
 
     @Override
     public byte[] mapSha256() {
         return mapSha256.clone();
+    }
+
+    public PreparationRegionBounds region(TeamId team) {
+        PreparationRegionBounds region = regions.get(Objects.requireNonNull(team, "team"));
+        if (region == null) {
+            throw new IllegalArgumentException("preparation map has no region for the team");
+        }
+        return region;
+    }
+
+    private static Map<TeamId, PreparationRegionBounds> deriveFixtureRegions(
+            List<PreparationSpawnPoint> spawnPoints) {
+        List<PreparationSpawnPoint> spawns =
+                List.copyOf(Objects.requireNonNull(spawnPoints, "spawnPoints"));
+        EnumMap<TeamId, Extent> extents = new EnumMap<>(TeamId.class);
+        for (PreparationSpawnPoint spawn : spawns) {
+            PreparationSpawnPoint candidate = Objects.requireNonNull(spawn, "spawnPoint");
+            extents.computeIfAbsent(candidate.team(), ignored -> new Extent())
+                    .include(
+                            toMillimetres(candidate.x()),
+                            toMillimetres(candidate.y()),
+                            toMillimetres(candidate.z()));
+        }
+        EnumMap<TeamId, PreparationRegionBounds> derived = new EnumMap<>(TeamId.class);
+        for (Map.Entry<TeamId, Extent> entry : extents.entrySet()) {
+            Extent extent = entry.getValue();
+            derived.put(
+                    entry.getKey(),
+                    new PreparationRegionBounds(
+                            entry.getKey(),
+                            subtractPadding(extent.minimumX),
+                            subtractPadding(extent.minimumY),
+                            subtractPadding(extent.minimumZ),
+                            addPadding(extent.maximumX),
+                            addPadding(extent.maximumY),
+                            addPadding(extent.maximumZ)));
+        }
+        return Map.copyOf(derived);
+    }
+
+    private static int toMillimetres(double metres) {
+        long value = Math.round(metres * 1_000.0d);
+        if (value < Integer.MIN_VALUE || value > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("preparation coordinate exceeds fixed-point range");
+        }
+        return (int) value;
+    }
+
+    private static int subtractPadding(int value) {
+        return Math.subtractExact(value, LEGACY_FIXTURE_PADDING_MILLIMETRES);
+    }
+
+    private static int addPadding(int value) {
+        return Math.addExact(value, LEGACY_FIXTURE_PADDING_MILLIMETRES);
     }
 
     private static String requireCanonicalMapId(String value) {
@@ -51,5 +142,23 @@ public record PreparationMapDefinition(
             }
         }
         return identifier;
+    }
+
+    private static final class Extent {
+        private int minimumX = Integer.MAX_VALUE;
+        private int minimumY = Integer.MAX_VALUE;
+        private int minimumZ = Integer.MAX_VALUE;
+        private int maximumX = Integer.MIN_VALUE;
+        private int maximumY = Integer.MIN_VALUE;
+        private int maximumZ = Integer.MIN_VALUE;
+
+        private void include(int x, int y, int z) {
+            minimumX = Math.min(minimumX, x);
+            minimumY = Math.min(minimumY, y);
+            minimumZ = Math.min(minimumZ, z);
+            maximumX = Math.max(maximumX, x);
+            maximumY = Math.max(maximumY, y);
+            maximumZ = Math.max(maximumZ, z);
+        }
     }
 }
