@@ -12,6 +12,19 @@ def replace_once(path: str, old: str, new: str) -> None:
 
 replace_once(
     "client/src/main/java/pl/grzegorz2047/standalonethewalls/client/SunderfrontClient.java",
+    """import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+""",
+    """import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
+""",
+)
+
+replace_once(
+    "client/src/main/java/pl/grzegorz2047/standalonethewalls/client/SunderfrontClient.java",
     """    private PlayerId preparationPlayerId;
     private long preparationRoundNumber;
     private long nextPreparationInputSequence = 1L;
@@ -20,9 +33,66 @@ replace_once(
 """,
     """    private PlayerId preparationPlayerId;
     private volatile long preparationRoundNumber;
-    private volatile long nextPreparationInputSequence = 1L;
+    private final AtomicLong nextPreparationInputSequence = new AtomicLong(1L);
     private volatile long appliedPreparationSnapshotTick = -1L;
     private volatile double preparationInputAccumulator;
+""",
+)
+
+replace_once(
+    "client/src/main/java/pl/grzegorz2047/standalonethewalls/client/SunderfrontClient.java",
+    """        if (nextPreparationInputSequence == Long.MAX_VALUE) {
+            failPreparationSceneEntry();
+            return;
+        }
+        PreparationInput input =
+                new PreparationInput(
+                        preparationRoundNumber,
+                        nextPreparationInputSequence,
+                        quantizeAxis(preparationInput.forwardAxis()),
+                        quantizeAxis(preparationInput.rightAxis()),
+                        quantizeYaw(current.yawDegrees()),
+                        quantizePitch(current.pitchDegrees()));
+        if (controller.submitPreparationInput(input)) {
+            nextPreparationInputSequence++;
+        }
+""",
+    """        long inputSequence = nextPreparationInputSequence.get();
+        if (inputSequence == Long.MAX_VALUE) {
+            failPreparationSceneEntry();
+            return;
+        }
+        PreparationInput input =
+                new PreparationInput(
+                        preparationRoundNumber,
+                        inputSequence,
+                        quantizeAxis(preparationInput.forwardAxis()),
+                        quantizeAxis(preparationInput.rightAxis()),
+                        quantizeYaw(current.yawDegrees()),
+                        quantizePitch(current.pitchDegrees()));
+        if (controller.submitPreparationInput(input)) {
+            nextPreparationInputSequence.incrementAndGet();
+        }
+""",
+)
+
+replace_once(
+    "client/src/main/java/pl/grzegorz2047/standalonethewalls/client/SunderfrontClient.java",
+    """            nextPreparationInputSequence = 1L;
+            appliedPreparationSnapshotTick = -1L;
+""",
+    """            nextPreparationInputSequence.set(1L);
+            appliedPreparationSnapshotTick = -1L;
+""",
+)
+
+replace_once(
+    "client/src/main/java/pl/grzegorz2047/standalonethewalls/client/SunderfrontClient.java",
+    """        nextPreparationInputSequence = 1L;
+        appliedPreparationSnapshotTick = -1L;
+""",
+    """        nextPreparationInputSequence.set(1L);
+        appliedPreparationSnapshotTick = -1L;
 """,
 )
 
