@@ -6,6 +6,7 @@ import java.util.concurrent.CompletionStage;
 import pl.grzegorz2047.standalonethewalls.protocol.ReliableChannel;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.CanonicalHandle;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
+import pl.grzegorz2047.standalonethewalls.protocol.identity.SecureChannelBinding;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerId;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.AuthenticatedReliableSession;
 
@@ -30,6 +31,11 @@ final class BctlsAuthenticatedPlayerSession implements AuthenticatedPlayerSessio
     @Override
     public PlayerId playerId() {
         return session.playerId();
+    }
+
+    @Override
+    public SecureChannelBinding channelBinding() {
+        return session.security().channelBinding();
     }
 
     @Override

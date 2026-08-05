@@ -9,6 +9,7 @@ import pl.grzegorz2047.standalonethewalls.identity.policy.HandleVerificationLeve
 import pl.grzegorz2047.standalonethewalls.protocol.ReliableChannel;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.CanonicalHandle;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
+import pl.grzegorz2047.standalonethewalls.protocol.identity.SecureChannelBinding;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerId;
 
 /** Immutable session that passed cryptographic proof and server identity admission. */
@@ -44,6 +45,10 @@ public final class AuthorizedPlayerSession {
 
     public PlayerId playerId() {
         return session.playerId();
+    }
+
+    public SecureChannelBinding channelBinding() {
+        return session.channelBinding();
     }
 
     public CanonicalHandle handle() {

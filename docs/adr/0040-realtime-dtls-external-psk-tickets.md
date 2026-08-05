@@ -211,10 +211,10 @@ policy before the realtime domain contract exists.
 
 ## Follow-up
 
-- Define the reliable ticket request/result wire codec without exposing server-only
-context.
+- Reliable request/result provisioning and send-failure revocation are defined by
+  ADR 0041 and issue #163.
 - Implement bounded DTLS 1.3 cookie, handshake and active-channel ownership using
-this store.
+  this store.
 - Define authoritative realtime envelopes, round/session binding, monotonic
 sequences and snapshot freshness.
 - Add reconnect/resume and NAT rebinding only through separate threat-modelled ADRs.

@@ -2,6 +2,7 @@ package pl.grzegorz2047.standalonethewalls.server.lobby;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,12 +57,20 @@ import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySelectTeamCommand;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySetReadyCommand;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketProtocolCodec;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketProtocolException;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketRejection;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketRequest;
 import pl.grzegorz2047.standalonethewalls.server.identity.session.AuthorizedPlayerSession;
 import pl.grzegorz2047.standalonethewalls.server.identity.session.AuthorizedPlayerSessionQueue;
 import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationMapDefinition;
 import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationTransitionPublisher;
 import pl.grzegorz2047.standalonethewalls.server.preparation.VerifiedPreparationMapAdapter;
 import pl.grzegorz2047.standalonethewalls.server.preparation.VerifiedPreparationMapException;
+import pl.grzegorz2047.standalonethewalls.server.realtime.RealtimeTicketProvisioner;
+import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.IssuedRealtimeTicket;
+import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.RealtimeTicketIdentity;
+import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.RealtimeTicketStoreException;
 
 /**
  * Owns reliable lobby membership, the authoritative roster, and the lobby-to-preparation match
@@ -85,6 +94,7 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
     private final LobbyConfiguration configuration;
     private final LobbyMatchCoordinator matchCoordinator;
     private final PreparationMapDefinition preparationMap;
+    private final RealtimeTicketProvisioner realtimeTicketProvisioner;
     private final Duration sendTimeout;
     private final Duration shutdownTimeout;
     private final Consumer<MinimalLobbyEvent> eventObserver;
@@ -194,6 +204,26 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
             Duration shutdownTimeout,
             Consumer<MinimalLobbyEvent> eventObserver,
             Runnable terminalFailureAction) {
+        this(
+                source,
+                configuration,
+                matchConfiguration,
+                RealtimeTicketProvisioner.disabled(),
+                sendTimeout,
+                shutdownTimeout,
+                eventObserver,
+                terminalFailureAction);
+    }
+
+    public MinimalLobbyRuntime(
+            AuthorizedPlayerSessionQueue source,
+            LobbyConfiguration configuration,
+            MatchConfiguration matchConfiguration,
+            RealtimeTicketProvisioner realtimeTicketProvisioner,
+            Duration sendTimeout,
+            Duration shutdownTimeout,
+            Consumer<MinimalLobbyEvent> eventObserver,
+            Runnable terminalFailureAction) {
         this.source = Objects.requireNonNull(source, "source");
         this.configuration = Objects.requireNonNull(configuration, "configuration");
         MatchConfiguration lifecycleConfiguration =
@@ -206,6 +236,8 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         }
         matchCoordinator = new LobbyMatchCoordinator(configuration, lifecycleConfiguration);
         preparationMap = defaultPreparationMap();
+        this.realtimeTicketProvisioner =
+                Objects.requireNonNull(realtimeTicketProvisioner, "realtimeTicketProvisioner");
         visibleMatchSnapshot = new AtomicReference<>(matchCoordinator.snapshot());
         this.sendTimeout = requireDuration(sendTimeout, "sendTimeout", MAXIMUM_SEND_TIMEOUT);
         this.shutdownTimeout =
@@ -339,6 +371,8 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
                 Command command = commands.poll(POLL_MILLIS, TimeUnit.MILLISECONDS);
                 if (command instanceof ClientCommand clientCommand) {
                     handleClientCommand(state, clientCommand);
+                } else if (command instanceof RealtimeTicketCommand realtimeTicketCommand) {
+                    handleRealtimeTicketCommand(state, realtimeTicketCommand);
                 } else if (command instanceof SessionEnded ended) {
                     handleSessionEnded(state, ended);
                 } else if (command == SimulationTickSignal.INSTANCE) {
@@ -487,11 +521,9 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         if (member == null || !member.session.sessionId().equals(inbound.sessionId())) {
             return;
         }
-        if (inbound.requestId() <= member.lastRequestId) {
-            removeMember(state, member, EndReason.PROTOCOL_VIOLATION, true);
+        if (!acceptRequestId(state, member, inbound.requestId())) {
             return;
         }
-        member.lastRequestId = inbound.requestId();
 
         if (!matchCoordinator.acceptsLobbyCommands()) {
             LobbyCommandResult locked =
@@ -529,6 +561,109 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         }
     }
 
+    private void handleRealtimeTicketCommand(LobbyState state, RealtimeTicketCommand inbound) {
+        MemberState member = state.members.get(inbound.participantId());
+        if (member == null || !member.session.sessionId().equals(inbound.sessionId())) {
+            return;
+        }
+        RealtimeTicketRequest request = inbound.request();
+        if (!acceptRequestId(state, member, request.requestId())) {
+            return;
+        }
+        if (!realtimeTicketProvisioner.supportsProfile(request.profileVersion())) {
+            sendRealtimeTicketRejection(
+                    state, member, request, RealtimeTicketRejection.UNSUPPORTED_PROFILE);
+            return;
+        }
+
+        long roundEpoch = matchCoordinator.snapshot().roundNumber();
+        if (member.realtimeTicketRound == roundEpoch) {
+            sendRealtimeTicketRejection(
+                    state, member, request, RealtimeTicketRejection.ALREADY_ISSUED_FOR_ROUND);
+            return;
+        }
+        if (member.realtimeTicketIdentity != null && !revokeOwnedRealtimeTicket(member)) {
+            sendRealtimeTicketRejection(
+                    state, member, request, RealtimeTicketRejection.TEMPORARILY_UNAVAILABLE);
+            return;
+        }
+
+        IssuedRealtimeTicket issued;
+        try {
+            issued = realtimeTicketProvisioner.issue(member.session, roundEpoch);
+        } catch (RealtimeTicketStoreException | RuntimeException exception) {
+            sendRealtimeTicketRejection(
+                    state, member, request, RealtimeTicketRejection.TEMPORARILY_UNAVAILABLE);
+            return;
+        }
+
+        byte[] preSharedKey = null;
+        byte[] payload = null;
+        try {
+            preSharedKey = issued.preSharedKey().copyBytes();
+            payload =
+                    RealtimeTicketProtocolCodec.encodeIssued(
+                            request.requestId(),
+                            RealtimeTicketProvisioner.PROFILE_VERSION,
+                            issued.identity().copyBytes(),
+                            preSharedKey,
+                            issued.expiresAt());
+            await(
+                    member.session
+                            .reliableChannel()
+                            .send(MessageType.REALTIME_TICKET_RESULT, payload),
+                    sendTimeout);
+            member.realtimeTicketIdentity = issued.identity();
+            member.realtimeTicketRound = roundEpoch;
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            revokeRealtimeTicket(issued.identity());
+            removeMember(state, member, EndReason.SEND_FAILED, true);
+        } catch (ExecutionException | TimeoutException | RuntimeException exception) {
+            revokeRealtimeTicket(issued.identity());
+            removeMember(state, member, EndReason.SEND_FAILED, true);
+        } finally {
+            if (preSharedKey != null) {
+                Arrays.fill(preSharedKey, (byte) 0);
+            }
+            if (payload != null) {
+                Arrays.fill(payload, (byte) 0);
+            }
+            issued.close();
+        }
+    }
+
+    private boolean acceptRequestId(LobbyState state, MemberState member, long requestId) {
+        if (requestId <= member.lastRequestId) {
+            removeMember(state, member, EndReason.PROTOCOL_VIOLATION, true);
+            return false;
+        }
+        member.lastRequestId = requestId;
+        return true;
+    }
+
+    private void sendRealtimeTicketRejection(
+            LobbyState state,
+            MemberState member,
+            RealtimeTicketRequest request,
+            RealtimeTicketRejection rejection) {
+        byte[] payload =
+                RealtimeTicketProtocolCodec.encodeRejected(
+                        request.requestId(), request.profileVersion(), rejection);
+        try {
+            await(
+                    member.session
+                            .reliableChannel()
+                            .send(MessageType.REALTIME_TICKET_RESULT, payload),
+                    sendTimeout);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            removeMember(state, member, EndReason.SEND_FAILED, true);
+        } catch (ExecutionException | TimeoutException | RuntimeException exception) {
+            removeMember(state, member, EndReason.SEND_FAILED, true);
+        }
+    }
+
     private void handleSessionEnded(LobbyState state, SessionEnded ended) {
         MemberState member = state.members.get(ended.participantId());
         if (member == null || !member.session.sessionId().equals(ended.sessionId())) {
@@ -553,6 +688,7 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
             throw new IllegalStateException("authoritative lobby roster rejected an owned leave");
         }
         commitRoster(state, decision.state());
+        revokeOwnedRealtimeTicket(member);
         closeSession(member.session);
         publish(eventCode(reason));
         if (broadcastSnapshot) {
@@ -751,10 +887,10 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
                                     EndReason.EOF));
                     return;
                 }
-                ClientCommand command = decodeClientCommand(member, received.orElseThrow());
+                Command command = decodeClientCommand(member, received.orElseThrow());
                 enqueue(command);
             }
-        } catch (LobbyProtocolException exception) {
+        } catch (LobbyProtocolException | RealtimeTicketProtocolException exception) {
             enqueue(
                     new SessionEnded(
                             member.participantId,
@@ -771,8 +907,8 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         }
     }
 
-    private static ClientCommand decodeClientCommand(MemberState member, ProtocolEnvelope envelope)
-            throws LobbyProtocolException {
+    private static Command decodeClientCommand(MemberState member, ProtocolEnvelope envelope)
+            throws LobbyProtocolException, RealtimeTicketProtocolException {
         return switch (envelope.messageType()) {
             case LOBBY_SELECT_TEAM -> {
                 LobbySelectTeamCommand command =
@@ -793,6 +929,11 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
                         command.requestId(),
                         new LobbyRosterCommand.SetReady(member.participantId, command.ready()));
             }
+            case REALTIME_TICKET_REQUEST ->
+                    new RealtimeTicketCommand(
+                            member.participantId,
+                            member.session.sessionId(),
+                            RealtimeTicketProtocolCodec.decodeRequest(envelope.payload()));
             default ->
                     throw new LobbyProtocolException(
                             LobbyProtocolException.Code.INVALID_SIZE,
@@ -831,6 +972,7 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
                         "authoritative lobby roster rejected an owned shutdown leave");
             }
             commitRoster(state, decision.state());
+            revokeOwnedRealtimeTicket(member);
             sessions.add(member.session);
         }
         if (sessions.isEmpty()) {
@@ -850,6 +992,28 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
             }
         }
         awaitAll(closures, shutdownTimeout);
+    }
+
+    private boolean revokeOwnedRealtimeTicket(MemberState member) {
+        RealtimeTicketIdentity identity = member.realtimeTicketIdentity;
+        if (identity == null) {
+            return true;
+        }
+        if (!revokeRealtimeTicket(identity)) {
+            return false;
+        }
+        member.realtimeTicketIdentity = null;
+        member.realtimeTicketRound = 0L;
+        return true;
+    }
+
+    private boolean revokeRealtimeTicket(RealtimeTicketIdentity identity) {
+        try {
+            realtimeTicketProvisioner.revoke(identity);
+            return true;
+        } catch (RealtimeTicketStoreException | RuntimeException exception) {
+            return !realtimeTicketProvisioner.isEnabled();
+        }
     }
 
     private void closeSession(AuthorizedPlayerSession session) {
@@ -1000,7 +1164,11 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
     }
 
     private sealed interface Command
-            permits ClientCommand, SessionEnded, SimulationTickSignal, Shutdown {}
+            permits ClientCommand,
+                    RealtimeTicketCommand,
+                    SessionEnded,
+                    SimulationTickSignal,
+                    Shutdown {}
 
     private record ClientCommand(
             LobbyParticipantId participantId,
@@ -1018,6 +1186,16 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
             if (!participantId.equals(command.participantId())) {
                 throw new IllegalArgumentException("command identity does not match its session");
             }
+        }
+    }
+
+    private record RealtimeTicketCommand(
+            LobbyParticipantId participantId, UUID sessionId, RealtimeTicketRequest request)
+            implements Command {
+        private RealtimeTicketCommand {
+            Objects.requireNonNull(participantId, "participantId");
+            Objects.requireNonNull(sessionId, "sessionId");
+            Objects.requireNonNull(request, "request");
         }
     }
 
@@ -1043,6 +1221,8 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         private final LobbyMember identity;
         private final AuthorizedPlayerSession session;
         private long lastRequestId;
+        private long realtimeTicketRound;
+        private RealtimeTicketIdentity realtimeTicketIdentity;
 
         private MemberState(
                 LobbyParticipantId participantId,

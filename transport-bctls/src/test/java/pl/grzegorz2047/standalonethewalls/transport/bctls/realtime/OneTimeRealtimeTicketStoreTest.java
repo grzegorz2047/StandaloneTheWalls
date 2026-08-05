@@ -113,6 +113,25 @@ class OneTimeRealtimeTicketStoreTest {
     }
 
     @Test
+    void revokeRemovesAndDestroysAnUnredeemedTicket() throws RealtimeTicketStoreException {
+        OneTimeRealtimeTicketStore store =
+                new OneTimeRealtimeTicketStore(
+                        Clock.fixed(START, ZoneOffset.UTC),
+                        new QueueEntropy(filled(16, 21), filled(32, 22)),
+                        CONFIG);
+        IssuedRealtimeTicket issued = store.issue(CONTEXT, Duration.ofSeconds(30));
+
+        assertThat(store.revoke(issued.identity())).isTrue();
+        assertThat(store.revoke(issued.identity())).isFalse();
+        assertThat(store.redeem(issued.identity()).status())
+                .isEqualTo(RealtimeTicketRedemption.Status.UNKNOWN_OR_REPLAYED);
+        assertThat(store.activeTicketCount()).isZero();
+
+        issued.close();
+        store.close();
+    }
+
+    @Test
     void concurrentRedemptionHasExactlyOneWinner()
             throws RealtimeTicketStoreException, InterruptedException, ExecutionException {
         OneTimeRealtimeTicketStore store =

@@ -31,6 +31,10 @@ import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
 import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationProtocolException;
 import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnAssignment;
 import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnProtocolCodec;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketProtocolCodec;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketProtocolException;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketRequest;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketResult;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.AuthenticatedReliableSession;
 
 /** Owns one admitted reliable session, strict snapshots, and one correlated lobby command. */
@@ -52,6 +56,7 @@ public final class ConnectedLobbySession implements AutoCloseable {
 
     private long nextRequestId = 1L;
     private PendingCommand pendingCommand;
+    private PendingRealtimeTicket pendingRealtimeTicket;
 
     ConnectedLobbySession(
             AuthenticatedReliableSession session,
@@ -107,6 +112,12 @@ public final class ConnectedLobbySession implements AutoCloseable {
         }
     }
 
+    public boolean realtimeTicketRequestInFlight() {
+        synchronized (commandLock) {
+            return pendingRealtimeTicket != null;
+        }
+    }
+
     public Optional<DirectConnectFailure> terminalFailure() {
         return Optional.ofNullable(terminalFailure.get());
     }
@@ -133,6 +144,55 @@ public final class ConnectedLobbySession implements AutoCloseable {
                 requestId ->
                         LobbyProtocolCodec.encodeSetReady(
                                 new LobbySetReadyCommand(requestId, ready)));
+    }
+
+    public RealtimeTicketSubmission requestRealtimeTicket() {
+        return requestRealtimeTicket(1);
+    }
+
+    public RealtimeTicketSubmission requestRealtimeTicket(int profileVersion) {
+        RealtimeTicketRequest request;
+        PendingRealtimeTicket submitted;
+        byte[] payload;
+        synchronized (commandLock) {
+            if (!isOpen()) {
+                return RealtimeTicketSubmission.rejected(
+                        RealtimeTicketSubmissionStatus.SESSION_CLOSED);
+            }
+            if (pendingCommand != null || pendingRealtimeTicket != null) {
+                return RealtimeTicketSubmission.rejected(
+                        RealtimeTicketSubmissionStatus.REQUEST_IN_FLIGHT);
+            }
+            if (nextRequestId == Long.MAX_VALUE) {
+                finish(
+                        Optional.of(
+                                DirectConnectFailure.of(
+                                        DirectConnectFailureCode.INTERNAL_FAILURE)));
+                return RealtimeTicketSubmission.rejected(
+                        RealtimeTicketSubmissionStatus.SESSION_CLOSED);
+            }
+            long requestId = nextRequestId++;
+            request = new RealtimeTicketRequest(requestId, profileVersion);
+            payload = RealtimeTicketProtocolCodec.encodeRequest(request);
+            submitted = new PendingRealtimeTicket(request);
+            pendingRealtimeTicket = submitted;
+        }
+
+        try {
+            Objects.requireNonNull(
+                            session.reliableChannel()
+                                    .send(MessageType.REALTIME_TICKET_REQUEST, payload),
+                            "realtime ticket request send stage")
+                    .whenComplete(
+                            (ignored, sendFailure) -> {
+                                if (sendFailure != null) {
+                                    failOwnedRealtimeTicketRequest(submitted);
+                                }
+                            });
+        } catch (RuntimeException exception) {
+            failOwnedRealtimeTicketRequest(submitted);
+        }
+        return RealtimeTicketSubmission.submitted(submitted.handle);
     }
 
     public CompletionStage<Void> closeAsync() {
@@ -181,7 +241,7 @@ public final class ConnectedLobbySession implements AutoCloseable {
             if (!isOpen()) {
                 return LobbyCommandSubmission.rejected(LobbyCommandSubmissionStatus.SESSION_CLOSED);
             }
-            if (pendingCommand != null) {
+            if (pendingCommand != null || pendingRealtimeTicket != null) {
                 return LobbyCommandSubmission.rejected(
                         LobbyCommandSubmissionStatus.COMMAND_IN_FLIGHT);
             }
@@ -268,6 +328,7 @@ public final class ConnectedLobbySession implements AutoCloseable {
             case PREPARATION_SPAWN_ASSIGNMENT ->
                     processPreparationSpawnAssignment(envelope.payload());
             case LOBBY_COMMAND_RESULT -> processCommandResult(envelope.payload());
+            case REALTIME_TICKET_RESULT -> processRealtimeTicketResult(envelope.payload());
             default ->
                     Optional.of(
                             DirectConnectFailure.of(DirectConnectFailureCode.UNEXPECTED_MESSAGE));
@@ -448,6 +509,52 @@ public final class ConnectedLobbySession implements AutoCloseable {
         return Optional.empty();
     }
 
+    private Optional<DirectConnectFailure> processRealtimeTicketResult(byte[] payload) {
+        RealtimeTicketResult result;
+        try {
+            result = RealtimeTicketProtocolCodec.decodeResult(payload);
+        } catch (RealtimeTicketProtocolException exception) {
+            return Optional.of(
+                    DirectConnectFailure.of(
+                            DirectConnectFailureCode.REALTIME_TICKET_RESULT_MALFORMED));
+        }
+
+        PendingRealtimeTicket completed;
+        synchronized (commandLock) {
+            if (pendingRealtimeTicket == null
+                    || pendingRealtimeTicket.request.requestId() != result.requestId()
+                    || pendingRealtimeTicket.request.profileVersion() != result.profileVersion()) {
+                result.close();
+                return Optional.of(
+                        DirectConnectFailure.of(
+                                DirectConnectFailureCode.REALTIME_TICKET_RESULT_UNEXPECTED));
+            }
+            completed = pendingRealtimeTicket;
+            pendingRealtimeTicket = null;
+        }
+        completed.completion.complete(result);
+        return Optional.empty();
+    }
+
+    private void failOwnedRealtimeTicketRequest(PendingRealtimeTicket expected) {
+        DirectConnectFailure failure =
+                DirectConnectFailure.of(DirectConnectFailureCode.REALTIME_TICKET_SEND_FAILED);
+        synchronized (commandLock) {
+            if (pendingRealtimeTicket != expected || closing.get()) {
+                return;
+            }
+            if (!closing.compareAndSet(false, true)) {
+                return;
+            }
+            pendingRealtimeTicket = null;
+        }
+        terminalFailure.set(failure);
+        expected.completion.completeExceptionally(
+                new RealtimeTicketRequestException(
+                        RealtimeTicketRequestException.Code.SEND_FAILED));
+        beginTransportClose(Optional.of(failure));
+    }
+
     private void failOwnedPending(PendingCommand expected, DirectConnectFailureCode failureCode) {
         DirectConnectFailure failure = DirectConnectFailure.of(failureCode);
         synchronized (commandLock) {
@@ -469,15 +576,23 @@ public final class ConnectedLobbySession implements AutoCloseable {
             return;
         }
         PendingCommand abandoned;
+        PendingRealtimeTicket abandonedRealtimeTicket;
         synchronized (commandLock) {
             abandoned = pendingCommand;
             pendingCommand = null;
+            abandonedRealtimeTicket = pendingRealtimeTicket;
+            pendingRealtimeTicket = null;
         }
         DirectConnectFailure commandFailure =
                 failure.orElseGet(
                         () -> DirectConnectFailure.of(DirectConnectFailureCode.CANCELLED));
         if (abandoned != null) {
             abandoned.completion.complete(new LobbyCommandResolution.Failed(commandFailure));
+        }
+        if (abandonedRealtimeTicket != null) {
+            abandonedRealtimeTicket.completion.completeExceptionally(
+                    new RealtimeTicketRequestException(
+                            RealtimeTicketRequestException.Code.SESSION_TERMINATED));
         }
         failure.ifPresent(terminalFailure::set);
         beginTransportClose(failure);
@@ -566,6 +681,18 @@ public final class ConnectedLobbySession implements AutoCloseable {
         private PendingCommand(long requestId) {
             this.requestId = requestId;
             handle = new LobbyCommandHandle(requestId, completion);
+        }
+    }
+
+    private static final class PendingRealtimeTicket {
+        private final RealtimeTicketRequest request;
+        private final CompletableFuture<RealtimeTicketResult> completion =
+                new CompletableFuture<>();
+        private final RealtimeTicketHandle handle;
+
+        private PendingRealtimeTicket(RealtimeTicketRequest request) {
+            this.request = Objects.requireNonNull(request, "request");
+            handle = new RealtimeTicketHandle(request.requestId(), completion);
         }
     }
 }

@@ -194,10 +194,16 @@ unconsumed challenge. Success returns `AuthenticatedReliableSession`, whose
 application channel closes if another identity message appears. Envelope
 sequences continue across authentication. See ADR 0010 and issue #55.
 
-Cryptographic proof does not authorize a handle. Integration with identity
-policy, the server command queue, client dialing, certificate/key provisioning,
-public-PKI validation, reconnect, realtime DTLS/UDP, and realtime session tokens
-remain separate adapters and work items.
+Cryptographic proof does not authorize a handle. The server therefore applies
+bounded identity admission before transferring the session to the reliable lobby.
+That lobby is the single owner of the post-admission receive loop and the
+monotonic request-ID space. It also provisions one bounded external-PSK realtime
+ticket per session and authoritative round through the existing confidential TLS
+channel. Every trusted ticket field is derived from the admitted session and
+round state; failed delivery revokes the retained credential. The client receives
+a destroyable, redacted ticket owner. The UDP socket, DTLS handshake, stateless
+cookie, realtime gameplay envelopes, public-PKI validation and reconnect remain
+separate adapters and work items. See ADR 0028, ADR 0034, ADR 0040 and ADR 0041.
 
 ## Fixed-tick simulation
 
@@ -242,5 +248,5 @@ and issue #33.
 - Integration of authenticated commands with the fixed-tick command queue.
 - Client connection ownership, DNS resolution and reconnect policy.
 - Public-PKI certificate validation as a separate trust adapter.
-- Realtime DTLS/UDP transport and replay-resistant realtime session tokens.
+- Realtime DTLS/UDP listener, cookie admission and gameplay packet sequencing.
 - Persistent player/server trust stores and production key provisioning.

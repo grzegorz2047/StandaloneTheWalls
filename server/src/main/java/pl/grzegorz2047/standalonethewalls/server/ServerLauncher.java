@@ -36,6 +36,7 @@ import pl.grzegorz2047.standalonethewalls.server.identity.LocalIdentityRuntime;
 import pl.grzegorz2047.standalonethewalls.server.identity.RegistryRefreshScheduler;
 import pl.grzegorz2047.standalonethewalls.server.identity.session.ReliableTlsAdmissionRuntime;
 import pl.grzegorz2047.standalonethewalls.server.lobby.MinimalLobbyRuntime;
+import pl.grzegorz2047.standalonethewalls.server.realtime.RealtimeTicketProvisioner;
 import pl.grzegorz2047.standalonethewalls.server.runtime.FixedTickLoop;
 import pl.grzegorz2047.standalonethewalls.server.runtime.ServerRuntime;
 import pl.grzegorz2047.standalonethewalls.server.runtime.SystemNanoSleeper;
@@ -51,6 +52,7 @@ public final class ServerLauncher {
     private static final Duration SMOKE_TIMEOUT = Duration.ofSeconds(30);
     private static final Duration LOBBY_SEND_TIMEOUT = Duration.ofSeconds(5);
     private static final Duration LOBBY_SHUTDOWN_TIMEOUT = Duration.ofSeconds(10);
+    private static final Duration REALTIME_TICKET_LIFETIME = Duration.ofSeconds(30);
     private static final IdentityAdministrationPrincipal LOCAL_CLI_PRINCIPAL =
             new IdentityAdministrationPrincipal(
                     new LocalIdentityAdministratorId("local-cli"),
@@ -217,6 +219,7 @@ public final class ServerLauncher {
 
         ReliableTlsAdmissionRuntime tlsRuntime = null;
         MinimalLobbyRuntime lobbyRuntime = null;
+        RealtimeTicketProvisioner realtimeTicketProvisioner = null;
         RegistryRefreshScheduler registryRefreshScheduler = RegistryRefreshScheduler.disabled();
         Thread shutdownHook = null;
         boolean hookInstalled = false;
@@ -230,11 +233,15 @@ public final class ServerLauncher {
                                         "reliable TLS requires local identity runtime"),
                                 Clock.systemUTC(),
                                 runtime::close);
+                realtimeTicketProvisioner =
+                        RealtimeTicketProvisioner.createProduction(
+                                configuration.maximumPlayers(), REALTIME_TICKET_LIFETIME);
                 lobbyRuntime =
                         new MinimalLobbyRuntime(
                                 tlsRuntime.authorizedSessions(),
                                 LobbyConfiguration.standard(),
                                 MatchConfiguration.defaults(configuration.tickRate()),
+                                realtimeTicketProvisioner,
                                 LOBBY_SEND_TIMEOUT,
                                 LOBBY_SHUTDOWN_TIMEOUT,
                                 event ->
@@ -253,6 +260,7 @@ public final class ServerLauncher {
 
             ReliableTlsAdmissionRuntime ownedTlsRuntime = tlsRuntime;
             MinimalLobbyRuntime ownedLobbyRuntime = lobbyRuntime;
+            RealtimeTicketProvisioner ownedRealtimeTicketProvisioner = realtimeTicketProvisioner;
             RegistryRefreshScheduler ownedRegistryRefreshScheduler = registryRefreshScheduler;
             shutdownHook =
                     Thread.ofPlatform()
@@ -263,7 +271,8 @@ public final class ServerLauncher {
                                                     runtime,
                                                     ownedRegistryRefreshScheduler,
                                                     ownedTlsRuntime,
-                                                    ownedLobbyRuntime));
+                                                    ownedLobbyRuntime,
+                                                    ownedRealtimeTicketProvisioner));
             if (runForTicks == null) {
                 Runtime.getRuntime().addShutdownHook(shutdownHook);
                 hookInstalled = true;
@@ -318,7 +327,12 @@ public final class ServerLauncher {
             LOGGER.error("Server process failed to start its reliable TLS/runtime resources.");
             return EXIT_RUNTIME_FAILURE;
         } finally {
-            closeRuntime(runtime, registryRefreshScheduler, tlsRuntime, lobbyRuntime);
+            closeRuntime(
+                    runtime,
+                    registryRefreshScheduler,
+                    tlsRuntime,
+                    lobbyRuntime,
+                    realtimeTicketProvisioner);
             lobbyTickTarget.set(null);
             if (hookInstalled && shutdownHook != null) {
                 removeShutdownHookIfPossible(shutdownHook);
@@ -330,7 +344,8 @@ public final class ServerLauncher {
             ServerRuntime runtime,
             RegistryRefreshScheduler registryRefreshScheduler,
             ReliableTlsAdmissionRuntime tlsRuntime,
-            MinimalLobbyRuntime lobbyRuntime) {
+            MinimalLobbyRuntime lobbyRuntime,
+            RealtimeTicketProvisioner realtimeTicketProvisioner) {
         List<Throwable> failures = new ArrayList<>();
         if (tlsRuntime != null) {
             try {
@@ -347,6 +362,13 @@ public final class ServerLauncher {
         if (lobbyRuntime != null) {
             try {
                 lobbyRuntime.close();
+            } catch (RuntimeException exception) {
+                failures.add(exception);
+            }
+        }
+        if (realtimeTicketProvisioner != null) {
+            try {
+                realtimeTicketProvisioner.close();
             } catch (RuntimeException exception) {
                 failures.add(exception);
             }

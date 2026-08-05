@@ -49,6 +49,12 @@ import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySelectTeamCommand;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySetReadyCommand;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.ClientRealtimeTicket;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketProtocolCodec;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketProtocolException;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketRequest;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketResult;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketResultStatus;
 import pl.grzegorz2047.standalonethewalls.server.testsupport.ServerTlsTestCertificateMaterial;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.AuthenticatedReliableSession;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.BootstrappedReliableSession;
@@ -130,6 +136,7 @@ class ServerLauncherTest {
                     TlsSessionBootstrapException,
                     PlayerSessionAdmissionException,
                     LobbyProtocolException,
+                    RealtimeTicketProtocolException,
                     InterruptedException,
                     ExecutionException,
                     TimeoutException {
@@ -212,11 +219,27 @@ class ServerLauncherTest {
 
             send(
                     authenticated,
+                    MessageType.REALTIME_TICKET_REQUEST,
+                    RealtimeTicketProtocolCodec.encodeRequest(new RealtimeTicketRequest(1L, 1)));
+            ProtocolEnvelope ticketEnvelope = receive(authenticated);
+            assertEquals(MessageType.REALTIME_TICKET_RESULT, ticketEnvelope.messageType());
+            try (RealtimeTicketResult ticketResult =
+                    RealtimeTicketProtocolCodec.decodeResult(ticketEnvelope.payload())) {
+                assertEquals(RealtimeTicketResultStatus.ISSUED, ticketResult.status());
+                ClientRealtimeTicket ticket = ticketResult.ticket().orElseThrow();
+                assertEquals(1L, ticket.requestId());
+                assertEquals(1, ticket.profileVersion());
+                assertEquals(16, ticket.copyIdentity().length);
+                assertEquals(32, ticket.copyPreSharedKey().length);
+            }
+
+            send(
+                    authenticated,
                     MessageType.LOBBY_SELECT_TEAM,
                     LobbyProtocolCodec.encodeSelectTeam(
-                            new LobbySelectTeamCommand(1L, LobbyTeam.GREEN)));
+                            new LobbySelectTeamCommand(2L, LobbyTeam.GREEN)));
             LobbyCommandResult teamResult = receiveCommandResult(authenticated);
-            assertEquals(new LobbyCommandResult(1L, 2L, LobbyCommandOutcome.APPLIED), teamResult);
+            assertEquals(new LobbyCommandResult(2L, 2L, LobbyCommandOutcome.APPLIED), teamResult);
             LobbySnapshot teamSnapshot = receiveSnapshot(authenticated);
             assertEquals(
                     java.util.List.of(
@@ -230,9 +253,9 @@ class ServerLauncherTest {
             send(
                     authenticated,
                     MessageType.LOBBY_SET_READY,
-                    LobbyProtocolCodec.encodeSetReady(new LobbySetReadyCommand(2L, true)));
+                    LobbyProtocolCodec.encodeSetReady(new LobbySetReadyCommand(3L, true)));
             LobbyCommandResult readyResult = receiveCommandResult(authenticated);
-            assertEquals(new LobbyCommandResult(2L, 3L, LobbyCommandOutcome.APPLIED), readyResult);
+            assertEquals(new LobbyCommandResult(3L, 3L, LobbyCommandOutcome.APPLIED), readyResult);
             LobbySnapshot readySnapshot = receiveSnapshot(authenticated);
             assertEquals(
                     java.util.List.of(

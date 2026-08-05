@@ -16,6 +16,7 @@ import pl.grzegorz2047.standalonethewalls.protocol.ReliableSendResult;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.CanonicalHandle;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerSessionAdmissionStatus;
+import pl.grzegorz2047.standalonethewalls.protocol.identity.SecureChannelBinding;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerId;
 import pl.grzegorz2047.standalonethewalls.server.identity.SessionIdentityAdmissionDecision;
 
@@ -109,6 +110,11 @@ class AuthenticatedPlayerAdmissionServiceTest {
         @Override
         public PlayerId playerId() {
             return PLAYER_ID;
+        }
+
+        @Override
+        public SecureChannelBinding channelBinding() {
+            return new SecureChannelBinding(new byte[SecureChannelBinding.BYTES]);
         }
 
         @Override
