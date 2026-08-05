@@ -34,6 +34,18 @@ public final class PreparationPredictionHistory {
             double forwardAxis,
             double rightAxis,
             double elapsedSeconds) {
+        return predict(
+                current, collisions, sequence, forwardAxis, rightAxis, false, elapsedSeconds);
+    }
+
+    public PreparationPlayerState predict(
+            PreparationPlayerState current,
+            PreparationCollisionWorld collisions,
+            long sequence,
+            double forwardAxis,
+            double rightAxis,
+            boolean sprinting,
+            double elapsedSeconds) {
         PreparationPlayerState player = Objects.requireNonNull(current, "current");
         PreparationCollisionWorld world = Objects.requireNonNull(collisions, "collisions");
         requireCurrentSequence(sequence);
@@ -45,6 +57,7 @@ public final class PreparationPredictionHistory {
                         sequence,
                         forwardAxis,
                         rightAxis,
+                        sprinting,
                         player.yawDegrees(),
                         player.pitchDegrees(),
                         elapsedSeconds);
@@ -121,13 +134,19 @@ public final class PreparationPredictionHistory {
                         step.yawDegrees(),
                         step.pitchDegrees());
         return PreparationMovementController.move(
-                oriented, collisions, step.forwardAxis(), step.rightAxis(), step.elapsedSeconds());
+                oriented,
+                collisions,
+                step.forwardAxis(),
+                step.rightAxis(),
+                step.sprinting(),
+                step.elapsedSeconds());
     }
 
     private record PredictionStep(
             long sequence,
             double forwardAxis,
             double rightAxis,
+            boolean sprinting,
             double yawDegrees,
             double pitchDegrees,
             double elapsedSeconds) {

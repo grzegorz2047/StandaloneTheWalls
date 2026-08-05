@@ -16,6 +16,7 @@ public final class PreparationInputState {
     private boolean backward;
     private boolean left;
     private boolean right;
+    private boolean sprinting;
 
     public boolean capture() {
         if (captured) {
@@ -52,6 +53,16 @@ public final class PreparationInputState {
         }
     }
 
+    public void setSprinting(boolean pressed) {
+        if (captured) {
+            sprinting = pressed;
+        }
+    }
+
+    public boolean sprinting() {
+        return sprinting;
+    }
+
     public double forwardAxis() {
         return axis(forward, backward);
     }
@@ -65,6 +76,7 @@ public final class PreparationInputState {
         backward = false;
         left = false;
         right = false;
+        sprinting = false;
     }
 
     private static double axis(boolean positive, boolean negative) {

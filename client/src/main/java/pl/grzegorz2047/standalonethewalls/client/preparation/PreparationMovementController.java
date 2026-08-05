@@ -5,6 +5,7 @@ import java.util.Objects;
 /** Deterministic preparation movement resolved through region and verified collision guards. */
 public final class PreparationMovementController {
     public static final double MOVEMENT_SPEED_METRES_PER_SECOND = 5.0d;
+    public static final double SPRINTING_SPEED_METRES_PER_SECOND = 8.0d;
     public static final double MAXIMUM_STEP_SECONDS = 0.1d;
     public static final double YAW_DEGREES_PER_MOUSE_PIXEL = 0.12d;
     public static final double PITCH_DEGREES_PER_MOUSE_PIXEL = 0.10d;
@@ -19,6 +20,16 @@ public final class PreparationMovementController {
             double forwardAxis,
             double rightAxis,
             double elapsedSeconds) {
+        return move(current, collisions, forwardAxis, rightAxis, false, elapsedSeconds);
+    }
+
+    public static PreparationPlayerState move(
+            PreparationPlayerState current,
+            PreparationCollisionWorld collisions,
+            double forwardAxis,
+            double rightAxis,
+            boolean sprinting,
+            double elapsedSeconds) {
         PreparationPlayerState player = Objects.requireNonNull(current, "current");
         PreparationCollisionWorld world = Objects.requireNonNull(collisions, "collisions");
         requireAxis(forwardAxis, "forwardAxis");
@@ -31,8 +42,9 @@ public final class PreparationMovementController {
         double magnitude = Math.hypot(forwardAxis, rightAxis);
         double normalizedForward = magnitude > 1.0d ? forwardAxis / magnitude : forwardAxis;
         double normalizedRight = magnitude > 1.0d ? rightAxis / magnitude : rightAxis;
-        double step =
-                MOVEMENT_SPEED_METRES_PER_SECOND * Math.min(elapsedSeconds, MAXIMUM_STEP_SECONDS);
+        double speed =
+                sprinting ? SPRINTING_SPEED_METRES_PER_SECOND : MOVEMENT_SPEED_METRES_PER_SECOND;
+        double step = speed * Math.min(elapsedSeconds, MAXIMUM_STEP_SECONDS);
         double yaw = player.yawDegrees();
         double deltaX =
                 step

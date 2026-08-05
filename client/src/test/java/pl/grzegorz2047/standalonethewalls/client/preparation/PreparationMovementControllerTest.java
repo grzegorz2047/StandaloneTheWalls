@@ -80,6 +80,27 @@ class PreparationMovementControllerTest {
     }
 
     @Test
+    void sprintsAtDeterministicSpeedAndStillNormalizesDiagonalInput()
+            throws PreparationSceneLoadException, PreparationSceneGraphException {
+        PreparationPlayerState player = player();
+        PreparationCollisionWorld collisions = collisions(player);
+
+        PreparationPlayerState walking =
+                PreparationMovementController.move(player, collisions, 1.0d, 0.0d, false, 0.1d);
+        PreparationPlayerState sprinting =
+                PreparationMovementController.move(player, collisions, 1.0d, 0.0d, true, 0.1d);
+        PreparationPlayerState diagonalSprint =
+                PreparationMovementController.move(player, collisions, 1.0d, 1.0d, true, 0.1d);
+
+        assertThat(distance(player.position(), walking.position()))
+                .isCloseTo(0.5d, within(0.000001d));
+        assertThat(distance(player.position(), sprinting.position()))
+                .isCloseTo(0.8d, within(0.000001d));
+        assertThat(distance(player.position(), diagonalSprint.position()))
+                .isCloseTo(0.8d, within(0.000001d));
+    }
+
+    @Test
     void rejectsInvalidAxesTimeAndMouseDelta()
             throws PreparationSceneLoadException, PreparationSceneGraphException {
         PreparationPlayerState player = player();

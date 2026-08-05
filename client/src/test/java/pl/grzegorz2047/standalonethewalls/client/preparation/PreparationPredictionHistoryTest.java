@@ -87,6 +87,28 @@ class PreparationPredictionHistoryTest {
     }
 
     @Test
+    void replayPreservesSprintModeForEachUnacknowledgedStep()
+            throws PreparationSceneLoadException, PreparationSceneGraphException {
+        PreparationPlayerState spawn = player();
+        PreparationCollisionWorld collisions = collisions(spawn);
+        PreparationPredictionHistory history = new PreparationPredictionHistory();
+        PreparationPlayerState walking =
+                history.predict(spawn, collisions, 1L, 1.0d, 0.0d, false, 0.05d);
+        history.markSubmitted(1L);
+        history.predict(walking, collisions, 2L, 1.0d, 0.0d, true, 0.05d);
+        PreparationPlayerState authoritative =
+                spawn.withAuthoritativeState(-15.5d, 0.5d, -14.5d, 45.0d, 0.0d);
+
+        PreparationPlayerState reconciled = history.reconcile(authoritative, collisions, 1L);
+        PreparationPlayerState expected =
+                PreparationMovementController.move(
+                        authoritative, collisions, 1.0d, 0.0d, true, 0.05d);
+
+        assertThat(reconciled.position()).isEqualTo(expected.position());
+        assertThat(history.pendingStepCount()).isOne();
+    }
+
+    @Test
     void acceptsAcknowledgementForSubmittedZeroInputWithoutPredictionSteps()
             throws PreparationSceneLoadException, PreparationSceneGraphException {
         PreparationPlayerState authoritative = player();

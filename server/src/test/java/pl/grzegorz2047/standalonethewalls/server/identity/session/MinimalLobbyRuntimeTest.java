@@ -493,6 +493,7 @@ class MinimalLobbyRuntimeTest {
                             1L,
                             127,
                             0,
+                            false,
                             yawCentidegrees(alphaAssignment.yawDegrees()),
                             0));
 

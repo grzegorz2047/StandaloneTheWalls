@@ -25,7 +25,7 @@ class PreparationMovementSimulationTest {
 
         PreparationWorldSnapshot snapshot =
                 simulation.advanceTick(
-                        11L, Map.of(ALPHA, new PreparationInput(2L, 7L, 127, 0, 0, -250)));
+                        11L, Map.of(ALPHA, new PreparationInput(2L, 7L, 127, 0, false, 0, -250)));
 
         PreparationPlayerSnapshot alpha = player(snapshot, ALPHA);
         assertThat(alpha.lastProcessedInputSequence()).isEqualTo(7L);
@@ -41,11 +41,11 @@ class PreparationMovementSimulationTest {
         PreparationMovementSimulation simulation = simulation();
         PreparationWorldSnapshot first =
                 simulation.advanceTick(
-                        11L, Map.of(ALPHA, new PreparationInput(2L, 1L, 127, 127, 0, 0)));
+                        11L, Map.of(ALPHA, new PreparationInput(2L, 1L, 127, 127, false, 0, 0)));
         PreparationWorldSnapshot second = simulation.advanceTick(12L, Map.of());
         PreparationWorldSnapshot stopped =
                 simulation.advanceTick(
-                        13L, Map.of(ALPHA, new PreparationInput(2L, 2L, 0, 0, 0, 0)));
+                        13L, Map.of(ALPHA, new PreparationInput(2L, 2L, 0, 0, false, 0, 0)));
         PreparationWorldSnapshot afterStop = simulation.advanceTick(14L, Map.of());
 
         assertThat(player(first, ALPHA).xMillimetres()).isEqualTo(177);
@@ -60,9 +60,32 @@ class PreparationMovementSimulationTest {
     }
 
     @Test
+    void appliesAuthoritativeSprintSpeedAndNormalizesItsDiagonal() {
+        PreparationMovementSimulation walkingSimulation = simulation();
+        PreparationMovementSimulation sprintingSimulation = simulation();
+        PreparationMovementSimulation diagonalSimulation = simulation();
+
+        PreparationWorldSnapshot walking =
+                walkingSimulation.advanceTick(
+                        11L, Map.of(ALPHA, new PreparationInput(2L, 1L, 127, 0, false, 0, 0)));
+        PreparationWorldSnapshot sprinting =
+                sprintingSimulation.advanceTick(
+                        11L, Map.of(ALPHA, new PreparationInput(2L, 1L, 127, 0, true, 0, 0)));
+        PreparationWorldSnapshot diagonal =
+                diagonalSimulation.advanceTick(
+                        11L, Map.of(ALPHA, new PreparationInput(2L, 1L, 127, 127, true, 0, 0)));
+
+        assertThat(player(walking, ALPHA).xMillimetres()).isEqualTo(250);
+        assertThat(player(sprinting, ALPHA).xMillimetres()).isEqualTo(400);
+        assertThat(player(diagonal, ALPHA).xMillimetres()).isEqualTo(283);
+        assertThat(player(diagonal, ALPHA).zMillimetres()).isEqualTo(283);
+    }
+
+    @Test
     void clampsMovementToTheVerifiedTeamRegionAndRemovesDisconnectedPlayers() {
         PreparationMovementSimulation simulation = simulation();
-        simulation.advanceTick(11L, Map.of(ALPHA, new PreparationInput(2L, 1L, 127, 0, 0, 0)));
+        simulation.advanceTick(
+                11L, Map.of(ALPHA, new PreparationInput(2L, 1L, 127, 0, false, 0, 0)));
         for (long tick = 12L; tick <= 20L; tick++) {
             simulation.advanceTick(tick, Map.of());
         }
@@ -87,14 +110,18 @@ class PreparationMovementSimulationTest {
                         () ->
                                 simulation.advanceTick(
                                         11L,
-                                        Map.of(ALPHA, new PreparationInput(3L, 1L, 0, 0, 0, 0))))
+                                        Map.of(
+                                                ALPHA,
+                                                new PreparationInput(3L, 1L, 0, 0, false, 0, 0))))
                 .isInstanceOf(IllegalArgumentException.class);
         PlayerId unknown = new PlayerId("sf1_" + "c".repeat(52));
         assertThatThrownBy(
                         () ->
                                 simulation.advanceTick(
                                         11L,
-                                        Map.of(unknown, new PreparationInput(2L, 1L, 0, 0, 0, 0))))
+                                        Map.of(
+                                                unknown,
+                                                new PreparationInput(2L, 1L, 0, 0, false, 0, 0))))
                 .isInstanceOf(IllegalArgumentException.class);
         simulation.advanceTick(11L, Map.of());
         assertThatThrownBy(() -> simulation.advanceTick(11L, Map.of()))

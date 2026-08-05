@@ -20,8 +20,11 @@ import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationWorldS
 public final class PreparationMovementSimulation {
     public static final int TICKS_PER_SECOND = 20;
     public static final int MOVEMENT_SPEED_MILLIMETRES_PER_SECOND = 5_000;
-    private static final double STEP_MILLIMETRES =
+    public static final int SPRINTING_SPEED_MILLIMETRES_PER_SECOND = 8_000;
+    private static final double WALKING_STEP_MILLIMETRES =
             (double) MOVEMENT_SPEED_MILLIMETRES_PER_SECOND / TICKS_PER_SECOND;
+    private static final double SPRINTING_STEP_MILLIMETRES =
+            (double) SPRINTING_SPEED_MILLIMETRES_PER_SECOND / TICKS_PER_SECOND;
 
     private final long roundNumber;
     private final TreeMap<PlayerId, PlayerState> players =
@@ -228,8 +231,9 @@ public final class PreparationMovementSimulation {
             double forwardZ = Math.sin(radians);
             double rightX = -Math.sin(radians);
             double rightZ = Math.cos(radians);
-            double deltaX = STEP_MILLIMETRES * ((forward * forwardX) + (right * rightX));
-            double deltaZ = STEP_MILLIMETRES * ((forward * forwardZ) + (right * rightZ));
+            double step = input.sprinting() ? SPRINTING_STEP_MILLIMETRES : WALKING_STEP_MILLIMETRES;
+            double deltaX = step * ((forward * forwardX) + (right * rightX));
+            double deltaZ = step * ((forward * forwardZ) + (right * rightZ));
             xMillimetres = region.clampX(xMillimetres + deltaX);
             zMillimetres = region.clampZ(zMillimetres + deltaZ);
         }
