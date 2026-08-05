@@ -49,6 +49,18 @@ jobs:
       - name: Format Java and run focused gates
         run: ./gradlew --no-daemon spotlessJavaApply :server:test :client:spotbugsMain
 
+      - name: Upload focused diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue-174-focused-diagnostics
+          path: |
+            client/build/reports/spotbugs/**
+            server/build/reports/tests/**
+            server/build/test-results/**
+          if-no-files-found: ignore
+          retention-days: 2
+
       - name: Commit tested changes and remove one-time automation
         shell: bash
         run: |
