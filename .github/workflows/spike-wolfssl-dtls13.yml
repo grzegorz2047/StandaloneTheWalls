@@ -12,6 +12,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: spike-wolfssl-dtls13-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   WOLFSSL_COMMIT: 1d363f3adceba9d1478230ede476a37b0dcdef24
   WOLFSSLJNI_COMMIT: 2eebdb8db88c1d8f5531e92060a3a2741dd694de
