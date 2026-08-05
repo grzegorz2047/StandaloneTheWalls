@@ -11,9 +11,25 @@ completed.
 
 ## Status
 
-Foundation work is in progress. The repository does **not** yet contain a
-playable game, production network stack, finished map, or proven 40-player
-capacity.
+An installable technical alpha is available. It supports secure Direct Connect,
+a visual four-team lobby, authoritative ready state and countdown, verified
+entry into a deterministically generated minimal `.twmap` world, server-assigned
+team spawns, and bounded local first-person controls.
+
+This is not yet a complete match. Mining, building, crafting, classes,
+inventory, wall opening, combat, results, authoritative realtime movement, and
+proven 40-player capacity remain in development.
+
+## Visual playtest
+
+The published
+[`v0.1.0-alpha.5`](https://github.com/grzegorz2047/StandaloneTheWalls/releases/tag/v0.1.0-alpha.5)
+release can be run without building from source. It leads from client and server
+startup through TLS Direct Connect and the authoritative lobby into the first
+3D `PREPARATION` world.
+
+- [English visual playtest guide](PLAYTEST.md)
+- [Polski przewodnik wizualnego playtestu](PLAYTEST-PL.md)
 
 ## Product principles
 
