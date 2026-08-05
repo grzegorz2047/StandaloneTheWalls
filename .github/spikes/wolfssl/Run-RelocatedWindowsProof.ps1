@@ -139,3 +139,5 @@ Get-Content $relocationReport
 if ((Get-Content $relocationReport -Raw) -notmatch 'bundle_contains_spaces=True') {
   throw "Relocation report did not prove a path containing spaces"
 }
+
+exit 0
