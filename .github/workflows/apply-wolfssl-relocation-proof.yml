@@ -1,0 +1,61 @@
+name: Apply wolfSSL relocation proof
+
+on:
+  push:
+    branches:
+      - agent/issue-167-wolfjsse-dtls13-spike
+    paths:
+      - .github/workflows/apply-wolfssl-relocation-proof.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out implementation branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/issue-167-wolfjsse-dtls13-spike
+          fetch-depth: 0
+
+      - name: Patch Windows proof workflow
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('.github/workflows/spike-wolfssl-dtls13-windows.yml')
+          text = path.read_text(encoding='utf-8')
+          start_marker = '      - name: Run Windows one-time external-PSK DTLS 1.3 loopback\n'
+          end_marker = '      - name: Upload Windows API and loopback proof\n'
+          start = text.index(start_marker)
+          end = text.index(end_marker, start)
+          replacement = '''      - name: Run relocated Windows one-time external-PSK DTLS 1.3 loopback
+        shell: pwsh
+        run: .\\.github\\spikes\\wolfssl\\Run-RelocatedWindowsProof.ps1
+
+'''
+          text = text[:start] + replacement + text[end:]
+          old_upload = '''            wolfssl-dtls13-windows-api-report.txt
+            wolfssl-dtls13-windows-loopback-report.txt
+'''
+          new_upload = '''            wolfssl-dtls13-windows-api-report.txt
+            wolfssl-dtls13-windows-loopback-report.txt
+            wolfssl-dtls13-windows-relocation-report.txt
+'''
+          if old_upload not in text:
+              raise SystemExit('Expected upload block was not found')
+          text = text.replace(old_upload, new_upload, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Commit final research workflow
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/apply-wolfssl-relocation-proof.yml
+          git add .github/workflows/spike-wolfssl-dtls13-windows.yml
+          git commit -m "Verify relocated Windows wolfSSL bundle"
+          git push origin HEAD:agent/issue-167-wolfjsse-dtls13-spike
