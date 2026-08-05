@@ -6,6 +6,9 @@ on:
       - agent/issue-167-wolfjsse-dtls13-spike
     paths:
       - .github/workflows/apply-wolfssl-relocation-proof.yml
+  pull_request:
+    paths:
+      - .github/workflows/apply-wolfssl-relocation-proof.yml
 
 permissions:
   contents: write
