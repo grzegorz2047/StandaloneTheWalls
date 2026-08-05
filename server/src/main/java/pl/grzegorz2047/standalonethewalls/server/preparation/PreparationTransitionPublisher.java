@@ -38,12 +38,22 @@ public final class PreparationTransitionPublisher {
             LobbyMatchSnapshot matchSnapshot,
             Map<LobbyParticipantId, ReliableChannel> channels,
             Duration timeout) {
+        List<PreparationClientSpawn> plan =
+                PreparationTransitionPlanner.plan(map, roster, matchSnapshot);
+        publish(plan, matchSnapshot, channels, timeout);
+        return plan;
+    }
+
+    public static void publish(
+            List<PreparationClientSpawn> plan,
+            LobbyMatchSnapshot matchSnapshot,
+            Map<LobbyParticipantId, ReliableChannel> channels,
+            Duration timeout) {
+        List<PreparationClientSpawn> planned = List.copyOf(Objects.requireNonNull(plan, "plan"));
         Map<LobbyParticipantId, ReliableChannel> availableChannels =
                 Map.copyOf(Objects.requireNonNull(channels, "channels"));
         Duration boundedTimeout = requireTimeout(timeout);
-        List<PreparationClientSpawn> plan =
-                PreparationTransitionPlanner.plan(map, roster, matchSnapshot);
-        validateCoverageAndPayloads(plan, availableChannels);
+        validateCoverageAndPayloads(planned, availableChannels);
 
         long deadline = System.nanoTime() + boundedTimeout.toNanos();
         byte[] snapshotPayload =
@@ -51,14 +61,14 @@ public final class PreparationTransitionPublisher {
         publishSnapshot(availableChannels, snapshotPayload, deadline);
 
         try {
-            PreparationSpawnPublisher.publish(plan, availableChannels, remainingDuration(deadline));
+            PreparationSpawnPublisher.publish(
+                    planned, availableChannels, remainingDuration(deadline));
         } catch (PreparationSpawnPublishException exception) {
             throw new PreparationTransitionPublishException(
                     PreparationTransitionPublishException.Code.ASSIGNMENT_PUBLISH_FAILED,
                     "preparation spawn assignment publication failed",
                     exception);
         }
-        return plan;
     }
 
     private static LobbyMatchPhaseSnapshot preparationSnapshot(LobbyMatchSnapshot source) {

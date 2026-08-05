@@ -73,6 +73,7 @@ import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationClientSp
 import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationInputMailbox;
 import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationMapDefinition;
 import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationMovementSimulation;
+import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationTransitionPlanner;
 import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationTransitionPublisher;
 import pl.grzegorz2047.standalonethewalls.server.preparation.VerifiedPreparationMapAdapter;
 import pl.grzegorz2047.standalonethewalls.server.preparation.VerifiedPreparationMapException;
@@ -770,12 +771,7 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
 
     private void publishPreparationTransition(LobbyState state, LobbyMatchSnapshot matchSnapshot) {
         List<PreparationClientSpawn> plan =
-                PreparationTransitionPublisher.publish(
-                        preparationMap,
-                        state.roster,
-                        matchSnapshot,
-                        preparationChannels(state),
-                        sendTimeout);
+                PreparationTransitionPlanner.plan(preparationMap, state.roster, matchSnapshot);
         Map<
                         pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId,
                         PreparationSpawnAssignment>
@@ -795,6 +791,16 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
                         matchSnapshot.authoritativeTick(),
                         preparationMap,
                         assignments);
+        try {
+            PreparationTransitionPublisher.publish(
+                    plan, matchSnapshot, preparationChannels(state), sendTimeout);
+        } catch (RuntimeException exception) {
+            state.preparationMovement = null;
+            for (MemberState member : state.members.values()) {
+                member.preparationInputMailbox.close();
+            }
+            throw exception;
+        }
         publishPreparationSnapshot(
                 state, state.preparationMovement.currentSnapshot().orElseThrow());
     }
