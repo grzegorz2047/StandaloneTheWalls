@@ -1,6 +1,7 @@
 name: Export issue 163 source
 
 on:
+  pull_request:
   push:
     branches:
       - agent/issue-163-realtime-ticket-provisioning
