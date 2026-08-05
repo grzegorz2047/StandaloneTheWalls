@@ -1,1 +1,0 @@
-Trigger final validation for the formatted preparation movement protocol.
