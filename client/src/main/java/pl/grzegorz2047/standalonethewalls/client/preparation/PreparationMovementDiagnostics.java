@@ -32,6 +32,18 @@ public final class PreparationMovementDiagnostics {
                 Math.min(MAXIMUM_REPORTED_AGE_SECONDS, snapshotAgeSeconds + elapsedSeconds);
     }
 
+    public void observeLocalState(long submittedSequence, int predictionSteps) {
+        if (submittedSequence < highestSubmittedSequence) {
+            throw new IllegalArgumentException("submittedSequence regressed");
+        }
+        if (submittedSequence < lastAcknowledgedSequence) {
+            throw new IllegalArgumentException("submittedSequence is behind the acknowledgement");
+        }
+        validatePredictionSteps(predictionSteps);
+        highestSubmittedSequence = submittedSequence;
+        pendingPredictionSteps = predictionSteps;
+    }
+
     public void acceptSnapshot(
             long authoritativeTick,
             long acknowledgedSequence,
@@ -52,10 +64,7 @@ public final class PreparationMovementDiagnostics {
         if (acknowledgedSequence < 0L || acknowledgedSequence > submittedSequence) {
             throw new IllegalArgumentException("acknowledgement exceeds submitted input");
         }
-        if (predictionSteps < 0
-                || predictionSteps > PreparationPredictionHistory.DEFAULT_MAXIMUM_STEPS) {
-            throw new IllegalArgumentException("predictionSteps is outside the bounded history");
-        }
+        validatePredictionSteps(predictionSteps);
 
         snapshotReceived = true;
         lastAuthoritativeTick = authoritativeTick;
@@ -67,7 +76,7 @@ public final class PreparationMovementDiagnostics {
 
     public Snapshot current() {
         if (!snapshotReceived) {
-            return new Snapshot(false, -1L, 0L, 0, Quality.WAITING);
+            return new Snapshot(false, -1L, 0L, pendingPredictionSteps, Quality.WAITING);
         }
         long ageMillis = Math.round(snapshotAgeSeconds * 1_000.0d);
         long acknowledgementLag = highestSubmittedSequence - lastAcknowledgedSequence;
@@ -91,6 +100,13 @@ public final class PreparationMovementDiagnostics {
         return Quality.GOOD;
     }
 
+    private static void validatePredictionSteps(int predictionSteps) {
+        if (predictionSteps < 0
+                || predictionSteps > PreparationPredictionHistory.DEFAULT_MAXIMUM_STEPS) {
+            throw new IllegalArgumentException("predictionSteps is outside the bounded history");
+        }
+    }
+
     public enum Quality {
         WAITING,
         GOOD,
@@ -112,12 +128,7 @@ public final class PreparationMovementDiagnostics {
             if (acknowledgementLagInputs < 0L) {
                 throw new IllegalArgumentException("acknowledgementLagInputs cannot be negative");
             }
-            if (pendingPredictionSteps < 0
-                    || pendingPredictionSteps
-                            > PreparationPredictionHistory.DEFAULT_MAXIMUM_STEPS) {
-                throw new IllegalArgumentException(
-                        "pendingPredictionSteps is outside the bounded history");
-            }
+            validatePredictionSteps(pendingPredictionSteps);
             if (!snapshotAvailable && quality != Quality.WAITING) {
                 throw new IllegalArgumentException("missing snapshot must have WAITING quality");
             }
