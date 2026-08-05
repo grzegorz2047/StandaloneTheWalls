@@ -7,10 +7,10 @@ permissions:
   contents: write
 
 jobs:
-  add-issue-174-runtime-test:
+  test-and-harden-issue-174:
     if: github.head_ref == 'agent/issue-174-preparation-sync'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Check out integration branch
         uses: actions/checkout@v4
@@ -26,22 +26,25 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Add authoritative runtime integration test
-        run: python .github/scripts/add-issue-174-runtime-test.py
+      - name: Add runtime test and client SpotBugs fixes
+        run: |
+          python .github/scripts/add-issue-174-runtime-test.py
+          python .github/scripts/fix-issue-174-client-spotbugs.py
 
-      - name: Format and run server tests
-        run: ./gradlew --no-daemon spotlessApply :server:test
+      - name: Format Java and run focused gates
+        run: ./gradlew --no-daemon spotlessJavaApply :server:test :client:spotbugsMain
 
-      - name: Commit test and remove one-time automation
+      - name: Commit tested changes and remove one-time automation
         shell: bash
         run: |
           set -euo pipefail
           git fetch origin main
           git checkout origin/main -- .github/workflows/ci.yml
           rm .github/scripts/add-issue-174-runtime-test.py
+          rm .github/scripts/fix-issue-174-client-spotbugs.py
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add -A
           git diff --cached --check
-          git commit -m "Test authoritative preparation movement end to end"
+          git commit -m "Test and harden authoritative preparation movement"
           git push origin HEAD:agent/issue-174-preparation-sync
