@@ -65,14 +65,20 @@ public final class PskDtls13Loopback {
             String wireIdentity = HexFormat.of().formatHex(identityBytes);
             Arrays.fill(identityBytes, (byte) 0);
 
-            boolean firstHandshake = runHandshake(store, wireIdentity, capturedClientKey, true);
-            if (!firstHandshake) {
-                throw new IllegalStateException("first DTLS 1.3 PSK handshake failed");
+            HandshakeAttempt first = runHandshake(store, wireIdentity, capturedClientKey, true);
+            if (!first.successful()
+                    || first.redemptionStatus()
+                            != RealtimeTicketRedemption.Status.REDEEMED) {
+                throw new IllegalStateException(
+                        "first DTLS 1.3 PSK handshake did not redeem exactly one ticket");
             }
 
-            boolean replayHandshake = runHandshake(store, wireIdentity, capturedClientKey, false);
-            if (replayHandshake) {
-                throw new IllegalStateException("replayed ticket unexpectedly completed a handshake");
+            HandshakeAttempt replay = runHandshake(store, wireIdentity, capturedClientKey, false);
+            if (replay.successful()
+                    || replay.redemptionStatus()
+                            != RealtimeTicketRedemption.Status.UNKNOWN_OR_REPLAYED) {
+                throw new IllegalStateException(
+                        "replayed ticket was not rejected by one-time store semantics");
             }
             if (store.activeTicketCount() != 0) {
                 throw new IllegalStateException("ticket store retained state after redeem and replay");
@@ -87,7 +93,7 @@ public final class PskDtls13Loopback {
         }
     }
 
-    private static boolean runHandshake(
+    private static HandshakeAttempt runHandshake(
             OneTimeRealtimeTicketStore store,
             String wireIdentity,
             byte[] clientKey,
@@ -144,7 +150,7 @@ public final class PskDtls13Loopback {
             boolean successful =
                     awaitSuccess(serverResult, clientResult, serverSocket, clientSocket);
             if (!successful) {
-                return false;
+                return new HandshakeAttempt(false, serverCallback.redemptionStatus());
             }
 
             if (exchangeApplicationData) {
@@ -161,7 +167,7 @@ public final class PskDtls13Loopback {
                 }
                 Arrays.fill(received, (byte) 0);
             }
-            return true;
+            return new HandshakeAttempt(true, serverCallback.redemptionStatus());
         } finally {
             executor.shutdownNow();
             executor.awaitTermination(2, TimeUnit.SECONDS);
@@ -224,6 +230,9 @@ public final class PskDtls13Loopback {
             }
         }
     }
+
+    private record HandshakeAttempt(
+            boolean successful, RealtimeTicketRedemption.Status redemptionStatus) {}
 
     private static final class DatagramCallbacks
             implements WolfSSLIORecvCallback, WolfSSLIOSendCallback {
@@ -304,6 +313,8 @@ public final class PskDtls13Loopback {
         private final OneTimeRealtimeTicketStore store;
         private final String expectedIdentity;
         private final AtomicReference<RedeemedRealtimeTicket> redeemed = new AtomicReference<>();
+        private final AtomicReference<RealtimeTicketRedemption.Status> redemptionStatus =
+                new AtomicReference<>();
 
         private RedeemingServerCallback(
                 OneTimeRealtimeTicketStore store, String expectedIdentity) {
@@ -357,6 +368,7 @@ public final class PskDtls13Loopback {
                 }
                 RealtimeTicketRedemption result =
                         store.redeem(new RealtimeTicketIdentity(identityBytes));
+                redemptionStatus.compareAndSet(null, result.status());
                 if (result.status() != RealtimeTicketRedemption.Status.REDEEMED) {
                     return null;
                 }
@@ -368,6 +380,10 @@ public final class PskDtls13Loopback {
                     Arrays.fill(identityBytes, (byte) 0);
                 }
             }
+        }
+
+        private RealtimeTicketRedemption.Status redemptionStatus() {
+            return redemptionStatus.get();
         }
 
         @Override
