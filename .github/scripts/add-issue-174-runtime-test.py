@@ -194,7 +194,13 @@ replace_once(
     }
 
     private static int yawCentidegrees(double yawDegrees) {
-        long rounded = Math.round(yawDegrees * 100.0d);
+        double normalized = yawDegrees % 360.0d;
+        if (normalized >= 180.0d) {
+            normalized -= 360.0d;
+        } else if (normalized < -180.0d) {
+            normalized += 360.0d;
+        }
+        long rounded = Math.round(normalized * 100.0d);
         return Math.toIntExact(rounded == 18_000L ? -18_000L : rounded);
     }
 
