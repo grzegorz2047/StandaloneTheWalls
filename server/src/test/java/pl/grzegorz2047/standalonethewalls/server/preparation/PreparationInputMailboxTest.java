@@ -13,10 +13,8 @@ class PreparationInputMailboxTest {
         PreparationInput first = new PreparationInput(3L, 1L, 127, 0, 0, 0);
         PreparationInput newest = new PreparationInput(3L, 2L, 0, -127, 9_000, -500);
 
-        assertThat(mailbox.offer(first))
-                .isEqualTo(PreparationInputMailbox.OfferResult.ACCEPTED);
-        assertThat(mailbox.offer(newest))
-                .isEqualTo(PreparationInputMailbox.OfferResult.ACCEPTED);
+        assertThat(mailbox.offer(first)).isEqualTo(PreparationInputMailbox.OfferResult.ACCEPTED);
+        assertThat(mailbox.offer(newest)).isEqualTo(PreparationInputMailbox.OfferResult.ACCEPTED);
         assertThat(mailbox.lastAcceptedSequence()).isEqualTo(2L);
         assertThat(mailbox.drainLatest()).contains(newest);
         assertThat(mailbox.drainLatest()).isEmpty();
@@ -27,8 +25,7 @@ class PreparationInputMailboxTest {
         PreparationInputMailbox mailbox = new PreparationInputMailbox();
         PreparationInput input = new PreparationInput(1L, 1L, 0, 0, 0, 0);
 
-        assertThat(mailbox.offer(input))
-                .isEqualTo(PreparationInputMailbox.OfferResult.NOT_OPEN);
+        assertThat(mailbox.offer(input)).isEqualTo(PreparationInputMailbox.OfferResult.NOT_OPEN);
         mailbox.open(2L);
         assertThat(mailbox.offer(input))
                 .isEqualTo(PreparationInputMailbox.OfferResult.ROUND_MISMATCH);

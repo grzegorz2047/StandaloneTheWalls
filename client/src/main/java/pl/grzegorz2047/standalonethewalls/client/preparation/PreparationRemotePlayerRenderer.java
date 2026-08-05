@@ -48,8 +48,7 @@ public final class PreparationRemotePlayerRenderer implements AutoCloseable {
                 continue;
             }
             retained.add(player.playerId());
-            Geometry geometry =
-                    geometries.computeIfAbsent(player.playerId(), this::createGeometry);
+            Geometry geometry = geometries.computeIfAbsent(player.playerId(), this::createGeometry);
             geometry.setLocalTranslation(
                     new Vector3f(
                             (float) player.xMetres(),
@@ -58,17 +57,18 @@ public final class PreparationRemotePlayerRenderer implements AutoCloseable {
             geometry.setLocalRotation(
                     new Quaternion()
                             .fromAngleAxis(
-                                    (float) Math.toRadians(-player.yawDegrees()),
-                                    Vector3f.UNIT_Y));
+                                    (float) Math.toRadians(-player.yawDegrees()), Vector3f.UNIT_Y));
         }
-        geometries.entrySet().removeIf(
-                entry -> {
-                    if (retained.contains(entry.getKey())) {
-                        return false;
-                    }
-                    entry.getValue().removeFromParent();
-                    return true;
-                });
+        geometries
+                .entrySet()
+                .removeIf(
+                        entry -> {
+                            if (retained.contains(entry.getKey())) {
+                                return false;
+                            }
+                            entry.getValue().removeFromParent();
+                            return true;
+                        });
     }
 
     public int renderedPlayerCount() {

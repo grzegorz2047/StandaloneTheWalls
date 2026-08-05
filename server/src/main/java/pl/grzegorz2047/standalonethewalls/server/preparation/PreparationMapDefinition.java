@@ -54,7 +54,8 @@ public record PreparationMapDefinition(
             TeamId team = Objects.requireNonNull(entry.getKey(), "region team");
             PreparationRegionBounds region = Objects.requireNonNull(entry.getValue(), "region");
             if (region.team() != team) {
-                throw new IllegalArgumentException("preparation region key does not match its team");
+                throw new IllegalArgumentException(
+                        "preparation region key does not match its team");
             }
         }
         for (PreparationSpawnPoint spawnPoint : copiedSpawns) {

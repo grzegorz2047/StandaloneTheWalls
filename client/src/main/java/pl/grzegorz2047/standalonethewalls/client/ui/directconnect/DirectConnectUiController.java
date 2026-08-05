@@ -25,12 +25,16 @@ import pl.grzegorz2047.standalonethewalls.client.network.LobbyCommandSubmission;
 import pl.grzegorz2047.standalonethewalls.client.preparation.VerifiedPreparationScene;
 import pl.grzegorz2047.standalonethewalls.client.ui.lobby.ConnectedLobbyModel;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.CanonicalHandle;
+import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerSessionAdmissionStatus;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandOutcome;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhase;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhaseSnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationInput;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnAssignment;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationWorldSnapshot;
 
 /** Renderer-owned state machine around the asynchronous Direct Connect service. */
 public final class DirectConnectUiController implements AutoCloseable {
@@ -255,6 +259,30 @@ public final class DirectConnectUiController implements AutoCloseable {
             return Optional.empty();
         }
         return session.currentVerifiedPreparationScene();
+    }
+
+    public Optional<PreparationSpawnAssignment> currentPreparationSpawnAssignment() {
+        requireOpen();
+        ConnectedLobbySession session = connectedSession;
+        return session == null ? Optional.empty() : session.currentPreparationSpawnAssignment();
+    }
+
+    public Optional<PreparationWorldSnapshot> currentPreparationWorldSnapshot() {
+        requireOpen();
+        ConnectedLobbySession session = connectedSession;
+        return session == null ? Optional.empty() : session.currentPreparationWorldSnapshot();
+    }
+
+    public Optional<PlayerId> currentPlayerId() {
+        requireOpen();
+        ConnectedLobbySession session = connectedSession;
+        return session == null ? Optional.empty() : Optional.of(session.playerId());
+    }
+
+    public boolean submitPreparationInput(PreparationInput input) {
+        requireOpen();
+        ConnectedLobbySession session = connectedSession;
+        return session != null && session.submitPreparationInput(input);
     }
 
     @Override

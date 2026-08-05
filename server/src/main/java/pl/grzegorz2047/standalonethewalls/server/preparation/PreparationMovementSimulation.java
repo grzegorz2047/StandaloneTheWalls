@@ -83,6 +83,10 @@ public final class PreparationMovementSimulation {
         return players.size();
     }
 
+    public long lastAdvancedTick() {
+        return lastAdvancedTick;
+    }
+
     public boolean remove(PlayerId playerId) {
         return players.remove(Objects.requireNonNull(playerId, "playerId")) != null;
     }
@@ -97,7 +101,8 @@ public final class PreparationMovementSimulation {
         for (Map.Entry<PlayerId, PreparationInput> entry : inputs.entrySet()) {
             PlayerState player = players.get(Objects.requireNonNull(entry.getKey(), "playerId"));
             if (player == null) {
-                throw new IllegalArgumentException("input references an unknown preparation player");
+                throw new IllegalArgumentException(
+                        "input references an unknown preparation player");
             }
             PreparationInput input = Objects.requireNonNull(entry.getValue(), "input");
             if (input.roundNumber() != roundNumber) {
@@ -208,8 +213,7 @@ public final class PreparationMovementSimulation {
 
         private void advance() {
             PreparationInput input = activeInput;
-            if (input == null
-                    || (input.forwardAxis() == 0 && input.rightAxis() == 0)) {
+            if (input == null || (input.forwardAxis() == 0 && input.rightAxis() == 0)) {
                 return;
             }
             double forward = input.forwardAxisValue();

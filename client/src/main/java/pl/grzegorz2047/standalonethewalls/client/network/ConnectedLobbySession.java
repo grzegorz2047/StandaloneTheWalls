@@ -28,9 +28,12 @@ import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySelectTeamCommand;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySetReadyCommand;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationInput;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationMovementProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationProtocolException;
 import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnAssignment;
 import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnProtocolCodec;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationWorldSnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketProtocolException;
 import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketRequest;
@@ -45,8 +48,11 @@ public final class ConnectedLobbySession implements AutoCloseable {
     private final AtomicReference<LobbySnapshot> snapshot;
     private final AtomicReference<LobbyMatchPhaseSnapshot> matchSnapshot;
     private final AtomicReference<PreparationState> preparationState = new AtomicReference<>();
+    private final AtomicReference<PreparationWorldSnapshot> preparationWorldSnapshot =
+            new AtomicReference<>();
     private final AtomicReference<DirectConnectFailure> terminalFailure = new AtomicReference<>();
     private final AtomicBoolean receiverStarted = new AtomicBoolean();
+    private final AtomicBoolean preparationInputSendInFlight = new AtomicBoolean();
     private final AtomicBoolean closing = new AtomicBoolean();
     private final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
     private final CompletableFuture<Optional<DirectConnectFailure>> termination =
@@ -100,6 +106,10 @@ public final class ConnectedLobbySession implements AutoCloseable {
     public Optional<VerifiedPreparationScene> currentVerifiedPreparationScene() {
         PreparationState current = preparationState.get();
         return current == null ? Optional.empty() : Optional.of(current.scene());
+    }
+
+    public Optional<PreparationWorldSnapshot> currentPreparationWorldSnapshot() {
+        return Optional.ofNullable(preparationWorldSnapshot.get());
     }
 
     public boolean isOpen() {
@@ -193,6 +203,35 @@ public final class ConnectedLobbySession implements AutoCloseable {
             failOwnedRealtimeTicketRequest(submitted);
         }
         return RealtimeTicketSubmission.submitted(submitted.handle);
+    }
+
+    public boolean submitPreparationInput(PreparationInput input) {
+        PreparationInput value = Objects.requireNonNull(input, "input");
+        PreparationState current = preparationState.get();
+        if (!isOpen()
+                || current == null
+                || current.assignment().roundNumber() != value.roundNumber()
+                || !preparationInputSendInFlight.compareAndSet(false, true)) {
+            return false;
+        }
+        byte[] payload = PreparationMovementProtocolCodec.encodeInput(value);
+        try {
+            Objects.requireNonNull(
+                            session.reliableChannel().send(MessageType.PREPARATION_INPUT, payload),
+                            "preparation input send stage")
+                    .whenComplete(
+                            (ignored, sendFailure) -> {
+                                preparationInputSendInFlight.set(false);
+                                if (sendFailure != null) {
+                                    failPreparationInputSend();
+                                }
+                            });
+            return true;
+        } catch (RuntimeException exception) {
+            preparationInputSendInFlight.set(false);
+            failPreparationInputSend();
+            return false;
+        }
     }
 
     public CompletionStage<Void> closeAsync() {
@@ -327,6 +366,7 @@ public final class ConnectedLobbySession implements AutoCloseable {
             case LOBBY_MATCH_SNAPSHOT -> processMatchSnapshot(envelope.payload());
             case PREPARATION_SPAWN_ASSIGNMENT ->
                     processPreparationSpawnAssignment(envelope.payload());
+            case PREPARATION_SNAPSHOT -> processPreparationSnapshot(envelope.payload());
             case LOBBY_COMMAND_RESULT -> processCommandResult(envelope.payload());
             case REALTIME_TICKET_RESULT -> processRealtimeTicketResult(envelope.payload());
             default ->
@@ -465,6 +505,37 @@ public final class ConnectedLobbySession implements AutoCloseable {
         return Optional.empty();
     }
 
+    private Optional<DirectConnectFailure> processPreparationSnapshot(byte[] payload) {
+        PreparationWorldSnapshot next;
+        try {
+            next = PreparationMovementProtocolCodec.decodeSnapshot(payload);
+        } catch (PreparationProtocolException exception) {
+            return Optional.of(
+                    DirectConnectFailure.of(
+                            DirectConnectFailureCode.PREPARATION_SNAPSHOT_MALFORMED));
+        }
+        PreparationState current = preparationState.get();
+        if (current == null || current.assignment().roundNumber() != next.roundNumber()) {
+            return Optional.of(
+                    DirectConnectFailure.of(
+                            DirectConnectFailureCode.PREPARATION_SNAPSHOT_UNEXPECTED));
+        }
+        PreparationWorldSnapshot previous = preparationWorldSnapshot.get();
+        if (previous != null && next.authoritativeTick() <= previous.authoritativeTick()) {
+            return Optional.of(
+                    DirectConnectFailure.of(DirectConnectFailureCode.PREPARATION_SNAPSHOT_STALE));
+        }
+        boolean containsSelf =
+                next.players().stream().anyMatch(player -> player.playerId().equals(playerId));
+        if (!containsSelf) {
+            return Optional.of(
+                    DirectConnectFailure.of(
+                            DirectConnectFailureCode.PREPARATION_SNAPSHOT_SELF_MISSING));
+        }
+        preparationWorldSnapshot.set(next);
+        return Optional.empty();
+    }
+
     private Optional<DirectConnectFailure> processCommandResult(byte[] payload) {
         LobbyCommandResult result;
         try {
@@ -534,6 +605,13 @@ public final class ConnectedLobbySession implements AutoCloseable {
         }
         completed.completion.complete(result);
         return Optional.empty();
+    }
+
+    private void failPreparationInputSend() {
+        finish(
+                Optional.of(
+                        DirectConnectFailure.of(
+                                DirectConnectFailureCode.PREPARATION_INPUT_SEND_FAILED)));
     }
 
     private void failOwnedRealtimeTicketRequest(PendingRealtimeTicket expected) {

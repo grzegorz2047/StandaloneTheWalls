@@ -32,7 +32,7 @@ public final class PreparationTransitionPublisher {
         throw new AssertionError("No instances");
     }
 
-    public static void publish(
+    public static List<PreparationClientSpawn> publish(
             PreparationMapDefinition map,
             LobbyRosterState roster,
             LobbyMatchSnapshot matchSnapshot,
@@ -58,6 +58,7 @@ public final class PreparationTransitionPublisher {
                     "preparation spawn assignment publication failed",
                     exception);
         }
+        return plan;
     }
 
     private static LobbyMatchPhaseSnapshot preparationSnapshot(LobbyMatchSnapshot source) {
