@@ -48,7 +48,7 @@ class PreparationPredictionHistoryTest {
         PreparationPlayerState predicted =
                 history.predict(spawn, collisions, 1L, 1.0d, 0.0d, 0.05d);
         history.markSubmitted(1L);
-        predicted = history.predict(predicted, collisions, 2L, 1.0d, 0.0d, 0.05d);
+        history.predict(predicted, collisions, 2L, 1.0d, 0.0d, 0.05d);
         history.markSubmitted(2L);
         PreparationPlayerState authoritative =
                 spawn.withAuthoritativeState(-16.0d, 0.5d, -15.0d, -30.0d, 12.0d);
