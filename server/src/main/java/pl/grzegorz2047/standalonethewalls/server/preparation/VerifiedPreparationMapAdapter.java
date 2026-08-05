@@ -46,8 +46,20 @@ public final class VerifiedPreparationMapAdapter {
                                                 spawn.position().y(),
                                                 spawn.position().z(),
                                                 spawn.yawDegrees())));
+        EnumMap<TeamId, PreparationRegionBounds> regions = new EnumMap<>(TeamId.class);
+        for (PreparationRegion region : gameplay.regions()) {
+            TeamId team = toTeamId(region.team());
+            if (regions.put(team, PreparationRegionBounds.from(team, region)) != null) {
+                throw failure(
+                        VerifiedPreparationMapException.Code.MANIFEST_GAMEPLAY_MISMATCH,
+                        "preparation gameplay contains duplicate team regions");
+            }
+        }
         return new PreparationMapDefinition(
-                manifest.id(), decodeDigest(verified.archiveSha256().value()), spawnPoints);
+                manifest.id(),
+                decodeDigest(verified.archiveSha256().value()),
+                spawnPoints,
+                regions);
     }
 
     private static void validateGlbMembers(VerifiedMapBundle bundle)
