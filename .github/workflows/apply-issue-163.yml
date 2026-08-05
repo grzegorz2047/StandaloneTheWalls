@@ -21,7 +21,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat .github/issue-163-payload/part-* | base64 --decode > "$RUNNER_TEMP/issue-163-changes.tar.xz"
+          cat .github/issue-163-payload/part-* > "$RUNNER_TEMP/issue-163-changes.b64"
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("${{ runner.temp }}/issue-163-changes.b64")
+          encoded = path.read_text()
+          offset = 22174
+          if len(encoded) != 63900 or encoded[offset] != "l":
+              raise SystemExit("unexpected issue-163 payload shape")
+          path.write_text(encoded[:offset] + "p" + encoded[offset + 1 :])
+          PY
+          base64 --decode "$RUNNER_TEMP/issue-163-changes.b64" > "$RUNNER_TEMP/issue-163-changes.tar.xz"
           echo "49a13d8bd3ed190f72e944b5b3af948942731629921f80cd93953f864b6f4600  $RUNNER_TEMP/issue-163-changes.tar.xz" | sha256sum --check
           tar -xJf "$RUNNER_TEMP/issue-163-changes.tar.xz" -C .
           rm -f .github/workflows/export-issue-163-source.yml
