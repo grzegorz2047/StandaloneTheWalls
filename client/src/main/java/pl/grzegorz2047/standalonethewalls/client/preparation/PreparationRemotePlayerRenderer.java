@@ -45,7 +45,8 @@ public final class PreparationRemotePlayerRenderer implements AutoCloseable {
         for (PreparationRemotePlayerPose player : presented) {
             PreparationRemotePlayerPose pose = Objects.requireNonNull(player, "player");
             if (!retained.add(pose.playerId())) {
-                throw new IllegalArgumentException("remote player poses contain a duplicate player");
+                throw new IllegalArgumentException(
+                        "remote player poses contain a duplicate player");
             }
             Geometry geometry = geometries.computeIfAbsent(pose.playerId(), this::createGeometry);
             geometry.setLocalTranslation(

@@ -2,26 +2,20 @@ name: CI
 
 on:
   pull_request:
+  push:
+    branches:
+      - main
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  integrate-issue-176:
-    if: github.head_ref == 'agent/issue-176-remote-interpolation'
+  prepare-ui-font:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 10
     steps:
-      - name: Check out interpolation branch
-        uses: actions/checkout@v4
-        with:
-          ref: agent/issue-176-remote-interpolation
-
-      - name: Set up Java 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
@@ -30,34 +24,223 @@ jobs:
           cache: pip
           cache-dependency-path: tools/fonts/requirements.txt
 
-      - name: Generate pinned UI font inputs
-        shell: bash
-        run: |
-          set -euo pipefail
-          python -m pip install --disable-pip-version-check --requirement tools/fonts/requirements.txt
-          python tools/fonts/prepare_sunderfront_ui_font.py
-          cp build/generated-ui-font/SunderfrontUI-Regular.png.b64* client/src/main/resources/Interface/Fonts/
+      - name: Install pinned font tooling
+        run: python -m pip install --disable-pip-version-check --requirement tools/fonts/requirements.txt
+
+      - name: Download and generate licensed UI font
+        run: python tools/fonts/prepare_sunderfront_ui_font.py
+
+      - name: Upload generated UI font inputs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: sunderfront-ui-font-atlas
+          path: build/generated-ui-font/SunderfrontUI-Regular.png.b64*
+          if-no-files-found: error
+          retention-days: 1
+
+  verify-linux:
+    needs: prepare-ui-font
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Download generated UI font inputs
+        uses: actions/download-artifact@v4
+        with:
+          name: sunderfront-ui-font-atlas
+          path: client/src/main/resources/Interface/Fonts
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Integrate interpolation into the client
-        run: python .github/scripts/apply-issue-176-interpolation.py
+      - name: Run full quality gate
+        run: ./gradlew --no-daemon check
 
-      - name: Format and verify client
-        run: ./gradlew --no-daemon spotlessJavaApply :client:test :client:spotbugsMain
+      - name: Upload quality reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-reports-linux
+          path: |
+            **/build/reports/jacoco/**
+            **/build/reports/spotbugs/**
+            **/build/reports/tests/**
+          if-no-files-found: ignore
+          retention-days: 7
 
-      - name: Commit tested integration and remove helper files
+  verify-release-linux:
+    needs:
+      - prepare-ui-font
+      - verify-linux
+      - verify-windows-app-image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Download generated UI font inputs
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: sunderfront-ui-font-atlas
+          path: client/src/main/resources/Interface/Fonts
+
+      - name: Set up Java 21
+        uses: actions/setup-java@d7793b545071e98d581d3bf084a51c3213318a07
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
+        with:
+          cache-read-only: true
+
+      - name: Download verified Windows app image
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: sunderfront-client-windows-x64
+          path: ${{ runner.temp }}/sunderfront-windows-release
+
+      - name: Verify JVM release distributions
+        run: bash release/verify_release.sh
+
+      - name: Assemble and verify cross-platform payload
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin main
-          git checkout origin/main -- .github/workflows/ci.yml
-          rm .github/scripts/apply-issue-176-interpolation.py
-          rm -f client/src/main/resources/Interface/Fonts/SunderfrontUI-Regular.png.b64*
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add -A
-          git diff --cached --check
-          git commit -m "Interpolate remote preparation players"
-          git push origin HEAD:agent/issue-176-remote-interpolation
+          VERSION=$(tr -d '\r\n' < release/version.txt)
+          WINDOWS_ARCHIVE="$RUNNER_TEMP/sunderfront-windows-release/sunderfront-client-windows-x64-${VERSION}.zip"
+          python3 release/assemble_cross_platform_release.py build/release "$WINDOWS_ARCHIVE" "$VERSION"
+          python3 release/verify_artifacts.py build/release "$VERSION" --require-windows
+          python3 release/verify_m2_documentation.py build/release "$VERSION" --require-windows
+          (
+            cd build/release
+            sha256sum --check SHA256SUMS
+          )
+
+      - name: Upload verified release artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: direct-connect-alpha-artifacts
+          path: build/release/**
+          if-no-files-found: ignore
+          retention-days: 7
+          compression-level: 0
+
+  verify-windows-first-run:
+    needs: prepare-ui-font
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Download generated UI font inputs
+        uses: actions/download-artifact@v4
+        with:
+          name: sunderfront-ui-font-atlas
+          path: client/src/main/resources/Interface/Fonts
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Verify Windows first-run launchers
+        shell: pwsh
+        run: .\release\verify_windows_launchers.ps1
+
+  verify-windows-app-image:
+    needs: prepare-ui-font
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Download generated UI font inputs
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: sunderfront-ui-font-atlas
+          path: client/src/main/resources/Interface/Fonts
+
+      - name: Set up Java 21 x64
+        uses: actions/setup-java@d7793b545071e98d581d3bf084a51c3213318a07
+        with:
+          distribution: temurin
+          java-version: "21"
+          architecture: x64
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
+        with:
+          cache-read-only: true
+
+      - name: Build and verify Windows app image twice
+        shell: pwsh
+        run: .\release\verify_windows_app_image.ps1
+
+      - name: Upload verified Windows app image
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: sunderfront-client-windows-x64
+          path: build/windows-release/*.zip
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+  verify-windows-main:
+    needs: prepare-ui-font
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Download generated UI font inputs
+        uses: actions/download-artifact@v4
+        with:
+          name: sunderfront-ui-font-atlas
+          path: client/src/main/resources/Interface/Fonts
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run full quality gate
+        run: .\gradlew.bat --no-daemon --no-configuration-cache check

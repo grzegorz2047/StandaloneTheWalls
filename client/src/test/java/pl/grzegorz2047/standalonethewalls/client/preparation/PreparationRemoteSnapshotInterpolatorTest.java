@@ -87,21 +87,16 @@ class PreparationRemoteSnapshotInterpolatorTest {
     @Test
     void rejectsWrongRoundsNonIncreasingTicksAndInvalidFrameTime() {
         PreparationRemoteSnapshotInterpolator interpolator = interpolator();
-        PreparationWorldSnapshot first =
-                snapshot(8L, player(LOCAL, 0, 0), player(BRAVO, 0, 0));
+        PreparationWorldSnapshot first = snapshot(8L, player(LOCAL, 0, 0), player(BRAVO, 0, 0));
         interpolator.offer(first);
 
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
-                        interpolator.offer(
-                                new PreparationWorldSnapshot(2L, 10L, first.players())));
+                () -> interpolator.offer(new PreparationWorldSnapshot(2L, 10L, first.players())));
         assertThrows(IllegalArgumentException.class, () -> interpolator.offer(first));
         assertThrows(
                 IllegalArgumentException.class,
-                () ->
-                        interpolator.offer(
-                                snapshot(7L, player(LOCAL, 0, 0), player(BRAVO, 0, 0))));
+                () -> interpolator.offer(snapshot(7L, player(LOCAL, 0, 0), player(BRAVO, 0, 0))));
         assertThrows(IllegalArgumentException.class, () -> interpolator.advance(-0.01d));
         assertThrows(IllegalArgumentException.class, () -> interpolator.advance(Double.NaN));
     }
@@ -130,8 +125,7 @@ class PreparationRemoteSnapshotInterpolatorTest {
                 playerId, 0L, xMillimetres, 500, 0, yawCentidegrees, 0);
     }
 
-    private static PreparationRemotePlayerPose only(
-            List<PreparationRemotePlayerPose> players) {
+    private static PreparationRemotePlayerPose only(List<PreparationRemotePlayerPose> players) {
         assertThat(players).hasSize(1);
         return players.getFirst();
     }

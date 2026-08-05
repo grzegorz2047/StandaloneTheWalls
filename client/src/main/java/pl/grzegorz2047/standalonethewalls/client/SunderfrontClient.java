@@ -39,6 +39,7 @@ import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationInputSta
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationMovementController;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationPlayerState;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationRemotePlayerRenderer;
+import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationRemoteSnapshotInterpolator;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationSceneGraphException;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationSceneGraphLoader;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationTransitionGate;
@@ -122,6 +123,7 @@ public final class SunderfrontClient extends SimpleApplication
     private PreparationPlayerState preparationPlayerState;
     private PreparationCollisionWorld preparationCollisionWorld;
     private PreparationRemotePlayerRenderer preparationRemotePlayers;
+    private PreparationRemoteSnapshotInterpolator preparationRemoteInterpolator;
     private Node preparationWorld;
     private PlayerId preparationPlayerId;
     private volatile long preparationRoundNumber;
@@ -174,6 +176,7 @@ public final class SunderfrontClient extends SimpleApplication
         }
         if (screen == Screen.PREPARATION && !smokeMode) {
             applyPreparationSnapshot();
+            updatePreparationRemotePlayers(timePerFrame);
             updatePreparationMovement(timePerFrame);
             submitPreparationInput(timePerFrame);
         }
@@ -535,11 +538,11 @@ public final class SunderfrontClient extends SimpleApplication
         DirectConnectUiController controller = directConnectController;
         PreparationPlayerState current = preparationPlayerState;
         PlayerId localPlayerId = preparationPlayerId;
-        PreparationRemotePlayerRenderer remotePlayers = preparationRemotePlayers;
+        PreparationRemoteSnapshotInterpolator remoteInterpolator = preparationRemoteInterpolator;
         if (controller == null
                 || current == null
                 || localPlayerId == null
-                || remotePlayers == null) {
+                || remoteInterpolator == null) {
             failPreparationSceneEntry();
             return;
         }
@@ -573,8 +576,25 @@ public final class SunderfrontClient extends SimpleApplication
                             authoritative.yawDegrees(),
                             authoritative.pitchDegrees());
             PreparationCameraPlacement.apply(cam, preparationPlayerState);
-            remotePlayers.apply(snapshot, localPlayerId);
+            remoteInterpolator.offer(snapshot);
             appliedPreparationSnapshotTick = snapshot.authoritativeTick();
+        } catch (IllegalArgumentException exception) {
+            failPreparationSceneEntry();
+        }
+    }
+
+    private void updatePreparationRemotePlayers(float timePerFrame) {
+        PreparationRemotePlayerRenderer remotePlayers = preparationRemotePlayers;
+        PreparationRemoteSnapshotInterpolator remoteInterpolator = preparationRemoteInterpolator;
+        if (remotePlayers == null
+                || remoteInterpolator == null
+                || !Float.isFinite(timePerFrame)
+                || timePerFrame < 0.0f) {
+            failPreparationSceneEntry();
+            return;
+        }
+        try {
+            remotePlayers.apply(remoteInterpolator.advance(timePerFrame));
         } catch (IllegalArgumentException exception) {
             failPreparationSceneEntry();
         }
@@ -772,6 +792,9 @@ public final class SunderfrontClient extends SimpleApplication
             nextPreparationInputSequence.set(1L);
             appliedPreparationSnapshotTick = -1L;
             preparationInputAccumulator = 0.0d;
+            preparationRemoteInterpolator =
+                    new PreparationRemoteSnapshotInterpolator(
+                            preparationRoundNumber, preparationPlayerId);
             preparationRemotePlayers = new PreparationRemotePlayerRenderer(assetManager);
             rootNode.attachChild(loadedWorld);
             preparationRemotePlayers.attachTo(rootNode);
@@ -829,6 +852,7 @@ public final class SunderfrontClient extends SimpleApplication
         preparationInput.release();
         preparationCollisionWorld = null;
         preparationPlayerId = null;
+        preparationRemoteInterpolator = null;
         preparationRoundNumber = 0L;
         nextPreparationInputSequence.set(1L);
         appliedPreparationSnapshotTick = -1L;
