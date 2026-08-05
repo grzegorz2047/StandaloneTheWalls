@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   apply-issue-174:
+    needs: prepare-ui-font
     if: github.event_name == 'pull_request' && github.head_ref == 'agent/issue-174-preparation-sync'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
@@ -19,6 +20,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: agent/issue-174-preparation-sync
+
+      - name: Download generated UI font inputs
+        uses: actions/download-artifact@v4
+        with:
+          name: sunderfront-ui-font-atlas
+          path: client/src/main/resources/Interface/Fonts
 
       - name: Set up Java 21
         uses: actions/setup-java@v4
