@@ -7,10 +7,12 @@ on:
     paths:
       - .github/workflows/spike-wolfssl-dtls13.yml
       - .github/spikes/wolfssl/PskDtls13Loopback.java
+      - .github/spikes/wolfssl/PskDtls13NegativeMatrix.java
   pull_request:
     paths:
       - .github/workflows/spike-wolfssl-dtls13.yml
       - .github/spikes/wolfssl/PskDtls13Loopback.java
+      - .github/spikes/wolfssl/PskDtls13NegativeMatrix.java
 
 permissions:
   contents: read
@@ -120,13 +122,14 @@ jobs:
       - name: Compile one-time ticket store
         run: ./gradlew --no-daemon :transport-bctls:classes
 
-      - name: Run one-time external-PSK DTLS 1.3 loopback
+      - name: Run external-PSK DTLS 1.3 positive and negative proofs
         env:
           LD_LIBRARY_PATH: ${{ runner.temp }}/wolfssl-install/lib:${{ runner.temp }}/wolfssljni/lib
         run: |
           set -euo pipefail
           jar_path="$(find "$RUNNER_TEMP/wolfssljni" -type f -name 'wolfssl*.jar' | head -n 1)"
           project_classpath="$GITHUB_WORKSPACE/protocol/build/classes/java/main:$GITHUB_WORKSPACE/transport-bctls/build/classes/java/main"
+          runtime_classpath="$RUNNER_TEMP/spike-classes:$jar_path:$project_classpath"
           mkdir -p "$RUNNER_TEMP/spike-classes"
 
           javac \
@@ -134,15 +137,49 @@ jobs:
             -Werror \
             -classpath "$jar_path:$project_classpath" \
             -d "$RUNNER_TEMP/spike-classes" \
-            .github/spikes/wolfssl/PskDtls13Loopback.java
+            .github/spikes/wolfssl/PskDtls13Loopback.java \
+            .github/spikes/wolfssl/PskDtls13NegativeMatrix.java
 
           java \
             -Djava.library.path="$RUNNER_TEMP/wolfssljni/lib:$RUNNER_TEMP/wolfssl-install/lib" \
-            -classpath "$RUNNER_TEMP/spike-classes:$jar_path:$project_classpath" \
+            -classpath "$runtime_classpath" \
             PskDtls13Loopback | tee wolfssl-dtls13-loopback-report.txt
+
+          java \
+            -Djava.library.path="$RUNNER_TEMP/wolfssljni/lib:$RUNNER_TEMP/wolfssl-install/lib" \
+            -classpath "$runtime_classpath" \
+            PskDtls13NegativeMatrix | tee wolfssl-dtls13-negative-matrix-report.txt
 
           grep -q 'loopback passed; replay rejected; secrets redacted' \
             wolfssl-dtls13-loopback-report.txt
+          grep -q 'negative matrix passed; unknown expired bad-psk parallel-replay downgrade cleanup; secrets redacted' \
+            wolfssl-dtls13-negative-matrix-report.txt
+
+          missing_dir="$RUNNER_TEMP/wolfssl-missing-native"
+          corrupt_dir="$RUNNER_TEMP/wolfssl-corrupt-native"
+          mkdir -p "$missing_dir" "$corrupt_dir"
+
+          set +e
+          env -u LD_LIBRARY_PATH java \
+            -Djava.library.path="$missing_dir" \
+            -classpath "$runtime_classpath" \
+            PskDtls13Loopback > "$RUNNER_TEMP/missing-native.log" 2>&1
+          missing_exit=$?
+          printf 'not-a-native-library' > "$corrupt_dir/libwolfssljni.so"
+          env -u LD_LIBRARY_PATH java \
+            -Djava.library.path="$corrupt_dir" \
+            -classpath "$runtime_classpath" \
+            PskDtls13Loopback > "$RUNNER_TEMP/corrupt-native.log" 2>&1
+          corrupt_exit=$?
+          set -e
+
+          test "$missing_exit" -ne 0
+          test "$corrupt_exit" -ne 0
+          {
+            echo 'missing_native_fails_closed=true'
+            echo 'corrupt_native_fails_closed=true'
+            echo 'native_failure_logs_uploaded=false'
+          } | tee wolfssl-dtls13-native-failure-report.txt
 
       - name: Upload API and loopback proof
         uses: actions/upload-artifact@v4
@@ -151,4 +188,6 @@ jobs:
           path: |
             wolfssl-dtls13-api-report.txt
             wolfssl-dtls13-loopback-report.txt
+            wolfssl-dtls13-negative-matrix-report.txt
+            wolfssl-dtls13-native-failure-report.txt
           retention-days: 30
