@@ -23,7 +23,6 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerId;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.IssuedRealtimeTicket;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.OneTimeRealtimeTicketStore;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.RealtimeChannelBindingDigest;
-import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.RealtimePreSharedKey;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.RealtimeTicketContext;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.RealtimeTicketIdentity;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.RealtimeTicketRedemption;
@@ -133,8 +132,11 @@ public final class PskDtls13Loopback {
             }
 
             if (exchangeApplicationData) {
-                requireSuccess(
-                        clientSession.write(PAYLOAD, PAYLOAD.length), "client application write");
+                int written = clientSession.write(PAYLOAD, PAYLOAD.length);
+                if (written != PAYLOAD.length) {
+                    throw new IllegalStateException(
+                            "client application write returned redacted result " + written);
+                }
                 byte[] received = new byte[PAYLOAD.length];
                 int read = serverSession.read(received, received.length);
                 if (read != PAYLOAD.length
@@ -209,11 +211,11 @@ public final class PskDtls13Loopback {
 
     private static final class FixedClientCallback implements WolfSSLPskClientCallback {
         private final String identity;
-        private final byte[] key;
+        private final byte[] borrowedKey;
 
-        private FixedClientCallback(String identity, byte[] key) {
+        private FixedClientCallback(String identity, byte[] borrowedKey) {
             this.identity = identity;
-            this.key = key.clone();
+            this.borrowedKey = borrowedKey;
         }
 
         @Override
@@ -225,13 +227,13 @@ public final class PskDtls13Loopback {
                 byte[] outputKey,
                 long keyMaximumLength) {
             if (identity.length() > identityMaximumLength
-                    || key.length > keyMaximumLength
-                    || outputKey.length < key.length) {
+                    || borrowedKey.length > keyMaximumLength
+                    || outputKey.length < borrowedKey.length) {
                 return 0L;
             }
             outputIdentity.append(identity);
-            System.arraycopy(key, 0, outputKey, 0, key.length);
-            return key.length;
+            System.arraycopy(borrowedKey, 0, outputKey, 0, borrowedKey.length);
+            return borrowedKey.length;
         }
     }
 
