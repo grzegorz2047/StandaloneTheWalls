@@ -1,5 +1,6 @@
 name: Integrate issue 180 movement diagnostics
 
+# One-time branch integration gate.
 on:
   push:
     branches:
