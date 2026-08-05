@@ -61,3 +61,5 @@ jobs:
           git diff --cached --check
           git commit -m "Wire authoritative preparation movement"
           git push origin HEAD:agent/issue-174-preparation-sync
+
+# One-time PR trigger; this file removes itself after a successful run.
