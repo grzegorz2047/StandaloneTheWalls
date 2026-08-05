@@ -54,6 +54,19 @@ public final class PreparationPlayerState {
         return pitchDegrees;
     }
 
+    public PreparationPlayerState withAuthoritativeState(
+            double x,
+            double y,
+            double z,
+            double authoritativeYawDegrees,
+            double authoritativePitchDegrees) {
+        return new PreparationPlayerState(
+                scene,
+                new MapVector3(x, y, z),
+                normalizeYaw(authoritativeYawDegrees),
+                authoritativePitchDegrees);
+    }
+
     public PreparationPlayerState moveHorizontal(double deltaX, double deltaZ) {
         requireFinite(deltaX, "deltaX");
         requireFinite(deltaZ, "deltaZ");

@@ -3,6 +3,7 @@ package pl.grzegorz2047.standalonethewalls.server.lobby;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,13 +58,23 @@ import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySelectTeamCommand;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySetReadyCommand;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationInput;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationMovementProtocolCodec;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationProtocolException;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnAssignment;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationWorldSnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketProtocolException;
 import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketRejection;
 import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketRequest;
 import pl.grzegorz2047.standalonethewalls.server.identity.session.AuthorizedPlayerSession;
 import pl.grzegorz2047.standalonethewalls.server.identity.session.AuthorizedPlayerSessionQueue;
+import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationClientSpawn;
+import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationInputMailbox;
 import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationMapDefinition;
+import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationMovementSimulation;
+import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationTransitionPlanner;
+import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationTransitionPublishException;
 import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationTransitionPublisher;
 import pl.grzegorz2047.standalonethewalls.server.preparation.VerifiedPreparationMapAdapter;
 import pl.grzegorz2047.standalonethewalls.server.preparation.VerifiedPreparationMapException;
@@ -86,6 +97,7 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
     private static final Duration MAXIMUM_SEND_TIMEOUT = Duration.ofSeconds(30);
     private static final Duration MAXIMUM_SHUTDOWN_TIMEOUT = Duration.ofSeconds(30);
     private static final int DEFAULT_TICK_RATE = 20;
+    private static final int PREPARATION_SNAPSHOT_INTERVAL_TICKS = 2;
     private static final long POLL_MILLIS = 10L;
     private static final TwMapLoadPolicy DEFAULT_MAP_LOAD_POLICY =
             new TwMapLoadPolicy(2 * 1024 * 1024, 4 * 1024 * 1024, 16, 100);
@@ -447,6 +459,10 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
                     visibleMatchSnapshot.set(snapshot);
                     stabilizeMatchSnapshots(state, snapshot);
                 }
+                PreparationMovementSimulation movement = state.preparationMovement;
+                if (movement != null && movement.lastAdvancedTick() < nextTick) {
+                    advancePreparationMovement(state, movement, nextTick);
+                }
                 nextTick = Math.addExact(nextTick, 1L);
             }
 
@@ -694,6 +710,13 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         }
         commitRoster(state, decision.state());
         revokeOwnedRealtimeTicket(member);
+        member.preparationInputMailbox.close();
+        PreparationMovementSimulation movement = state.preparationMovement;
+        if (movement != null
+                && movement.remove(member.identity.playerId())
+                && movement.playerCount() == 0) {
+            state.preparationMovement = null;
+        }
         closeSession(member.session);
         publish(eventCode(reason));
         if (broadcastSnapshot) {
@@ -748,12 +771,67 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
     }
 
     private void publishPreparationTransition(LobbyState state, LobbyMatchSnapshot matchSnapshot) {
-        PreparationTransitionPublisher.publish(
-                preparationMap,
-                state.roster,
-                matchSnapshot,
-                preparationChannels(state),
-                sendTimeout);
+        List<PreparationClientSpawn> plan =
+                PreparationTransitionPlanner.plan(preparationMap, state.roster, matchSnapshot);
+        Map<
+                        pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId,
+                        PreparationSpawnAssignment>
+                assignments = new HashMap<>();
+        for (PreparationClientSpawn delivery : plan) {
+            MemberState member = state.members.get(delivery.participantId());
+            if (member == null) {
+                throw new IllegalStateException(
+                        "preparation transition plan contains an unowned participant");
+            }
+            member.preparationInputMailbox.open(matchSnapshot.roundNumber());
+            assignments.put(member.identity.playerId(), delivery.assignment());
+        }
+        state.preparationMovement =
+                PreparationMovementSimulation.start(
+                        matchSnapshot.roundNumber(),
+                        matchSnapshot.authoritativeTick(),
+                        preparationMap,
+                        assignments);
+        try {
+            PreparationTransitionPublisher.publish(
+                    plan, matchSnapshot, preparationChannels(state), sendTimeout);
+        } catch (PreparationTransitionPublishException exception) {
+            state.preparationMovement = null;
+            for (MemberState member : state.members.values()) {
+                member.preparationInputMailbox.close();
+            }
+            throw exception;
+        }
+        publishPreparationSnapshot(
+                state, state.preparationMovement.currentSnapshot().orElseThrow());
+    }
+
+    private void advancePreparationMovement(
+            LobbyState state, PreparationMovementSimulation movement, long authoritativeTick) {
+        Map<pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId, PreparationInput>
+                latestInputs = new HashMap<>();
+        for (MemberState member : state.members.values()) {
+            member.preparationInputMailbox
+                    .drainLatest()
+                    .ifPresent(input -> latestInputs.put(member.identity.playerId(), input));
+        }
+        PreparationWorldSnapshot snapshot = movement.advanceTick(authoritativeTick, latestInputs);
+        if (authoritativeTick % PREPARATION_SNAPSHOT_INTERVAL_TICKS == 0L) {
+            publishPreparationSnapshot(state, snapshot);
+        }
+    }
+
+    private void publishPreparationSnapshot(LobbyState state, PreparationWorldSnapshot snapshot) {
+        if (state.members.isEmpty()) {
+            return;
+        }
+        byte[] payload = PreparationMovementProtocolCodec.encodeSnapshot(snapshot);
+        List<LobbyParticipantId> failed =
+                sendToMembers(state.members, MessageType.PREPARATION_SNAPSHOT, payload);
+        if (!failed.isEmpty()) {
+            removeFailedMembers(state, failed);
+            stabilizeSnapshots(state);
+        }
     }
 
     private static Map<LobbyParticipantId, ReliableChannel> preparationChannels(LobbyState state) {
@@ -892,10 +970,17 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
                                     EndReason.EOF));
                     return;
                 }
-                Command command = decodeClientCommand(member, received.orElseThrow());
+                ProtocolEnvelope envelope = received.orElseThrow();
+                if (envelope.messageType() == MessageType.PREPARATION_INPUT) {
+                    acceptPreparationInput(member, envelope.payload());
+                    continue;
+                }
+                Command command = decodeClientCommand(member, envelope);
                 enqueue(command);
             }
-        } catch (LobbyProtocolException | RealtimeTicketProtocolException exception) {
+        } catch (LobbyProtocolException
+                | RealtimeTicketProtocolException
+                | PreparationProtocolException exception) {
             enqueue(
                     new SessionEnded(
                             member.participantId,
@@ -909,6 +994,17 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
                             member.participantId,
                             member.session.sessionId(),
                             EndReason.RECEIVE_FAILED));
+        }
+    }
+
+    private static void acceptPreparationInput(MemberState member, byte[] payload)
+            throws PreparationProtocolException {
+        PreparationInput input = PreparationMovementProtocolCodec.decodeInput(payload);
+        PreparationInputMailbox.OfferResult result = member.preparationInputMailbox.offer(input);
+        if (result != PreparationInputMailbox.OfferResult.ACCEPTED) {
+            throw new PreparationProtocolException(
+                    PreparationProtocolException.Code.INVALID_STATE,
+                    "preparation input is not valid for the owned session state");
         }
     }
 
@@ -978,6 +1074,7 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
             }
             commitRoster(state, decision.state());
             revokeOwnedRealtimeTicket(member);
+            member.preparationInputMailbox.close();
             sessions.add(member.session);
         }
         if (sessions.isEmpty()) {
@@ -1225,6 +1322,8 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         private final LobbyParticipantId participantId;
         private final LobbyMember identity;
         private final AuthorizedPlayerSession session;
+        private final PreparationInputMailbox preparationInputMailbox =
+                new PreparationInputMailbox();
         private long lastRequestId;
         private long realtimeTicketRound;
         private RealtimeTicketIdentity realtimeTicketIdentity;
@@ -1242,6 +1341,7 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
     private static final class LobbyState {
         private final TreeMap<LobbyParticipantId, MemberState> members = new TreeMap<>();
         private LobbyRosterState roster = LobbyRosterState.initial();
+        private PreparationMovementSimulation preparationMovement;
         private boolean preparationTransitionAttempted;
     }
 }

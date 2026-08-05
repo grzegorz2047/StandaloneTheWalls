@@ -27,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import pl.grzegorz2047.standalonethewalls.client.i18n.ClientMessages;
 import pl.grzegorz2047.standalonethewalls.client.identity.ClientIdentityStorage;
@@ -37,6 +38,7 @@ import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationInputSta
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationInputState.Direction;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationMovementController;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationPlayerState;
+import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationRemotePlayerRenderer;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationSceneGraphException;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationSceneGraphLoader;
 import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationTransitionGate;
@@ -56,7 +58,12 @@ import pl.grzegorz2047.standalonethewalls.client.ui.pointer.UiHitTarget;
 import pl.grzegorz2047.standalonethewalls.client.ui.pointer.UiPointerRouter;
 import pl.grzegorz2047.standalonethewalls.client.ui.pointer.UiRect;
 import pl.grzegorz2047.standalonethewalls.client.ui.pointer.UiTargetId;
+import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationInput;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationPlayerSnapshot;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnAssignment;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationWorldSnapshot;
 
 /** Keyboard-and-pointer jMonkeyEngine shell for the menu and Direct Connect flow. */
 public final class SunderfrontClient extends SimpleApplication
@@ -73,6 +80,7 @@ public final class SunderfrontClient extends SimpleApplication
     private static final String INPUT_MOVE_BACKWARD = "sunderfront-move-backward";
     private static final String INPUT_MOVE_LEFT = "sunderfront-move-left";
     private static final String INPUT_MOVE_RIGHT = "sunderfront-move-right";
+    private static final double PREPARATION_INPUT_INTERVAL_SECONDS = 0.05d;
 
     private static final UiTargetId DIRECT_ENDPOINT_TARGET = new UiTargetId("direct.endpoint");
     private static final UiTargetId DIRECT_HANDLE_TARGET = new UiTargetId("direct.handle");
@@ -113,7 +121,13 @@ public final class SunderfrontClient extends SimpleApplication
     private DirectConnectScreenModel directConnectModel;
     private PreparationPlayerState preparationPlayerState;
     private PreparationCollisionWorld preparationCollisionWorld;
+    private PreparationRemotePlayerRenderer preparationRemotePlayers;
     private Node preparationWorld;
+    private PlayerId preparationPlayerId;
+    private volatile long preparationRoundNumber;
+    private final AtomicLong nextPreparationInputSequence = new AtomicLong(1L);
+    private volatile long appliedPreparationSnapshotTick = -1L;
+    private volatile double preparationInputAccumulator;
     private volatile int renderedWidth = -1;
     private volatile int renderedHeight = -1;
     private volatile boolean shuttingDown;
@@ -159,7 +173,9 @@ public final class SunderfrontClient extends SimpleApplication
             }
         }
         if (screen == Screen.PREPARATION && !smokeMode) {
+            applyPreparationSnapshot();
             updatePreparationMovement(timePerFrame);
+            submitPreparationInput(timePerFrame);
         }
         if (!smokeMode && (renderedWidth != cam.getWidth() || renderedHeight != cam.getHeight())) {
             renderCurrentScreen();
@@ -515,6 +531,101 @@ public final class SunderfrontClient extends SimpleApplication
         PreparationCameraPlacement.apply(cam, moved);
     }
 
+    private void applyPreparationSnapshot() {
+        DirectConnectUiController controller = directConnectController;
+        PreparationPlayerState current = preparationPlayerState;
+        PlayerId localPlayerId = preparationPlayerId;
+        PreparationRemotePlayerRenderer remotePlayers = preparationRemotePlayers;
+        if (controller == null
+                || current == null
+                || localPlayerId == null
+                || remotePlayers == null) {
+            failPreparationSceneEntry();
+            return;
+        }
+        Optional<PreparationWorldSnapshot> available = controller.currentPreparationWorldSnapshot();
+        if (available.isEmpty()) {
+            return;
+        }
+        PreparationWorldSnapshot snapshot = available.orElseThrow();
+        if (snapshot.authoritativeTick() <= appliedPreparationSnapshotTick) {
+            return;
+        }
+        if (snapshot.roundNumber() != preparationRoundNumber) {
+            failPreparationSceneEntry();
+            return;
+        }
+        Optional<PreparationPlayerSnapshot> ownSnapshot =
+                snapshot.players().stream()
+                        .filter(player -> player.playerId().equals(localPlayerId))
+                        .findFirst();
+        if (ownSnapshot.isEmpty()) {
+            failPreparationSceneEntry();
+            return;
+        }
+        PreparationPlayerSnapshot authoritative = ownSnapshot.orElseThrow();
+        try {
+            preparationPlayerState =
+                    current.withAuthoritativeState(
+                            authoritative.xMetres(),
+                            authoritative.yMetres(),
+                            authoritative.zMetres(),
+                            authoritative.yawDegrees(),
+                            authoritative.pitchDegrees());
+            PreparationCameraPlacement.apply(cam, preparationPlayerState);
+            remotePlayers.apply(snapshot, localPlayerId);
+            appliedPreparationSnapshotTick = snapshot.authoritativeTick();
+        } catch (IllegalArgumentException exception) {
+            failPreparationSceneEntry();
+        }
+    }
+
+    private void submitPreparationInput(float timePerFrame) {
+        DirectConnectUiController controller = directConnectController;
+        PreparationPlayerState current = preparationPlayerState;
+        if (controller == null
+                || current == null
+                || preparationRoundNumber < 1L
+                || !Float.isFinite(timePerFrame)) {
+            failPreparationSceneEntry();
+            return;
+        }
+        preparationInputAccumulator += Math.max(0.0d, timePerFrame);
+        if (preparationInputAccumulator < PREPARATION_INPUT_INTERVAL_SECONDS) {
+            return;
+        }
+        preparationInputAccumulator %= PREPARATION_INPUT_INTERVAL_SECONDS;
+        long inputSequence = nextPreparationInputSequence.get();
+        if (inputSequence == Long.MAX_VALUE) {
+            failPreparationSceneEntry();
+            return;
+        }
+        PreparationInput input =
+                new PreparationInput(
+                        preparationRoundNumber,
+                        inputSequence,
+                        quantizeAxis(preparationInput.forwardAxis()),
+                        quantizeAxis(preparationInput.rightAxis()),
+                        quantizeYaw(current.yawDegrees()),
+                        quantizePitch(current.pitchDegrees()));
+        if (controller.submitPreparationInput(input)) {
+            nextPreparationInputSequence.incrementAndGet();
+        }
+    }
+
+    private static int quantizeAxis(double value) {
+        return (int) Math.round(value * PreparationInput.MAXIMUM_AXIS);
+    }
+
+    private static int quantizeYaw(double value) {
+        long rounded = Math.round(value * 100.0d);
+        return (int) (rounded == 18_000L ? -18_000L : rounded);
+    }
+
+    private static int quantizePitch(double value) {
+        return (int) Math.round(value * 100.0d);
+    }
+
     private void rotatePreparation(double horizontalMousePixels, double verticalMousePixels) {
         PreparationPlayerState current = preparationPlayerState;
         if (current == null) {
@@ -626,6 +737,17 @@ public final class SunderfrontClient extends SimpleApplication
             return;
         }
         PreparationPlayerState player = Objects.requireNonNull(entered, "entered");
+        DirectConnectUiController controller = directConnectController;
+        Optional<PreparationSpawnAssignment> assignment =
+                controller == null
+                        ? Optional.empty()
+                        : controller.currentPreparationSpawnAssignment();
+        Optional<PlayerId> localPlayerId =
+                controller == null ? Optional.empty() : controller.currentPlayerId();
+        if (!smokeMode && (assignment.isEmpty() || localPlayerId.isEmpty())) {
+            failPreparationSceneEntry();
+            return;
+        }
         Node loadedWorld = null;
         PreparationCollisionWorld loadedCollisions = null;
         if (!smokeMode) {
@@ -645,7 +767,14 @@ public final class SunderfrontClient extends SimpleApplication
             inputManager.setCursorVisible(true);
             preparationWorld = loadedWorld;
             preparationCollisionWorld = loadedCollisions;
+            preparationRoundNumber = assignment.orElseThrow().roundNumber();
+            preparationPlayerId = localPlayerId.orElseThrow();
+            nextPreparationInputSequence.set(1L);
+            appliedPreparationSnapshotTick = -1L;
+            preparationInputAccumulator = 0.0d;
+            preparationRemotePlayers = new PreparationRemotePlayerRenderer(assetManager);
             rootNode.attachChild(loadedWorld);
+            preparationRemotePlayers.attachTo(rootNode);
             PreparationCameraPlacement.apply(cam, player);
         }
         renderCurrentScreen();
@@ -699,6 +828,16 @@ public final class SunderfrontClient extends SimpleApplication
     private void detachPreparationWorld() {
         preparationInput.release();
         preparationCollisionWorld = null;
+        preparationPlayerId = null;
+        preparationRoundNumber = 0L;
+        nextPreparationInputSequence.set(1L);
+        appliedPreparationSnapshotTick = -1L;
+        preparationInputAccumulator = 0.0d;
+        PreparationRemotePlayerRenderer remotePlayers = preparationRemotePlayers;
+        preparationRemotePlayers = null;
+        if (remotePlayers != null) {
+            remotePlayers.close();
+        }
         Node current = preparationWorld;
         preparationWorld = null;
         if (current != null) {
