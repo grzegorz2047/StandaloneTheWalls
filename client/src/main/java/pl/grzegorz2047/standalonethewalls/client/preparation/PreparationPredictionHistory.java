@@ -121,11 +121,7 @@ public final class PreparationPredictionHistory {
                         step.yawDegrees(),
                         step.pitchDegrees());
         return PreparationMovementController.move(
-                oriented,
-                collisions,
-                step.forwardAxis(),
-                step.rightAxis(),
-                step.elapsedSeconds());
+                oriented, collisions, step.forwardAxis(), step.rightAxis(), step.elapsedSeconds());
     }
 
     private record PredictionStep(

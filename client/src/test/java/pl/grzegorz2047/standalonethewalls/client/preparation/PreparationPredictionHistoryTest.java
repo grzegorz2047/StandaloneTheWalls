@@ -31,8 +31,7 @@ class PreparationPredictionHistoryTest {
                 spawn.withAuthoritativeState(-14.5d, 0.5d, -13.5d, 45.0d, 0.0d);
         PreparationPlayerState reconciled = history.reconcile(authoritative, collisions, 1L);
         PreparationPlayerState expected =
-                PreparationMovementController.move(
-                        authoritative, collisions, 0.0d, 1.0d, 0.05d);
+                PreparationMovementController.move(authoritative, collisions, 0.0d, 1.0d, 0.05d);
 
         assertThat(reconciled.position()).isEqualTo(expected.position());
         assertThat(reconciled.position()).isNotEqualTo(predicted.position());
