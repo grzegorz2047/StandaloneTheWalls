@@ -7,10 +7,12 @@ on:
     paths:
       - .github/workflows/spike-wolfssl-dtls13-windows.yml
       - .github/spikes/wolfssl/PskDtls13Loopback.java
+      - .github/spikes/wolfssl/Run-RelocatedWindowsProof.ps1
   pull_request:
     paths:
       - .github/workflows/spike-wolfssl-dtls13-windows.yml
       - .github/spikes/wolfssl/PskDtls13Loopback.java
+      - .github/spikes/wolfssl/Run-RelocatedWindowsProof.ps1
 
 permissions:
   contents: read
@@ -205,35 +207,9 @@ jobs:
         shell: pwsh
         run: .\gradlew.bat --no-daemon :transport-bctls:classes
 
-      - name: Run Windows one-time external-PSK DTLS 1.3 loopback
+      - name: Run relocated Windows one-time external-PSK DTLS 1.3 loopback
         shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $projectClasspath = "$env:GITHUB_WORKSPACE\protocol\build\classes\java\main;$env:GITHUB_WORKSPACE\transport-bctls\build\classes\java\main"
-          $classes = Join-Path $env:RUNNER_TEMP "spike-classes"
-          New-Item -ItemType Directory -Force -Path $classes | Out-Null
-
-          javac `
-            -Xlint:all `
-            -Werror `
-            -classpath "$env:WOLFSSLJNI_JAR;$projectClasspath" `
-            -d $classes `
-            .github\spikes\wolfssl\PskDtls13Loopback.java
-          if ($LASTEXITCODE -ne 0) {
-            throw "Windows loopback compilation failed"
-          }
-
-          $env:PATH = "$env:WOLFSSLJNI_DLL_DIR;$env:WOLFSSL_DLL_DIR;$env:PATH"
-          java `
-            "-Djava.library.path=$env:WOLFSSLJNI_DLL_DIR;$env:WOLFSSL_DLL_DIR" `
-            -classpath "$classes;$env:WOLFSSLJNI_JAR;$projectClasspath" `
-            PskDtls13Loopback | Tee-Object -FilePath wolfssl-dtls13-windows-loopback-report.txt
-          if ($LASTEXITCODE -ne 0) {
-            throw "Windows DTLS 1.3 loopback failed"
-          }
-          if ((Get-Content wolfssl-dtls13-windows-loopback-report.txt -Raw) -notmatch 'loopback passed; replay rejected; secrets redacted') {
-            throw "Windows loopback did not emit the expected redacted proof"
-          }
+        run: .\.github\spikes\wolfssl\Run-RelocatedWindowsProof.ps1
 
       - name: Upload Windows API and loopback proof
         uses: actions/upload-artifact@v4
@@ -242,4 +218,5 @@ jobs:
           path: |
             wolfssl-dtls13-windows-api-report.txt
             wolfssl-dtls13-windows-loopback-report.txt
+            wolfssl-dtls13-windows-relocation-report.txt
           retention-days: 30
