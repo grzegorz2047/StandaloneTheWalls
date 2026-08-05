@@ -2,8 +2,12 @@ package pl.grzegorz2047.standalonethewalls.server.identity.session;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
@@ -14,6 +18,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.Test;
 import pl.grzegorz2047.standalonethewalls.domain.TeamId;
@@ -28,6 +33,7 @@ import pl.grzegorz2047.standalonethewalls.protocol.ReliableChannel;
 import pl.grzegorz2047.standalonethewalls.protocol.ReliableSendResult;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.CanonicalHandle;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
+import pl.grzegorz2047.standalonethewalls.protocol.identity.SecureChannelBinding;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.ServerId;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandOutcome;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCommandResult;
@@ -46,7 +52,22 @@ import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
 import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationProtocolException;
 import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnAssignment;
 import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnProtocolCodec;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.ClientRealtimeTicket;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketProtocolCodec;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketProtocolException;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketRejection;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketRequest;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketResult;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketResultStatus;
 import pl.grzegorz2047.standalonethewalls.server.lobby.MinimalLobbyRuntime;
+import pl.grzegorz2047.standalonethewalls.server.realtime.RealtimeTicketProvisioner;
+import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.OneTimeRealtimeTicketStore;
+import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.RealtimeTicketEntropy;
+import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.RealtimeTicketIdentity;
+import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.RealtimeTicketRedemption;
+import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.RealtimeTicketStoreConfig;
+import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.RealtimeTicketStoreException;
+import pl.grzegorz2047.standalonethewalls.transport.bctls.realtime.RedeemedRealtimeTicket;
 
 class MinimalLobbyRuntimeTest {
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
@@ -558,9 +579,113 @@ class MinimalLobbyRuntimeTest {
         queue.close();
     }
 
+    @Test
+    void provisionsOneTicketFromTrustedSessionContextAndRejectsASecondInTheRound()
+            throws InterruptedException,
+                    RealtimeTicketProtocolException,
+                    RealtimeTicketStoreException {
+        AuthorizedPlayerSessionQueue queue = queue(1);
+        TestSession transport = new TestSession(31, playerId('r'), "realtime");
+        enqueue(queue, transport);
+        QueueEntropy entropy = new QueueEntropy(filled(16, 31), filled(32, 32));
+        OneTimeRealtimeTicketStore store =
+                new OneTimeRealtimeTicketStore(
+                        Clock.fixed(Instant.parse("2026-08-05T06:30:00Z"), ZoneOffset.UTC),
+                        entropy,
+                        new RealtimeTicketStoreConfig(1, Duration.ofSeconds(30)));
+        RealtimeTicketProvisioner provisioner =
+                new RealtimeTicketProvisioner(store, Duration.ofSeconds(20));
+        MinimalLobbyRuntime lobby = realtimeLobby(queue, provisioner);
+
+        try {
+            lobby.start();
+            waitUntil(() -> lobby.memberCount() == 1);
+
+            sendRealtimeTicketRequest(transport, 1L, RealtimeTicketProvisioner.PROFILE_VERSION);
+            waitUntil(() -> realtimeTicketMessages(transport).size() == 1);
+
+            try (RealtimeTicketResult result =
+                    RealtimeTicketProtocolCodec.decodeResult(
+                            realtimeTicketMessages(transport).getFirst().payload())) {
+                assertThat(result.status()).isEqualTo(RealtimeTicketResultStatus.ISSUED);
+                ClientRealtimeTicket clientTicket = result.ticket().orElseThrow();
+                RealtimeTicketRedemption redemption =
+                        store.redeem(new RealtimeTicketIdentity(clientTicket.copyIdentity()));
+                assertThat(redemption.status()).isEqualTo(RealtimeTicketRedemption.Status.REDEEMED);
+                try (RedeemedRealtimeTicket redeemed = redemption.ticket().orElseThrow()) {
+                    assertThat(redeemed.context().serverId()).isEqualTo(SERVER_ID);
+                    assertThat(redeemed.context().reliableSessionId())
+                            .isEqualTo(transport.sessionId());
+                    assertThat(redeemed.context().playerId()).isEqualTo(transport.playerId());
+                    assertThat(redeemed.context().roundEpoch()).isEqualTo(1L);
+                    assertThat(redeemed.preSharedKey().copyBytes()).containsOnly(32);
+                }
+                assertThat(clientTicket.copyPreSharedKey()).containsOnly(32);
+            }
+
+            sendRealtimeTicketRequest(transport, 2L, RealtimeTicketProvisioner.PROFILE_VERSION);
+            waitUntil(() -> realtimeTicketMessages(transport).size() == 2);
+            try (RealtimeTicketResult rejected =
+                    RealtimeTicketProtocolCodec.decodeResult(
+                            realtimeTicketMessages(transport).get(1).payload())) {
+                assertThat(rejected.status()).isEqualTo(RealtimeTicketResultStatus.REJECTED);
+                assertThat(rejected.rejection())
+                        .contains(RealtimeTicketRejection.ALREADY_ISSUED_FOR_ROUND);
+            }
+        } finally {
+            lobby.close();
+            provisioner.close();
+            queue.close();
+        }
+    }
+
+    @Test
+    void failedTicketResultSendRevokesTheUndeliveredCredential()
+            throws InterruptedException, RealtimeTicketStoreException {
+        AuthorizedPlayerSessionQueue queue = queue(1);
+        TestSession transport = new TestSession(32, playerId('s'), "send_failure");
+        enqueue(queue, transport);
+        OneTimeRealtimeTicketStore store =
+                new OneTimeRealtimeTicketStore(
+                        Clock.fixed(Instant.parse("2026-08-05T06:45:00Z"), ZoneOffset.UTC),
+                        new QueueEntropy(filled(16, 41), filled(32, 42)),
+                        new RealtimeTicketStoreConfig(1, Duration.ofSeconds(30)));
+        RealtimeTicketProvisioner provisioner =
+                new RealtimeTicketProvisioner(store, Duration.ofSeconds(20));
+        MinimalLobbyRuntime lobby = realtimeLobby(queue, provisioner);
+
+        try {
+            lobby.start();
+            waitUntil(() -> lobby.memberCount() == 1);
+            transport.channel.failNextSend(MessageType.REALTIME_TICKET_RESULT);
+
+            sendRealtimeTicketRequest(transport, 1L, RealtimeTicketProvisioner.PROFILE_VERSION);
+            waitUntil(() -> lobby.memberCount() == 0 && transport.closeCount() == 1);
+
+            assertThat(store.activeTicketCount()).isZero();
+        } finally {
+            lobby.close();
+            provisioner.close();
+            queue.close();
+        }
+    }
+
     private static MinimalLobbyRuntime lobby(AuthorizedPlayerSessionQueue queue) {
         return new MinimalLobbyRuntime(
                 queue, Duration.ofSeconds(1), Duration.ofSeconds(2), ignored -> {});
+    }
+
+    private static MinimalLobbyRuntime realtimeLobby(
+            AuthorizedPlayerSessionQueue queue, RealtimeTicketProvisioner provisioner) {
+        return new MinimalLobbyRuntime(
+                queue,
+                LobbyConfiguration.standard(),
+                MatchConfiguration.defaults(20),
+                provisioner,
+                Duration.ofSeconds(1),
+                Duration.ofSeconds(2),
+                ignored -> {},
+                () -> {});
     }
 
     private static MinimalLobbyRuntime lobby(
@@ -628,6 +753,22 @@ class MinimalLobbyRuntimeTest {
                         MessageType.LOBBY_SET_READY,
                         LobbyProtocolCodec.encodeSetReady(
                                 new LobbySetReadyCommand(requestId, ready))));
+    }
+
+    private static void sendRealtimeTicketRequest(
+            TestSession session, long requestId, int profileVersion) {
+        session.channel.completeMessage(
+                envelope(
+                        session,
+                        MessageType.REALTIME_TICKET_REQUEST,
+                        RealtimeTicketProtocolCodec.encodeRequest(
+                                new RealtimeTicketRequest(requestId, profileVersion))));
+    }
+
+    private static List<SentMessage> realtimeTicketMessages(TestSession session) {
+        return session.channel.sent().stream()
+                .filter(message -> message.messageType() == MessageType.REALTIME_TICKET_RESULT)
+                .toList();
     }
 
     private static ProtocolEnvelope envelope(
@@ -809,6 +950,29 @@ class MinimalLobbyRuntimeTest {
         return new PlayerId("sf1_" + first + "a".repeat(51));
     }
 
+    private static byte[] filled(int length, int value) {
+        byte[] bytes = new byte[length];
+        Arrays.fill(bytes, (byte) value);
+        return bytes;
+    }
+
+    private static final class QueueEntropy implements RealtimeTicketEntropy {
+        private final ArrayDeque<byte[]> values = new ArrayDeque<>();
+
+        private QueueEntropy(byte[]... values) {
+            Arrays.stream(values).forEach(value -> this.values.add(value.clone()));
+        }
+
+        @Override
+        public byte[] randomBytes(int length) {
+            byte[] value = values.removeFirst();
+            if (value.length != length) {
+                throw new IllegalStateException("test entropy length mismatch");
+            }
+            return value.clone();
+        }
+    }
+
     private record SentMessage(MessageType messageType, byte[] payload) {
         private SentMessage {
             payload = payload.clone();
@@ -849,6 +1013,11 @@ class MinimalLobbyRuntimeTest {
         }
 
         @Override
+        public SecureChannelBinding channelBinding() {
+            return new SecureChannelBinding(new byte[SecureChannelBinding.BYTES]);
+        }
+
+        @Override
         public CanonicalHandle handle() {
             return handle;
         }
@@ -880,13 +1049,14 @@ class MinimalLobbyRuntimeTest {
         private final Object receiveLock = new Object();
         private final AtomicBoolean open = new AtomicBoolean(true);
         private final AtomicInteger sequences = new AtomicInteger();
+        private final AtomicReference<MessageType> failNextSend = new AtomicReference<>();
         private CompletableFuture<Optional<ProtocolEnvelope>> pendingReceive;
 
         @Override
         public CompletionStage<ReliableSendResult> send(MessageType messageType, byte[] payload) {
-            if (!open.get()) {
+            if (!open.get() || failNextSend.compareAndSet(messageType, null)) {
                 CompletableFuture<ReliableSendResult> failed = new CompletableFuture<>();
-                failed.completeExceptionally(new IllegalStateException("channel is closed"));
+                failed.completeExceptionally(new IllegalStateException("send failed"));
                 return failed;
             }
             sent.add(new SentMessage(messageType, payload));
@@ -933,6 +1103,12 @@ class MinimalLobbyRuntimeTest {
 
         private List<SentMessage> sent() {
             return List.copyOf(sent);
+        }
+
+        private void failNextSend(MessageType messageType) {
+            if (!failNextSend.compareAndSet(null, messageType)) {
+                throw new IllegalStateException("a send failure is already scheduled");
+            }
         }
 
         private void completeEof() {

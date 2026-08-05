@@ -6,7 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -42,6 +44,12 @@ import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySelectTeamCommand;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySetReadyCommand;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.ClientRealtimeTicket;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketProtocolCodec;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketProtocolException;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketRequest;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketResult;
+import pl.grzegorz2047.standalonethewalls.protocol.realtime.RealtimeTicketResultStatus;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.AuthenticatedReliableSession;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.AuthenticatedReliableSessionTestFactory;
 
@@ -400,6 +408,81 @@ class ConnectedLobbyCommandTest {
         assertEquals(1, channel.closeCount());
     }
 
+    @Test
+    void requestsRealtimeTicketThroughTheOwnedReceiverAndTransfersSecretOwnership()
+            throws InterruptedException,
+                    ExecutionException,
+                    TimeoutException,
+                    RealtimeTicketProtocolException {
+        StubReliableChannel channel = new StubReliableChannel();
+        ConnectedLobbySession session = startedSession(channel, snapshot(1L));
+
+        RealtimeTicketSubmission submission = session.requestRealtimeTicket();
+
+        assertEquals(RealtimeTicketSubmissionStatus.SUBMITTED, submission.status());
+        RealtimeTicketHandle handle = submission.handle().orElseThrow();
+        assertEquals(1L, handle.requestId());
+        assertTrue(session.realtimeTicketRequestInFlight());
+        assertEquals(
+                LobbyCommandSubmissionStatus.COMMAND_IN_FLIGHT, session.setReady(true).status());
+        SentMessage sent = channel.sent().getFirst();
+        assertEquals(MessageType.REALTIME_TICKET_REQUEST, sent.messageType());
+        assertEquals(
+                new RealtimeTicketRequest(1L, 1),
+                RealtimeTicketProtocolCodec.decodeRequest(sent.payload()));
+
+        byte[] identity = filled(16, 7);
+        byte[] preSharedKey = filled(32, 8);
+        channel.deliver(
+                realtimeTicketResultEnvelope(
+                        RealtimeTicketProtocolCodec.encodeIssued(
+                                1L,
+                                1,
+                                identity,
+                                preSharedKey,
+                                Instant.parse("2026-08-05T08:00:00Z")),
+                        1L));
+
+        try (RealtimeTicketResult result =
+                handle.completion()
+                        .toCompletableFuture()
+                        .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)) {
+            assertEquals(RealtimeTicketResultStatus.ISSUED, result.status());
+            ClientRealtimeTicket ticket = result.ticket().orElseThrow();
+            assertTrue(Arrays.equals(identity, ticket.copyIdentity()));
+            assertTrue(Arrays.equals(preSharedKey, ticket.copyPreSharedKey()));
+        }
+        assertFalse(session.realtimeTicketRequestInFlight());
+        assertTrue(session.isOpen());
+        close(session);
+    }
+
+    @Test
+    void realtimeTicketSendFailureClosesTheSessionAndCompletesTheHandleExceptionally()
+            throws InterruptedException, ExecutionException, TimeoutException {
+        StubReliableChannel channel = new StubReliableChannel();
+        ConnectedLobbySession session = startedSession(channel, snapshot(1L));
+        channel.failNextSend(new IllegalStateException("injected"));
+
+        RealtimeTicketHandle handle = session.requestRealtimeTicket().handle().orElseThrow();
+
+        try {
+            handle.completion()
+                    .toCompletableFuture()
+                    .get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+            throw new AssertionError("request completion should fail");
+        } catch (ExecutionException exception) {
+            RealtimeTicketRequestException failure =
+                    assertInstanceOf(RealtimeTicketRequestException.class, exception.getCause());
+            assertEquals(RealtimeTicketRequestException.Code.SEND_FAILED, failure.code());
+        }
+        assertEquals(
+                DirectConnectFailureCode.REALTIME_TICKET_SEND_FAILED,
+                awaitTermination(session).orElseThrow().code());
+        assertFalse(session.isOpen());
+        assertEquals(1, channel.closeCount());
+    }
+
     private static ConnectedLobbySession startedSession(
             StubReliableChannel channel, LobbySnapshot initial) {
         return startedSession(channel, initial, ignored -> {});
@@ -457,6 +540,21 @@ class ConnectedLobbyCommandTest {
                 SESSION_ID,
                 sequence,
                 LobbyProtocolCodec.encodeCommandResult(result));
+    }
+
+    private static ProtocolEnvelope realtimeTicketResultEnvelope(byte[] payload, long sequence) {
+        return new ProtocolEnvelope(
+                ProtocolVersion.CURRENT,
+                MessageType.REALTIME_TICKET_RESULT,
+                SESSION_ID,
+                sequence,
+                payload);
+    }
+
+    private static byte[] filled(int length, int value) {
+        byte[] bytes = new byte[length];
+        Arrays.fill(bytes, (byte) value);
+        return bytes;
     }
 
     private static ProtocolEnvelope snapshotEnvelope(LobbySnapshot snapshot, long sequence) {

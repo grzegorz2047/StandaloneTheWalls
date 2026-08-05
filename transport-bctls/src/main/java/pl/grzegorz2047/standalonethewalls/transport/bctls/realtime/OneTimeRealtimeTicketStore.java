@@ -108,6 +108,18 @@ public final class OneTimeRealtimeTicketStore implements AutoCloseable {
         }
     }
 
+    public boolean revoke(RealtimeTicketIdentity identity) throws RealtimeTicketStoreException {
+        synchronized (lock) {
+            requireOpen();
+            StoredTicket stored = tickets.remove(Objects.requireNonNull(identity, "identity"));
+            if (stored == null) {
+                return false;
+            }
+            stored.destroy();
+            return true;
+        }
+    }
+
     public int removeExpired() throws RealtimeTicketStoreException {
         synchronized (lock) {
             requireOpen();
