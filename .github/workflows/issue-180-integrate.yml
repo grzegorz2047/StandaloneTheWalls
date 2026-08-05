@@ -1,10 +1,7 @@
 name: Integrate issue 180 movement diagnostics
 
-# One-time branch integration gate.
+# One-time pull-request integration gate.
 on:
-  push:
-    branches:
-      - agent/issue-180-movement-diagnostics
   pull_request:
     branches:
       - main
@@ -46,6 +43,13 @@ jobs:
 
       - name: Generate pinned UI font inputs
         run: python tools/fonts/prepare_sunderfront_ui_font.py
+
+      - name: Stage generated UI font inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p client/src/main/resources/Interface/Fonts
+          cp build/generated-ui-font/SunderfrontUI-Regular.png.b64* client/src/main/resources/Interface/Fonts/
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
