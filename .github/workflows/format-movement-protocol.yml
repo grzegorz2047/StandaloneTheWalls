@@ -1,0 +1,48 @@
+name: Format movement protocol
+
+on:
+  push:
+    branches:
+      - agent/issue-170-preparation-movement-protocol
+    paths:
+      - .github/workflows/format-movement-protocol.yml
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/issue-170-preparation-movement-protocol
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Apply repository Java formatting
+        run: ./gradlew --no-daemon spotlessApply
+
+      - name: Commit formatted sources and remove this workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/format-movement-protocol.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add \
+            .github/workflows/format-movement-protocol.yml \
+            protocol/src/main/java \
+            protocol/src/test/java
+          git diff --cached --check
+          git commit -m "Apply repository Java formatting"
+          git push origin HEAD:agent/issue-170-preparation-movement-protocol
