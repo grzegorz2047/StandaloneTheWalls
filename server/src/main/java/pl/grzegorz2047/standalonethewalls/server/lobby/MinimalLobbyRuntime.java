@@ -74,6 +74,7 @@ import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationInputMai
 import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationMapDefinition;
 import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationMovementSimulation;
 import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationTransitionPlanner;
+import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationTransitionPublishException;
 import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationTransitionPublisher;
 import pl.grzegorz2047.standalonethewalls.server.preparation.VerifiedPreparationMapAdapter;
 import pl.grzegorz2047.standalonethewalls.server.preparation.VerifiedPreparationMapException;
@@ -794,7 +795,7 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         try {
             PreparationTransitionPublisher.publish(
                     plan, matchSnapshot, preparationChannels(state), sendTimeout);
-        } catch (RuntimeException exception) {
+        } catch (PreparationTransitionPublishException exception) {
             state.preparationMovement = null;
             for (MemberState member : state.members.values()) {
                 member.preparationInputMailbox.close();
