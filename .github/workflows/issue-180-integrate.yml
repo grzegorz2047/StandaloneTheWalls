@@ -5,6 +5,13 @@ on:
   push:
     branches:
       - agent/issue-180-movement-diagnostics
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
 
 permissions:
   contents: write
