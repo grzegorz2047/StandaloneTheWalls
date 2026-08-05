@@ -710,8 +710,10 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         revokeOwnedRealtimeTicket(member);
         member.preparationInputMailbox.close();
         PreparationMovementSimulation movement = state.preparationMovement;
-        if (movement != null) {
-            movement.remove(member.identity.playerId());
+        if (movement != null
+                && movement.remove(member.identity.playerId())
+                && movement.playerCount() == 0) {
+            state.preparationMovement = null;
         }
         closeSession(member.session);
         publish(eventCode(reason));

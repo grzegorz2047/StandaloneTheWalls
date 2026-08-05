@@ -7,55 +7,9 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  fix-issue-174:
-    needs: prepare-ui-font
-    if: github.event_name == 'pull_request' && github.head_ref == 'agent/issue-174-preparation-sync'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    steps:
-      - name: Check out integration branch
-        uses: actions/checkout@v4
-        with:
-          ref: agent/issue-174-preparation-sync
-
-      - name: Download generated UI font inputs
-        uses: actions/download-artifact@v4
-        with:
-          name: sunderfront-ui-font-atlas
-          path: client/src/main/resources/Interface/Fonts
-
-      - name: Set up Java 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Apply empty-simulation fix
-        run: python .github/scripts/fix-issue-174-empty-simulation.py
-
-      - name: Format and test server module
-        run: ./gradlew --no-daemon spotlessApply :server:test
-
-      - name: Commit fix and remove one-time automation
-        shell: bash
-        run: |
-          set -euo pipefail
-          git fetch origin main
-          git checkout origin/main -- .github/workflows/ci.yml
-          rm .github/scripts/fix-issue-174-empty-simulation.py
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add -A
-          git diff --cached --check
-          git commit -m "Stop empty preparation movement simulation"
-          git push origin HEAD:agent/issue-174-preparation-sync
-
   prepare-ui-font:
     runs-on: ubuntu-24.04
     timeout-minutes: 10

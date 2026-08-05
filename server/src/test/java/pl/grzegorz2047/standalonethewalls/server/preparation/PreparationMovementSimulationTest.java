@@ -74,6 +74,9 @@ class PreparationMovementSimulationTest {
                 .extracting(PreparationPlayerSnapshot::playerId)
                 .containsExactly(ALPHA);
         assertThat(simulation.remove(BRAVO)).isFalse();
+        assertThat(simulation.remove(ALPHA)).isTrue();
+        assertThat(simulation.playerCount()).isZero();
+        assertThat(simulation.currentSnapshot()).isEmpty();
     }
 
     @Test
