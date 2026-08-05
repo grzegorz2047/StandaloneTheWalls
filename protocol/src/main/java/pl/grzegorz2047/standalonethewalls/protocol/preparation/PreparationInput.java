@@ -6,6 +6,7 @@ public record PreparationInput(
         long sequence,
         int forwardAxis,
         int rightAxis,
+        boolean sprinting,
         int yawCentidegrees,
         int pitchCentidegrees) {
     public static final int MAXIMUM_AXIS = 127;

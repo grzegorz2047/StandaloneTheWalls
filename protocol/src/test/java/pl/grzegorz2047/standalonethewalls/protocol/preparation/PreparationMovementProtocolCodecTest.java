@@ -15,7 +15,8 @@ class PreparationMovementProtocolCodecTest {
     private static final int INPUT_ROUND_OFFSET = 1;
     private static final int INPUT_SEQUENCE_OFFSET = INPUT_ROUND_OFFSET + Long.BYTES;
     private static final int INPUT_FORWARD_OFFSET = INPUT_SEQUENCE_OFFSET + Long.BYTES;
-    private static final int INPUT_YAW_OFFSET = INPUT_FORWARD_OFFSET + 2;
+    private static final int INPUT_FLAGS_OFFSET = INPUT_FORWARD_OFFSET + 2;
+    private static final int INPUT_YAW_OFFSET = INPUT_FLAGS_OFFSET + 1;
     private static final int INPUT_PITCH_OFFSET = INPUT_YAW_OFFSET + Short.BYTES;
 
     private static final int SNAPSHOT_ROUND_OFFSET = 1;
@@ -29,14 +30,15 @@ class PreparationMovementProtocolCodecTest {
 
     @Test
     void encodesTheExactBoundedBigEndianInputVector() throws PreparationProtocolException {
-        PreparationInput input = new PreparationInput(3L, 5L, 127, -127, 9_000, -2_500);
+        PreparationInput input = new PreparationInput(3L, 5L, 127, -127, true, 9_000, -2_500);
         byte[] expected =
                 ByteBuffer.allocate(PreparationMovementProtocolCodec.INPUT_BYTES)
-                        .put((byte) 1)
+                        .put((byte) 2)
                         .putLong(3L)
                         .putLong(5L)
                         .put((byte) 127)
                         .put((byte) -127)
+                        .put((byte) 1)
                         .putShort((short) 9_000)
                         .putShort((short) -2_500)
                         .array();
@@ -49,9 +51,20 @@ class PreparationMovementProtocolCodecTest {
         assertThat(PreparationMovementProtocolCodec.decodeInput(encoded)).isEqualTo(input);
         assertThat(input.forwardAxisValue()).isEqualTo(1.0d);
         assertThat(input.rightAxisValue()).isEqualTo(-1.0d);
+        assertThat(input.sprinting()).isTrue();
         assertThat(input.yawDegrees()).isEqualTo(90.0d);
         assertThat(input.pitchDegrees()).isEqualTo(-25.0d);
         assertThat(MessageType.PREPARATION_INPUT.channel()).isEqualTo(MessageType.Channel.BOTH);
+    }
+
+    @Test
+    void encodesWalkingWithAZeroFlagsByte() throws PreparationProtocolException {
+        PreparationInput input = new PreparationInput(1L, 2L, 0, 0, false, 0, 0);
+
+        byte[] encoded = PreparationMovementProtocolCodec.encodeInput(input);
+
+        assertThat(encoded[INPUT_FLAGS_OFFSET]).isZero();
+        assertThat(PreparationMovementProtocolCodec.decodeInput(encoded).sprinting()).isFalse();
     }
 
     @Test
@@ -120,7 +133,7 @@ class PreparationMovementProtocolCodecTest {
                 PreparationProtocolException.Code.INVALID_SIZE);
 
         byte[] schema = validInputPayload();
-        schema[0] = 2;
+        schema[0] = 1;
         assertInputCode(schema, PreparationProtocolException.Code.UNSUPPORTED_SCHEMA);
 
         byte[] round = validInputPayload();
@@ -134,6 +147,10 @@ class PreparationMovementProtocolCodecTest {
         byte[] axis = validInputPayload();
         axis[INPUT_FORWARD_OFFSET] = (byte) -128;
         assertInputCode(axis, PreparationProtocolException.Code.INVALID_AXIS);
+
+        byte[] flags = validInputPayload();
+        flags[INPUT_FLAGS_OFFSET] = 2;
+        assertInputCode(flags, PreparationProtocolException.Code.INVALID_STATE);
 
         byte[] yaw = validInputPayload();
         ByteBuffer.wrap(yaw).putShort(INPUT_YAW_OFFSET, (short) 18_000);
@@ -221,7 +238,7 @@ class PreparationMovementProtocolCodecTest {
 
     @Test
     void valueObjectsRejectOutOfRangeConstruction() {
-        assertThatThrownBy(() -> new PreparationInput(1L, 1L, 128, 0, 0, 0))
+        assertThatThrownBy(() -> new PreparationInput(1L, 1L, 128, 0, false, 0, 0))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new PreparationPlayerSnapshot(playerId("a"), -1L, 0, 0, 0, 0, 0))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -231,7 +248,7 @@ class PreparationMovementProtocolCodecTest {
 
     private static byte[] validInputPayload() {
         return PreparationMovementProtocolCodec.encodeInput(
-                new PreparationInput(1L, 1L, 0, 0, 0, 0));
+                new PreparationInput(1L, 1L, 0, 0, false, 0, 0));
     }
 
     private static byte[] validSnapshotPayload() {

@@ -12,10 +12,12 @@ class PreparationInputStateTest {
 
         input.set(Direction.FORWARD, true);
         input.set(Direction.RIGHT, true);
+        input.setSprinting(true);
 
         assertThat(input.captured()).isFalse();
         assertThat(input.forwardAxis()).isZero();
         assertThat(input.rightAxis()).isZero();
+        assertThat(input.sprinting()).isFalse();
     }
 
     @Test
@@ -40,12 +42,14 @@ class PreparationInputStateTest {
         input.capture();
         input.set(Direction.FORWARD, true);
         input.set(Direction.LEFT, true);
+        input.setSprinting(true);
 
         assertThat(input.release()).isTrue();
 
         assertThat(input.captured()).isFalse();
         assertThat(input.forwardAxis()).isZero();
         assertThat(input.rightAxis()).isZero();
+        assertThat(input.sprinting()).isFalse();
         assertThat(input.release()).isFalse();
     }
 
@@ -54,8 +58,10 @@ class PreparationInputStateTest {
         PreparationInputState input = new PreparationInputState();
         input.capture();
         input.set(Direction.BACKWARD, true);
+        input.setSprinting(true);
 
         assertThat(input.capture()).isFalse();
         assertThat(input.forwardAxis()).isEqualTo(-1.0d);
+        assertThat(input.sprinting()).isTrue();
     }
 }

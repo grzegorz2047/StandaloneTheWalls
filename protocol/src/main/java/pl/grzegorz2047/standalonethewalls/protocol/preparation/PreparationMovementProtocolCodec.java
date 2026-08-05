@@ -8,7 +8,7 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
 
 /** Strict fixed-size big-endian codec for preparation input and authoritative snapshots. */
 public final class PreparationMovementProtocolCodec {
-    public static final int INPUT_BYTES = 23;
+    public static final int INPUT_BYTES = 24;
     public static final int PLAYER_ID_BYTES = 56;
     public static final int PLAYER_SNAPSHOT_BYTES = 80;
     public static final int SNAPSHOT_HEADER_BYTES = 18;
@@ -16,7 +16,10 @@ public final class PreparationMovementProtocolCodec {
             SNAPSHOT_HEADER_BYTES
                     + PreparationWorldSnapshot.MAXIMUM_PLAYERS * PLAYER_SNAPSHOT_BYTES;
 
-    private static final int SCHEMA_VERSION = 1;
+    private static final int INPUT_SCHEMA_VERSION = 2;
+    private static final int SNAPSHOT_SCHEMA_VERSION = 1;
+    private static final int INPUT_FLAG_SPRINT = 1;
+    private static final int KNOWN_INPUT_FLAGS = INPUT_FLAG_SPRINT;
 
     private PreparationMovementProtocolCodec() {
         throw new AssertionError("No instances");
@@ -25,11 +28,12 @@ public final class PreparationMovementProtocolCodec {
     public static byte[] encodeInput(PreparationInput input) {
         PreparationInput value = requireInput(input);
         return ByteBuffer.allocate(INPUT_BYTES)
-                .put((byte) SCHEMA_VERSION)
+                .put((byte) INPUT_SCHEMA_VERSION)
                 .putLong(value.roundNumber())
                 .putLong(value.sequence())
                 .put((byte) value.forwardAxis())
                 .put((byte) value.rightAxis())
+                .put((byte) (value.sprinting() ? INPUT_FLAG_SPRINT : 0))
                 .putShort((short) value.yawCentidegrees())
                 .putShort((short) value.pitchCentidegrees())
                 .array();
@@ -42,15 +46,22 @@ public final class PreparationMovementProtocolCodec {
                     "preparation input has an invalid size");
         }
         ByteBuffer input = ByteBuffer.wrap(payload);
-        requireSchema(input.get());
+        requireInputSchema(input.get());
         long roundNumber = requireRoundNumber(input.getLong());
         long sequence = requirePositiveSequence(input.getLong());
         int forwardAxis = requireAxis(input.get());
         int rightAxis = requireAxis(input.get());
+        boolean sprinting = requireInputFlags(input.get());
         int yawCentidegrees = requireYaw(input.getShort());
         int pitchCentidegrees = requirePitch(input.getShort());
         return new PreparationInput(
-                roundNumber, sequence, forwardAxis, rightAxis, yawCentidegrees, pitchCentidegrees);
+                roundNumber,
+                sequence,
+                forwardAxis,
+                rightAxis,
+                sprinting,
+                yawCentidegrees,
+                pitchCentidegrees);
     }
 
     public static byte[] encodeSnapshot(PreparationWorldSnapshot snapshot) {
@@ -58,7 +69,7 @@ public final class PreparationMovementProtocolCodec {
         int size = SNAPSHOT_HEADER_BYTES + value.players().size() * PLAYER_SNAPSHOT_BYTES;
         ByteBuffer output =
                 ByteBuffer.allocate(size)
-                        .put((byte) SCHEMA_VERSION)
+                        .put((byte) SNAPSHOT_SCHEMA_VERSION)
                         .putLong(value.roundNumber())
                         .putLong(value.authoritativeTick())
                         .put((byte) value.players().size());
@@ -88,7 +99,7 @@ public final class PreparationMovementProtocolCodec {
                     "preparation snapshot has an invalid size");
         }
         ByteBuffer input = ByteBuffer.wrap(payload);
-        requireSchema(input.get());
+        requireSnapshotSchema(input.get());
         long roundNumber = requireRoundNumber(input.getLong());
         long authoritativeTick = requireTick(input.getLong());
         int playerCount = Byte.toUnsignedInt(input.get());
@@ -149,12 +160,30 @@ public final class PreparationMovementProtocolCodec {
         return snapshot;
     }
 
-    private static void requireSchema(byte raw) throws PreparationProtocolException {
-        if (Byte.toUnsignedInt(raw) != SCHEMA_VERSION) {
+    private static void requireInputSchema(byte raw) throws PreparationProtocolException {
+        if (Byte.toUnsignedInt(raw) != INPUT_SCHEMA_VERSION) {
             throw failure(
                     PreparationProtocolException.Code.UNSUPPORTED_SCHEMA,
-                    "preparation movement schema is unsupported");
+                    "preparation input schema is unsupported");
         }
+    }
+
+    private static void requireSnapshotSchema(byte raw) throws PreparationProtocolException {
+        if (Byte.toUnsignedInt(raw) != SNAPSHOT_SCHEMA_VERSION) {
+            throw failure(
+                    PreparationProtocolException.Code.UNSUPPORTED_SCHEMA,
+                    "preparation snapshot schema is unsupported");
+        }
+    }
+
+    private static boolean requireInputFlags(byte raw) throws PreparationProtocolException {
+        int flags = Byte.toUnsignedInt(raw);
+        if ((flags & ~KNOWN_INPUT_FLAGS) != 0) {
+            throw failure(
+                    PreparationProtocolException.Code.INVALID_STATE,
+                    "preparation input flags are invalid");
+        }
+        return (flags & INPUT_FLAG_SPRINT) != 0;
     }
 
     private static long requireRoundNumber(long value) throws PreparationProtocolException {
