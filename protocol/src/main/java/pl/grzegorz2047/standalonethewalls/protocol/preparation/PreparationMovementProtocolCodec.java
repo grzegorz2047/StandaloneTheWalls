@@ -10,17 +10,19 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
 public final class PreparationMovementProtocolCodec {
     public static final int INPUT_BYTES = 24;
     public static final int PLAYER_ID_BYTES = 56;
-    public static final int PLAYER_SNAPSHOT_BYTES = 80;
+    public static final int PLAYER_SNAPSHOT_BYTES = 81;
     public static final int SNAPSHOT_HEADER_BYTES = 18;
     public static final int MAXIMUM_SNAPSHOT_BYTES =
             SNAPSHOT_HEADER_BYTES
                     + PreparationWorldSnapshot.MAXIMUM_PLAYERS * PLAYER_SNAPSHOT_BYTES;
 
     private static final int INPUT_SCHEMA_VERSION = 3;
-    private static final int SNAPSHOT_SCHEMA_VERSION = 1;
+    private static final int SNAPSHOT_SCHEMA_VERSION = 2;
     private static final int INPUT_FLAG_SPRINT = 1;
     private static final int INPUT_FLAG_CROUCH = 1 << 1;
     private static final int KNOWN_INPUT_FLAGS = INPUT_FLAG_SPRINT | INPUT_FLAG_CROUCH;
+    private static final int SNAPSHOT_FLAG_CROUCH = 1;
+    private static final int KNOWN_SNAPSHOT_FLAGS = SNAPSHOT_FLAG_CROUCH;
 
     private PreparationMovementProtocolCodec() {
         throw new AssertionError("No instances");
@@ -82,6 +84,7 @@ public final class PreparationMovementProtocolCodec {
             }
             output.put(playerId)
                     .putLong(player.lastProcessedInputSequence())
+                    .put((byte) (player.crouching() ? SNAPSHOT_FLAG_CROUCH : 0))
                     .putInt(player.xMillimetres())
                     .putInt(player.yMillimetres())
                     .putInt(player.zMillimetres())
@@ -130,6 +133,7 @@ public final class PreparationMovementProtocolCodec {
             }
             previousPlayerId = playerId.value();
             long acknowledgedSequence = requireAcknowledgedSequence(input.getLong());
+            boolean crouching = requireSnapshotFlags(input.get());
             int xMillimetres = requireCoordinate(input.getInt());
             int yMillimetres = requireCoordinate(input.getInt());
             int zMillimetres = requireCoordinate(input.getInt());
@@ -142,6 +146,7 @@ public final class PreparationMovementProtocolCodec {
                             xMillimetres,
                             yMillimetres,
                             zMillimetres,
+                            crouching,
                             yawCentidegrees,
                             pitchCentidegrees));
         }
@@ -197,6 +202,16 @@ public final class PreparationMovementProtocolCodec {
                     "preparation input flags are invalid");
         }
         return new InputFlags((flags & INPUT_FLAG_SPRINT) != 0, (flags & INPUT_FLAG_CROUCH) != 0);
+    }
+
+    private static boolean requireSnapshotFlags(byte raw) throws PreparationProtocolException {
+        int flags = Byte.toUnsignedInt(raw);
+        if ((flags & ~KNOWN_SNAPSHOT_FLAGS) != 0) {
+            throw failure(
+                    PreparationProtocolException.Code.INVALID_STATE,
+                    "preparation snapshot flags are invalid");
+        }
+        return (flags & SNAPSHOT_FLAG_CROUCH) != 0;
     }
 
     private static long requireRoundNumber(long value) throws PreparationProtocolException {
