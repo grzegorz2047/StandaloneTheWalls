@@ -76,9 +76,7 @@ public final class PreparationVerticalMotion {
             return new Step(groundHeightMetres, 0.0d, true);
         }
         return new Step(
-                nextHeight,
-                Math.max(velocity, -MAXIMUM_FALL_SPEED_METRES_PER_SECOND),
-                false);
+                nextHeight, Math.max(velocity, -MAXIMUM_FALL_SPEED_METRES_PER_SECOND), false);
     }
 
     private static void requireFinite(double value, String field) {
@@ -98,7 +96,8 @@ public final class PreparationVerticalMotion {
                         "verticalVelocityMetresPerSecond is outside the supported range");
             }
             if (grounded && Double.compare(verticalVelocityMetresPerSecond, 0.0d) != 0) {
-                throw new IllegalArgumentException("grounded step must have zero vertical velocity");
+                throw new IllegalArgumentException(
+                        "grounded step must have zero vertical velocity");
             }
         }
     }

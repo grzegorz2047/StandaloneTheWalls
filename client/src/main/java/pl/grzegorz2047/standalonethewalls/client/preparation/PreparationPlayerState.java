@@ -101,13 +101,7 @@ public final class PreparationPlayerState {
             double authoritativeYawDegrees,
             double authoritativePitchDegrees) {
         return withAuthoritativeState(
-                x,
-                y,
-                z,
-                0.0d,
-                true,
-                authoritativeYawDegrees,
-                authoritativePitchDegrees);
+                x, y, z, 0.0d, true, authoritativeYawDegrees, authoritativePitchDegrees);
     }
 
     public PreparationPlayerState withAuthoritativeState(
@@ -148,9 +142,7 @@ public final class PreparationPlayerState {
     }
 
     public PreparationPlayerState withVerticalState(
-            double heightMetres,
-            double nextVerticalVelocityMetresPerSecond,
-            boolean nextGrounded) {
+            double heightMetres, double nextVerticalVelocityMetresPerSecond, boolean nextGrounded) {
         requireFinite(heightMetres, "heightMetres");
         if (Double.compare(heightMetres, position.y()) == 0
                 && Double.compare(
@@ -187,12 +179,7 @@ public final class PreparationPlayerState {
             return this;
         }
         return new PreparationPlayerState(
-                scene,
-                position,
-                verticalVelocityMetresPerSecond,
-                grounded,
-                nextYaw,
-                nextPitch);
+                scene, position, verticalVelocityMetresPerSecond, grounded, nextYaw, nextPitch);
     }
 
     private static double addFinite(double value, double delta) {

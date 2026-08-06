@@ -220,8 +220,7 @@ public final class PreparationPredictionHistory {
                         "sprinting and crouching are mutually exclusive");
             }
             if (crouching && jumping) {
-                throw new IllegalArgumentException(
-                        "crouching and jumping are mutually exclusive");
+                throw new IllegalArgumentException("crouching and jumping are mutually exclusive");
             }
             if (!Double.isFinite(yawDegrees) || yawDegrees < -180.0d || yawDegrees >= 180.0d) {
                 throw new IllegalArgumentException("yawDegrees must be in [-180, 180)");

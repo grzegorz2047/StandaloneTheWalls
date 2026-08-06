@@ -25,8 +25,7 @@ public final class PreparationMovementProtocolCodec {
             INPUT_FLAG_SPRINT | INPUT_FLAG_CROUCH | INPUT_FLAG_JUMP;
     private static final int SNAPSHOT_FLAG_CROUCH = 1;
     private static final int SNAPSHOT_FLAG_GROUNDED = 1 << 1;
-    private static final int KNOWN_SNAPSHOT_FLAGS =
-            SNAPSHOT_FLAG_CROUCH | SNAPSHOT_FLAG_GROUNDED;
+    private static final int KNOWN_SNAPSHOT_FLAGS = SNAPSHOT_FLAG_CROUCH | SNAPSHOT_FLAG_GROUNDED;
 
     private PreparationMovementProtocolCodec() {
         throw new AssertionError("No instances");
@@ -246,8 +245,7 @@ public final class PreparationMovementProtocolCodec {
                     "preparation snapshot flags are invalid");
         }
         return new SnapshotFlags(
-                (flags & SNAPSHOT_FLAG_CROUCH) != 0,
-                (flags & SNAPSHOT_FLAG_GROUNDED) != 0);
+                (flags & SNAPSHOT_FLAG_CROUCH) != 0, (flags & SNAPSHOT_FLAG_GROUNDED) != 0);
     }
 
     private static long requireRoundNumber(long value) throws PreparationProtocolException {

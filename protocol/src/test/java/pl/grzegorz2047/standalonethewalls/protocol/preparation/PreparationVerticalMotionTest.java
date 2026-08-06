@@ -14,8 +14,7 @@ class PreparationVerticalMotionTest {
 
         assertThat(first.grounded()).isFalse();
         assertThat(first.heightMetres()).isCloseTo(0.7775d, within(0.0000001d));
-        assertThat(first.verticalVelocityMetresPerSecond())
-                .isCloseTo(5.1d, within(0.0000001d));
+        assertThat(first.verticalVelocityMetresPerSecond()).isCloseTo(5.1d, within(0.0000001d));
 
         PreparationVerticalMotion.Step state = first;
         for (int index = 0; index < 20 && !state.grounded(); index++) {

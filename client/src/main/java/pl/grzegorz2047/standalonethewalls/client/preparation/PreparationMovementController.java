@@ -8,7 +8,8 @@ public final class PreparationMovementController {
     public static final double MOVEMENT_SPEED_METRES_PER_SECOND = 5.0d;
     public static final double SPRINTING_SPEED_METRES_PER_SECOND = 8.0d;
     public static final double CROUCHING_SPEED_METRES_PER_SECOND = 3.0d;
-    public static final double MAXIMUM_STEP_SECONDS = PreparationVerticalMotion.MAXIMUM_STEP_SECONDS;
+    public static final double MAXIMUM_STEP_SECONDS =
+            PreparationVerticalMotion.MAXIMUM_STEP_SECONDS;
     public static final double YAW_DEGREES_PER_MOUSE_PIXEL = 0.12d;
     public static final double PITCH_DEGREES_PER_MOUSE_PIXEL = 0.10d;
 
@@ -22,7 +23,8 @@ public final class PreparationMovementController {
             double forwardAxis,
             double rightAxis,
             double elapsedSeconds) {
-        return move(current, collisions, forwardAxis, rightAxis, false, false, false, elapsedSeconds);
+        return move(
+                current, collisions, forwardAxis, rightAxis, false, false, false, elapsedSeconds);
     }
 
     public static PreparationPlayerState move(

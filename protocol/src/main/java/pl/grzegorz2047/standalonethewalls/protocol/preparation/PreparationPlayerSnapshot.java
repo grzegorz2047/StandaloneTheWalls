@@ -71,7 +71,8 @@ public record PreparationPlayerSnapshot(
         if (verticalVelocityMillimetresPerSecond
                         < PreparationVerticalMotion.MINIMUM_VERTICAL_VELOCITY_MILLIMETRES_PER_SECOND
                 || verticalVelocityMillimetresPerSecond
-                        > PreparationVerticalMotion.MAXIMUM_VERTICAL_VELOCITY_MILLIMETRES_PER_SECOND) {
+                        > PreparationVerticalMotion
+                                .MAXIMUM_VERTICAL_VELOCITY_MILLIMETRES_PER_SECOND) {
             throw new IllegalArgumentException(
                     "verticalVelocityMillimetresPerSecond is outside the supported range");
         }
