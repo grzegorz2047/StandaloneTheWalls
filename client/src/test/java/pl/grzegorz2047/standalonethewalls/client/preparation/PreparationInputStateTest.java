@@ -98,7 +98,7 @@ class PreparationInputStateTest {
     }
 
     @Test
-    void airbornePressIsNotBufferedForA laterLanding() {
+    void airbornePressIsNotBufferedForALaterLanding() {
         PreparationInputState input = new PreparationInputState();
         input.capture();
 
