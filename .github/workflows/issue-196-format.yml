@@ -37,9 +37,11 @@ jobs:
             map-format/src/main/java/pl/grzegorz2047/standalonethewalls/mapformat/PreparationPlayerBodyProfile.java
             map-format/src/main/java/pl/grzegorz2047/standalonethewalls/mapformat/PreparationObstacleMap.java
             map-format/src/test/java/pl/grzegorz2047/standalonethewalls/mapformat/PreparationObstacleMapTest.java
+            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/SunderfrontClient.java
             client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/VerifiedPreparationScene.java
             client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationSceneLoader.java
             client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationCollisionWorld.java
+            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationCameraPlacement.java
             client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationPlayerState.java
             client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationMovementController.java
             server/src/main/java/pl/grzegorz2047/standalonethewalls/server/preparation/PreparationMovementSimulation.java
