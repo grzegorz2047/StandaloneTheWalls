@@ -31,6 +31,7 @@ public final class PreparationSceneGraphLoader {
                         verified.sceneGlb(),
                         "scene.glb",
                         "verified-preparation-" + verified.mapId());
+        PreparationPhasePresentationBridge.bind(verified);
         return new PhaseAwareWorldNode(loaded, verified);
     }
 
