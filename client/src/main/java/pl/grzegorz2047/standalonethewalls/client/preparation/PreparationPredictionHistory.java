@@ -15,6 +15,7 @@ public final class PreparationPredictionHistory {
 
     private long lastAcknowledgedSequence;
     private long highestSubmittedSequence;
+    private long consumedJumpSequence;
 
     public PreparationPredictionHistory() {
         this(DEFAULT_MAXIMUM_STEPS);
@@ -103,6 +104,7 @@ public final class PreparationPredictionHistory {
         if (pending.size() == maximumSteps) {
             throw new IllegalStateException("preparation prediction history is full");
         }
+        boolean jumpEdge = jumping && player.grounded() && consumedJumpSequence != sequence;
         PredictionStep step =
                 new PredictionStep(
                         sequence,
@@ -110,12 +112,16 @@ public final class PreparationPredictionHistory {
                         rightAxis,
                         sprinting,
                         crouching,
-                        jumping,
+                        jumpEdge,
                         player.yawDegrees(),
                         player.pitchDegrees(),
                         elapsedSeconds);
+        PreparationPlayerState predicted = apply(player, world, step);
         pending.addLast(step);
-        return apply(player, world, step);
+        if (jumpEdge) {
+            consumedJumpSequence = sequence;
+        }
+        return predicted;
     }
 
     public void markSubmitted(long sequence) {
