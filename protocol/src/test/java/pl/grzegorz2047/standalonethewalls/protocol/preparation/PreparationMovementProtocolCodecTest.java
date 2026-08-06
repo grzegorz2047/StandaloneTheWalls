@@ -26,7 +26,8 @@ class PreparationMovementProtocolCodecTest {
             PreparationMovementProtocolCodec.SNAPSHOT_HEADER_BYTES;
     private static final int FIRST_SEQUENCE_OFFSET =
             FIRST_PLAYER_OFFSET + PreparationMovementProtocolCodec.PLAYER_ID_BYTES;
-    private static final int FIRST_X_OFFSET = FIRST_SEQUENCE_OFFSET + Long.BYTES;
+    private static final int FIRST_FLAGS_OFFSET = FIRST_SEQUENCE_OFFSET + Long.BYTES;
+    private static final int FIRST_X_OFFSET = FIRST_FLAGS_OFFSET + 1;
 
     @Test
     void encodesTheExactBoundedBigEndianInputVector() throws PreparationProtocolException {
@@ -95,19 +96,20 @@ class PreparationMovementProtocolCodecTest {
 
     @Test
     void encodesTheExactFixedPointSnapshotVector() throws PreparationProtocolException {
-        PreparationPlayerSnapshot player = player("a", 7L, 1_250, 2_000, -4_500, 4_500, -125);
+        PreparationPlayerSnapshot player = player("a", 7L, 1_250, 2_000, -4_500, true, 4_500, -125);
         PreparationWorldSnapshot snapshot = new PreparationWorldSnapshot(2L, 41L, List.of(player));
         byte[] playerId = player.playerId().value().getBytes(StandardCharsets.US_ASCII);
         byte[] expected =
                 ByteBuffer.allocate(
                                 PreparationMovementProtocolCodec.SNAPSHOT_HEADER_BYTES
                                         + PreparationMovementProtocolCodec.PLAYER_SNAPSHOT_BYTES)
-                        .put((byte) 1)
+                        .put((byte) 2)
                         .putLong(2L)
                         .putLong(41L)
                         .put((byte) 1)
                         .put(playerId)
                         .putLong(7L)
+                        .put((byte) 1)
                         .putInt(1_250)
                         .putInt(2_000)
                         .putInt(-4_500)
@@ -119,6 +121,7 @@ class PreparationMovementProtocolCodecTest {
 
         assertThat(encoded).containsExactly(expected);
         assertThat(PreparationMovementProtocolCodec.decodeSnapshot(encoded)).isEqualTo(snapshot);
+        assertThat(player.crouching()).isTrue();
         assertThat(player.xMetres()).isEqualTo(1.25d);
         assertThat(player.yMetres()).isEqualTo(2.0d);
         assertThat(player.zMetres()).isEqualTo(-4.5d);
@@ -136,13 +139,21 @@ class PreparationMovementProtocolCodecTest {
             String suffix = "a".repeat(50) + first + second;
             players.add(
                     new PreparationPlayerSnapshot(
-                            new PlayerId("sf1_" + suffix), index, index, 2_000, -index, 0, 0));
+                            new PlayerId("sf1_" + suffix),
+                            index,
+                            index,
+                            2_000,
+                            -index,
+                            index % 2 == 0,
+                            0,
+                            0));
         }
         PreparationWorldSnapshot snapshot = new PreparationWorldSnapshot(1L, 0L, players);
 
         byte[] encoded = PreparationMovementProtocolCodec.encodeSnapshot(snapshot);
 
         assertThat(encoded).hasSize(PreparationMovementProtocolCodec.MAXIMUM_SNAPSHOT_BYTES);
+        assertThat(encoded.length).isLessThan(4_096);
         assertThat(encoded.length)
                 .isLessThanOrEqualTo(MessageType.PREPARATION_SNAPSHOT.maximumPayloadBytes());
         assertThat(PreparationMovementProtocolCodec.decodeSnapshot(encoded)).isEqualTo(snapshot);
@@ -205,9 +216,9 @@ class PreparationMovementProtocolCodecTest {
                                 - 1],
                 PreparationProtocolException.Code.INVALID_SIZE);
 
-        byte[] schema = validSnapshotPayload();
-        schema[0] = 2;
-        assertSnapshotCode(schema, PreparationProtocolException.Code.UNSUPPORTED_SCHEMA);
+        byte[] legacySchema = validSnapshotPayload();
+        legacySchema[0] = 1;
+        assertSnapshotCode(legacySchema, PreparationProtocolException.Code.UNSUPPORTED_SCHEMA);
 
         byte[] round = validSnapshotPayload();
         ByteBuffer.wrap(round).putLong(SNAPSHOT_ROUND_OFFSET, 0L);
@@ -232,6 +243,10 @@ class PreparationMovementProtocolCodecTest {
         byte[] sequence = validSnapshotPayload();
         ByteBuffer.wrap(sequence).putLong(FIRST_SEQUENCE_OFFSET, -1L);
         assertSnapshotCode(sequence, PreparationProtocolException.Code.INVALID_SEQUENCE);
+
+        byte[] unknownFlags = validSnapshotPayload();
+        unknownFlags[FIRST_FLAGS_OFFSET] = 2;
+        assertSnapshotCode(unknownFlags, PreparationProtocolException.Code.INVALID_STATE);
 
         byte[] coordinate = validSnapshotPayload();
         ByteBuffer.wrap(coordinate)
@@ -294,8 +309,20 @@ class PreparationMovementProtocolCodecTest {
 
     private static PreparationPlayerSnapshot player(
             String suffixCharacter, long sequence, int x, int y, int z, int yaw, int pitch) {
+        return player(suffixCharacter, sequence, x, y, z, false, yaw, pitch);
+    }
+
+    private static PreparationPlayerSnapshot player(
+            String suffixCharacter,
+            long sequence,
+            int x,
+            int y,
+            int z,
+            boolean crouching,
+            int yaw,
+            int pitch) {
         return new PreparationPlayerSnapshot(
-                playerId(suffixCharacter), sequence, x, y, z, yaw, pitch);
+                playerId(suffixCharacter), sequence, x, y, z, crouching, yaw, pitch);
     }
 
     private static PlayerId playerId(String suffixCharacter) {

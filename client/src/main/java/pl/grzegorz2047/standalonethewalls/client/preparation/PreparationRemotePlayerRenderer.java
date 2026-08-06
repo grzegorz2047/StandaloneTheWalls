@@ -19,7 +19,8 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
 /** Reuses jMonkeyEngine primitives to present interpolated remote preparation players. */
 public final class PreparationRemotePlayerRenderer implements AutoCloseable {
     private static final float HALF_WIDTH = 0.35f;
-    private static final float HALF_HEIGHT = 0.9f;
+    private static final float STANDING_HALF_HEIGHT = 0.9f;
+    private static final float CROUCHING_HALF_HEIGHT = 0.55f;
     private static final float HALF_DEPTH = 0.35f;
 
     private final Node root = new Node("preparation-remote-players");
@@ -49,10 +50,12 @@ public final class PreparationRemotePlayerRenderer implements AutoCloseable {
                         "remote player poses contain a duplicate player");
             }
             Geometry geometry = geometries.computeIfAbsent(pose.playerId(), this::createGeometry);
+            float halfHeight = halfHeight(pose.crouchAmount());
+            geometry.setLocalScale(1.0f, halfHeight / STANDING_HALF_HEIGHT, 1.0f);
             geometry.setLocalTranslation(
                     new Vector3f(
                             (float) pose.xMetres(),
-                            (float) pose.yMetres() + HALF_HEIGHT,
+                            centreY(pose.yMetres(), pose.crouchAmount()),
                             (float) pose.zMetres()));
             geometry.setLocalRotation(
                     new Quaternion()
@@ -84,13 +87,33 @@ public final class PreparationRemotePlayerRenderer implements AutoCloseable {
         root.removeFromParent();
     }
 
+    static float halfHeight(double crouchAmount) {
+        requireCrouchAmount(crouchAmount);
+        return (float)
+                (STANDING_HALF_HEIGHT
+                        + ((CROUCHING_HALF_HEIGHT - STANDING_HALF_HEIGHT) * crouchAmount));
+    }
+
+    static float centreY(double groundY, double crouchAmount) {
+        if (!Double.isFinite(groundY)) {
+            throw new IllegalArgumentException("groundY must be finite");
+        }
+        return (float) groundY + halfHeight(crouchAmount);
+    }
+
     private Geometry createGeometry(PlayerId playerId) {
         Geometry geometry =
                 new Geometry(
                         "preparation-player-" + playerId.value(),
-                        new Box(HALF_WIDTH, HALF_HEIGHT, HALF_DEPTH));
+                        new Box(HALF_WIDTH, STANDING_HALF_HEIGHT, HALF_DEPTH));
         geometry.setMaterial(material);
         root.attachChild(geometry);
         return geometry;
+    }
+
+    private static void requireCrouchAmount(double crouchAmount) {
+        if (!Double.isFinite(crouchAmount) || crouchAmount < 0.0d || crouchAmount > 1.0d) {
+            throw new IllegalArgumentException("crouchAmount must be finite and in [0, 1]");
+        }
     }
 }

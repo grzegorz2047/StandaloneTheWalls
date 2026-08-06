@@ -113,7 +113,8 @@ public final class PreparationRemoteSnapshotInterpolator {
                 lerp(source.yMetres(), destination.yMetres(), alpha),
                 lerp(source.zMetres(), destination.zMetres(), alpha),
                 interpolateYaw(source.yawDegrees(), destination.yawDegrees(), alpha),
-                lerp(source.pitchDegrees(), destination.pitchDegrees(), alpha));
+                lerp(source.pitchDegrees(), destination.pitchDegrees(), alpha),
+                lerp(source.crouchAmount(), destination.crouchAmount(), alpha));
     }
 
     private Map<PlayerId, PreparationRemotePlayerPose> remotePoses(
@@ -129,7 +130,8 @@ public final class PreparationRemoteSnapshotInterpolator {
                                 player.yMetres(),
                                 player.zMetres(),
                                 player.yawDegrees(),
-                                player.pitchDegrees()));
+                                player.pitchDegrees(),
+                                player.crouching() ? 1.0d : 0.0d));
             }
         }
         return immutableOrdered(poses);

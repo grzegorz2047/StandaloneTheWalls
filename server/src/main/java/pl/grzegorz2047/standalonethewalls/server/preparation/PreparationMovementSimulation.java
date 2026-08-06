@@ -253,6 +253,7 @@ public final class PreparationMovementSimulation {
                     (int) Math.round(xMillimetres),
                     yMillimetres,
                     (int) Math.round(zMillimetres),
+                    activeInput != null && activeInput.crouching(),
                     yawCentidegrees,
                     pitchCentidegrees);
         }
