@@ -59,6 +59,7 @@ if runtime_marker not in runtime_text:
 
 runpy.run_path("tools/issue_198_client_apply.py", run_name="__main__")
 runpy.run_path("tools/issue_198_runtime_test_apply.py", run_name="__main__")
+runpy.run_path("tools/issue_198_policy_test_apply.py", run_name="__main__")
 
 collision = Path(
     "client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationCollisionWorld.java"
@@ -88,6 +89,7 @@ git add \
   client/src/main/java/pl/grzegorz2047/standalonethewalls/client/ui/directconnect/DirectConnectUiController.java \
   client/src/main/resources/i18n/messages_en.properties \
   client/src/main/resources/i18n/messages_pl.properties \
+  client/src/test/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationObstacleSlidingControllerTest.java \
   client/src/test/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationPredictionHistoryTest.java \
   map-format/src/test/java/pl/grzegorz2047/standalonethewalls/mapformat/PreparationObstacleMapTest.java \
   map-format/src/test/java/pl/grzegorz2047/standalonethewalls/mapformat/PreparationWorldBoundsTest.java \
