@@ -41,7 +41,8 @@ class PreparationJumpMovementSimulationTest {
         assertThat(state.verticalVelocityMillimetresPerSecond()).isZero();
         assertThat(state.grounded()).isTrue();
 
-        PreparationPlayerSnapshot afterLanding = player(simulation.advanceTick(++tick, Map.of()));
+        PreparationPlayerSnapshot afterLanding =
+                player(simulation.advanceTick(tick + 1L, Map.of()));
         assertThat(afterLanding.yMillimetres()).isZero();
         assertThat(afterLanding.grounded()).isTrue();
     }
@@ -66,7 +67,8 @@ class PreparationJumpMovementSimulationTest {
         while (!state.grounded() && tick < 40L) {
             state = player(simulation.advanceTick(++tick, Map.of()));
         }
-        PreparationPlayerSnapshot afterLanding = player(simulation.advanceTick(++tick, Map.of()));
+        PreparationPlayerSnapshot afterLanding =
+                player(simulation.advanceTick(tick + 1L, Map.of()));
 
         assertThat(state.grounded()).isTrue();
         assertThat(afterLanding.grounded()).isTrue();
