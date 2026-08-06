@@ -11,6 +11,7 @@ import com.jme3.scene.Spatial;
 import java.util.Objects;
 import java.util.OptionalDouble;
 import pl.grzegorz2047.standalonethewalls.mapformat.MapVector3;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationBarrierPolicy;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationObstacleMap;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationSupportMap;
 
@@ -66,24 +67,54 @@ public final class PreparationCollisionWorld {
     }
 
     public boolean hasPlayerClearance(MapVector3 position, boolean crouching) {
+        return hasPlayerClearance(position, crouching, PreparationBarrierPolicy.CLOSED);
+    }
+
+    public boolean hasPlayerClearance(
+            MapVector3 position,
+            boolean crouching,
+            PreparationBarrierPolicy barrierPolicy) {
         MapVector3 point = Objects.requireNonNull(position, "position");
-        return obstacleMap.hasPlayerClearance(point.x(), point.y(), point.z(), crouching)
-                && hasBodyClearance(toVector(point));
+        PreparationBarrierPolicy policy =
+                Objects.requireNonNull(barrierPolicy, "barrierPolicy");
+        return obstacleMap.hasPlayerClearance(
+                        point.x(), point.y(), point.z(), crouching, policy)
+                && hasBodyClearance(toVector(point), policy);
     }
 
     public double limitUpwardMovement(MapVector3 current, double targetYMetres, boolean crouching) {
+        return limitUpwardMovement(
+                current, targetYMetres, crouching, PreparationBarrierPolicy.CLOSED);
+    }
+
+    public double limitUpwardMovement(
+            MapVector3 current,
+            double targetYMetres,
+            boolean crouching,
+            PreparationBarrierPolicy barrierPolicy) {
         MapVector3 point = Objects.requireNonNull(current, "current");
         return obstacleMap.limitUpwardMovement(
-                point.x(), point.z(), point.y(), targetYMetres, crouching);
+                point.x(),
+                point.z(),
+                point.y(),
+                targetYMetres,
+                crouching,
+                Objects.requireNonNull(barrierPolicy, "barrierPolicy"));
     }
 
     public boolean permitsHorizontal(MapVector3 current, MapVector3 target) {
-        return permitsHorizontal(current, target, true, false);
+        return permitsHorizontal(
+                current, target, true, false, PreparationBarrierPolicy.CLOSED);
     }
 
     public boolean permitsHorizontal(
             MapVector3 current, MapVector3 target, boolean requireGroundSupport) {
-        return permitsHorizontal(current, target, requireGroundSupport, false);
+        return permitsHorizontal(
+                current,
+                target,
+                requireGroundSupport,
+                false,
+                PreparationBarrierPolicy.CLOSED);
     }
 
     public boolean permitsHorizontal(
@@ -91,8 +122,24 @@ public final class PreparationCollisionWorld {
             MapVector3 target,
             boolean requireGroundSupport,
             boolean crouching) {
+        return permitsHorizontal(
+                current,
+                target,
+                requireGroundSupport,
+                crouching,
+                PreparationBarrierPolicy.CLOSED);
+    }
+
+    public boolean permitsHorizontal(
+            MapVector3 current,
+            MapVector3 target,
+            boolean requireGroundSupport,
+            boolean crouching,
+            PreparationBarrierPolicy barrierPolicy) {
         MapVector3 origin = Objects.requireNonNull(current, "current");
         MapVector3 destination = Objects.requireNonNull(target, "target");
+        PreparationBarrierPolicy policy =
+                Objects.requireNonNull(barrierPolicy, "barrierPolicy");
         if (Double.compare(origin.y(), destination.y()) != 0) {
             throw new IllegalArgumentException("horizontal collision query must preserve height");
         }
@@ -103,13 +150,14 @@ public final class PreparationCollisionWorld {
                 destination.x(),
                 destination.y(),
                 destination.z(),
-                crouching)) {
+                crouching,
+                policy)) {
             return false;
         }
 
         Vector3f start = toVector(origin);
         Vector3f end = toVector(destination);
-        if (!hasBodyClearance(start) || !hasBodyClearance(end)) {
+        if (!hasBodyClearance(start, policy) || !hasBodyClearance(end, policy)) {
             return false;
         }
 
@@ -119,7 +167,7 @@ public final class PreparationCollisionWorld {
             return !requireGroundSupport || hasGroundSupport(destination);
         }
 
-        if (rayMeetsObstacle(start, movement.normalize(), distance)) {
+        if (rayMeetsObstacle(start, movement.normalize(), distance, policy)) {
             return false;
         }
 
@@ -127,31 +175,36 @@ public final class PreparationCollisionWorld {
         for (int index = 1; index < samples; index++) {
             float fraction = (float) index / samples;
             Vector3f sample = start.add(movement.mult(fraction));
-            if (!hasBodyClearance(sample)) {
+            if (!hasBodyClearance(sample, policy)) {
                 return false;
             }
         }
         return !requireGroundSupport || hasGroundSupport(destination);
     }
 
-    private boolean hasBodyClearance(Vector3f center) {
+    private boolean hasBodyClearance(
+            Vector3f center, PreparationBarrierPolicy barrierPolicy) {
         CollisionResults results = new CollisionResults();
         graph.collideWith(new BoundingSphere(PLAYER_BODY_RADIUS_METRES, center), results);
         for (CollisionResult result : results) {
-            if (!belongsToSupport(result.getGeometry())) {
+            if (blocks(result.getGeometry(), barrierPolicy)) {
                 return false;
             }
         }
         return true;
     }
 
-    private boolean rayMeetsObstacle(Vector3f start, Vector3f direction, float distance) {
+    private boolean rayMeetsObstacle(
+            Vector3f start,
+            Vector3f direction,
+            float distance,
+            PreparationBarrierPolicy barrierPolicy) {
         Ray ray = new Ray(start, direction);
         ray.setLimit(distance);
         CollisionResults results = new CollisionResults();
         graph.collideWith(ray, results);
         for (CollisionResult result : results) {
-            if (!belongsToSupport(result.getGeometry())
+            if (blocks(result.getGeometry(), barrierPolicy)
                     && result.getDistance() <= distance + COLLISION_EPSILON) {
                 return true;
             }
@@ -164,6 +217,24 @@ public final class PreparationCollisionWorld {
             throw new PreparationSceneGraphException(
                     "verified preparation collision graph is missing " + name);
         }
+    }
+
+    private static boolean blocks(
+            Spatial spatial, PreparationBarrierPolicy barrierPolicy) {
+        return !belongsToSupport(spatial)
+                && (barrierPolicy.blocksCentralBarriers() || !belongsToCentralBarrier(spatial));
+    }
+
+    private static boolean belongsToCentralBarrier(Spatial spatial) {
+        Spatial current = spatial;
+        while (current != null) {
+            String name = current.getName();
+            if (CENTRAL_WALL_X.equals(name) || CENTRAL_WALL_Z.equals(name)) {
+                return true;
+            }
+            current = current.getParent();
+        }
+        return false;
     }
 
     private static boolean belongsToSupport(Spatial spatial) {
