@@ -21,10 +21,10 @@ class MinimalPreparationBundleTest {
         byte[] first = MinimalPreparationBundle.createArchive();
         byte[] second = MinimalPreparationBundle.createArchive();
 
-        assertThat(first).isEqualTo(second);
+        assertThat(first).isEqualTo(second).hasSize(14_589);
         VerifiedMapBundle bundle = TwMapBundleLoader.load(first, POLICY);
-        assertThat(bundle.archiveSha256().value() + ":" + first.length)
-                .isEqualTo(MinimalPreparationBundle.EXPECTED_ARCHIVE_SHA256 + ":0");
+        assertThat(bundle.archiveSha256().value())
+                .isEqualTo(MinimalPreparationBundle.EXPECTED_ARCHIVE_SHA256);
         assertThat(bundle.manifest().id()).isEqualTo(MinimalPreparationBundle.MAP_ID);
         assertThat(bundle.manifest().version().toString())
                 .isEqualTo(MinimalPreparationBundle.MAP_VERSION);
