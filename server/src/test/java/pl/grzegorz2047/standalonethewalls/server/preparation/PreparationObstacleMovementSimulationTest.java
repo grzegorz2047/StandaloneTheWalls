@@ -99,7 +99,90 @@ class PreparationObstacleMovementSimulationTest {
     }
 
     @Test
-    void rejectsASpawnThatOverlapsAnAuthoritativeObstacle() {
+    void keepsTheAcceptedCrouchUntilStandingClearanceBecomesAvailable() {
+        PreparationMovementSimulation simulation =
+                simulation(
+                        -0.8d,
+                        0.5d,
+                        0.0d,
+                        obstacle("LowWallCollision", -0.4d, 1.15d, -2.0d, 2.0d, 1.35d, 2.0d));
+
+        PreparationPlayerSnapshot entered =
+                player(
+                        simulation.advanceTick(
+                                11L,
+                                Map.of(
+                                        ALPHA,
+                                        new PreparationInput(
+                                                2L, 1L, 127, 0, false, true, false, 0, 0))));
+        PreparationPlayerSnapshot blockedStanding =
+                player(
+                        simulation.advanceTick(
+                                12L,
+                                Map.of(
+                                        ALPHA,
+                                        new PreparationInput(
+                                                2L, 2L, 0, 0, false, false, false, 0, 0))));
+        PreparationPlayerSnapshot exited =
+                player(
+                        simulation.advanceTick(
+                                13L,
+                                Map.of(
+                                        ALPHA,
+                                        new PreparationInput(
+                                                2L, 3L, -127, 0, false, false, false, 0, 0))));
+        PreparationPlayerSnapshot standing =
+                player(
+                        simulation.advanceTick(
+                                14L,
+                                Map.of(
+                                        ALPHA,
+                                        new PreparationInput(
+                                                2L, 4L, 0, 0, false, false, false, 0, 0))));
+
+        assertThat(entered.xMillimetres()).isEqualTo(-650);
+        assertThat(entered.crouching()).isTrue();
+        assertThat(blockedStanding.crouching()).isTrue();
+        assertThat(exited.xMillimetres()).isEqualTo(-800);
+        assertThat(exited.crouching()).isTrue();
+        assertThat(standing.crouching()).isFalse();
+    }
+
+    @Test
+    void stopsAnAuthoritativeJumpAtTheCeilingAndThenFalls() {
+        PreparationMovementSimulation simulation =
+                simulation(
+                        0.0d,
+                        0.5d,
+                        0.0d,
+                        obstacle("CeilingWallCollision", -2.0d, 2.0d, -2.0d, 2.0d, 2.2d, 2.0d));
+
+        PreparationPlayerSnapshot hit =
+                player(
+                        simulation.advanceTick(
+                                11L,
+                                Map.of(
+                                        ALPHA,
+                                        new PreparationInput(
+                                                2L, 1L, 0, 0, false, false, true, 0, 0))));
+        PreparationPlayerSnapshot falling =
+                player(
+                        simulation.advanceTick(
+                                12L,
+                                Map.of(
+                                        ALPHA,
+                                        new PreparationInput(
+                                                2L, 2L, 0, 0, false, false, false, 0, 0))));
+
+        assertThat(hit.yMillimetres()).isEqualTo(700);
+        assertThat(hit.verticalVelocityMillimetresPerSecond()).isZero();
+        assertThat(hit.grounded()).isFalse();
+        assertThat(falling.yMillimetres()).isLessThan(hit.yMillimetres());
+        assertThat(falling.verticalVelocityMillimetresPerSecond()).isNegative();
+    }
+
+    @Test
+    void rejectsASpawnWithoutAuthoritativeStandingClearance() {
         PreparationObstacleMap obstacles =
                 new PreparationObstacleMap(
                         List.of(
@@ -114,7 +197,7 @@ class PreparationObstacleMovementSimulationTest {
 
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> map(0.0d, 0.5d, 0.0d, obstacles))
-                .withMessageContaining("overlaps");
+                .withMessageContaining("standing clearance");
     }
 
     private static PreparationMovementSimulation simulation(
