@@ -162,12 +162,10 @@ class PreparationPredictionHistoryTest {
         PreparationPredictionHistory history = new PreparationPredictionHistory();
 
         PreparationPlayerState crouched =
-                history.predict(
-                        spawn, collisions, 1L, 1.0d, 0.0d, false, true, false, 0.05d);
+                history.predict(spawn, collisions, 1L, 1.0d, 0.0d, false, true, false, 0.05d);
         history.markSubmitted(1L);
         PreparationPlayerState locallyBlocked =
-                history.predict(
-                        crouched, collisions, 2L, 0.0d, 0.0d, false, false, false, 0.05d);
+                history.predict(crouched, collisions, 2L, 0.0d, 0.0d, false, false, false, 0.05d);
 
         PreparationPlayerState reconciled = history.reconcile(crouched, collisions, 1L);
 
@@ -198,15 +196,7 @@ class PreparationPredictionHistoryTest {
 
         PreparationPlayerState predicted =
                 history.predict(
-                        authoritative,
-                        collisions,
-                        2L,
-                        0.0d,
-                        0.0d,
-                        false,
-                        false,
-                        true,
-                        0.1d);
+                        authoritative, collisions, 2L, 0.0d, 0.0d, false, false, true, 0.1d);
         PreparationPlayerState reconciled = history.reconcile(authoritative, collisions, 1L);
 
         assertThat(predicted.position().y()).isEqualTo(0.7d);

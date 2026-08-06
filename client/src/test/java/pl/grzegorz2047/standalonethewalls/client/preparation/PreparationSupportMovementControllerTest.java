@@ -51,13 +51,11 @@ class PreparationSupportMovementControllerTest {
                         "PlatformCeilingObstacleCollision",
                         new MapVector3(-11.44d, 2.0d, -10.0d),
                         new MapVector3(-10.8d, 2.2d, -9.0d)));
-        VerifiedPreparationScene scene =
-                withObstacles(base, new PreparationObstacleMap(boxes));
+        VerifiedPreparationScene scene = withObstacles(base, new PreparationObstacleMap(boxes));
         PreparationCollisionWorld collisions = collisions(scene);
         PreparationPlayerState ground =
                 PreparationPlayerState.atAuthoritativeSpawn(scene)
-                        .withAuthoritativeState(
-                                -11.8d, 0.5d, -9.5d, 0.0d, true, false, 0.0d, 0.0d);
+                        .withAuthoritativeState(-11.8d, 0.5d, -9.5d, 0.0d, true, false, 0.0d, 0.0d);
 
         PreparationPlayerState standing =
                 PreparationMovementController.move(

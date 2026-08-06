@@ -234,14 +234,7 @@ class PreparationObstacleMovementSimulationTest {
                                     Map.of(
                                             ALPHA,
                                             new PreparationInput(
-                                                    2L,
-                                                    sequence,
-                                                    0,
-                                                    0,
-                                                    false,
-                                                    false,
-                                                    false,
-                                                    0,
+                                                    2L, sequence, 0, 0, false, false, false, 0,
                                                     0))));
             tick++;
             sequence++;
