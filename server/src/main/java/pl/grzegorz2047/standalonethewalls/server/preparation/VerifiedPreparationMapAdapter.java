@@ -12,10 +12,13 @@ import pl.grzegorz2047.standalonethewalls.domain.TeamId;
 import pl.grzegorz2047.standalonethewalls.mapformat.Glb2ContainerDecoder;
 import pl.grzegorz2047.standalonethewalls.mapformat.Glb2Document;
 import pl.grzegorz2047.standalonethewalls.mapformat.Glb2Exception;
+import pl.grzegorz2047.standalonethewalls.mapformat.Glb2PreparationObstacleDecoder;
 import pl.grzegorz2047.standalonethewalls.mapformat.Glb2PreparationSupportDecoder;
 import pl.grzegorz2047.standalonethewalls.mapformat.MapManifest;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationGameplay;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationMapSpawn;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationObstacleException;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationObstacleMap;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationRegion;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationSupportException;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationSupportMap;
@@ -31,7 +34,7 @@ public final class VerifiedPreparationMapAdapter {
     public static PreparationMapDefinition adapt(VerifiedMapBundle bundle)
             throws VerifiedPreparationMapException {
         VerifiedMapBundle verified = Objects.requireNonNull(bundle, "bundle");
-        PreparationSupportMap supportMap = validateGlbMembers(verified);
+        VerifiedCollision collision = validateGlbMembers(verified);
 
         MapManifest manifest = verified.manifest();
         PreparationGameplay gameplay = verified.gameplay();
@@ -65,16 +68,17 @@ public final class VerifiedPreparationMapAdapter {
                     decodeDigest(verified.archiveSha256().value()),
                     spawnPoints,
                     regions,
-                    supportMap);
+                    collision.supportMap(),
+                    collision.obstacleMap());
         } catch (IllegalArgumentException exception) {
             throw new VerifiedPreparationMapException(
                     VerifiedPreparationMapException.Code.INVALID_COLLISION,
-                    "verified preparation support layout does not cover authoritative spawns",
+                    "verified preparation collision layout does not cover authoritative spawns",
                     exception);
         }
     }
 
-    private static PreparationSupportMap validateGlbMembers(VerifiedMapBundle bundle)
+    private static VerifiedCollision validateGlbMembers(VerifiedMapBundle bundle)
             throws VerifiedPreparationMapException {
         try {
             Glb2ContainerDecoder.decode(bundle.member("scene.glb"), bundle.manifest().limits());
@@ -88,11 +92,13 @@ public final class VerifiedPreparationMapAdapter {
             Glb2Document collision =
                     Glb2ContainerDecoder.decode(
                             bundle.member("collision.glb"), bundle.manifest().limits());
-            return Glb2PreparationSupportDecoder.decode(collision);
-        } catch (Glb2Exception | PreparationSupportException exception) {
+            return new VerifiedCollision(
+                    Glb2PreparationSupportDecoder.decode(collision),
+                    Glb2PreparationObstacleDecoder.decode(collision));
+        } catch (Glb2Exception | PreparationSupportException | PreparationObstacleException exception) {
             throw new VerifiedPreparationMapException(
                     VerifiedPreparationMapException.Code.INVALID_COLLISION,
-                    "verified preparation collision GLB or support metadata is invalid",
+                    "verified preparation collision GLB or semantic metadata is invalid",
                     exception);
         }
     }
@@ -154,5 +160,13 @@ public final class VerifiedPreparationMapAdapter {
     private static VerifiedPreparationMapException failure(
             VerifiedPreparationMapException.Code code, String message) {
         return new VerifiedPreparationMapException(code, message);
+    }
+
+    private record VerifiedCollision(
+            PreparationSupportMap supportMap, PreparationObstacleMap obstacleMap) {
+        private VerifiedCollision {
+            supportMap = Objects.requireNonNull(supportMap, "supportMap");
+            obstacleMap = Objects.requireNonNull(obstacleMap, "obstacleMap");
+        }
     }
 }
