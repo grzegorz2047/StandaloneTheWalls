@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 
 class Glb2PreparationObstacleDecoderTest {
@@ -78,6 +80,40 @@ class Glb2PreparationObstacleDecoderTest {
     }
 
     @Test
+    void rejectsMatrixNegativeScaleAndMoreThanSixtyFourObstacles() throws Glb2Exception {
+        assertCode(
+                document(
+                        canonicalAccessor(),
+                        "[{\"matrix\":[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1],\"mesh\":0,\"name\":\"MatrixWallCollision\",\"scale\":[1,1,1],\"translation\":[0,0,0]}]",
+                        "[0]"),
+                PreparationObstacleException.Code.INVALID_NODE);
+        assertCode(
+                document(
+                        canonicalAccessor(),
+                        "[{\"mesh\":0,\"name\":\"NegativeWallCollision\",\"scale\":[-1,1,1],\"translation\":[0,0,0]}]",
+                        "[0]"),
+                PreparationObstacleException.Code.INVALID_NODE);
+
+        String nodes =
+                IntStream.rangeClosed(0, PreparationObstacleMap.MAXIMUM_BOXES)
+                        .mapToObj(
+                                index ->
+                                        "{\"mesh\":0,\"name\":\"Wall"
+                                                + index
+                                                + "WallCollision\",\"scale\":[1,1,1],\"translation\":["
+                                                + (index * 2)
+                                                + ",0,0]}")
+                        .collect(Collectors.joining(",", "[", "]"));
+        String sceneNodes =
+                IntStream.rangeClosed(0, PreparationObstacleMap.MAXIMUM_BOXES)
+                        .mapToObj(Integer::toString)
+                        .collect(Collectors.joining(",", "[", "]"));
+        assertCode(
+                document(canonicalAccessor(), nodes, sceneNodes),
+                PreparationObstacleException.Code.TOO_MANY_OBSTACLES);
+    }
+
+    @Test
     void ignoresSupportAndUnrecognisedCollisionNodes() throws Exception {
         Glb2Document document =
                 document(
@@ -118,7 +154,7 @@ class Glb2PreparationObstacleDecoderTest {
     }
 
     private static MapLimits limits() {
-        return new MapLimits(1, 1024 * 1024, 5, 64, 256, 64);
+        return new MapLimits(1, 1024 * 1024, 5, 128, 256, 64);
     }
 
     private static byte[] glb(String json) {
