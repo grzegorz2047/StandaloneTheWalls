@@ -44,26 +44,37 @@ class Glb2PreparationSupportDecoderTest {
     }
 
     @Test
-    void rejectsRotatedSupportWrongUnitCubeAndDuplicateNames() throws Glb2Exception {
+    void rejectsRotatedHiddenWrongUnitCubeAndDuplicateSupports() throws Glb2Exception {
         assertCode(
                 document(
                         canonicalAccessor(),
-                        "[{\"mesh\":0,\"name\":\"GroundCollision\",\"rotation\":[0,0,0,1],\"scale\":[20,0.2,20],\"translation\":[0,-0.1,0]}]"),
+                        "[{\"mesh\":0,\"name\":\"GroundCollision\",\"rotation\":[0,0,0,1],\"scale\":[20,0.2,20],\"translation\":[0,-0.1,0]}]",
+                        "[0]"),
+                PreparationSupportException.Code.INVALID_NODE);
+        assertCode(
+                document(
+                        canonicalAccessor(),
+                        "[{\"mesh\":0,\"name\":\"GroundCollision\",\"scale\":[20,0.2,20],\"translation\":[0,-0.1,0]},"
+                                + "{\"mesh\":0,\"name\":\"HiddenSupportCollision\",\"scale\":[2,0.5,2],\"translation\":[0,0.25,0]}]",
+                        "[0]"),
                 PreparationSupportException.Code.INVALID_NODE);
         assertCode(
                 document(
                         canonicalAccessor().replace("-0.5,-0.5,-0.5", "-1,-0.5,-0.5"),
-                        "[{\"mesh\":0,\"name\":\"GroundCollision\",\"scale\":[20,0.2,20],\"translation\":[0,-0.1,0]}]"),
+                        "[{\"mesh\":0,\"name\":\"GroundCollision\",\"scale\":[20,0.2,20],\"translation\":[0,-0.1,0]}]",
+                        "[0]"),
                 PreparationSupportException.Code.INVALID_ACCESSOR);
         assertCode(
                 document(
                         canonicalAccessor(),
                         "[{\"mesh\":0,\"name\":\"GroundCollision\",\"scale\":[20,0.2,20],\"translation\":[0,-0.1,0]},"
-                                + "{\"mesh\":0,\"name\":\"GroundCollision\",\"scale\":[2,0.5,2],\"translation\":[0,0.25,0]}]"),
+                                + "{\"mesh\":0,\"name\":\"GroundCollision\",\"scale\":[2,0.5,2],\"translation\":[0,0.25,0]}]",
+                        "[0,1]"),
                 PreparationSupportException.Code.DUPLICATE_NAME);
     }
 
-    private static Glb2Document document(String accessor, String nodes) throws Glb2Exception {
+    private static Glb2Document document(String accessor, String nodes, String sceneNodes)
+            throws Glb2Exception {
         String json =
                 "{\"accessors\":["
                         + accessor
@@ -71,7 +82,9 @@ class Glb2PreparationSupportDecoderTest {
                         + "\"meshes\":[{\"primitives\":[{\"attributes\":{\"POSITION\":0}}]}],"
                         + "\"nodes\":"
                         + nodes
-                        + ",\"scene\":0,\"scenes\":[{\"nodes\":[0]}]}";
+                        + ",\"scene\":0,\"scenes\":[{\"nodes\":"
+                        + sceneNodes
+                        + "}]}";
         return Glb2ContainerDecoder.decode(glb(json), limits());
     }
 
