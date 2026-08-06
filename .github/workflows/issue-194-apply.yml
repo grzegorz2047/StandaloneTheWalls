@@ -24,18 +24,33 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - name: Apply implementation
-        run: python3 .github/scripts/issue_194_apply.py
-      - name: Format and run focused quality gate
-        run: ./gradlew --no-daemon spotlessApply :map-format:test :map-format:spotbugsMain :map-format:spotbugsTest
-      - name: Commit verified implementation
+      - name: Apply, verify and persist result
         shell: bash
         run: |
+          set +e
+          result=.github/issue-194-result.txt
+          : > "$result"
+          python3 .github/scripts/issue_194_apply.py >> "$result" 2>&1
+          status=$?
+          if [ "$status" -eq 0 ]; then
+            ./gradlew --no-daemon spotlessApply :map-format:test :map-format:spotbugsMain :map-format:spotbugsTest >> "$result" 2>&1
+            status=$?
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add map-format/src/main map-format/src/test
-          if git diff --cached --quiet; then
-            exit 0
+          if [ "$status" -eq 0 ]; then
+            printf '\nISSUE_194_STATUS=SUCCESS\n' >> "$result"
+            git add map-format/src/main map-format/src/test "$result"
+            message="Verify canonical collision mesh bytes"
+          else
+            printf '\nISSUE_194_STATUS=FAILURE:%s\n' "$status" >> "$result"
+            git reset --hard HEAD
+            printf 'ISSUE_194_STATUS=FAILURE:%s\n' "$status" > "$result"
+            git add "$result"
+            message="Record issue 194 focused check failure"
           fi
-          git commit -m "Verify canonical collision mesh bytes"
-          git push origin HEAD:agent/issue-194-canonical-collision-bytes
+          if ! git diff --cached --quiet; then
+            git commit -m "$message"
+            git push origin HEAD:agent/issue-194-canonical-collision-bytes
+          fi
+          exit 0
