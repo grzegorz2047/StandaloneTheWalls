@@ -42,6 +42,7 @@ public final class Glb2PreparationSupportDecoder {
             List<Accessor> accessors = null;
             List<Mesh> meshes = null;
             List<Node> nodes = null;
+            List<Scene> scenes = null;
             while (parser.nextToken() != JsonToken.END_OBJECT) {
                 requireToken(parser.currentToken(), JsonToken.PROPERTY_NAME, "glTF root property");
                 String property = parser.currentName();
@@ -50,6 +51,7 @@ public final class Glb2PreparationSupportDecoder {
                     case "accessors" -> accessors = readAccessors(parser, value);
                     case "meshes" -> meshes = readMeshes(parser, value);
                     case "nodes" -> nodes = readNodes(parser, value);
+                    case "scenes" -> scenes = readScenes(parser, value);
                     default -> parser.skipChildren();
                 }
             }
@@ -61,13 +63,18 @@ public final class Glb2PreparationSupportDecoder {
             if (accessors == null
                     || meshes == null
                     || nodes == null
+                    || scenes == null
                     || meshes.size() != verified.meshCount()
-                    || nodes.size() != verified.nodeCount()) {
+                    || nodes.size() != verified.nodeCount()
+                    || scenes.size() != verified.sceneCount()
+                    || verified.defaultScene() < 0
+                    || verified.defaultScene() >= scenes.size()) {
                 throw failure(
                         PreparationSupportException.Code.MISSING_LAYOUT,
                         "collision GLB is missing support decoding metadata");
             }
-            return buildSupportMap(accessors, meshes, nodes);
+            return buildSupportMap(
+                    accessors, meshes, nodes, scenes.get(verified.defaultScene()).nodeIndices());
         } catch (PreparationSupportException exception) {
             throw exception;
         } catch (IOException | RuntimeException exception) {
@@ -79,13 +86,30 @@ public final class Glb2PreparationSupportDecoder {
     }
 
     private static PreparationSupportMap buildSupportMap(
-            List<Accessor> accessors, List<Mesh> meshes, List<Node> nodes)
+            List<Accessor> accessors,
+            List<Mesh> meshes,
+            List<Node> nodes,
+            List<Integer> defaultSceneNodeIndices)
             throws PreparationSupportException {
+        Set<Integer> defaultSceneNodes = validatedIndices(defaultSceneNodeIndices, nodes.size());
+        Set<Integer> childNodes = new HashSet<>();
+        for (Node node : nodes) {
+            childNodes.addAll(validatedIndices(node.children(), nodes.size()));
+        }
+
         List<PreparationSupportBox> boxes = new ArrayList<>();
         Set<String> names = new HashSet<>();
-        for (Node node : nodes) {
+        for (int nodeIndex = 0; nodeIndex < nodes.size(); nodeIndex++) {
+            Node node = nodes.get(nodeIndex);
             if (!isSupportName(node.name())) {
                 continue;
+            }
+            if (!defaultSceneNodes.contains(nodeIndex)
+                    || childNodes.contains(nodeIndex)
+                    || !node.children().isEmpty()) {
+                throw failure(
+                        PreparationSupportException.Code.INVALID_NODE,
+                        "support node must be a direct leaf of the default scene");
             }
             if (boxes.size() >= PreparationSupportMap.MAXIMUM_BOXES) {
                 throw failure(
@@ -121,34 +145,25 @@ public final class Glb2PreparationSupportDecoder {
                         PreparationSupportException.Code.INVALID_ACCESSOR,
                         "support node POSITION accessor is not a unit cube");
             }
-            double[] translation = node.translation();
-            double[] scale = node.scale();
-            for (double component : scale) {
-                if (!Double.isFinite(component) || component <= 0.0d) {
-                    throw failure(
-                            PreparationSupportException.Code.INVALID_NODE,
-                            "support node scale must be finite and positive");
-                }
-            }
-            for (double component : translation) {
-                if (!Double.isFinite(component)) {
-                    throw failure(
-                            PreparationSupportException.Code.INVALID_NODE,
-                            "support node translation must be finite");
-                }
+            MapVector3 translation = node.translation();
+            MapVector3 scale = node.scale();
+            if (scale.x() <= 0.0d || scale.y() <= 0.0d || scale.z() <= 0.0d) {
+                throw failure(
+                        PreparationSupportException.Code.INVALID_NODE,
+                        "support node scale must be finite and positive");
             }
             try {
                 boxes.add(
                         new PreparationSupportBox(
                                 node.name(),
                                 new MapVector3(
-                                        translation[0] - scale[0] / 2.0d,
-                                        translation[1] - scale[1] / 2.0d,
-                                        translation[2] - scale[2] / 2.0d),
+                                        translation.x() - scale.x() / 2.0d,
+                                        translation.y() - scale.y() / 2.0d,
+                                        translation.z() - scale.z() / 2.0d),
                                 new MapVector3(
-                                        translation[0] + scale[0] / 2.0d,
-                                        translation[1] + scale[1] / 2.0d,
-                                        translation[2] + scale[2] / 2.0d)));
+                                        translation.x() + scale.x() / 2.0d,
+                                        translation.y() + scale.y() / 2.0d,
+                                        translation.z() + scale.z() / 2.0d)));
             } catch (IllegalArgumentException exception) {
                 throw new PreparationSupportException(
                         PreparationSupportException.Code.INVALID_NODE,
@@ -179,8 +194,8 @@ public final class Glb2PreparationSupportDecoder {
             requireToken(parser.currentToken(), JsonToken.START_OBJECT, "accessor object");
             Integer componentType = null;
             String type = null;
-            double[] minimum = null;
-            double[] maximum = null;
+            MapVector3 minimum = null;
+            MapVector3 maximum = null;
             while (parser.nextToken() != JsonToken.END_OBJECT) {
                 requireToken(parser.currentToken(), JsonToken.PROPERTY_NAME, "accessor property");
                 String property = parser.currentName();
@@ -272,8 +287,9 @@ public final class Glb2PreparationSupportDecoder {
             requireToken(parser.currentToken(), JsonToken.START_OBJECT, "node object");
             String name = null;
             Integer mesh = null;
-            double[] translation = null;
-            double[] scale = null;
+            MapVector3 translation = null;
+            MapVector3 scale = null;
+            List<Integer> children = List.of();
             boolean rotatedOrMatrix = false;
             while (parser.nextToken() != JsonToken.END_OBJECT) {
                 requireToken(parser.currentToken(), JsonToken.PROPERTY_NAME, "node property");
@@ -288,6 +304,7 @@ public final class Glb2PreparationSupportDecoder {
                     case "translation" ->
                             translation = readVector3(parser, value, "node translation");
                     case "scale" -> scale = readVector3(parser, value, "node scale");
+                    case "children" -> children = readIndices(parser, value, "node children");
                     case "rotation", "matrix" -> {
                         rotatedOrMatrix = true;
                         parser.skipChildren();
@@ -295,26 +312,82 @@ public final class Glb2PreparationSupportDecoder {
                     default -> parser.skipChildren();
                 }
             }
-            nodes.add(new Node(name, mesh, translation, scale, rotatedOrMatrix));
+            nodes.add(new Node(name, mesh, translation, scale, children, rotatedOrMatrix));
         }
         return List.copyOf(nodes);
     }
 
-    private static double[] readVector3(JsonParser parser, JsonToken token, String description)
+    private static List<Scene> readScenes(JsonParser parser, JsonToken token)
+            throws IOException, PreparationSupportException {
+        requireToken(token, JsonToken.START_ARRAY, "scenes array");
+        List<Scene> scenes = new ArrayList<>();
+        while (parser.nextToken() != JsonToken.END_ARRAY) {
+            requireToken(parser.currentToken(), JsonToken.START_OBJECT, "scene object");
+            List<Integer> nodeIndices = null;
+            while (parser.nextToken() != JsonToken.END_OBJECT) {
+                requireToken(parser.currentToken(), JsonToken.PROPERTY_NAME, "scene property");
+                String property = parser.currentName();
+                JsonToken value = parser.nextToken();
+                if ("nodes".equals(property)) {
+                    nodeIndices = readIndices(parser, value, "scene nodes");
+                } else {
+                    parser.skipChildren();
+                }
+            }
+            if (nodeIndices == null) {
+                throw failure(
+                        PreparationSupportException.Code.MISSING_LAYOUT,
+                        "collision GLB scene has no direct nodes");
+            }
+            scenes.add(new Scene(nodeIndices));
+        }
+        return List.copyOf(scenes);
+    }
+
+    private static List<Integer> readIndices(
+            JsonParser parser, JsonToken token, String description)
             throws IOException, PreparationSupportException {
         requireToken(token, JsonToken.START_ARRAY, description + " array");
-        double[] values = new double[3];
-        for (int index = 0; index < values.length; index++) {
-            JsonToken component = parser.nextToken();
-            if (component == JsonToken.END_ARRAY) {
-                throw failure(
-                        PreparationSupportException.Code.MALFORMED_JSON,
-                        description + " must contain exactly three values");
-            }
-            values[index] = readNumber(parser, component, description + " component");
+        List<Integer> indices = new ArrayList<>();
+        while (parser.nextToken() != JsonToken.END_ARRAY) {
+            indices.add(readInteger(parser, parser.currentToken(), description + " index"));
         }
+        return List.copyOf(indices);
+    }
+
+    private static Set<Integer> validatedIndices(List<Integer> indices, int nodeCount)
+            throws PreparationSupportException {
+        Set<Integer> validated = new HashSet<>();
+        for (Integer index : indices) {
+            if (index == null || index < 0 || index >= nodeCount || !validated.add(index)) {
+                throw failure(
+                        PreparationSupportException.Code.INVALID_NODE,
+                        "collision GLB node index layout is invalid");
+            }
+        }
+        return validated;
+    }
+
+    private static MapVector3 readVector3(
+            JsonParser parser, JsonToken token, String description)
+            throws IOException, PreparationSupportException {
+        requireToken(token, JsonToken.START_ARRAY, description + " array");
+        double x = readRequiredNumber(parser, description);
+        double y = readRequiredNumber(parser, description);
+        double z = readRequiredNumber(parser, description);
         requireToken(parser.nextToken(), JsonToken.END_ARRAY, description + " end");
-        return values;
+        return new MapVector3(x, y, z);
+    }
+
+    private static double readRequiredNumber(JsonParser parser, String description)
+            throws IOException, PreparationSupportException {
+        JsonToken component = parser.nextToken();
+        if (component == JsonToken.END_ARRAY) {
+            throw failure(
+                    PreparationSupportException.Code.MALFORMED_JSON,
+                    description + " must contain exactly three values");
+        }
+        return readNumber(parser, component, description + " component");
     }
 
     private static int readInteger(JsonParser parser, JsonToken token, String description)
@@ -358,21 +431,13 @@ public final class Glb2PreparationSupportDecoder {
     }
 
     private record Accessor(
-            Integer componentType, String type, double[] minimum, double[] maximum) {
+            Integer componentType, String type, MapVector3 minimum, MapVector3 maximum) {
         private boolean isUnitCubePosition() {
             return componentType != null
                     && componentType == FLOAT_COMPONENT_TYPE
                     && "VEC3".equals(type)
-                    && vectorEquals(minimum, -0.5d)
-                    && vectorEquals(maximum, 0.5d);
-        }
-
-        private static boolean vectorEquals(double[] value, double expected) {
-            return value != null
-                    && value.length == 3
-                    && Double.compare(value[0], expected) == 0
-                    && Double.compare(value[1], expected) == 0
-                    && Double.compare(value[2], expected) == 0;
+                    && new MapVector3(-0.5d, -0.5d, -0.5d).equals(minimum)
+                    && new MapVector3(0.5d, 0.5d, 0.5d).equals(maximum);
         }
     }
 
@@ -381,7 +446,18 @@ public final class Glb2PreparationSupportDecoder {
     private record Node(
             String name,
             Integer mesh,
-            double[] translation,
-            double[] scale,
-            boolean rotatedOrMatrix) {}
+            MapVector3 translation,
+            MapVector3 scale,
+            List<Integer> children,
+            boolean rotatedOrMatrix) {
+        private Node {
+            children = List.copyOf(children);
+        }
+    }
+
+    private record Scene(List<Integer> nodeIndices) {
+        private Scene {
+            nodeIndices = List.copyOf(nodeIndices);
+        }
+    }
 }
