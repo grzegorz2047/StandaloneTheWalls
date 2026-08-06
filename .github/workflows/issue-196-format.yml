@@ -10,7 +10,7 @@ jobs:
   format:
     if: github.head_ref == 'agent/issue-196-authoritative-headroom'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Check out issue branch
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -28,47 +28,39 @@ jobs:
         with:
           cache-read-only: true
 
-      - name: Apply exact authoritative posture migration
+      - name: Apply exact general obstacle decoder migration
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
 
-          path = Path('client/src/main/java/pl/grzegorz2047/standalonethewalls/client/SunderfrontClient.java')
+          path = Path('map-format/src/main/java/pl/grzegorz2047/standalonethewalls/mapformat/Glb2PreparationObstacleDecoder.java')
           source = path.read_text()
-          old = '''                            authoritative.verticalVelocityMetresPerSecond(),
-                                      authoritative.grounded(),
-                                      authoritative.yawDegrees(),'''
-          formatted_old = '''                            authoritative.verticalVelocityMetresPerSecond(),
-                                      authoritative.grounded(),
-                                      authoritative.yawDegrees(),'''
-          canonical_old = '''                            authoritative.verticalVelocityMetresPerSecond(),
-                                      authoritative.grounded(),
-                                      authoritative.yawDegrees(),'''
-          actual_old = '''                            authoritative.verticalVelocityMetresPerSecond(),
-                                      authoritative.grounded(),
-                                      authoritative.yawDegrees(),'''
-          needle = '''                            authoritative.verticalVelocityMetresPerSecond(),
-                                      authoritative.grounded(),
-                                      authoritative.yawDegrees(),'''
-          direct = '''                            authoritative.verticalVelocityMetresPerSecond(),
-                                      authoritative.grounded(),
-                                      authoritative.yawDegrees(),'''
-          target = '''                            authoritative.verticalVelocityMetresPerSecond(),
-                                      authoritative.grounded(),
-                                      authoritative.crouching(),
-                                      authoritative.yawDegrees(),'''
-          compact_needle = '''                            authoritative.verticalVelocityMetresPerSecond(),
-                                      authoritative.grounded(),
-                                      authoritative.yawDegrees(),'''
-          if 'authoritative.crouching(),' not in source:
-              exact = '                            authoritative.verticalVelocityMetresPerSecond(),\n                            authoritative.grounded(),\n                            authoritative.yawDegrees(),'
-              replacement = '                            authoritative.verticalVelocityMetresPerSecond(),\n                            authoritative.grounded(),\n                            authoritative.crouching(),\n                            authoritative.yawDegrees(),'
-              if source.count(exact) != 1:
-                  raise SystemExit('unexpected authoritative state call shape')
-              source = source.replace(exact, replacement)
-              path.write_text(source)
+          if 'private static final String OBSTACLE_SUFFIX = "ObstacleCollision";' not in source:
+              old_constants = '''    private static final String WALL_X_SUFFIX = "WallXCollision";
+              private static final String WALL_Z_SUFFIX = "WallZCollision";'''
+              new_constants = '''    private static final String WALL_X_SUFFIX = "WallXCollision";
+              private static final String WALL_Z_SUFFIX = "WallZCollision";
+              private static final String OBSTACLE_SUFFIX = "ObstacleCollision";'''
+              if source.count(old_constants) != 1:
+                  raise SystemExit('unexpected obstacle suffix constants')
+              source = source.replace(old_constants, new_constants)
+          if 'name.endsWith(OBSTACLE_SUFFIX)' not in source:
+              old_predicate = '''                && (name.endsWith(WALL_SUFFIX)
+                                      || name.endsWith(WALL_X_SUFFIX)
+                                      || name.endsWith(WALL_Z_SUFFIX));'''
+              exact_predicate = '''                && (name.endsWith(WALL_SUFFIX)
+                        || name.endsWith(WALL_X_SUFFIX)
+                        || name.endsWith(WALL_Z_SUFFIX));'''
+              replacement = '''                && (name.endsWith(WALL_SUFFIX)
+                        || name.endsWith(WALL_X_SUFFIX)
+                        || name.endsWith(WALL_Z_SUFFIX)
+                        || name.endsWith(OBSTACLE_SUFFIX));'''
+              if source.count(exact_predicate) != 1:
+                  raise SystemExit('unexpected obstacle name predicate')
+              source = source.replace(exact_predicate, replacement)
+          path.write_text(source)
           PY
 
       - name: Apply repository formatting
@@ -79,16 +71,17 @@ jobs:
         run: |
           set -euo pipefail
           git add \
-            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/SunderfrontClient.java \
-            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationCameraPlacement.java \
-            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationCollisionWorld.java \
-            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationMovementController.java \
-            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationPlayerState.java \
-            map-format/src/test/java/pl/grzegorz2047/standalonethewalls/mapformat/PreparationObstacleMapTest.java
+            map-format/src/main/java/pl/grzegorz2047/standalonethewalls/mapformat/Glb2PreparationObstacleDecoder.java \
+            map-format/src/test/java/pl/grzegorz2047/standalonethewalls/mapformat/Glb2PreparationObstacleDecoderTest.java \
+            client/src/test/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationSupportMovementControllerTest.java \
+            client/src/test/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationObstacleSlidingControllerTest.java
           if git diff --cached --quiet; then
             exit 0
           fi
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git commit -m 'Format issue 196 posture integration'
+          git commit -m 'Decode canonical general obstacle boxes'
           git push origin HEAD:${{ github.head_ref }}
+
+      - name: Run focused issue tests
+        run: ./gradlew --no-daemon :map-format:test :client:test :server:test
