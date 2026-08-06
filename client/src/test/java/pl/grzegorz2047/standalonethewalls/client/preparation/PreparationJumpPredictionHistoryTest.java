@@ -68,9 +68,7 @@ class PreparationJumpPredictionHistoryTest {
         PreparationPlayerState state = spawn;
 
         for (int frame = 0; frame < 20; frame++) {
-            state =
-                    history.predict(
-                            state, collisions, 1L, 0.0d, 0.0d, false, false, true, 0.05d);
+            state = history.predict(state, collisions, 1L, 0.0d, 0.0d, false, false, true, 0.05d);
         }
 
         assertThat(state.grounded()).isTrue();
@@ -92,8 +90,7 @@ class PreparationJumpPredictionHistoryTest {
                 spawn.withAuthoritativeState(-15.0d, 0.8d, -14.0d, 4.0d, false, 45.0d, 0.0d);
 
         PreparationPlayerState predicted =
-                history.predict(
-                        airborne, collisions, 1L, 0.0d, 0.0d, false, false, true, 0.05d);
+                history.predict(airborne, collisions, 1L, 0.0d, 0.0d, false, false, true, 0.05d);
         PreparationPlayerState expected =
                 PreparationMovementController.move(
                         airborne, collisions, 0.0d, 0.0d, false, false, false, 0.05d);
