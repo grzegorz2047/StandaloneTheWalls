@@ -197,7 +197,7 @@ class PreparationObstacleMovementSimulationTest {
 
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> map(0.0d, 0.5d, 0.0d, obstacles))
-                .withMessageContaining("standing clearance");
+                .withMessageContaining("obstacle");
     }
 
     private static PreparationMovementSimulation simulation(
