@@ -32,6 +32,7 @@ class PreparationMovementSimulationTest {
         assertThat(alpha.xMillimetres()).isEqualTo(250);
         assertThat(alpha.yMillimetres()).isZero();
         assertThat(alpha.zMillimetres()).isZero();
+        assertThat(alpha.crouching()).isFalse();
         assertThat(alpha.pitchCentidegrees()).isEqualTo(-250);
         assertThat(snapshot.players()).extracting(player -> player.playerId().value()).isSorted();
     }
@@ -82,7 +83,7 @@ class PreparationMovementSimulationTest {
     }
 
     @Test
-    void appliesAuthoritativeCrouchSpeedAndNormalizesItsDiagonal() {
+    void appliesAuthoritativeCrouchSpeedAndPublishesItsPosture() {
         PreparationMovementSimulation crouchingSimulation = simulation();
         PreparationMovementSimulation diagonalSimulation = simulation();
 
@@ -90,14 +91,21 @@ class PreparationMovementSimulationTest {
                 crouchingSimulation.advanceTick(
                         11L,
                         Map.of(ALPHA, new PreparationInput(2L, 1L, 127, 0, false, true, 0, 0)));
+        PreparationWorldSnapshot standing =
+                crouchingSimulation.advanceTick(
+                        12L,
+                        Map.of(ALPHA, new PreparationInput(2L, 2L, 0, 0, false, false, 0, 0)));
         PreparationWorldSnapshot diagonal =
                 diagonalSimulation.advanceTick(
                         11L,
                         Map.of(ALPHA, new PreparationInput(2L, 1L, 127, 127, false, true, 0, 0)));
 
         assertThat(player(crouching, ALPHA).xMillimetres()).isEqualTo(150);
+        assertThat(player(crouching, ALPHA).crouching()).isTrue();
+        assertThat(player(standing, ALPHA).crouching()).isFalse();
         assertThat(player(diagonal, ALPHA).xMillimetres()).isEqualTo(106);
         assertThat(player(diagonal, ALPHA).zMillimetres()).isEqualTo(106);
+        assertThat(player(diagonal, ALPHA).crouching()).isTrue();
     }
 
     @Test
