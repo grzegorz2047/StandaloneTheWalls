@@ -34,6 +34,20 @@ class PreparationCameraPlacementTest {
         assertThat(camera.getDirection()).isEqualTo(standingDirection);
     }
 
+    @Test
+    void acceptedCrouchKeepsTheCameraLoweredAfterTheInputIsReleased()
+            throws PreparationSceneLoadException {
+        PreparationPlayerState player =
+                PreparationPlayerState.atAuthoritativeSpawn(verifiedScene()).withCrouching(true);
+        Camera camera = new Camera(1_280, 720);
+
+        PreparationCameraPlacement.apply(camera, player, false);
+
+        assertThat((double) player.position().y() - camera.getLocation().y)
+                .isCloseTo(
+                        PreparationCameraPlacement.CROUCHING_CAMERA_DROP_METRES, within(0.000001d));
+    }
+
     private static VerifiedPreparationScene verifiedScene() throws PreparationSceneLoadException {
         byte[] digest = HexFormat.of().parseHex(MinimalPreparationBundle.EXPECTED_ARCHIVE_SHA256);
         PreparationSpawnAssignment assignment =
