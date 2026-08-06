@@ -59,6 +59,19 @@ if runtime_marker not in runtime_text:
 
 runpy.run_path("tools/issue_198_client_apply.py", run_name="__main__")
 
+collision = Path(
+    "client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationCollisionWorld.java"
+)
+collision_text = collision.read_text(encoding="utf-8")
+old_ray = """            if (!belongsToSupport(result.getGeometry())
+                    && result.getDistance() <= distance + COLLISION_EPSILON) {"""
+new_ray = """            if (blocks(result.getGeometry(), barrierPolicy)
+                    && result.getDistance() <= distance + COLLISION_EPSILON) {"""
+if old_ray in collision_text:
+    collision.write_text(collision_text.replace(old_ray, new_ray, 1), encoding="utf-8")
+elif new_ray not in collision_text:
+    raise SystemExit("open-barrier raycast anchor not found")
+
 hook = Path(".git/hooks/pre-commit")
 hook.write_text(
     """#!/usr/bin/env bash
