@@ -100,7 +100,9 @@ public final class LobbyMatchCoordinator {
         }
 
         lastProcessedTick = tickNumber;
-        if (matchState.phase() != MatchPhase.START_COUNTDOWN) {
+        if (matchState.phase() != MatchPhase.START_COUNTDOWN
+                && matchState.phase() != MatchPhase.PREPARATION
+                && matchState.phase() != MatchPhase.WALLS_OPENING) {
             return Optional.empty();
         }
         MatchDecision decision =
