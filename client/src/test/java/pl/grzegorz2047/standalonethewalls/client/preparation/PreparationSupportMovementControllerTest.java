@@ -115,6 +115,7 @@ class PreparationSupportMovementControllerTest {
                 scene.sceneDocument(),
                 scene.collisionDocument(),
                 supports,
+                scene.obstacleMap(),
                 scene.region(),
                 scene.spawn());
     }
