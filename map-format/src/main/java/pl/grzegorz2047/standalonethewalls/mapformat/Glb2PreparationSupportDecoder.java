@@ -36,6 +36,7 @@ public final class Glb2PreparationSupportDecoder {
     public static PreparationSupportMap decode(Glb2Document document)
             throws PreparationSupportException {
         Glb2Document verified = Objects.requireNonNull(document, "document");
+        Set<Integer> canonicalBoxMeshes = verifiedBoxMeshes(verified);
         try (JsonParser parser =
                 JSON_FACTORY.createParser(ObjectReadContext.empty(), verified.jsonChunk())) {
             requireToken(parser.nextToken(), JsonToken.START_OBJECT, "glTF root object");
@@ -74,7 +75,11 @@ public final class Glb2PreparationSupportDecoder {
                         "collision GLB is missing support decoding metadata");
             }
             return buildSupportMap(
-                    accessors, meshes, nodes, scenes.get(verified.defaultScene()).nodeIndices());
+                    accessors,
+                    meshes,
+                    nodes,
+                    scenes.get(verified.defaultScene()).nodeIndices(),
+                    canonicalBoxMeshes);
         } catch (PreparationSupportException exception) {
             throw exception;
         } catch (IOException | RuntimeException exception) {
@@ -89,7 +94,8 @@ public final class Glb2PreparationSupportDecoder {
             List<Accessor> accessors,
             List<Mesh> meshes,
             List<Node> nodes,
-            List<Integer> defaultSceneNodeIndices)
+            List<Integer> defaultSceneNodeIndices,
+            Set<Integer> canonicalBoxMeshes)
             throws PreparationSupportException {
         Set<Integer> defaultSceneNodes = validatedIndices(defaultSceneNodeIndices, nodes.size());
         Set<Integer> childNodes = new HashSet<>();
@@ -144,6 +150,11 @@ public final class Glb2PreparationSupportDecoder {
                 throw failure(
                         PreparationSupportException.Code.INVALID_ACCESSOR,
                         "support node POSITION accessor is not a unit cube");
+            }
+            if (!canonicalBoxMeshes.contains(node.mesh())) {
+                throw failure(
+                        PreparationSupportException.Code.INVALID_ACCESSOR,
+                        "support node mesh bytes are not a closed canonical unit cube");
             }
             MapVector3 translation = node.translation();
             MapVector3 scale = node.scale();
@@ -416,6 +427,20 @@ public final class Glb2PreparationSupportDecoder {
     private static boolean isSupportName(String name) {
         return name != null
                 && ("GroundCollision".equals(name) || name.endsWith("SupportCollision"));
+    }
+
+    private static Set<Integer> verifiedBoxMeshes(Glb2Document document)
+            throws PreparationSupportException {
+        try {
+            return Glb2CanonicalBoxMeshVerifier.verifiedMeshes(document);
+        } catch (Glb2CanonicalBoxMeshVerifier.VerificationException exception) {
+            PreparationSupportException.Code code =
+                    exception.malformedJson()
+                            ? PreparationSupportException.Code.MALFORMED_JSON
+                            : PreparationSupportException.Code.MISSING_LAYOUT;
+            throw new PreparationSupportException(
+                    code, "collision GLB box mesh bytes could not be verified", exception);
+        }
     }
 
     private static PreparationSupportException failure(
