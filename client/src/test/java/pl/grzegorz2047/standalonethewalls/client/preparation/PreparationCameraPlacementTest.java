@@ -43,7 +43,7 @@ class PreparationCameraPlacementTest {
 
         PreparationCameraPlacement.apply(camera, player, false);
 
-        assertThat((double) player.position().y() - camera.getLocation().y)
+        assertThat(player.position().y() - camera.getLocation().y)
                 .isCloseTo(
                         PreparationCameraPlacement.CROUCHING_CAMERA_DROP_METRES, within(0.000001d));
     }
