@@ -37,7 +37,8 @@ class PreparationSupportPredictionHistoryTest {
     }
 
     @Test
-    void authoritativePlatformAcknowledgementDoesNotReplaySpawnHeight() throws Exception {
+    void authoritativePlatformAcknowledgementDoesNotReplaySpawnHeight()
+            throws PreparationSceneLoadException, PreparationSceneGraphException {
         VerifiedPreparationScene scene = scene();
         PreparationCollisionWorld collisions =
                 PreparationCollisionWorld.load(new DesktopAssetManager(true), scene);
