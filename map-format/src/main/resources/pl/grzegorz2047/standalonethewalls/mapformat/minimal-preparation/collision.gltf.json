@@ -4,16 +4,8 @@
       "bufferView": 0,
       "componentType": 5126,
       "count": 24,
-      "max": [
-        0.5,
-        0.5,
-        0.5
-      ],
-      "min": [
-        -0.5,
-        -0.5,
-        -0.5
-      ],
+      "max": [0.5, 0.5, 0.5],
+      "min": [-0.5, -0.5, -0.5],
       "type": "VEC3"
     },
     {
@@ -24,7 +16,7 @@
     }
   ],
   "asset": {
-    "generator": "Sunderfront Minimal Preparation Generator 1",
+    "generator": "Sunderfront Minimal Preparation Generator 2",
     "version": "2.0"
   },
   "bufferViews": [
@@ -41,19 +33,13 @@
       "target": 34963
     }
   ],
-  "buffers": [
-    {
-      "byteLength": 360
-    }
-  ],
+  "buffers": [{"byteLength": 360}],
   "meshes": [
     {
       "name": "UnitCollisionCube",
       "primitives": [
         {
-          "attributes": {
-            "POSITION": 0
-          },
+          "attributes": {"POSITION": 0},
           "indices": 1
         }
       ]
@@ -63,115 +49,75 @@
     {
       "mesh": 0,
       "name": "GroundCollision",
-      "scale": [
-        40.0,
-        0.2,
-        40.0
-      ],
-      "translation": [
-        0.0,
-        -0.1,
-        0.0
-      ]
+      "scale": [40.0, 0.2, 40.0],
+      "translation": [0.0, -0.1, 0.0]
     },
     {
       "mesh": 0,
       "name": "NorthWallCollision",
-      "scale": [
-        40.0,
-        5.0,
-        1.0
-      ],
-      "translation": [
-        0.0,
-        2.5,
-        -20.0
-      ]
+      "scale": [40.0, 5.0, 1.0],
+      "translation": [0.0, 2.5, -20.0]
     },
     {
       "mesh": 0,
       "name": "SouthWallCollision",
-      "scale": [
-        40.0,
-        5.0,
-        1.0
-      ],
-      "translation": [
-        0.0,
-        2.5,
-        20.0
-      ]
+      "scale": [40.0, 5.0, 1.0],
+      "translation": [0.0, 2.5, 20.0]
     },
     {
       "mesh": 0,
       "name": "WestWallCollision",
-      "scale": [
-        1.0,
-        5.0,
-        40.0
-      ],
-      "translation": [
-        -20.0,
-        2.5,
-        0.0
-      ]
+      "scale": [1.0, 5.0, 40.0],
+      "translation": [-20.0, 2.5, 0.0]
     },
     {
       "mesh": 0,
       "name": "EastWallCollision",
-      "scale": [
-        1.0,
-        5.0,
-        40.0
-      ],
-      "translation": [
-        20.0,
-        2.5,
-        0.0
-      ]
+      "scale": [1.0, 5.0, 40.0],
+      "translation": [20.0, 2.5, 0.0]
     },
     {
       "mesh": 0,
       "name": "CentralWallXCollision",
-      "scale": [
-        40.0,
-        5.0,
-        1.0
-      ],
-      "translation": [
-        0.0,
-        2.5,
-        0.0
-      ]
+      "scale": [40.0, 5.0, 1.0],
+      "translation": [0.0, 2.5, 0.0]
     },
     {
       "mesh": 0,
       "name": "CentralWallZCollision",
-      "scale": [
-        1.0,
-        5.0,
-        40.0
-      ],
-      "translation": [
-        0.0,
-        2.5,
-        0.0
-      ]
+      "scale": [1.0, 5.0, 40.0],
+      "translation": [0.0, 2.5, 0.0]
+    },
+    {
+      "mesh": 0,
+      "name": "GreenSupportCollision",
+      "scale": [4.0, 0.5, 4.0],
+      "translation": [-9.5, 0.25, -9.5]
+    },
+    {
+      "mesh": 0,
+      "name": "BlueSupportCollision",
+      "scale": [4.0, 0.5, 4.0],
+      "translation": [9.5, 0.25, -9.5]
+    },
+    {
+      "mesh": 0,
+      "name": "RedSupportCollision",
+      "scale": [4.0, 0.5, 4.0],
+      "translation": [-9.5, 0.25, 9.5]
+    },
+    {
+      "mesh": 0,
+      "name": "YellowSupportCollision",
+      "scale": [4.0, 0.5, 4.0],
+      "translation": [9.5, 0.25, 9.5]
     }
   ],
   "scene": 0,
   "scenes": [
     {
       "name": "MinimalPreparationCollision",
-      "nodes": [
-        0,
-        1,
-        2,
-        3,
-        4,
-        5,
-        6
-      ]
+      "nodes": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     }
   ]
 }
