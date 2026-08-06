@@ -54,6 +54,10 @@ jobs:
             ./gradlew --no-daemon spotlessApply :map-format:test :map-format:spotbugsMain :map-format:spotbugsTest >> "$log" 2>&1
             status=$?
           fi
+          if [ "$status" -ne 0 ] && [ -f map-format/build/reports/spotbugs/xml.xml ]; then
+            printf '\n--- SPOTBUGS FINDINGS ---\n' >> "$log"
+            grep -n -E 'BugInstance|ShortMessage|LongMessage|SourceLine' map-format/build/reports/spotbugs/xml.xml >> "$log" 2>&1
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if [ "$status" -eq 0 ]; then
