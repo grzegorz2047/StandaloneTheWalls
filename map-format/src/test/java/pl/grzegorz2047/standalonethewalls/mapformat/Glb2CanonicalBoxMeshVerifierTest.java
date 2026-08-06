@@ -58,58 +58,61 @@ class Glb2CanonicalBoxMeshVerifierTest {
         String normalized =
                 "{\"normalized\":true,"
                         + CanonicalCollisionGlbFixture.canonicalPositionAccessor().substring(1);
-        assertRejected(
-                CanonicalCollisionGlbFixture.meshDocument(
-                        normalized,
-                        CanonicalCollisionGlbFixture.canonicalIndexAccessor(),
-                        CanonicalCollisionGlbFixture.canonicalBufferViews(),
-                        canonical.length,
-                        CanonicalCollisionGlbFixture.canonicalMesh(),
-                        "[{\"mesh\":0,\"name\":\"Fixture\"}]",
-                        "[0]",
-                        canonical));
+        assertRejectedLayout(
+                normalized,
+                CanonicalCollisionGlbFixture.canonicalIndexAccessor(),
+                CanonicalCollisionGlbFixture.canonicalBufferViews());
 
         String sparse =
                 "{\"sparse\":{\"count\":1},"
                         + CanonicalCollisionGlbFixture.canonicalPositionAccessor().substring(1);
-        assertRejected(
-                CanonicalCollisionGlbFixture.meshDocument(
-                        sparse,
-                        CanonicalCollisionGlbFixture.canonicalIndexAccessor(),
-                        CanonicalCollisionGlbFixture.canonicalBufferViews(),
-                        canonical.length,
-                        CanonicalCollisionGlbFixture.canonicalMesh(),
-                        "[{\"mesh\":0,\"name\":\"Fixture\"}]",
-                        "[0]",
-                        canonical));
+        assertRejectedLayout(
+                sparse,
+                CanonicalCollisionGlbFixture.canonicalIndexAccessor(),
+                CanonicalCollisionGlbFixture.canonicalBufferViews());
 
         String truncatedViews =
                 "[{\"buffer\":0,\"byteLength\":287,\"byteOffset\":0},"
                         + "{\"buffer\":0,\"byteLength\":72,\"byteOffset\":288}]";
-        assertRejected(
-                CanonicalCollisionGlbFixture.meshDocument(
-                        CanonicalCollisionGlbFixture.canonicalPositionAccessor(),
-                        CanonicalCollisionGlbFixture.canonicalIndexAccessor(),
-                        truncatedViews,
-                        canonical.length,
-                        CanonicalCollisionGlbFixture.canonicalMesh(),
-                        "[{\"mesh\":0,\"name\":\"Fixture\"}]",
-                        "[0]",
-                        canonical));
+        assertRejectedLayout(
+                CanonicalCollisionGlbFixture.canonicalPositionAccessor(),
+                CanonicalCollisionGlbFixture.canonicalIndexAccessor(),
+                truncatedViews);
 
         String invalidStrideViews =
                 "[{\"buffer\":0,\"byteLength\":288,\"byteOffset\":0,\"byteStride\":10},"
                         + "{\"buffer\":0,\"byteLength\":72,\"byteOffset\":288}]";
-        assertRejected(
-                CanonicalCollisionGlbFixture.meshDocument(
-                        CanonicalCollisionGlbFixture.canonicalPositionAccessor(),
-                        CanonicalCollisionGlbFixture.canonicalIndexAccessor(),
-                        invalidStrideViews,
-                        canonical.length,
-                        CanonicalCollisionGlbFixture.canonicalMesh(),
-                        "[{\"mesh\":0,\"name\":\"Fixture\"}]",
-                        "[0]",
-                        canonical));
+        assertRejectedLayout(
+                CanonicalCollisionGlbFixture.canonicalPositionAccessor(),
+                CanonicalCollisionGlbFixture.canonicalIndexAccessor(),
+                invalidStrideViews);
+
+        assertThat(canonical).hasSize(360);
+    }
+
+    @Test
+    void rejectsWrongCountsComponentsBufferViewsAndOverflowingOffsets()
+            throws Glb2Exception, Glb2CanonicalBoxMeshVerifier.VerificationException {
+        String position = CanonicalCollisionGlbFixture.canonicalPositionAccessor();
+        String indices = CanonicalCollisionGlbFixture.canonicalIndexAccessor();
+        String views = CanonicalCollisionGlbFixture.canonicalBufferViews();
+
+        assertRejectedLayout(position.replace("\"count\":24", "\"count\":23"), indices, views);
+        assertRejectedLayout(
+                position.replace("\"componentType\":5126", "\"componentType\":5123"),
+                indices,
+                views);
+        assertRejectedLayout(position.replace("\"bufferView\":0", "\"bufferView\":2"), indices, views);
+        assertRejectedLayout(
+                "{\"byteOffset\":2147483647," + position.substring(1), indices, views);
+        assertRejectedLayout(
+                position,
+                indices.replace("\"componentType\":5123", "\"componentType\":5125"),
+                views);
+        assertRejectedLayout(
+                position,
+                indices,
+                views.replaceFirst("\\\"buffer\\\":0", "\\\"buffer\\\":1"));
     }
 
     @Test
@@ -153,6 +156,22 @@ class Glb2CanonicalBoxMeshVerifierTest {
             }
         }
         assertRejected(unusedVertex);
+    }
+
+    private static void assertRejectedLayout(
+            String positionAccessor, String indexAccessor, String bufferViews)
+            throws Glb2Exception, Glb2CanonicalBoxMeshVerifier.VerificationException {
+        byte[] binary = CanonicalCollisionGlbFixture.canonicalBinary();
+        assertRejected(
+                CanonicalCollisionGlbFixture.meshDocument(
+                        positionAccessor,
+                        indexAccessor,
+                        bufferViews,
+                        binary.length,
+                        CanonicalCollisionGlbFixture.canonicalMesh(),
+                        "[{\"mesh\":0,\"name\":\"Fixture\"}]",
+                        "[0]",
+                        binary));
     }
 
     private static void assertRejected(byte[] binary)
