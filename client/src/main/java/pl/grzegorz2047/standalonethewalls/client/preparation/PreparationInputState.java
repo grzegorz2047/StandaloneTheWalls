@@ -18,6 +18,8 @@ public final class PreparationInputState {
     private boolean right;
     private boolean sprinting;
     private boolean crouching;
+    private boolean jumpKeyDown;
+    private boolean jumpRequested;
 
     public boolean capture() {
         if (captured) {
@@ -61,9 +63,36 @@ public final class PreparationInputState {
     }
 
     public void setCrouching(boolean pressed) {
-        if (captured) {
-            crouching = pressed;
+        if (!captured) {
+            return;
         }
+        crouching = pressed;
+        if (pressed) {
+            jumpRequested = false;
+        }
+    }
+
+    public void setJumping(boolean pressed, boolean canStartJump) {
+        if (!captured) {
+            return;
+        }
+        if (!pressed) {
+            jumpKeyDown = false;
+            return;
+        }
+        if (jumpKeyDown) {
+            return;
+        }
+        jumpKeyDown = true;
+        if (canStartJump && !crouching) {
+            jumpRequested = true;
+        }
+    }
+
+    public boolean consumeJumpRequest() {
+        boolean requested = captured && jumpRequested && !crouching;
+        jumpRequested = false;
+        return requested;
     }
 
     public boolean sprinting() {
@@ -89,6 +118,8 @@ public final class PreparationInputState {
         right = false;
         sprinting = false;
         crouching = false;
+        jumpKeyDown = false;
+        jumpRequested = false;
     }
 
     private static double axis(boolean positive, boolean negative) {

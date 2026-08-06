@@ -8,6 +8,7 @@ public record PreparationInput(
         int rightAxis,
         boolean sprinting,
         boolean crouching,
+        boolean jumping,
         int yawCentidegrees,
         int pitchCentidegrees) {
     public static final int MAXIMUM_AXIS = 127;
@@ -31,6 +32,28 @@ public record PreparationInput(
                 rightAxis,
                 sprinting,
                 false,
+                false,
+                yawCentidegrees,
+                pitchCentidegrees);
+    }
+
+    public PreparationInput(
+            long roundNumber,
+            long sequence,
+            int forwardAxis,
+            int rightAxis,
+            boolean sprinting,
+            boolean crouching,
+            int yawCentidegrees,
+            int pitchCentidegrees) {
+        this(
+                roundNumber,
+                sequence,
+                forwardAxis,
+                rightAxis,
+                sprinting,
+                crouching,
+                false,
                 yawCentidegrees,
                 pitchCentidegrees);
     }
@@ -46,6 +69,9 @@ public record PreparationInput(
         requireAxis(rightAxis, "rightAxis");
         if (sprinting && crouching) {
             throw new IllegalArgumentException("sprinting and crouching are mutually exclusive");
+        }
+        if (crouching && jumping) {
+            throw new IllegalArgumentException("crouching and jumping are mutually exclusive");
         }
         if (yawCentidegrees < MINIMUM_YAW_CENTIDEGREES
                 || yawCentidegrees > MAXIMUM_YAW_CENTIDEGREES) {

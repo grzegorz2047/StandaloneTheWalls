@@ -54,6 +54,11 @@ public final class PreparationCollisionWorld {
     }
 
     public boolean permitsHorizontal(MapVector3 current, MapVector3 target) {
+        return permitsHorizontal(current, target, true);
+    }
+
+    public boolean permitsHorizontal(
+            MapVector3 current, MapVector3 target, boolean requireGroundSupport) {
         MapVector3 origin = Objects.requireNonNull(current, "current");
         MapVector3 destination = Objects.requireNonNull(target, "target");
         if (Double.compare(origin.y(), destination.y()) != 0) {
@@ -69,7 +74,7 @@ public final class PreparationCollisionWorld {
         Vector3f movement = end.subtract(start);
         float distance = movement.length();
         if (distance <= COLLISION_EPSILON) {
-            return hasGroundSupport(destination);
+            return !requireGroundSupport || hasGroundSupport(destination);
         }
 
         if (rayMeetsObstacle(start, movement.normalize(), distance)) {
@@ -84,7 +89,7 @@ public final class PreparationCollisionWorld {
                 return false;
             }
         }
-        return hasGroundSupport(destination);
+        return !requireGroundSupport || hasGroundSupport(destination);
     }
 
     private boolean hasBodyClearance(Vector3f center) {

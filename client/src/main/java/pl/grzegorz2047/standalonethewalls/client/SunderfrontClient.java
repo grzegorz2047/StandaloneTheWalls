@@ -85,6 +85,7 @@ public final class SunderfrontClient extends SimpleApplication
     private static final String INPUT_MOVE_RIGHT = "sunderfront-move-right";
     private static final String INPUT_SPRINT = "sunderfront-sprint";
     private static final String INPUT_CROUCH = "sunderfront-crouch";
+    private static final String INPUT_JUMP = "sunderfront-jump";
     private static final double PREPARATION_INPUT_INTERVAL_SECONDS = 0.05d;
 
     private static final UiTargetId DIRECT_ENDPOINT_TARGET = new UiTargetId("direct.endpoint");
@@ -137,6 +138,7 @@ public final class SunderfrontClient extends SimpleApplication
     private final AtomicLong nextPreparationInputSequence = new AtomicLong(1L);
     private volatile long appliedPreparationSnapshotTick = -1L;
     private volatile double preparationInputAccumulator;
+    private volatile boolean pendingPreparationJump;
     private volatile int renderedWidth = -1;
     private volatile int renderedHeight = -1;
     private volatile boolean shuttingDown;
@@ -423,6 +425,7 @@ public final class SunderfrontClient extends SimpleApplication
         inputManager.addMapping(INPUT_MOVE_RIGHT, new KeyTrigger(KeyInput.KEY_D));
         inputManager.addMapping(INPUT_SPRINT, new KeyTrigger(KeyInput.KEY_LSHIFT));
         inputManager.addMapping(INPUT_CROUCH, new KeyTrigger(KeyInput.KEY_LCONTROL));
+        inputManager.addMapping(INPUT_JUMP, new KeyTrigger(KeyInput.KEY_SPACE));
         inputManager.addListener(
                 this,
                 INPUT_UP,
@@ -438,7 +441,8 @@ public final class SunderfrontClient extends SimpleApplication
                 INPUT_MOVE_LEFT,
                 INPUT_MOVE_RIGHT,
                 INPUT_SPRINT,
-                INPUT_CROUCH);
+                INPUT_CROUCH,
+                INPUT_JUMP);
         inputManager.addRawInputListener(this);
     }
 
@@ -484,6 +488,7 @@ public final class SunderfrontClient extends SimpleApplication
             case INPUT_MOVE_RIGHT -> preparationInput.set(Direction.RIGHT, pressed);
             case INPUT_SPRINT -> preparationInput.setSprinting(pressed);
             case INPUT_CROUCH -> updatePreparationCrouching(pressed);
+            case INPUT_JUMP -> updatePreparationJumping(pressed);
             case INPUT_SELECT -> {
                 if (pressed) {
                     capturePreparationInput();
@@ -519,6 +524,7 @@ public final class SunderfrontClient extends SimpleApplication
         if (!preparationInput.release()) {
             return;
         }
+        pendingPreparationJump = false;
         if (inputManager != null) {
             inputManager.setCursorVisible(true);
         }
@@ -531,10 +537,18 @@ public final class SunderfrontClient extends SimpleApplication
 
     private void updatePreparationCrouching(boolean pressed) {
         preparationInput.setCrouching(pressed);
+        if (pressed) {
+            pendingPreparationJump = false;
+        }
         PreparationPlayerState current = preparationPlayerState;
         if (cam != null && current != null) {
             PreparationCameraPlacement.apply(cam, current, preparationInput.crouching());
         }
+    }
+
+    private void updatePreparationJumping(boolean pressed) {
+        PreparationPlayerState current = preparationPlayerState;
+        preparationInput.setJumping(pressed, current != null && current.grounded());
     }
 
     private void updatePreparationMovement(float timePerFrame) {
@@ -555,6 +569,9 @@ public final class SunderfrontClient extends SimpleApplication
             return;
         }
         try {
+            if (!pendingPreparationJump) {
+                pendingPreparationJump = preparationInput.consumeJumpRequest();
+            }
             PreparationPlayerState moved =
                     predictionHistory.predict(
                             current,
@@ -564,6 +581,7 @@ public final class SunderfrontClient extends SimpleApplication
                             preparationInput.rightAxis(),
                             preparationInput.sprinting(),
                             preparationInput.crouching(),
+                            pendingPreparationJump,
                             Math.min(
                                     timePerFrame,
                                     PreparationMovementController.MAXIMUM_STEP_SECONDS));
@@ -624,6 +642,8 @@ public final class SunderfrontClient extends SimpleApplication
                             authoritative.xMetres(),
                             authoritative.yMetres(),
                             authoritative.zMetres(),
+                            authoritative.verticalVelocityMetresPerSecond(),
+                            authoritative.grounded(),
                             authoritative.yawDegrees(),
                             authoritative.pitchDegrees());
             long acknowledgedSequence = authoritative.lastProcessedInputSequence();
@@ -689,6 +709,7 @@ public final class SunderfrontClient extends SimpleApplication
                         quantizeAxis(preparationInput.rightAxis()),
                         preparationInput.sprinting(),
                         preparationInput.crouching(),
+                        pendingPreparationJump,
                         quantizeYaw(current.yawDegrees()),
                         quantizePitch(current.pitchDegrees()));
         if (controller.submitPreparationInput(input)) {
@@ -704,6 +725,7 @@ public final class SunderfrontClient extends SimpleApplication
                         predictionHistory.highestSubmittedSequence(),
                         predictionHistory.pendingStepCount());
                 nextPreparationInputSequence.incrementAndGet();
+                pendingPreparationJump = false;
             } catch (IllegalArgumentException exception) {
                 failPreparationSceneEntry();
             }
@@ -869,6 +891,7 @@ public final class SunderfrontClient extends SimpleApplication
             nextPreparationInputSequence.set(1L);
             appliedPreparationSnapshotTick = -1L;
             preparationInputAccumulator = 0.0d;
+            pendingPreparationJump = false;
             preparationMovementDiagnostics = new PreparationMovementDiagnostics();
             preparationPredictionHistory = new PreparationPredictionHistory();
             preparationRemoteInterpolator =
@@ -939,6 +962,7 @@ public final class SunderfrontClient extends SimpleApplication
         nextPreparationInputSequence.set(1L);
         appliedPreparationSnapshotTick = -1L;
         preparationInputAccumulator = 0.0d;
+        pendingPreparationJump = false;
         PreparationRemotePlayerRenderer remotePlayers = preparationRemotePlayers;
         preparationRemotePlayers = null;
         if (remotePlayers != null) {

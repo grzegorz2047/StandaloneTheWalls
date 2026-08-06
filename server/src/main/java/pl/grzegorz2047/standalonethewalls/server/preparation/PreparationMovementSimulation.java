@@ -14,6 +14,7 @@ import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
 import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationInput;
 import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationPlayerSnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnAssignment;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationVerticalMotion;
 import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationWorldSnapshot;
 
 /** Renderer-independent authoritative fixed-tick movement inside verified team regions. */
@@ -28,6 +29,8 @@ public final class PreparationMovementSimulation {
             (double) SPRINTING_SPEED_MILLIMETRES_PER_SECOND / TICKS_PER_SECOND;
     private static final double CROUCHING_STEP_MILLIMETRES =
             (double) CROUCHING_SPEED_MILLIMETRES_PER_SECOND / TICKS_PER_SECOND;
+    private static final double TICK_SECONDS = 1.0d / TICKS_PER_SECOND;
+    private static final int MAXIMUM_JUMP_HEIGHT_MILLIMETRES = 1_000;
 
     private final long roundNumber;
     private final TreeMap<PlayerId, PlayerState> players =
@@ -171,9 +174,13 @@ public final class PreparationMovementSimulation {
 
     private static final class PlayerState {
         private final PreparationRegionBounds region;
-        private final int yMillimetres;
+        private final int groundYMillimetres;
         private double xMillimetres;
+        private double yMillimetres;
         private double zMillimetres;
+        private double verticalVelocityMetresPerSecond;
+        private boolean grounded = true;
+        private long consumedJumpSequence;
         private long lastProcessedInputSequence;
         private int yawCentidegrees;
         private int pitchCentidegrees;
@@ -190,8 +197,14 @@ public final class PreparationMovementSimulation {
                 throw new IllegalArgumentException(
                         "preparation spawn is outside its authoritative team region");
             }
+            if ((long) yMillimetres + MAXIMUM_JUMP_HEIGHT_MILLIMETRES
+                    > region.maximumYMillimetres()) {
+                throw new IllegalArgumentException(
+                        "preparation region has insufficient vertical jump clearance");
+            }
             this.xMillimetres = xMillimetres;
             this.yMillimetres = yMillimetres;
+            this.groundYMillimetres = yMillimetres;
             this.zMillimetres = zMillimetres;
             this.yawCentidegrees = yawCentidegrees;
         }
@@ -219,7 +232,29 @@ public final class PreparationMovementSimulation {
 
         private void advance() {
             PreparationInput input = activeInput;
-            if (input == null || (input.forwardAxis() == 0 && input.rightAxis() == 0)) {
+            if (input != null) {
+                advanceHorizontal(input);
+            }
+            boolean jumpRequested = false;
+            if (input != null && input.jumping() && input.sequence() != consumedJumpSequence) {
+                jumpRequested = grounded;
+                consumedJumpSequence = input.sequence();
+            }
+            PreparationVerticalMotion.Step vertical =
+                    PreparationVerticalMotion.advance(
+                            yMillimetres / 1_000.0d,
+                            groundYMillimetres / 1_000.0d,
+                            verticalVelocityMetresPerSecond,
+                            grounded,
+                            jumpRequested,
+                            TICK_SECONDS);
+            yMillimetres = vertical.heightMetres() * 1_000.0d;
+            verticalVelocityMetresPerSecond = vertical.verticalVelocityMetresPerSecond();
+            grounded = vertical.grounded();
+        }
+
+        private void advanceHorizontal(PreparationInput input) {
+            if (input.forwardAxis() == 0 && input.rightAxis() == 0) {
                 return;
             }
             double forward = input.forwardAxisValue();
@@ -251,8 +286,10 @@ public final class PreparationMovementSimulation {
                     playerId,
                     lastProcessedInputSequence,
                     (int) Math.round(xMillimetres),
-                    yMillimetres,
+                    (int) Math.round(yMillimetres),
                     (int) Math.round(zMillimetres),
+                    (int) Math.round(verticalVelocityMetresPerSecond * 1_000.0d),
+                    grounded,
                     activeInput != null && activeInput.crouching(),
                     yawCentidegrees,
                     pitchCentidegrees);
