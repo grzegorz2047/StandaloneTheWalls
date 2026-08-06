@@ -5,9 +5,14 @@ import static org.assertj.core.api.Assertions.within;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.jme3.asset.DesktopAssetManager;
+import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.List;
 import org.junit.jupiter.api.Test;
+import pl.grzegorz2047.standalonethewalls.mapformat.MapVector3;
 import pl.grzegorz2047.standalonethewalls.mapformat.MinimalPreparationBundle;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationObstacleBox;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationObstacleMap;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
 import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnAssignment;
 
@@ -140,6 +145,80 @@ class PreparationPredictionHistoryTest {
     }
 
     @Test
+    void reconciliationPreservesAuthoritativeCrouchWhenStandingIsStillBlocked()
+            throws PreparationSceneLoadException, PreparationSceneGraphException {
+        VerifiedPreparationScene scene =
+                withObstacle(
+                        verifiedScene(),
+                        new PreparationObstacleBox(
+                                "LowCeilingObstacleCollision",
+                                new MapVector3(-14.64d, 1.15d, -14.5d),
+                                new MapVector3(-13.5d, 1.35d, -13.5d)));
+        PreparationPlayerState spawn =
+                PreparationPlayerState.atAuthoritativeSpawn(scene)
+                        .withAuthoritativeState(
+                                -15.0d, 0.5d, -14.0d, 0.0d, true, false, 0.0d, 0.0d);
+        PreparationCollisionWorld collisions = collisions(spawn);
+        PreparationPredictionHistory history = new PreparationPredictionHistory();
+
+        PreparationPlayerState crouched =
+                history.predict(
+                        spawn, collisions, 1L, 1.0d, 0.0d, false, true, false, 0.05d);
+        history.markSubmitted(1L);
+        PreparationPlayerState locallyBlocked =
+                history.predict(
+                        crouched, collisions, 2L, 0.0d, 0.0d, false, false, false, 0.05d);
+
+        PreparationPlayerState reconciled = history.reconcile(crouched, collisions, 1L);
+
+        assertThat(crouched.crouching()).isTrue();
+        assertThat(locallyBlocked.crouching()).isTrue();
+        assertThat(reconciled.crouching()).isTrue();
+        assertThat(reconciled.position()).isEqualTo(crouched.position());
+        assertThat(history.pendingStepCount()).isOne();
+    }
+
+    @Test
+    void reconciliationReplaysCeilingCollisionFromTheCorrectedServerState()
+            throws PreparationSceneLoadException, PreparationSceneGraphException {
+        VerifiedPreparationScene scene =
+                withObstacle(
+                        verifiedScene(),
+                        new PreparationObstacleBox(
+                                "SpawnCeilingObstacleCollision",
+                                new MapVector3(-15.5d, 2.0d, -14.5d),
+                                new MapVector3(-14.5d, 2.2d, -13.5d)));
+        PreparationPlayerState authoritative =
+                PreparationPlayerState.atAuthoritativeSpawn(scene)
+                        .withAuthoritativeState(
+                                -15.0d, 0.5d, -14.0d, 0.0d, true, false, 0.0d, 0.0d);
+        PreparationCollisionWorld collisions = collisions(authoritative);
+        PreparationPredictionHistory history = new PreparationPredictionHistory();
+        history.markSubmitted(1L);
+
+        PreparationPlayerState predicted =
+                history.predict(
+                        authoritative,
+                        collisions,
+                        2L,
+                        0.0d,
+                        0.0d,
+                        false,
+                        false,
+                        true,
+                        0.1d);
+        PreparationPlayerState reconciled = history.reconcile(authoritative, collisions, 1L);
+
+        assertThat(predicted.position().y()).isEqualTo(0.7d);
+        assertThat(predicted.verticalVelocityMetresPerSecond()).isZero();
+        assertThat(predicted.grounded()).isFalse();
+        assertThat(reconciled.position()).isEqualTo(predicted.position());
+        assertThat(reconciled.verticalVelocityMetresPerSecond()).isZero();
+        assertThat(reconciled.grounded()).isFalse();
+        assertThat(history.pendingStepCount()).isOne();
+    }
+
+    @Test
     void acceptsAcknowledgementForSubmittedZeroInputWithoutPredictionSteps()
             throws PreparationSceneLoadException, PreparationSceneGraphException {
         PreparationPlayerState authoritative = player();
@@ -233,6 +312,23 @@ class PreparationPredictionHistoryTest {
     private static PreparationCollisionWorld collisions(PreparationPlayerState player)
             throws PreparationSceneGraphException {
         return PreparationCollisionWorld.load(new DesktopAssetManager(true), player.scene());
+    }
+
+    private static VerifiedPreparationScene withObstacle(
+            VerifiedPreparationScene scene, PreparationObstacleBox obstacle) {
+        List<PreparationObstacleBox> boxes = new ArrayList<>(scene.obstacleMap().boxes());
+        boxes.add(obstacle);
+        return new VerifiedPreparationScene(
+                scene.mapId(),
+                scene.mapSha256(),
+                scene.sceneGlb(),
+                scene.collisionGlb(),
+                scene.sceneDocument(),
+                scene.collisionDocument(),
+                scene.supportMap(),
+                new PreparationObstacleMap(boxes),
+                scene.region(),
+                scene.spawn());
     }
 
     private static VerifiedPreparationScene verifiedScene() throws PreparationSceneLoadException {
