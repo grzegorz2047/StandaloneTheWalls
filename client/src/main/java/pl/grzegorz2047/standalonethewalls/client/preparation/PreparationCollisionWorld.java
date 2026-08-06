@@ -16,6 +16,7 @@ public final class PreparationCollisionWorld {
     public static final float PLAYER_BODY_RADIUS_METRES = 0.35f;
 
     private static final String GROUND = "GroundCollision";
+    private static final String SUPPORT_SUFFIX = "SupportCollision";
     private static final String CENTRAL_WALL_X = "CentralWallXCollision";
     private static final String CENTRAL_WALL_Z = "CentralWallZCollision";
     private static final float MAXIMUM_SUPPORT_DISTANCE = 0.75f;
@@ -45,7 +46,7 @@ public final class PreparationCollisionWorld {
         CollisionResults results = new CollisionResults();
         graph.collideWith(ray, results);
         for (CollisionResult result : results) {
-            if (belongsTo(result.getGeometry(), GROUND)
+            if (belongsToSupport(result.getGeometry())
                     && result.getDistance() <= MAXIMUM_SUPPORT_DISTANCE + COLLISION_EPSILON) {
                 return true;
             }
@@ -96,7 +97,7 @@ public final class PreparationCollisionWorld {
         CollisionResults results = new CollisionResults();
         graph.collideWith(new BoundingSphere(PLAYER_BODY_RADIUS_METRES, center), results);
         for (CollisionResult result : results) {
-            if (!belongsTo(result.getGeometry(), GROUND)) {
+            if (!belongsToSupport(result.getGeometry())) {
                 return false;
             }
         }
@@ -109,7 +110,7 @@ public final class PreparationCollisionWorld {
         CollisionResults results = new CollisionResults();
         graph.collideWith(ray, results);
         for (CollisionResult result : results) {
-            if (!belongsTo(result.getGeometry(), GROUND)
+            if (!belongsToSupport(result.getGeometry())
                     && result.getDistance() <= distance + COLLISION_EPSILON) {
                 return true;
             }
@@ -124,10 +125,11 @@ public final class PreparationCollisionWorld {
         }
     }
 
-    private static boolean belongsTo(Spatial spatial, String name) {
+    private static boolean belongsToSupport(Spatial spatial) {
         Spatial current = spatial;
         while (current != null) {
-            if (name.equals(current.getName())) {
+            String name = current.getName();
+            if (GROUND.equals(name) || (name != null && name.endsWith(SUPPORT_SUFFIX))) {
                 return true;
             }
             current = current.getParent();
