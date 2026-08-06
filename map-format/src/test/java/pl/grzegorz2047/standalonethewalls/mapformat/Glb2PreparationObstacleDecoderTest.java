@@ -114,7 +114,8 @@ class Glb2PreparationObstacleDecoderTest {
     }
 
     @Test
-    void ignoresSupportAndUnrecognisedCollisionNodes() throws Exception {
+    void ignoresSupportAndUnrecognisedCollisionNodes()
+            throws Glb2Exception, PreparationObstacleException {
         Glb2Document document =
                 document(
                         canonicalAccessor(),
