@@ -183,10 +183,8 @@ public final class PreparationMovementController {
             if (supportDelta > MAXIMUM_GROUNDED_STEP_METRES + SUPPORT_TOLERANCE_METRES) {
                 return player;
             }
-            if (supportDelta
-                    >= -MAXIMUM_GROUNDED_STEP_METRES - SUPPORT_TOLERANCE_METRES) {
-                return player.withMovementState(
-                        target.x(), supportY, target.z(), 0.0d, true);
+            if (supportDelta >= -MAXIMUM_GROUNDED_STEP_METRES - SUPPORT_TOLERANCE_METRES) {
+                return player.withMovementState(target.x(), supportY, target.z(), 0.0d, true);
             }
             return player.withMovementState(
                     target.x(), player.position().y(), target.z(), 0.0d, false);

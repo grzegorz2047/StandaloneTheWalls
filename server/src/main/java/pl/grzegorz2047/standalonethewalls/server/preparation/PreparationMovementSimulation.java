@@ -80,8 +80,7 @@ public final class PreparationMovementSimulation {
             }
             TeamId team = domainTeam(assignment.team());
             PreparationRegionBounds region = verifiedMap.region(team);
-            PlayerState state =
-                    PlayerState.atSpawn(assignment, region, verifiedMap.supportMap());
+            PlayerState state = PlayerState.atSpawn(assignment, region, verifiedMap.supportMap());
             if (simulation.players.put(playerId, state) != null) {
                 throw new IllegalArgumentException("duplicate preparation playerId");
             }
@@ -254,8 +253,7 @@ public final class PreparationMovementSimulation {
                 jumpRequested = grounded;
                 consumedJumpSequence = input.sequence();
             }
-            double groundYMillimetres =
-                    supportAtOrBelow(xMillimetres, zMillimetres, yMillimetres);
+            double groundYMillimetres = supportAtOrBelow(xMillimetres, zMillimetres, yMillimetres);
             PreparationVerticalMotion.Step vertical =
                     PreparationVerticalMotion.advance(
                             yMillimetres / 1_000.0d,
@@ -292,13 +290,9 @@ public final class PreparationMovementSimulation {
                                     ? SPRINTING_STEP_MILLIMETRES
                                     : WALKING_STEP_MILLIMETRES;
             double targetX =
-                    region.clampX(
-                            xMillimetres
-                                    + step * ((forward * forwardX) + (right * rightX)));
+                    region.clampX(xMillimetres + step * ((forward * forwardX) + (right * rightX)));
             double targetZ =
-                    region.clampZ(
-                            zMillimetres
-                                    + step * ((forward * forwardZ) + (right * rightZ)));
+                    region.clampZ(zMillimetres + step * ((forward * forwardZ) + (right * rightZ)));
             if (Double.compare(targetX, xMillimetres) == 0
                     && Double.compare(targetZ, zMillimetres) == 0) {
                 return;
@@ -311,16 +305,12 @@ public final class PreparationMovementSimulation {
             double supportYMillimetres = support.orElseThrow() * 1_000.0d;
             if (grounded) {
                 double deltaY = supportYMillimetres - yMillimetres;
-                if (deltaY
-                        > MAXIMUM_GROUNDED_STEP_MILLIMETRES
-                                + SUPPORT_TOLERANCE_MILLIMETRES) {
+                if (deltaY > MAXIMUM_GROUNDED_STEP_MILLIMETRES + SUPPORT_TOLERANCE_MILLIMETRES) {
                     return;
                 }
                 xMillimetres = targetX;
                 zMillimetres = targetZ;
-                if (deltaY
-                        >= -MAXIMUM_GROUNDED_STEP_MILLIMETRES
-                                - SUPPORT_TOLERANCE_MILLIMETRES) {
+                if (deltaY >= -MAXIMUM_GROUNDED_STEP_MILLIMETRES - SUPPORT_TOLERANCE_MILLIMETRES) {
                     yMillimetres = supportYMillimetres;
                     verticalVelocityMetresPerSecond = 0.0d;
                     grounded = true;
@@ -345,8 +335,7 @@ public final class PreparationMovementSimulation {
                     supportMap.highestPlayerCenterAtOrBelow(
                             playerXMillimetres / 1_000.0d,
                             playerZMillimetres / 1_000.0d,
-                            (maximumPlayerCenterYMillimetres
-                                            + SUPPORT_TOLERANCE_MILLIMETRES)
+                            (maximumPlayerCenterYMillimetres + SUPPORT_TOLERANCE_MILLIMETRES)
                                     / 1_000.0d);
             if (support.isEmpty()) {
                 throw new IllegalStateException(

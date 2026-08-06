@@ -154,12 +154,7 @@ public final class PreparationPlayerState {
             return this;
         }
         return new PreparationPlayerState(
-                scene,
-                target,
-                verticalVelocityMetresPerSecond,
-                grounded,
-                yawDegrees,
-                pitchDegrees);
+                scene, target, verticalVelocityMetresPerSecond, grounded, yawDegrees, pitchDegrees);
     }
 
     public PreparationPlayerState withVerticalState(
@@ -203,8 +198,7 @@ public final class PreparationPlayerState {
                 scene, position, verticalVelocityMetresPerSecond, grounded, nextYaw, nextPitch);
     }
 
-    private static double supportAtOrBelow(
-            VerifiedPreparationScene scene, MapVector3 position) {
+    private static double supportAtOrBelow(VerifiedPreparationScene scene, MapVector3 position) {
         OptionalDouble support =
                 scene.supportMap()
                         .highestPlayerCenterAtOrBelow(

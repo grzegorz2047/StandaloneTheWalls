@@ -53,8 +53,7 @@ public final class PreparationSupportMap {
                 || !Double.isFinite(maximumPlayerCenterYMetres)) {
             throw new IllegalArgumentException("support query values must be finite");
         }
-        double maximumSurfaceY =
-                maximumPlayerCenterYMetres - PLAYER_CENTER_OFFSET_METRES;
+        double maximumSurfaceY = maximumPlayerCenterYMetres - PLAYER_CENTER_OFFSET_METRES;
         double selectedSurfaceY = Double.NEGATIVE_INFINITY;
         for (PreparationSupportBox box : boxes) {
             double top = box.topYMetres();

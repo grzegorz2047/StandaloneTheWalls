@@ -333,8 +333,7 @@ public final class Glb2PreparationSupportDecoder {
         double value = parser.getDoubleValue();
         if (!Double.isFinite(value)) {
             throw failure(
-                    PreparationSupportException.Code.INVALID_NODE,
-                    description + " must be finite");
+                    PreparationSupportException.Code.INVALID_NODE, description + " must be finite");
         }
         return value;
     }

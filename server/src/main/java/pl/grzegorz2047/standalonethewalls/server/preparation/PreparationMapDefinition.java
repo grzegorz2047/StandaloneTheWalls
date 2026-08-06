@@ -148,8 +148,7 @@ public record PreparationMapDefinition(
     }
 
     private static PreparationSupportMap deriveFixtureSupports(
-            List<PreparationSpawnPoint> spawnPoints,
-            Map<TeamId, PreparationRegionBounds> regions) {
+            List<PreparationSpawnPoint> spawnPoints, Map<TeamId, PreparationRegionBounds> regions) {
         List<PreparationSpawnPoint> spawns =
                 List.copyOf(Objects.requireNonNull(spawnPoints, "spawnPoints"));
         Map<TeamId, PreparationRegionBounds> boundedRegions =
@@ -175,10 +174,11 @@ public record PreparationMapDefinition(
             if (region == null) {
                 throw new IllegalArgumentException("legacy fixture spawn team has no region");
             }
-            double surfaceY =
-                    entry.getValue() - PreparationSupportMap.PLAYER_CENTER_OFFSET_METRES;
+            double surfaceY = entry.getValue() - PreparationSupportMap.PLAYER_CENTER_OFFSET_METRES;
             String name =
-                    groundNamed ? entry.getKey().name() + "FixtureSupportCollision" : "GroundCollision";
+                    groundNamed
+                            ? entry.getKey().name() + "FixtureSupportCollision"
+                            : "GroundCollision";
             groundNamed = true;
             supports.add(
                     new PreparationSupportBox(

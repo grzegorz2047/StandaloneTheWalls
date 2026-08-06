@@ -23,10 +23,7 @@ public record PreparationSupportBox(String name, MapVector3 minimum, MapVector3 
         if (!Double.isFinite(x) || !Double.isFinite(z)) {
             throw new IllegalArgumentException("support query coordinates must be finite");
         }
-        return x >= minimum.x()
-                && x <= maximum.x()
-                && z >= minimum.z()
-                && z <= maximum.z();
+        return x >= minimum.x() && x <= maximum.x() && z >= minimum.z() && z <= maximum.z();
     }
 
     public double topYMetres() {
