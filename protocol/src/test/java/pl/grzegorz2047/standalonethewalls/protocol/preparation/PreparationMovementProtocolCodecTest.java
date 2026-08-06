@@ -27,14 +27,15 @@ class PreparationMovementProtocolCodecTest {
     private static final int FIRST_SEQUENCE_OFFSET =
             FIRST_PLAYER_OFFSET + PreparationMovementProtocolCodec.PLAYER_ID_BYTES;
     private static final int FIRST_FLAGS_OFFSET = FIRST_SEQUENCE_OFFSET + Long.BYTES;
-    private static final int FIRST_X_OFFSET = FIRST_FLAGS_OFFSET + 1;
+    private static final int FIRST_VERTICAL_VELOCITY_OFFSET = FIRST_FLAGS_OFFSET + 1;
+    private static final int FIRST_X_OFFSET = FIRST_VERTICAL_VELOCITY_OFFSET + Integer.BYTES;
 
     @Test
     void encodesTheExactBoundedBigEndianInputVector() throws PreparationProtocolException {
         PreparationInput input = new PreparationInput(3L, 5L, 127, -127, true, 9_000, -2_500);
         byte[] expected =
                 ByteBuffer.allocate(PreparationMovementProtocolCodec.INPUT_BYTES)
-                        .put((byte) 3)
+                        .put((byte) 4)
                         .putLong(3L)
                         .putLong(5L)
                         .put((byte) 127)
@@ -54,6 +55,7 @@ class PreparationMovementProtocolCodecTest {
         assertThat(input.rightAxisValue()).isEqualTo(-1.0d);
         assertThat(input.sprinting()).isTrue();
         assertThat(input.crouching()).isFalse();
+        assertThat(input.jumping()).isFalse();
         assertThat(input.yawDegrees()).isEqualTo(90.0d);
         assertThat(input.pitchDegrees()).isEqualTo(-25.0d);
         assertThat(MessageType.PREPARATION_INPUT.channel()).isEqualTo(MessageType.Channel.BOTH);
@@ -69,6 +71,7 @@ class PreparationMovementProtocolCodecTest {
         PreparationInput decoded = PreparationMovementProtocolCodec.decodeInput(encoded);
         assertThat(decoded.sprinting()).isFalse();
         assertThat(decoded.crouching()).isFalse();
+        assertThat(decoded.jumping()).isFalse();
     }
 
     @Test
@@ -76,7 +79,7 @@ class PreparationMovementProtocolCodecTest {
         PreparationInput input = new PreparationInput(4L, 9L, -64, 32, false, true, -9_000, 1_500);
         byte[] expected =
                 ByteBuffer.allocate(PreparationMovementProtocolCodec.INPUT_BYTES)
-                        .put((byte) 3)
+                        .put((byte) 4)
                         .putLong(4L)
                         .putLong(9L)
                         .put((byte) -64)
@@ -92,24 +95,40 @@ class PreparationMovementProtocolCodecTest {
         assertThat(PreparationMovementProtocolCodec.decodeInput(encoded)).isEqualTo(input);
         assertThat(input.sprinting()).isFalse();
         assertThat(input.crouching()).isTrue();
+        assertThat(input.jumping()).isFalse();
+    }
+
+    @Test
+    void encodesSprintAndJumpInTheSameCanonicalInput() throws PreparationProtocolException {
+        PreparationInput input =
+                new PreparationInput(5L, 10L, 127, 0, true, false, true, 0, 0);
+
+        byte[] encoded = PreparationMovementProtocolCodec.encodeInput(input);
+
+        assertThat(encoded[INPUT_FLAGS_OFFSET]).isEqualTo((byte) 5);
+        assertThat(PreparationMovementProtocolCodec.decodeInput(encoded)).isEqualTo(input);
+        assertThat(input.sprinting()).isTrue();
+        assertThat(input.jumping()).isTrue();
     }
 
     @Test
     void encodesTheExactFixedPointSnapshotVector() throws PreparationProtocolException {
-        PreparationPlayerSnapshot player = player("a", 7L, 1_250, 2_000, -4_500, true, 4_500, -125);
+        PreparationPlayerSnapshot player =
+                player("a", 7L, 1_250, 2_000, -4_500, -2_500, false, true, 4_500, -125);
         PreparationWorldSnapshot snapshot = new PreparationWorldSnapshot(2L, 41L, List.of(player));
         byte[] playerId = player.playerId().value().getBytes(StandardCharsets.US_ASCII);
         byte[] expected =
                 ByteBuffer.allocate(
                                 PreparationMovementProtocolCodec.SNAPSHOT_HEADER_BYTES
                                         + PreparationMovementProtocolCodec.PLAYER_SNAPSHOT_BYTES)
-                        .put((byte) 2)
+                        .put((byte) 3)
                         .putLong(2L)
                         .putLong(41L)
                         .put((byte) 1)
                         .put(playerId)
                         .putLong(7L)
                         .put((byte) 1)
+                        .putInt(-2_500)
                         .putInt(1_250)
                         .putInt(2_000)
                         .putInt(-4_500)
@@ -121,7 +140,9 @@ class PreparationMovementProtocolCodecTest {
 
         assertThat(encoded).containsExactly(expected);
         assertThat(PreparationMovementProtocolCodec.decodeSnapshot(encoded)).isEqualTo(snapshot);
+        assertThat(player.grounded()).isFalse();
         assertThat(player.crouching()).isTrue();
+        assertThat(player.verticalVelocityMetresPerSecond()).isEqualTo(-2.5d);
         assertThat(player.xMetres()).isEqualTo(1.25d);
         assertThat(player.yMetres()).isEqualTo(2.0d);
         assertThat(player.zMetres()).isEqualTo(-4.5d);
@@ -137,6 +158,7 @@ class PreparationMovementProtocolCodecTest {
             char first = (char) ('a' + index / 26);
             char second = (char) ('a' + index % 26);
             String suffix = "a".repeat(50) + first + second;
+            boolean grounded = index % 2 == 0;
             players.add(
                     new PreparationPlayerSnapshot(
                             new PlayerId("sf1_" + suffix),
@@ -144,7 +166,9 @@ class PreparationMovementProtocolCodecTest {
                             index,
                             2_000,
                             -index,
-                            index % 2 == 0,
+                            grounded ? 0 : -1_000,
+                            grounded,
+                            index % 3 == 0,
                             0,
                             0));
         }
@@ -153,6 +177,7 @@ class PreparationMovementProtocolCodecTest {
         byte[] encoded = PreparationMovementProtocolCodec.encodeSnapshot(snapshot);
 
         assertThat(encoded).hasSize(PreparationMovementProtocolCodec.MAXIMUM_SNAPSHOT_BYTES);
+        assertThat(encoded).hasSize(3_418);
         assertThat(encoded.length).isLessThan(4_096);
         assertThat(encoded.length)
                 .isLessThanOrEqualTo(MessageType.PREPARATION_SNAPSHOT.maximumPayloadBytes());
@@ -169,13 +194,11 @@ class PreparationMovementProtocolCodecTest {
                 new byte[PreparationMovementProtocolCodec.INPUT_BYTES + 1],
                 PreparationProtocolException.Code.INVALID_SIZE);
 
-        byte[] schemaOne = validInputPayload();
-        schemaOne[0] = 1;
-        assertInputCode(schemaOne, PreparationProtocolException.Code.UNSUPPORTED_SCHEMA);
-
-        byte[] schemaTwo = validInputPayload();
-        schemaTwo[0] = 2;
-        assertInputCode(schemaTwo, PreparationProtocolException.Code.UNSUPPORTED_SCHEMA);
+        for (byte legacySchema = 1; legacySchema <= 3; legacySchema++) {
+            byte[] payload = validInputPayload();
+            payload[0] = legacySchema;
+            assertInputCode(payload, PreparationProtocolException.Code.UNSUPPORTED_SCHEMA);
+        }
 
         byte[] round = validInputPayload();
         ByteBuffer.wrap(round).putLong(INPUT_ROUND_OFFSET, 0L);
@@ -190,12 +213,16 @@ class PreparationMovementProtocolCodecTest {
         assertInputCode(axis, PreparationProtocolException.Code.INVALID_AXIS);
 
         byte[] unknownFlags = validInputPayload();
-        unknownFlags[INPUT_FLAGS_OFFSET] = 4;
+        unknownFlags[INPUT_FLAGS_OFFSET] = 8;
         assertInputCode(unknownFlags, PreparationProtocolException.Code.INVALID_STATE);
 
-        byte[] conflictingFlags = validInputPayload();
-        conflictingFlags[INPUT_FLAGS_OFFSET] = 3;
-        assertInputCode(conflictingFlags, PreparationProtocolException.Code.INVALID_STATE);
+        byte[] sprintAndCrouch = validInputPayload();
+        sprintAndCrouch[INPUT_FLAGS_OFFSET] = 3;
+        assertInputCode(sprintAndCrouch, PreparationProtocolException.Code.INVALID_STATE);
+
+        byte[] crouchAndJump = validInputPayload();
+        crouchAndJump[INPUT_FLAGS_OFFSET] = 6;
+        assertInputCode(crouchAndJump, PreparationProtocolException.Code.INVALID_STATE);
 
         byte[] yaw = validInputPayload();
         ByteBuffer.wrap(yaw).putShort(INPUT_YAW_OFFSET, (short) 18_000);
@@ -216,9 +243,11 @@ class PreparationMovementProtocolCodecTest {
                                 - 1],
                 PreparationProtocolException.Code.INVALID_SIZE);
 
-        byte[] legacySchema = validSnapshotPayload();
-        legacySchema[0] = 1;
-        assertSnapshotCode(legacySchema, PreparationProtocolException.Code.UNSUPPORTED_SCHEMA);
+        for (byte legacySchema = 1; legacySchema <= 2; legacySchema++) {
+            byte[] payload = validSnapshotPayload();
+            payload[0] = legacySchema;
+            assertSnapshotCode(payload, PreparationProtocolException.Code.UNSUPPORTED_SCHEMA);
+        }
 
         byte[] round = validSnapshotPayload();
         ByteBuffer.wrap(round).putLong(SNAPSHOT_ROUND_OFFSET, 0L);
@@ -245,8 +274,17 @@ class PreparationMovementProtocolCodecTest {
         assertSnapshotCode(sequence, PreparationProtocolException.Code.INVALID_SEQUENCE);
 
         byte[] unknownFlags = validSnapshotPayload();
-        unknownFlags[FIRST_FLAGS_OFFSET] = 2;
+        unknownFlags[FIRST_FLAGS_OFFSET] = 4;
         assertSnapshotCode(unknownFlags, PreparationProtocolException.Code.INVALID_STATE);
+
+        byte[] groundedVelocity = validSnapshotPayload();
+        groundedVelocity[FIRST_FLAGS_OFFSET] = 2;
+        ByteBuffer.wrap(groundedVelocity).putInt(FIRST_VERTICAL_VELOCITY_OFFSET, 1);
+        assertSnapshotCode(groundedVelocity, PreparationProtocolException.Code.INVALID_STATE);
+
+        byte[] verticalVelocity = validSnapshotPayload();
+        ByteBuffer.wrap(verticalVelocity).putInt(FIRST_VERTICAL_VELOCITY_OFFSET, -30_001);
+        assertSnapshotCode(verticalVelocity, PreparationProtocolException.Code.INVALID_STATE);
 
         byte[] coordinate = validSnapshotPayload();
         ByteBuffer.wrap(coordinate)
@@ -291,6 +329,14 @@ class PreparationMovementProtocolCodecTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new PreparationInput(1L, 1L, 0, 0, true, true, 0, 0))
                 .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(
+                        () -> new PreparationInput(1L, 1L, 0, 0, false, true, true, 0, 0))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(
+                        () ->
+                                new PreparationPlayerSnapshot(
+                                        playerId("a"), 0L, 0, 0, 0, 1, true, false, 0, 0))
+                .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new PreparationPlayerSnapshot(playerId("a"), -1L, 0, 0, 0, 0, 0))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new PreparationWorldSnapshot(1L, 0L, List.of()))
@@ -309,7 +355,7 @@ class PreparationMovementProtocolCodecTest {
 
     private static PreparationPlayerSnapshot player(
             String suffixCharacter, long sequence, int x, int y, int z, int yaw, int pitch) {
-        return player(suffixCharacter, sequence, x, y, z, false, yaw, pitch);
+        return player(suffixCharacter, sequence, x, y, z, 0, true, false, yaw, pitch);
     }
 
     private static PreparationPlayerSnapshot player(
@@ -318,11 +364,22 @@ class PreparationMovementProtocolCodecTest {
             int x,
             int y,
             int z,
+            int verticalVelocity,
+            boolean grounded,
             boolean crouching,
             int yaw,
             int pitch) {
         return new PreparationPlayerSnapshot(
-                playerId(suffixCharacter), sequence, x, y, z, crouching, yaw, pitch);
+                playerId(suffixCharacter),
+                sequence,
+                x,
+                y,
+                z,
+                verticalVelocity,
+                grounded,
+                crouching,
+                yaw,
+                pitch);
     }
 
     private static PlayerId playerId(String suffixCharacter) {
