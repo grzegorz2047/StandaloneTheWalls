@@ -12,6 +12,7 @@ import pl.grzegorz2047.standalonethewalls.domain.TeamId;
 import pl.grzegorz2047.standalonethewalls.mapformat.MapVector3;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationSupportBox;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationSupportMap;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationVerticalMotion;
 
 /** Immutable server-owned preparation map identity, regions, supports, and spawn candidates. */
 public record PreparationMapDefinition(
@@ -24,6 +25,10 @@ public record PreparationMapDefinition(
     public static final int SHA_256_BYTES = 32;
     private static final int LEGACY_FIXTURE_PADDING_MILLIMETRES = 100_000;
     private static final double SUPPORT_TOLERANCE_METRES = 0.001d;
+    private static final double MAXIMUM_JUMP_RISE_METRES =
+            (PreparationVerticalMotion.JUMP_IMPULSE_METRES_PER_SECOND
+                            * PreparationVerticalMotion.JUMP_IMPULSE_METRES_PER_SECOND)
+                    / (2.0d * PreparationVerticalMotion.GRAVITY_METRES_PER_SECOND_SQUARED);
 
     public PreparationMapDefinition(
             String mapId, byte[] mapSha256, List<PreparationSpawnPoint> spawnPoints) {
@@ -79,6 +84,7 @@ public record PreparationMapDefinition(
             }
         }
         supportMap = Objects.requireNonNull(supportMap, "supportMap");
+        requireSupportsInsideRegions(supportMap, copiedRegions.values());
         for (PreparationSpawnPoint spawnPoint : copiedSpawns) {
             PreparationRegionBounds region = copiedRegions.get(spawnPoint.team());
             if (region == null
@@ -115,6 +121,46 @@ public record PreparationMapDefinition(
             throw new IllegalArgumentException("preparation map has no region for the team");
         }
         return region;
+    }
+
+    private static void requireSupportsInsideRegions(
+            PreparationSupportMap supportMap,
+            Iterable<PreparationRegionBounds> regions) {
+        for (PreparationSupportBox support : supportMap.boxes()) {
+            boolean intersectsPlayableRegion = false;
+            double playerCenterY =
+                    support.topYMetres() + PreparationSupportMap.PLAYER_CENTER_OFFSET_METRES;
+            for (PreparationRegionBounds region : regions) {
+                if (!overlapsHorizontal(support, region)) {
+                    continue;
+                }
+                intersectsPlayableRegion = true;
+                double minimumY = region.minimumYMillimetres() / 1_000.0d;
+                double maximumY = region.maximumYMillimetres() / 1_000.0d;
+                if (playerCenterY < minimumY - SUPPORT_TOLERANCE_METRES
+                        || playerCenterY + MAXIMUM_JUMP_RISE_METRES
+                                > maximumY + SUPPORT_TOLERANCE_METRES) {
+                    throw new IllegalArgumentException(
+                            "preparation support surface exceeds authoritative vertical region bounds");
+                }
+            }
+            if (!intersectsPlayableRegion) {
+                throw new IllegalArgumentException(
+                        "preparation support surface is outside every authoritative region");
+            }
+        }
+    }
+
+    private static boolean overlapsHorizontal(
+            PreparationSupportBox support, PreparationRegionBounds region) {
+        double minimumX = region.minimumXMillimetres() / 1_000.0d;
+        double maximumX = region.maximumXMillimetres() / 1_000.0d;
+        double minimumZ = region.minimumZMillimetres() / 1_000.0d;
+        double maximumZ = region.maximumZMillimetres() / 1_000.0d;
+        return support.maximum().x() >= minimumX
+                && support.minimum().x() <= maximumX
+                && support.maximum().z() >= minimumZ
+                && support.minimum().z() <= maximumZ;
     }
 
     private static Map<TeamId, PreparationRegionBounds> deriveFixtureRegions(
