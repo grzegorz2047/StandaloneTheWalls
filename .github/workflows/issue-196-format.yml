@@ -1,9 +1,7 @@
 name: Issue 196 formatting proof
 
 on:
-  push:
-    branches:
-      - agent/issue-196-authoritative-headroom
+  pull_request:
 
 permissions:
   contents: read
