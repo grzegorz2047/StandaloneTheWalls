@@ -1,26 +1,46 @@
 package pl.grzegorz2047.standalonethewalls.server.preparation;
 
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.OptionalDouble;
 import java.util.Set;
 import pl.grzegorz2047.standalonethewalls.domain.TeamId;
+import pl.grzegorz2047.standalonethewalls.mapformat.MapVector3;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationSupportBox;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationSupportMap;
 
-/** Immutable server-owned preparation map identity, regions, and exclusive spawn candidates. */
+/** Immutable server-owned preparation map identity, regions, supports, and spawn candidates. */
 public record PreparationMapDefinition(
         String mapId,
         byte[] mapSha256,
         List<PreparationSpawnPoint> spawnPoints,
-        Map<TeamId, PreparationRegionBounds> regions) {
+        Map<TeamId, PreparationRegionBounds> regions,
+        PreparationSupportMap supportMap) {
     public static final int MAXIMUM_MAP_ID_BYTES = 64;
     public static final int SHA_256_BYTES = 32;
     private static final int LEGACY_FIXTURE_PADDING_MILLIMETRES = 100_000;
+    private static final double SUPPORT_TOLERANCE_METRES = 0.001d;
 
     public PreparationMapDefinition(
             String mapId, byte[] mapSha256, List<PreparationSpawnPoint> spawnPoints) {
-        this(mapId, mapSha256, spawnPoints, deriveFixtureRegions(spawnPoints));
+        this(
+                mapId,
+                mapSha256,
+                spawnPoints,
+                deriveFixtureRegions(spawnPoints),
+                deriveFixtureSupports(spawnPoints, deriveFixtureRegions(spawnPoints)));
+    }
+
+    public PreparationMapDefinition(
+            String mapId,
+            byte[] mapSha256,
+            List<PreparationSpawnPoint> spawnPoints,
+            Map<TeamId, PreparationRegionBounds> regions) {
+        this(mapId, mapSha256, spawnPoints, regions, deriveFixtureSupports(spawnPoints, regions));
     }
 
     public PreparationMapDefinition {
@@ -58,6 +78,7 @@ public record PreparationMapDefinition(
                         "preparation region key does not match its team");
             }
         }
+        supportMap = Objects.requireNonNull(supportMap, "supportMap");
         for (PreparationSpawnPoint spawnPoint : copiedSpawns) {
             PreparationRegionBounds region = copiedRegions.get(spawnPoint.team());
             if (region == null
@@ -67,6 +88,17 @@ public record PreparationMapDefinition(
                             toMillimetres(spawnPoint.z()))) {
                 throw new IllegalArgumentException(
                         "preparation spawn is outside its authoritative team region");
+            }
+            OptionalDouble support =
+                    supportMap.highestPlayerCenterAtOrBelow(
+                            spawnPoint.x(),
+                            spawnPoint.z(),
+                            spawnPoint.y() + SUPPORT_TOLERANCE_METRES);
+            if (support.isEmpty()
+                    || Math.abs(support.orElseThrow() - spawnPoint.y())
+                            > SUPPORT_TOLERANCE_METRES) {
+                throw new IllegalArgumentException(
+                        "preparation spawn is not supported by the authoritative collision map");
             }
         }
         regions = Map.copyOf(copiedRegions);
@@ -115,7 +147,58 @@ public record PreparationMapDefinition(
         return Map.copyOf(derived);
     }
 
+    private static PreparationSupportMap deriveFixtureSupports(
+            List<PreparationSpawnPoint> spawnPoints,
+            Map<TeamId, PreparationRegionBounds> regions) {
+        List<PreparationSpawnPoint> spawns =
+                List.copyOf(Objects.requireNonNull(spawnPoints, "spawnPoints"));
+        Map<TeamId, PreparationRegionBounds> boundedRegions =
+                Map.copyOf(Objects.requireNonNull(regions, "regions"));
+        EnumMap<TeamId, Double> centerYByTeam = new EnumMap<>(TeamId.class);
+        for (PreparationSpawnPoint spawn : spawns) {
+            PreparationSpawnPoint candidate = Objects.requireNonNull(spawn, "spawnPoint");
+            centerYByTeam.merge(
+                    candidate.team(),
+                    candidate.y(),
+                    (first, next) -> {
+                        if (Double.compare(first, next) != 0) {
+                            throw new IllegalArgumentException(
+                                    "legacy fixture spawns for one team must share a support height");
+                        }
+                        return first;
+                    });
+        }
+        List<PreparationSupportBox> supports = new ArrayList<>(centerYByTeam.size());
+        boolean groundNamed = false;
+        for (Map.Entry<TeamId, Double> entry : centerYByTeam.entrySet()) {
+            PreparationRegionBounds region = boundedRegions.get(entry.getKey());
+            if (region == null) {
+                throw new IllegalArgumentException("legacy fixture spawn team has no region");
+            }
+            double surfaceY =
+                    entry.getValue() - PreparationSupportMap.PLAYER_CENTER_OFFSET_METRES;
+            String name =
+                    groundNamed ? entry.getKey().name() + "FixtureSupportCollision" : "GroundCollision";
+            groundNamed = true;
+            supports.add(
+                    new PreparationSupportBox(
+                            name,
+                            new MapVector3(
+                                    region.minimumXMillimetres() / 1_000.0d,
+                                    surfaceY - 1.0d,
+                                    region.minimumZMillimetres() / 1_000.0d),
+                            new MapVector3(
+                                    region.maximumXMillimetres() / 1_000.0d,
+                                    surfaceY,
+                                    region.maximumZMillimetres() / 1_000.0d)));
+        }
+        return new PreparationSupportMap(supports);
+    }
+
     private static int toMillimetres(double metres) {
+        if (!Double.isFinite(metres)) {
+            throw new IllegalArgumentException("preparation coordinate must be finite");
+        }
         long value = Math.round(metres * 1_000.0d);
         if (value < Integer.MIN_VALUE || value > Integer.MAX_VALUE) {
             throw new IllegalArgumentException("preparation coordinate exceeds fixed-point range");
