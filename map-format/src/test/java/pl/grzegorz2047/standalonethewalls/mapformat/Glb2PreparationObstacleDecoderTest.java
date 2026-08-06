@@ -3,9 +3,6 @@ package pl.grzegorz2047.standalonethewalls.mapformat;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.charset.StandardCharsets;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
@@ -126,24 +123,26 @@ class Glb2PreparationObstacleDecoderTest {
         assertThat(Glb2PreparationObstacleDecoder.decode(document).boxes()).isEmpty();
     }
 
+    @Test
+    void rejectsTamperedPositionBytesEvenWhenAccessorBoundsRemainCanonical() throws Glb2Exception {
+        byte[] binary = CanonicalCollisionGlbFixture.tamperedPositionBinary(0.25f);
+        Glb2Document document =
+                CanonicalCollisionGlbFixture.document(
+                        canonicalAccessor(),
+                        "[{\"mesh\":0,\"name\":\"TamperedWallCollision\",\"scale\":[1,1,1],\"translation\":[0,0,0]}]",
+                        "[0]",
+                        binary);
+
+        assertCode(document, PreparationObstacleException.Code.INVALID_ACCESSOR);
+    }
+
     private static Glb2Document document(String accessor, String nodes, String sceneNodes)
             throws Glb2Exception {
-        String json =
-                "{\"accessors\":["
-                        + accessor
-                        + "],\"asset\":{\"version\":\"2.0\"},\"buffers\":[{\"byteLength\":4}],"
-                        + "\"meshes\":[{\"primitives\":[{\"attributes\":{\"POSITION\":0}}]}],"
-                        + "\"nodes\":"
-                        + nodes
-                        + ",\"scene\":0,\"scenes\":[{\"nodes\":"
-                        + sceneNodes
-                        + "}]}";
-        return Glb2ContainerDecoder.decode(glb(json), limits());
+        return CanonicalCollisionGlbFixture.document(accessor, nodes, sceneNodes);
     }
 
     private static String canonicalAccessor() {
-        return "{\"componentType\":5126,\"count\":24,\"max\":[0.5,0.5,0.5],"
-                + "\"min\":[-0.5,-0.5,-0.5],\"type\":\"VEC3\"}";
+        return CanonicalCollisionGlbFixture.canonicalPositionAccessor();
     }
 
     private static void assertCode(
@@ -152,23 +151,5 @@ class Glb2PreparationObstacleDecoderTest {
                 .isInstanceOfSatisfying(
                         PreparationObstacleException.class,
                         exception -> assertThat(exception.code()).isEqualTo(expected));
-    }
-
-    private static MapLimits limits() {
-        return new MapLimits(1, 1024 * 1024, 5, 128, 256, 64);
-    }
-
-    private static byte[] glb(String json) {
-        byte[] jsonBytes = json.getBytes(StandardCharsets.UTF_8);
-        int paddedJsonBytes = (jsonBytes.length + 3) & ~3;
-        int totalBytes = 12 + 8 + paddedJsonBytes + 8 + 4;
-        ByteBuffer output = ByteBuffer.allocate(totalBytes).order(ByteOrder.LITTLE_ENDIAN);
-        output.putInt(0x46546C67).putInt(2).putInt(totalBytes);
-        output.putInt(paddedJsonBytes).putInt(0x4E4F534A).put(jsonBytes);
-        while (output.position() < 20 + paddedJsonBytes) {
-            output.put((byte) ' ');
-        }
-        output.putInt(4).putInt(0x004E4942).putInt(0);
-        return output.array();
     }
 }

@@ -39,6 +39,7 @@ public final class Glb2PreparationObstacleDecoder {
     public static PreparationObstacleMap decode(Glb2Document document)
             throws PreparationObstacleException {
         Glb2Document verified = Objects.requireNonNull(document, "document");
+        Set<Integer> canonicalBoxMeshes = verifiedBoxMeshes(verified);
         try (JsonParser parser =
                 JSON_FACTORY.createParser(ObjectReadContext.empty(), verified.jsonChunk())) {
             requireToken(parser.nextToken(), JsonToken.START_OBJECT, "glTF root object");
@@ -77,7 +78,11 @@ public final class Glb2PreparationObstacleDecoder {
                         "collision GLB is missing obstacle decoding metadata");
             }
             return buildObstacleMap(
-                    accessors, meshes, nodes, scenes.get(verified.defaultScene()).nodeIndices());
+                    accessors,
+                    meshes,
+                    nodes,
+                    scenes.get(verified.defaultScene()).nodeIndices(),
+                    canonicalBoxMeshes);
         } catch (PreparationObstacleException exception) {
             throw exception;
         } catch (IOException | RuntimeException exception) {
@@ -92,7 +97,8 @@ public final class Glb2PreparationObstacleDecoder {
             List<Accessor> accessors,
             List<Mesh> meshes,
             List<Node> nodes,
-            List<Integer> defaultSceneNodeIndices)
+            List<Integer> defaultSceneNodeIndices,
+            Set<Integer> canonicalBoxMeshes)
             throws PreparationObstacleException {
         Set<Integer> defaultSceneNodes = validatedIndices(defaultSceneNodeIndices, nodes.size());
         Set<Integer> childNodes = new HashSet<>();
@@ -147,6 +153,11 @@ public final class Glb2PreparationObstacleDecoder {
                 throw failure(
                         PreparationObstacleException.Code.INVALID_ACCESSOR,
                         "obstacle node POSITION accessor is not a unit cube");
+            }
+            if (!canonicalBoxMeshes.contains(node.mesh())) {
+                throw failure(
+                        PreparationObstacleException.Code.INVALID_ACCESSOR,
+                        "obstacle node mesh bytes are not a closed canonical unit cube");
             }
             MapVector3 translation = node.translation();
             MapVector3 scale = node.scale();
@@ -422,6 +433,20 @@ public final class Glb2PreparationObstacleDecoder {
                 && (name.endsWith(WALL_SUFFIX)
                         || name.endsWith(WALL_X_SUFFIX)
                         || name.endsWith(WALL_Z_SUFFIX));
+    }
+
+    private static Set<Integer> verifiedBoxMeshes(Glb2Document document)
+            throws PreparationObstacleException {
+        try {
+            return Glb2CanonicalBoxMeshVerifier.verifiedMeshes(document);
+        } catch (Glb2CanonicalBoxMeshVerifier.VerificationException exception) {
+            PreparationObstacleException.Code code =
+                    exception.malformedJson()
+                            ? PreparationObstacleException.Code.MALFORMED_JSON
+                            : PreparationObstacleException.Code.MISSING_LAYOUT;
+            throw new PreparationObstacleException(
+                    code, "collision GLB box mesh bytes could not be verified", exception);
+        }
     }
 
     private static PreparationObstacleException failure(
