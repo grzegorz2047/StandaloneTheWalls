@@ -10,6 +10,8 @@ public record PreparationPlayerSnapshot(
         int xMillimetres,
         int yMillimetres,
         int zMillimetres,
+        int verticalVelocityMillimetresPerSecond,
+        boolean grounded,
         boolean crouching,
         int yawCentidegrees,
         int pitchCentidegrees) {
@@ -29,7 +31,31 @@ public record PreparationPlayerSnapshot(
                 xMillimetres,
                 yMillimetres,
                 zMillimetres,
+                0,
+                true,
                 false,
+                yawCentidegrees,
+                pitchCentidegrees);
+    }
+
+    public PreparationPlayerSnapshot(
+            PlayerId playerId,
+            long lastProcessedInputSequence,
+            int xMillimetres,
+            int yMillimetres,
+            int zMillimetres,
+            boolean crouching,
+            int yawCentidegrees,
+            int pitchCentidegrees) {
+        this(
+                playerId,
+                lastProcessedInputSequence,
+                xMillimetres,
+                yMillimetres,
+                zMillimetres,
+                0,
+                true,
+                crouching,
                 yawCentidegrees,
                 pitchCentidegrees);
     }
@@ -42,6 +68,17 @@ public record PreparationPlayerSnapshot(
         requireCoordinate(xMillimetres, "xMillimetres");
         requireCoordinate(yMillimetres, "yMillimetres");
         requireCoordinate(zMillimetres, "zMillimetres");
+        if (verticalVelocityMillimetresPerSecond
+                        < PreparationVerticalMotion.MINIMUM_VERTICAL_VELOCITY_MILLIMETRES_PER_SECOND
+                || verticalVelocityMillimetresPerSecond
+                        > PreparationVerticalMotion.MAXIMUM_VERTICAL_VELOCITY_MILLIMETRES_PER_SECOND) {
+            throw new IllegalArgumentException(
+                    "verticalVelocityMillimetresPerSecond is outside the supported range");
+        }
+        if (grounded && verticalVelocityMillimetresPerSecond != 0) {
+            throw new IllegalArgumentException(
+                    "grounded snapshot must have zero vertical velocity");
+        }
         if (yawCentidegrees < PreparationInput.MINIMUM_YAW_CENTIDEGREES
                 || yawCentidegrees > PreparationInput.MAXIMUM_YAW_CENTIDEGREES) {
             throw new IllegalArgumentException("yawCentidegrees is outside [-18000, 17999]");
@@ -62,6 +99,10 @@ public record PreparationPlayerSnapshot(
 
     public double zMetres() {
         return zMillimetres / 1_000.0d;
+    }
+
+    public double verticalVelocityMetresPerSecond() {
+        return verticalVelocityMillimetresPerSecond / 1_000.0d;
     }
 
     public double yawDegrees() {
