@@ -36,17 +36,41 @@ jobs:
           if [ "$status" -eq 0 ]; then
             python3 - <<'PY' >> "$log" 2>&1
           from pathlib import Path
+
           path = Path('map-format/src/main/java/pl/grzegorz2047/standalonethewalls/mapformat/Glb2CanonicalBoxMeshVerifier.java')
           source = path.read_text(encoding='utf-8')
-          marker = '''    static final class VerificationException extends Exception {
+
+          serial_marker = '''    static final class VerificationException extends Exception {
                   private final Code code;'''
-          replacement = '''    static final class VerificationException extends Exception {
+          serial_replacement = '''    static final class VerificationException extends Exception {
                   private static final long serialVersionUID = 1L;
 
                   private final Code code;'''
-          if marker not in source:
+          if serial_marker not in source:
               raise SystemExit('verification exception marker missing')
-          path.write_text(source.replace(marker, replacement), encoding='utf-8')
+          source = source.replace(serial_marker, serial_replacement)
+
+          caller_marker = '''        return cornerCodes != null
+                  && hasCanonicalTopology('''
+          caller_replacement = '''        return cornerCodes.length == POSITION_COUNT
+                  && hasCanonicalTopology('''
+          if caller_marker not in source:
+              raise SystemExit('corner sentinel caller marker missing')
+          source = source.replace(caller_marker, caller_replacement)
+
+          corner_start = source.index('    private static int[] readCornerCodes(')
+          corner_end = source.index('    private static boolean hasCanonicalTopology(', corner_start)
+          corner_block = source[corner_start:corner_end]
+          if 'return null;' not in corner_block:
+              raise SystemExit('corner sentinel returns missing')
+          corner_block = corner_block.replace('return null;', 'return new int[0];')
+          source = source[:corner_start] + corner_block + source[corner_end:]
+
+          unused_start = source.index('    private static List<Integer> readVectorTokens(')
+          unused_end = source.index('    private static MapVector3 readVector3(', unused_start)
+          source = source[:unused_start] + source[unused_end:]
+
+          path.write_text(source, encoding='utf-8')
           PY
             status=$?
           fi
