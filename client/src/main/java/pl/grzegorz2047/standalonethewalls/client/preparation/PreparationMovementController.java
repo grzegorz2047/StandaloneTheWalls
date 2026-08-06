@@ -165,6 +165,23 @@ public final class PreparationMovementController {
                 step
                         * ((normalizedForward * PreparationFacing.forwardZ(yaw))
                                 + (normalizedRight * PreparationFacing.rightZ(yaw)));
+        PreparationPlayerState moved = tryMove(player, world, deltaX, deltaZ);
+        if (moved != player || deltaX == 0.0d || deltaZ == 0.0d) {
+            return moved;
+        }
+        if (Math.abs(deltaX) >= Math.abs(deltaZ)) {
+            moved = tryMove(player, world, deltaX, 0.0d);
+            return moved != player ? moved : tryMove(player, world, 0.0d, deltaZ);
+        }
+        moved = tryMove(player, world, 0.0d, deltaZ);
+        return moved != player ? moved : tryMove(player, world, deltaX, 0.0d);
+    }
+
+    private static PreparationPlayerState tryMove(
+            PreparationPlayerState player,
+            PreparationCollisionWorld world,
+            double deltaX,
+            double deltaZ) {
         MapVector3 target = player.horizontalPositionAfter(deltaX, deltaZ);
         if ((Double.compare(target.x(), player.position().x()) == 0
                         && Double.compare(target.z(), player.position().z()) == 0)
