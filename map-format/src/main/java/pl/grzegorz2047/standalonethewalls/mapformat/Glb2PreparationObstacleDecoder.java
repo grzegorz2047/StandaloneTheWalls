@@ -17,7 +17,9 @@ import tools.jackson.core.json.JsonFactory;
 public final class Glb2PreparationObstacleDecoder {
     private static final int FLOAT_COMPONENT_TYPE = 5126;
     private static final int MAXIMUM_ACCESSORS = 256;
-    private static final String OBSTACLE_SUFFIX = "WallCollision";
+    private static final String WALL_SUFFIX = "WallCollision";
+    private static final String WALL_X_SUFFIX = "WallXCollision";
+    private static final String WALL_Z_SUFFIX = "WallZCollision";
     private static final JsonFactory JSON_FACTORY =
             JsonFactory.builder()
                     .streamReadConstraints(
@@ -416,7 +418,10 @@ public final class Glb2PreparationObstacleDecoder {
     }
 
     private static boolean isObstacleName(String name) {
-        return name != null && name.endsWith(OBSTACLE_SUFFIX);
+        return name != null
+                && (name.endsWith(WALL_SUFFIX)
+                        || name.endsWith(WALL_X_SUFFIX)
+                        || name.endsWith(WALL_Z_SUFFIX));
     }
 
     private static PreparationObstacleException failure(
