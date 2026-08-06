@@ -2,6 +2,7 @@ package pl.grzegorz2047.standalonethewalls.client.preparation;
 
 import java.util.ArrayDeque;
 import java.util.Objects;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationBarrierPolicy;
 
 /**
  * Bounded renderer-thread history used to replay only local prediction that the server has not yet
@@ -113,6 +114,7 @@ public final class PreparationPredictionHistory {
                         sprinting,
                         crouching,
                         jumpEdge,
+                        player.barrierPolicy(),
                         player.yawDegrees(),
                         player.pitchDegrees(),
                         elapsedSeconds);
@@ -159,6 +161,11 @@ public final class PreparationPredictionHistory {
         return state;
     }
 
+    public void clearPendingAtBarrierPolicyBoundary() {
+        pending.clear();
+        consumedJumpSequence = highestSubmittedSequence;
+    }
+
     public int pendingStepCount() {
         return pending.size();
     }
@@ -186,14 +193,15 @@ public final class PreparationPredictionHistory {
             PreparationCollisionWorld collisions,
             PredictionStep step) {
         PreparationPlayerState oriented =
-                state.withAuthoritativeState(
-                        state.position().x(),
-                        state.position().y(),
-                        state.position().z(),
-                        state.verticalVelocityMetresPerSecond(),
-                        state.grounded(),
-                        step.yawDegrees(),
-                        step.pitchDegrees());
+                state.withBarrierPolicy(step.barrierPolicy())
+                        .withAuthoritativeState(
+                                state.position().x(),
+                                state.position().y(),
+                                state.position().z(),
+                                state.verticalVelocityMetresPerSecond(),
+                                state.grounded(),
+                                step.yawDegrees(),
+                                step.pitchDegrees());
         return PreparationMovementController.move(
                 oriented,
                 collisions,
@@ -212,6 +220,7 @@ public final class PreparationPredictionHistory {
             boolean sprinting,
             boolean crouching,
             boolean jumping,
+            PreparationBarrierPolicy barrierPolicy,
             double yawDegrees,
             double pitchDegrees,
             double elapsedSeconds) {
@@ -228,6 +237,7 @@ public final class PreparationPredictionHistory {
             if (crouching && jumping) {
                 throw new IllegalArgumentException("crouching and jumping are mutually exclusive");
             }
+            Objects.requireNonNull(barrierPolicy, "barrierPolicy");
             if (!Double.isFinite(yawDegrees) || yawDegrees < -180.0d || yawDegrees >= 180.0d) {
                 throw new IllegalArgumentException("yawDegrees must be in [-180, 180)");
             }
