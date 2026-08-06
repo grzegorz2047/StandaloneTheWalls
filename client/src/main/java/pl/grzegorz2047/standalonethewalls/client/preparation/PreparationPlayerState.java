@@ -115,14 +115,7 @@ public final class PreparationPlayerState {
             double authoritativeYawDegrees,
             double authoritativePitchDegrees) {
         return withAuthoritativeState(
-                x,
-                y,
-                z,
-                0.0d,
-                true,
-                crouching,
-                authoritativeYawDegrees,
-                authoritativePitchDegrees);
+                x, y, z, 0.0d, true, crouching, authoritativeYawDegrees, authoritativePitchDegrees);
     }
 
     public PreparationPlayerState withAuthoritativeState(
@@ -170,12 +163,7 @@ public final class PreparationPlayerState {
             double nextVerticalVelocityMetresPerSecond,
             boolean nextGrounded) {
         return withMovementState(
-                x,
-                y,
-                z,
-                nextVerticalVelocityMetresPerSecond,
-                nextGrounded,
-                crouching);
+                x, y, z, nextVerticalVelocityMetresPerSecond, nextGrounded, crouching);
     }
 
     public PreparationPlayerState withMovementState(
