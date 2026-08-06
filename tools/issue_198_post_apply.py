@@ -58,6 +58,7 @@ if runtime_marker not in runtime_text:
     runtime.write_text(runtime_text.replace(old_runtime, new_runtime, 1), encoding="utf-8")
 
 runpy.run_path("tools/issue_198_client_apply.py", run_name="__main__")
+runpy.run_path("tools/issue_198_runtime_test_apply.py", run_name="__main__")
 
 collision = Path(
     "client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationCollisionWorld.java"
@@ -92,6 +93,7 @@ git add \
   map-format/src/test/java/pl/grzegorz2047/standalonethewalls/mapformat/PreparationWorldBoundsTest.java \
   server/src/main/java/pl/grzegorz2047/standalonethewalls/server/lobby/MinimalLobbyRuntime.java \
   server/src/main/java/pl/grzegorz2047/standalonethewalls/server/preparation/PreparationMovementSimulation.java \
+  server/src/test/java/pl/grzegorz2047/standalonethewalls/server/identity/session/MinimalLobbyRuntimeTest.java \
   server/src/test/java/pl/grzegorz2047/standalonethewalls/server/preparation/PreparationObstacleMovementSimulationTest.java
 """,
     encoding="utf-8",
