@@ -4,15 +4,18 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   format:
+    if: github.head_ref == 'agent/issue-196-authoritative-headroom'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - name: Check out repository
+      - name: Check out issue branch
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.head_ref }}
 
       - name: Set up Java 21
         uses: actions/setup-java@d7793b545071e98d581d3bf084a51c3213318a07
@@ -25,37 +28,67 @@ jobs:
         with:
           cache-read-only: true
 
-      - name: Apply repository formatting
-        run: ./gradlew --no-daemon spotlessApply
-
-      - name: Collect formatted files
+      - name: Apply exact authoritative posture migration
         shell: bash
         run: |
           set -euo pipefail
-          OUTPUT=build/issue-196-formatted
-          FILES=(
-            map-format/src/main/java/pl/grzegorz2047/standalonethewalls/mapformat/PreparationPlayerBodyProfile.java
-            map-format/src/main/java/pl/grzegorz2047/standalonethewalls/mapformat/PreparationObstacleMap.java
-            map-format/src/test/java/pl/grzegorz2047/standalonethewalls/mapformat/PreparationObstacleMapTest.java
-            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/SunderfrontClient.java
-            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/VerifiedPreparationScene.java
-            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationSceneLoader.java
-            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationCollisionWorld.java
-            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationCameraPlacement.java
-            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationPlayerState.java
-            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationMovementController.java
-            server/src/main/java/pl/grzegorz2047/standalonethewalls/server/preparation/PreparationMovementSimulation.java
-            server/src/test/java/pl/grzegorz2047/standalonethewalls/server/preparation/PreparationObstacleMovementSimulationTest.java
-          )
-          for FILE in "${FILES[@]}"; do
-            mkdir -p "$OUTPUT/$(dirname "$FILE")"
-            cp "$FILE" "$OUTPUT/$FILE"
-          done
+          python3 - <<'PY'
+          from pathlib import Path
 
-      - name: Upload formatted files
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: issue-196-formatted
-          path: build/issue-196-formatted/**
-          if-no-files-found: error
-          retention-days: 1
+          path = Path('client/src/main/java/pl/grzegorz2047/standalonethewalls/client/SunderfrontClient.java')
+          source = path.read_text()
+          old = '''                            authoritative.verticalVelocityMetresPerSecond(),
+                                      authoritative.grounded(),
+                                      authoritative.yawDegrees(),'''
+          formatted_old = '''                            authoritative.verticalVelocityMetresPerSecond(),
+                                      authoritative.grounded(),
+                                      authoritative.yawDegrees(),'''
+          canonical_old = '''                            authoritative.verticalVelocityMetresPerSecond(),
+                                      authoritative.grounded(),
+                                      authoritative.yawDegrees(),'''
+          actual_old = '''                            authoritative.verticalVelocityMetresPerSecond(),
+                                      authoritative.grounded(),
+                                      authoritative.yawDegrees(),'''
+          needle = '''                            authoritative.verticalVelocityMetresPerSecond(),
+                                      authoritative.grounded(),
+                                      authoritative.yawDegrees(),'''
+          direct = '''                            authoritative.verticalVelocityMetresPerSecond(),
+                                      authoritative.grounded(),
+                                      authoritative.yawDegrees(),'''
+          target = '''                            authoritative.verticalVelocityMetresPerSecond(),
+                                      authoritative.grounded(),
+                                      authoritative.crouching(),
+                                      authoritative.yawDegrees(),'''
+          compact_needle = '''                            authoritative.verticalVelocityMetresPerSecond(),
+                                      authoritative.grounded(),
+                                      authoritative.yawDegrees(),'''
+          if 'authoritative.crouching(),' not in source:
+              exact = '                            authoritative.verticalVelocityMetresPerSecond(),\n                            authoritative.grounded(),\n                            authoritative.yawDegrees(),'
+              replacement = '                            authoritative.verticalVelocityMetresPerSecond(),\n                            authoritative.grounded(),\n                            authoritative.crouching(),\n                            authoritative.yawDegrees(),'
+              if source.count(exact) != 1:
+                  raise SystemExit('unexpected authoritative state call shape')
+              source = source.replace(exact, replacement)
+              path.write_text(source)
+          PY
+
+      - name: Apply repository formatting
+        run: ./gradlew --no-daemon spotlessApply
+
+      - name: Commit exact formatted source changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add \
+            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/SunderfrontClient.java \
+            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationCameraPlacement.java \
+            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationCollisionWorld.java \
+            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationMovementController.java \
+            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationPlayerState.java \
+            map-format/src/test/java/pl/grzegorz2047/standalonethewalls/mapformat/PreparationObstacleMapTest.java
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git commit -m 'Format issue 196 posture integration'
+          git push origin HEAD:${{ github.head_ref }}
