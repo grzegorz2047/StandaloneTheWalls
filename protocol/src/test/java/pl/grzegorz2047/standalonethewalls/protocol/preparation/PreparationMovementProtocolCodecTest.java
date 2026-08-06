@@ -33,7 +33,7 @@ class PreparationMovementProtocolCodecTest {
         PreparationInput input = new PreparationInput(3L, 5L, 127, -127, true, 9_000, -2_500);
         byte[] expected =
                 ByteBuffer.allocate(PreparationMovementProtocolCodec.INPUT_BYTES)
-                        .put((byte) 2)
+                        .put((byte) 3)
                         .putLong(3L)
                         .putLong(5L)
                         .put((byte) 127)
@@ -52,6 +52,7 @@ class PreparationMovementProtocolCodecTest {
         assertThat(input.forwardAxisValue()).isEqualTo(1.0d);
         assertThat(input.rightAxisValue()).isEqualTo(-1.0d);
         assertThat(input.sprinting()).isTrue();
+        assertThat(input.crouching()).isFalse();
         assertThat(input.yawDegrees()).isEqualTo(90.0d);
         assertThat(input.pitchDegrees()).isEqualTo(-25.0d);
         assertThat(MessageType.PREPARATION_INPUT.channel()).isEqualTo(MessageType.Channel.BOTH);
@@ -64,7 +65,32 @@ class PreparationMovementProtocolCodecTest {
         byte[] encoded = PreparationMovementProtocolCodec.encodeInput(input);
 
         assertThat(encoded[INPUT_FLAGS_OFFSET]).isZero();
-        assertThat(PreparationMovementProtocolCodec.decodeInput(encoded).sprinting()).isFalse();
+        PreparationInput decoded = PreparationMovementProtocolCodec.decodeInput(encoded);
+        assertThat(decoded.sprinting()).isFalse();
+        assertThat(decoded.crouching()).isFalse();
+    }
+
+    @Test
+    void encodesTheExactCrouchingInputVector() throws PreparationProtocolException {
+        PreparationInput input = new PreparationInput(4L, 9L, -64, 32, false, true, -9_000, 1_500);
+        byte[] expected =
+                ByteBuffer.allocate(PreparationMovementProtocolCodec.INPUT_BYTES)
+                        .put((byte) 3)
+                        .putLong(4L)
+                        .putLong(9L)
+                        .put((byte) -64)
+                        .put((byte) 32)
+                        .put((byte) 2)
+                        .putShort((short) -9_000)
+                        .putShort((short) 1_500)
+                        .array();
+
+        byte[] encoded = PreparationMovementProtocolCodec.encodeInput(input);
+
+        assertThat(encoded).containsExactly(expected);
+        assertThat(PreparationMovementProtocolCodec.decodeInput(encoded)).isEqualTo(input);
+        assertThat(input.sprinting()).isFalse();
+        assertThat(input.crouching()).isTrue();
     }
 
     @Test
@@ -132,9 +158,13 @@ class PreparationMovementProtocolCodecTest {
                 new byte[PreparationMovementProtocolCodec.INPUT_BYTES + 1],
                 PreparationProtocolException.Code.INVALID_SIZE);
 
-        byte[] schema = validInputPayload();
-        schema[0] = 1;
-        assertInputCode(schema, PreparationProtocolException.Code.UNSUPPORTED_SCHEMA);
+        byte[] schemaOne = validInputPayload();
+        schemaOne[0] = 1;
+        assertInputCode(schemaOne, PreparationProtocolException.Code.UNSUPPORTED_SCHEMA);
+
+        byte[] schemaTwo = validInputPayload();
+        schemaTwo[0] = 2;
+        assertInputCode(schemaTwo, PreparationProtocolException.Code.UNSUPPORTED_SCHEMA);
 
         byte[] round = validInputPayload();
         ByteBuffer.wrap(round).putLong(INPUT_ROUND_OFFSET, 0L);
@@ -148,9 +178,13 @@ class PreparationMovementProtocolCodecTest {
         axis[INPUT_FORWARD_OFFSET] = (byte) -128;
         assertInputCode(axis, PreparationProtocolException.Code.INVALID_AXIS);
 
-        byte[] flags = validInputPayload();
-        flags[INPUT_FLAGS_OFFSET] = 2;
-        assertInputCode(flags, PreparationProtocolException.Code.INVALID_STATE);
+        byte[] unknownFlags = validInputPayload();
+        unknownFlags[INPUT_FLAGS_OFFSET] = 4;
+        assertInputCode(unknownFlags, PreparationProtocolException.Code.INVALID_STATE);
+
+        byte[] conflictingFlags = validInputPayload();
+        conflictingFlags[INPUT_FLAGS_OFFSET] = 3;
+        assertInputCode(conflictingFlags, PreparationProtocolException.Code.INVALID_STATE);
 
         byte[] yaw = validInputPayload();
         ByteBuffer.wrap(yaw).putShort(INPUT_YAW_OFFSET, (short) 18_000);
@@ -239,6 +273,8 @@ class PreparationMovementProtocolCodecTest {
     @Test
     void valueObjectsRejectOutOfRangeConstruction() {
         assertThatThrownBy(() -> new PreparationInput(1L, 1L, 128, 0, false, 0, 0))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new PreparationInput(1L, 1L, 0, 0, true, true, 0, 0))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new PreparationPlayerSnapshot(playerId("a"), -1L, 0, 0, 0, 0, 0))
                 .isInstanceOf(IllegalArgumentException.class);

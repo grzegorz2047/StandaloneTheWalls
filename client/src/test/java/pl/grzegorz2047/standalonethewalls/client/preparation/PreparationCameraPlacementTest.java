@@ -3,7 +3,6 @@ package pl.grzegorz2047.standalonethewalls.client.preparation;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
-import com.jme3.math.Vector3f;
 import com.jme3.renderer.Camera;
 import java.util.HexFormat;
 import org.junit.jupiter.api.Test;
@@ -13,33 +12,26 @@ import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnA
 
 class PreparationCameraPlacementTest {
     @Test
-    void appliesTheExactAuthoritativeSpawnAndProtocolYaw() throws PreparationSceneLoadException {
+    void crouchingLowersOnlyTheLocalCameraByTheBoundedOffset()
+            throws PreparationSceneLoadException {
         PreparationPlayerState player =
                 PreparationPlayerState.atAuthoritativeSpawn(verifiedScene());
-        Camera camera = new Camera(1280, 720);
+        Camera camera = new Camera(1_280, 720);
 
-        PreparationCameraPlacement.apply(camera, player);
+        PreparationCameraPlacement.apply(camera, player, false);
+        float standingY = camera.getLocation().y;
+        float standingX = camera.getLocation().x;
+        float standingZ = camera.getLocation().z;
+        var standingDirection = camera.getDirection().clone();
 
-        assertThat(camera.getLocation()).isEqualTo(new Vector3f(-15.0f, 0.5f, -14.0f));
-        float expected = (float) (Math.sqrt(2.0d) / 2.0d);
-        assertThat(camera.getDirection().x).isCloseTo(expected, within(0.00001f));
-        assertThat(camera.getDirection().y).isCloseTo(0.0f, within(0.00001f));
-        assertThat(camera.getDirection().z).isCloseTo(expected, within(0.00001f));
-    }
+        PreparationCameraPlacement.apply(camera, player, true);
 
-    @Test
-    void appliesBoundedVerticalPitchWithoutChangingYaw() throws PreparationSceneLoadException {
-        PreparationPlayerState player =
-                PreparationPlayerState.atAuthoritativeSpawn(verifiedScene())
-                        .rotateView(0.0d, 30.0d);
-        Camera camera = new Camera(1280, 720);
-
-        PreparationCameraPlacement.apply(camera, player);
-
-        float horizontal = (float) (Math.cos(Math.toRadians(30.0d)) * Math.sqrt(2.0d) / 2.0d);
-        assertThat(camera.getDirection().x).isCloseTo(horizontal, within(0.00001f));
-        assertThat(camera.getDirection().y).isCloseTo(0.5f, within(0.00001f));
-        assertThat(camera.getDirection().z).isCloseTo(horizontal, within(0.00001f));
+        assertThat(camera.getLocation().x).isEqualTo(standingX);
+        assertThat(camera.getLocation().z).isEqualTo(standingZ);
+        assertThat((double) standingY - camera.getLocation().y)
+                .isCloseTo(
+                        PreparationCameraPlacement.CROUCHING_CAMERA_DROP_METRES, within(0.000001d));
+        assertThat(camera.getDirection()).isEqualTo(standingDirection);
     }
 
     private static VerifiedPreparationScene verifiedScene() throws PreparationSceneLoadException {

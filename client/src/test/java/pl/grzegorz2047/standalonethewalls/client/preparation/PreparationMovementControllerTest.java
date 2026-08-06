@@ -101,6 +101,30 @@ class PreparationMovementControllerTest {
     }
 
     @Test
+    void crouchesAtDeterministicSpeedAndStillNormalizesDiagonalInput()
+            throws PreparationSceneLoadException, PreparationSceneGraphException {
+        PreparationPlayerState player = player();
+        PreparationCollisionWorld collisions = collisions(player);
+
+        PreparationPlayerState crouching =
+                PreparationMovementController.move(
+                        player, collisions, 1.0d, 0.0d, false, true, 0.1d);
+        PreparationPlayerState diagonalCrouch =
+                PreparationMovementController.move(
+                        player, collisions, 1.0d, 1.0d, false, true, 0.1d);
+
+        assertThat(distance(player.position(), crouching.position()))
+                .isCloseTo(0.3d, within(0.000001d));
+        assertThat(distance(player.position(), diagonalCrouch.position()))
+                .isCloseTo(0.3d, within(0.000001d));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        PreparationMovementController.move(
+                                player, collisions, 1.0d, 0.0d, true, true, 0.1d));
+    }
+
+    @Test
     void rejectsInvalidAxesTimeAndMouseDelta()
             throws PreparationSceneLoadException, PreparationSceneGraphException {
         PreparationPlayerState player = player();

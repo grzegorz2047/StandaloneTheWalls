@@ -109,6 +109,37 @@ class PreparationPredictionHistoryTest {
     }
 
     @Test
+    void replayPreservesCrouchModeForEachUnacknowledgedStep()
+            throws PreparationSceneLoadException, PreparationSceneGraphException {
+        PreparationPlayerState spawn = player();
+        PreparationCollisionWorld collisions = collisions(spawn);
+        PreparationPredictionHistory history = new PreparationPredictionHistory();
+        PreparationPlayerState walking =
+                history.predict(spawn, collisions, 1L, 1.0d, 0.0d, false, false, 0.05d);
+        history.markSubmitted(1L);
+        PreparationPlayerState sprinting =
+                history.predict(walking, collisions, 2L, 1.0d, 0.0d, true, false, 0.05d);
+        history.markSubmitted(2L);
+        history.predict(sprinting, collisions, 3L, 1.0d, 0.0d, false, true, 0.05d);
+        PreparationPlayerState authoritative =
+                spawn.withAuthoritativeState(-15.5d, 0.5d, -14.5d, 45.0d, 0.0d);
+
+        PreparationPlayerState reconciled = history.reconcile(authoritative, collisions, 1L);
+        PreparationPlayerState expectedSprint =
+                PreparationMovementController.move(
+                        authoritative, collisions, 1.0d, 0.0d, true, false, 0.05d);
+        PreparationPlayerState expected =
+                PreparationMovementController.move(
+                        expectedSprint, collisions, 1.0d, 0.0d, false, true, 0.05d);
+
+        assertThat(reconciled.position()).isEqualTo(expected.position());
+        assertThat(history.pendingStepCount()).isEqualTo(2);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> history.predict(reconciled, collisions, 3L, 0.0d, 0.0d, true, true, 0.01d));
+    }
+
+    @Test
     void acceptsAcknowledgementForSubmittedZeroInputWithoutPredictionSteps()
             throws PreparationSceneLoadException, PreparationSceneGraphException {
         PreparationPlayerState authoritative = player();

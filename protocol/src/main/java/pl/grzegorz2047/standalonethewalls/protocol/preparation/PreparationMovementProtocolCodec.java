@@ -16,10 +16,11 @@ public final class PreparationMovementProtocolCodec {
             SNAPSHOT_HEADER_BYTES
                     + PreparationWorldSnapshot.MAXIMUM_PLAYERS * PLAYER_SNAPSHOT_BYTES;
 
-    private static final int INPUT_SCHEMA_VERSION = 2;
+    private static final int INPUT_SCHEMA_VERSION = 3;
     private static final int SNAPSHOT_SCHEMA_VERSION = 1;
     private static final int INPUT_FLAG_SPRINT = 1;
-    private static final int KNOWN_INPUT_FLAGS = INPUT_FLAG_SPRINT;
+    private static final int INPUT_FLAG_CROUCH = 1 << 1;
+    private static final int KNOWN_INPUT_FLAGS = INPUT_FLAG_SPRINT | INPUT_FLAG_CROUCH;
 
     private PreparationMovementProtocolCodec() {
         throw new AssertionError("No instances");
@@ -33,7 +34,7 @@ public final class PreparationMovementProtocolCodec {
                 .putLong(value.sequence())
                 .put((byte) value.forwardAxis())
                 .put((byte) value.rightAxis())
-                .put((byte) (value.sprinting() ? INPUT_FLAG_SPRINT : 0))
+                .put((byte) inputFlags(value))
                 .putShort((short) value.yawCentidegrees())
                 .putShort((short) value.pitchCentidegrees())
                 .array();
@@ -51,7 +52,7 @@ public final class PreparationMovementProtocolCodec {
         long sequence = requirePositiveSequence(input.getLong());
         int forwardAxis = requireAxis(input.get());
         int rightAxis = requireAxis(input.get());
-        boolean sprinting = requireInputFlags(input.get());
+        InputFlags flags = requireInputFlags(input.get());
         int yawCentidegrees = requireYaw(input.getShort());
         int pitchCentidegrees = requirePitch(input.getShort());
         return new PreparationInput(
@@ -59,7 +60,8 @@ public final class PreparationMovementProtocolCodec {
                 sequence,
                 forwardAxis,
                 rightAxis,
-                sprinting,
+                flags.sprinting(),
+                flags.crouching(),
                 yawCentidegrees,
                 pitchCentidegrees);
     }
@@ -176,14 +178,25 @@ public final class PreparationMovementProtocolCodec {
         }
     }
 
-    private static boolean requireInputFlags(byte raw) throws PreparationProtocolException {
+    private static int inputFlags(PreparationInput input) {
+        int flags = 0;
+        if (input.sprinting()) {
+            flags |= INPUT_FLAG_SPRINT;
+        }
+        if (input.crouching()) {
+            flags |= INPUT_FLAG_CROUCH;
+        }
+        return flags;
+    }
+
+    private static InputFlags requireInputFlags(byte raw) throws PreparationProtocolException {
         int flags = Byte.toUnsignedInt(raw);
-        if ((flags & ~KNOWN_INPUT_FLAGS) != 0) {
+        if ((flags & ~KNOWN_INPUT_FLAGS) != 0 || (flags & KNOWN_INPUT_FLAGS) == KNOWN_INPUT_FLAGS) {
             throw failure(
                     PreparationProtocolException.Code.INVALID_STATE,
                     "preparation input flags are invalid");
         }
-        return (flags & INPUT_FLAG_SPRINT) != 0;
+        return new InputFlags((flags & INPUT_FLAG_SPRINT) != 0, (flags & INPUT_FLAG_CROUCH) != 0);
     }
 
     private static long requireRoundNumber(long value) throws PreparationProtocolException {
@@ -278,4 +291,6 @@ public final class PreparationMovementProtocolCodec {
             PreparationProtocolException.Code code, String message) {
         return new PreparationProtocolException(code, message);
     }
+
+    private record InputFlags(boolean sprinting, boolean crouching) {}
 }

@@ -84,6 +84,7 @@ public final class SunderfrontClient extends SimpleApplication
     private static final String INPUT_MOVE_LEFT = "sunderfront-move-left";
     private static final String INPUT_MOVE_RIGHT = "sunderfront-move-right";
     private static final String INPUT_SPRINT = "sunderfront-sprint";
+    private static final String INPUT_CROUCH = "sunderfront-crouch";
     private static final double PREPARATION_INPUT_INTERVAL_SECONDS = 0.05d;
 
     private static final UiTargetId DIRECT_ENDPOINT_TARGET = new UiTargetId("direct.endpoint");
@@ -421,6 +422,7 @@ public final class SunderfrontClient extends SimpleApplication
         inputManager.addMapping(INPUT_MOVE_LEFT, new KeyTrigger(KeyInput.KEY_A));
         inputManager.addMapping(INPUT_MOVE_RIGHT, new KeyTrigger(KeyInput.KEY_D));
         inputManager.addMapping(INPUT_SPRINT, new KeyTrigger(KeyInput.KEY_LSHIFT));
+        inputManager.addMapping(INPUT_CROUCH, new KeyTrigger(KeyInput.KEY_LCONTROL));
         inputManager.addListener(
                 this,
                 INPUT_UP,
@@ -435,7 +437,8 @@ public final class SunderfrontClient extends SimpleApplication
                 INPUT_MOVE_BACKWARD,
                 INPUT_MOVE_LEFT,
                 INPUT_MOVE_RIGHT,
-                INPUT_SPRINT);
+                INPUT_SPRINT,
+                INPUT_CROUCH);
         inputManager.addRawInputListener(this);
     }
 
@@ -480,6 +483,7 @@ public final class SunderfrontClient extends SimpleApplication
             case INPUT_MOVE_LEFT -> preparationInput.set(Direction.LEFT, pressed);
             case INPUT_MOVE_RIGHT -> preparationInput.set(Direction.RIGHT, pressed);
             case INPUT_SPRINT -> preparationInput.setSprinting(pressed);
+            case INPUT_CROUCH -> updatePreparationCrouching(pressed);
             case INPUT_SELECT -> {
                 if (pressed) {
                     capturePreparationInput();
@@ -518,7 +522,19 @@ public final class SunderfrontClient extends SimpleApplication
         if (inputManager != null) {
             inputManager.setCursorVisible(true);
         }
+        PreparationPlayerState current = preparationPlayerState;
+        if (cam != null && current != null) {
+            PreparationCameraPlacement.apply(cam, current, false);
+        }
         renderCurrentScreen();
+    }
+
+    private void updatePreparationCrouching(boolean pressed) {
+        preparationInput.setCrouching(pressed);
+        PreparationPlayerState current = preparationPlayerState;
+        if (cam != null && current != null) {
+            PreparationCameraPlacement.apply(cam, current, preparationInput.crouching());
+        }
     }
 
     private void updatePreparationMovement(float timePerFrame) {
@@ -547,6 +563,7 @@ public final class SunderfrontClient extends SimpleApplication
                             preparationInput.forwardAxis(),
                             preparationInput.rightAxis(),
                             preparationInput.sprinting(),
+                            preparationInput.crouching(),
                             Math.min(
                                     timePerFrame,
                                     PreparationMovementController.MAXIMUM_STEP_SECONDS));
@@ -555,7 +572,7 @@ public final class SunderfrontClient extends SimpleApplication
                     predictionHistory.pendingStepCount());
             if (moved != current) {
                 preparationPlayerState = moved;
-                PreparationCameraPlacement.apply(cam, moved);
+                PreparationCameraPlacement.apply(cam, moved, preparationInput.crouching());
             }
         } catch (IllegalArgumentException | IllegalStateException exception) {
             failPreparationSceneEntry();
@@ -618,7 +635,8 @@ public final class SunderfrontClient extends SimpleApplication
                     acknowledgedSequence,
                     predictionHistory.highestSubmittedSequence(),
                     predictionHistory.pendingStepCount());
-            PreparationCameraPlacement.apply(cam, preparationPlayerState);
+            PreparationCameraPlacement.apply(
+                    cam, preparationPlayerState, preparationInput.crouching());
             remoteInterpolator.offer(snapshot);
             appliedPreparationSnapshotTick = snapshot.authoritativeTick();
         } catch (IllegalArgumentException exception) {
@@ -670,6 +688,7 @@ public final class SunderfrontClient extends SimpleApplication
                         quantizeAxis(preparationInput.forwardAxis()),
                         quantizeAxis(preparationInput.rightAxis()),
                         preparationInput.sprinting(),
+                        preparationInput.crouching(),
                         quantizeYaw(current.yawDegrees()),
                         quantizePitch(current.pitchDegrees()));
         if (controller.submitPreparationInput(input)) {
@@ -717,7 +736,7 @@ public final class SunderfrontClient extends SimpleApplication
             return;
         }
         preparationPlayerState = rotated;
-        PreparationCameraPlacement.apply(cam, rotated);
+        PreparationCameraPlacement.apply(cam, rotated, preparationInput.crouching());
     }
 
     private void handlePointerMotion(float x, float y) {
@@ -858,7 +877,7 @@ public final class SunderfrontClient extends SimpleApplication
             preparationRemotePlayers = new PreparationRemotePlayerRenderer(assetManager);
             rootNode.attachChild(loadedWorld);
             preparationRemotePlayers.attachTo(rootNode);
-            PreparationCameraPlacement.apply(cam, player);
+            PreparationCameraPlacement.apply(cam, player, false);
         }
         renderCurrentScreen();
     }

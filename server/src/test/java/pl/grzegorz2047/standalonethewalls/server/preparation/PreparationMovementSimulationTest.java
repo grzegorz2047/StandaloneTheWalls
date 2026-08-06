@@ -82,6 +82,25 @@ class PreparationMovementSimulationTest {
     }
 
     @Test
+    void appliesAuthoritativeCrouchSpeedAndNormalizesItsDiagonal() {
+        PreparationMovementSimulation crouchingSimulation = simulation();
+        PreparationMovementSimulation diagonalSimulation = simulation();
+
+        PreparationWorldSnapshot crouching =
+                crouchingSimulation.advanceTick(
+                        11L,
+                        Map.of(ALPHA, new PreparationInput(2L, 1L, 127, 0, false, true, 0, 0)));
+        PreparationWorldSnapshot diagonal =
+                diagonalSimulation.advanceTick(
+                        11L,
+                        Map.of(ALPHA, new PreparationInput(2L, 1L, 127, 127, false, true, 0, 0)));
+
+        assertThat(player(crouching, ALPHA).xMillimetres()).isEqualTo(150);
+        assertThat(player(diagonal, ALPHA).xMillimetres()).isEqualTo(106);
+        assertThat(player(diagonal, ALPHA).zMillimetres()).isEqualTo(106);
+    }
+
+    @Test
     void clampsMovementToTheVerifiedTeamRegionAndRemovesDisconnectedPlayers() {
         PreparationMovementSimulation simulation = simulation();
         simulation.advanceTick(
