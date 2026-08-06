@@ -11,11 +11,13 @@ import com.jme3.scene.Spatial;
 import java.util.Objects;
 import java.util.OptionalDouble;
 import pl.grzegorz2047.standalonethewalls.mapformat.MapVector3;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationObstacleMap;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationSupportMap;
 
 /** Bounded player-body collision queries backed by the verified invisible collision GLB. */
 public final class PreparationCollisionWorld {
-    public static final float PLAYER_BODY_RADIUS_METRES = 0.35f;
+    public static final float PLAYER_BODY_RADIUS_METRES =
+            (float) PreparationObstacleMap.PLAYER_BODY_RADIUS_METRES;
 
     private static final String GROUND = "GroundCollision";
     private static final String SUPPORT_SUFFIX = "SupportCollision";
