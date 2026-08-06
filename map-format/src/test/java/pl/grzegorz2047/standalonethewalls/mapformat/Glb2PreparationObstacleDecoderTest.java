@@ -41,8 +41,7 @@ class Glb2PreparationObstacleDecoderTest {
     }
 
     @Test
-    void decodesGeneralCanonicalObstacleNodes()
-            throws Glb2Exception, PreparationObstacleException {
+    void decodesGeneralCanonicalObstacleNodes() throws Glb2Exception, PreparationObstacleException {
         Glb2Document document =
                 document(
                         canonicalAccessor(),
