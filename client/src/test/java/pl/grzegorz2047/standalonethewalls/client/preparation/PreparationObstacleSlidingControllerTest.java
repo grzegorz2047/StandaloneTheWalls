@@ -51,6 +51,7 @@ class PreparationObstacleSlidingControllerTest {
                 base.sceneDocument(),
                 base.collisionDocument(),
                 base.supportMap(),
+                base.obstacleMap(),
                 region,
                 spawn);
     }
