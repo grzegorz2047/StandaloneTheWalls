@@ -207,7 +207,6 @@ jobs:
         run: .\release\verify_windows_app_image.ps1
 
       - name: Upload verified Windows app image
-        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: sunderfront-client-windows-x64
