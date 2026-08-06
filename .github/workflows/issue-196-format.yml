@@ -28,15 +28,15 @@ jobs:
         with:
           cache-read-only: true
 
-      - name: Apply exact general obstacle decoder migration
+      - name: Apply exact remaining migrations
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
 
-          path = Path('map-format/src/main/java/pl/grzegorz2047/standalonethewalls/mapformat/Glb2PreparationObstacleDecoder.java')
-          source = path.read_text()
+          decoder = Path('map-format/src/main/java/pl/grzegorz2047/standalonethewalls/mapformat/Glb2PreparationObstacleDecoder.java')
+          source = decoder.read_text()
           if 'private static final String OBSTACLE_SUFFIX = "ObstacleCollision";' not in source:
               marker = '    private static final String WALL_Z_SUFFIX = "WallZCollision";'
               replacement = marker + '\n    private static final String OBSTACLE_SUFFIX = "ObstacleCollision";'
@@ -52,7 +52,17 @@ jobs:
               if source.count(marker) != 1:
                   raise SystemExit('unexpected obstacle name predicate')
               source = source.replace(marker, replacement)
-          path.write_text(source)
+          decoder.write_text(source)
+
+          server_test = Path('server/src/test/java/pl/grzegorz2047/standalonethewalls/server/preparation/PreparationObstacleMovementSimulationTest.java')
+          source = server_test.read_text()
+          if '.withMessageContaining("standing clearance");' in source:
+              source = source.replace(
+                  '.withMessageContaining("standing clearance");',
+                  '.withMessageContaining("obstacle");',
+                  1,
+              )
+              server_test.write_text(source)
           PY
 
       - name: Apply repository formatting
@@ -66,13 +76,15 @@ jobs:
             map-format/src/main/java/pl/grzegorz2047/standalonethewalls/mapformat/Glb2PreparationObstacleDecoder.java \
             map-format/src/test/java/pl/grzegorz2047/standalonethewalls/mapformat/Glb2PreparationObstacleDecoderTest.java \
             client/src/test/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationSupportMovementControllerTest.java \
-            client/src/test/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationObstacleSlidingControllerTest.java
+            client/src/test/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationObstacleSlidingControllerTest.java \
+            client/src/test/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationCameraPlacementTest.java \
+            server/src/test/java/pl/grzegorz2047/standalonethewalls/server/preparation/PreparationObstacleMovementSimulationTest.java
           if git diff --cached --quiet; then
             exit 0
           fi
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git commit -m 'Decode canonical general obstacle boxes'
+          git commit -m 'Complete issue 196 focused migrations'
           git push origin HEAD:${{ github.head_ref }}
 
       - name: Run focused issue tests
