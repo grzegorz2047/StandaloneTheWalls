@@ -57,7 +57,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          base64 --decode tools/issue_184_integrate.py.gz.b64 | gzip --decompress > /tmp/issue_184_integrate.py
+          cat tools/issue_184_integrate.py.gz.b64.part0 \
+              tools/issue_184_integrate.py.gz.b64.part1 \
+              tools/issue_184_integrate.py.gz.b64.part2 \
+              tools/issue_184_integrate.py.gz.b64.part3 \
+              tools/issue_184_integrate.py.gz.b64.part4 > /tmp/issue_184_integrate.py.gz.b64
+          test "$(wc -c < /tmp/issue_184_integrate.py.gz.b64)" = "10300"
+          echo "31507f50ccdd66086c5bf32cc545e17d39c142f9cdfd59a200a4e3dc6d1b689a  /tmp/issue_184_integrate.py.gz.b64" | sha256sum --check --strict
+          base64 --decode /tmp/issue_184_integrate.py.gz.b64 | gzip --decompress > /tmp/issue_184_integrate.py
           python /tmp/issue_184_integrate.py
 
       - name: Format and run the full repository quality gate
@@ -71,6 +78,7 @@ jobs:
           set -euo pipefail
           rm -f client/src/main/resources/Interface/Fonts/SunderfrontUI-Regular.png.b64*
           rm -f tools/issue_184_integrate.py.gz.b64
+          rm -f tools/issue_184_integrate.py.gz.b64.part*
           rm -f .github/workflows/issue-184-integrate.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -92,6 +100,11 @@ jobs:
             server/src/main/java/pl/grzegorz2047/standalonethewalls/server/preparation/PreparationMovementSimulation.java \
             server/src/test/java/pl/grzegorz2047/standalonethewalls/server/preparation/PreparationMovementSimulationTest.java \
             tools/issue_184_integrate.py.gz.b64 \
+            tools/issue_184_integrate.py.gz.b64.part0 \
+            tools/issue_184_integrate.py.gz.b64.part1 \
+            tools/issue_184_integrate.py.gz.b64.part2 \
+            tools/issue_184_integrate.py.gz.b64.part3 \
+            tools/issue_184_integrate.py.gz.b64.part4 \
             .github/workflows/issue-184-integrate.yml
           git diff --cached --check
           git commit -m "Add authoritative preparation crouch"
