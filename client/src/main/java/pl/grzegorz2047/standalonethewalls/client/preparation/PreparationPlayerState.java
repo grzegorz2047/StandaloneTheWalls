@@ -3,10 +3,12 @@ package pl.grzegorz2047.standalonethewalls.client.preparation;
 import java.util.Objects;
 import java.util.OptionalDouble;
 import pl.grzegorz2047.standalonethewalls.mapformat.MapVector3;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationBarrierPolicy;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationRegion;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationWorldBounds;
 import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationVerticalMotion;
 
-/** Immutable local preparation player and view state constrained to one verified team region. */
+/** Immutable local preparation player and view state constrained to verified active bounds. */
 public final class PreparationPlayerState {
     public static final double MINIMUM_PITCH_DEGREES = -85.0d;
     public static final double MAXIMUM_PITCH_DEGREES = 85.0d;
@@ -18,6 +20,7 @@ public final class PreparationPlayerState {
     private final double verticalVelocityMetresPerSecond;
     private final boolean grounded;
     private final boolean crouching;
+    private final PreparationBarrierPolicy barrierPolicy;
     private final double yawDegrees;
     private final double pitchDegrees;
 
@@ -27,13 +30,19 @@ public final class PreparationPlayerState {
             double verticalVelocityMetresPerSecond,
             boolean grounded,
             boolean crouching,
+            PreparationBarrierPolicy barrierPolicy,
             double yawDegrees,
             double pitchDegrees) {
         this.scene = Objects.requireNonNull(scene, "scene");
         this.position = Objects.requireNonNull(position, "position");
-        if (!scene.region().contains(position)) {
+        this.barrierPolicy = Objects.requireNonNull(barrierPolicy, "barrierPolicy");
+        boolean insideBounds =
+                barrierPolicy == PreparationBarrierPolicy.OPEN
+                        ? scene.worldBounds().contains(position)
+                        : scene.region().contains(position);
+        if (!insideBounds) {
             throw new IllegalArgumentException(
-                    "preparation player position must remain inside the verified region");
+                    "preparation player position must remain inside the active verified bounds");
         }
         requireFinite(verticalVelocityMetresPerSecond, "verticalVelocityMetresPerSecond");
         if (verticalVelocityMetresPerSecond
@@ -53,7 +62,8 @@ public final class PreparationPlayerState {
             throw new IllegalArgumentException("grounded player must remain on map support");
         }
         if (!scene.obstacleMap()
-                .hasPlayerClearance(position.x(), position.y(), position.z(), crouching)) {
+                .hasPlayerClearance(
+                        position.x(), position.y(), position.z(), crouching, barrierPolicy)) {
             throw new IllegalArgumentException(
                     "preparation player body overlaps a verified obstacle");
         }
@@ -72,6 +82,7 @@ public final class PreparationPlayerState {
                 0.0d,
                 true,
                 false,
+                PreparationBarrierPolicy.CLOSED,
                 normalizeYaw(verifiedScene.spawn().yawDegrees()),
                 0.0d);
     }
@@ -100,12 +111,36 @@ public final class PreparationPlayerState {
         return crouching;
     }
 
+    public PreparationBarrierPolicy barrierPolicy() {
+        return barrierPolicy;
+    }
+
     public double yawDegrees() {
         return yawDegrees;
     }
 
     public double pitchDegrees() {
         return pitchDegrees;
+    }
+
+    public PreparationPlayerState withBarrierPolicy(PreparationBarrierPolicy nextPolicy) {
+        PreparationBarrierPolicy requested = Objects.requireNonNull(nextPolicy, "nextPolicy");
+        if (requested == barrierPolicy) {
+            return this;
+        }
+        if (barrierPolicy == PreparationBarrierPolicy.OPEN) {
+            throw new IllegalArgumentException(
+                    "central barriers cannot close again during the local round");
+        }
+        return new PreparationPlayerState(
+                scene,
+                position,
+                verticalVelocityMetresPerSecond,
+                grounded,
+                crouching,
+                requested,
+                yawDegrees,
+                pitchDegrees);
     }
 
     public PreparationPlayerState withAuthoritativeState(
@@ -152,6 +187,7 @@ public final class PreparationPlayerState {
                 authoritativeVerticalVelocityMetresPerSecond,
                 authoritativeGrounded,
                 authoritativeCrouching,
+                barrierPolicy,
                 normalizeYaw(authoritativeYawDegrees),
                 authoritativePitchDegrees);
     }
@@ -179,6 +215,7 @@ public final class PreparationPlayerState {
                 nextVerticalVelocityMetresPerSecond,
                 nextGrounded,
                 nextCrouching,
+                barrierPolicy,
                 yawDegrees,
                 pitchDegrees);
     }
@@ -193,6 +230,7 @@ public final class PreparationPlayerState {
                 verticalVelocityMetresPerSecond,
                 grounded,
                 nextCrouching,
+                barrierPolicy,
                 yawDegrees,
                 pitchDegrees);
     }
@@ -200,11 +238,18 @@ public final class PreparationPlayerState {
     public MapVector3 horizontalPositionAfter(double deltaX, double deltaZ) {
         requireFinite(deltaX, "deltaX");
         requireFinite(deltaZ, "deltaZ");
+        double requestedX = addFinite(position.x(), deltaX);
+        double requestedZ = addFinite(position.z(), deltaZ);
+        if (barrierPolicy == PreparationBarrierPolicy.OPEN) {
+            PreparationWorldBounds bounds = scene.worldBounds();
+            return new MapVector3(
+                    bounds.clampX(requestedX), position.y(), bounds.clampZ(requestedZ));
+        }
         PreparationRegion region = scene.region();
         return new MapVector3(
-                clamp(addFinite(position.x(), deltaX), region.minimum().x(), region.maximum().x()),
+                clamp(requestedX, region.minimum().x(), region.maximum().x()),
                 position.y(),
-                clamp(addFinite(position.z(), deltaZ), region.minimum().z(), region.maximum().z()));
+                clamp(requestedZ, region.minimum().z(), region.maximum().z()));
     }
 
     public PreparationPlayerState moveHorizontal(double deltaX, double deltaZ) {
@@ -219,6 +264,7 @@ public final class PreparationPlayerState {
                 verticalVelocityMetresPerSecond,
                 grounded,
                 crouching,
+                barrierPolicy,
                 yawDegrees,
                 pitchDegrees);
     }
@@ -240,6 +286,7 @@ public final class PreparationPlayerState {
                 nextVerticalVelocityMetresPerSecond,
                 nextGrounded,
                 crouching,
+                barrierPolicy,
                 yawDegrees,
                 pitchDegrees);
     }
@@ -267,6 +314,7 @@ public final class PreparationPlayerState {
                 verticalVelocityMetresPerSecond,
                 grounded,
                 crouching,
+                barrierPolicy,
                 nextYaw,
                 nextPitch);
     }
