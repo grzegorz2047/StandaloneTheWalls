@@ -36,6 +36,7 @@ jobs:
           if [ "$status" -eq 0 ]; then
             python3 - <<'PY' >> "$log" 2>&1
           from pathlib import Path
+          import re
 
           path = Path('map-format/src/main/java/pl/grzegorz2047/standalonethewalls/mapformat/Glb2CanonicalBoxMeshVerifier.java')
           source = path.read_text(encoding='utf-8')
@@ -50,13 +51,14 @@ jobs:
               raise SystemExit('verification exception marker missing')
           source = source.replace(serial_marker, serial_replacement)
 
-          caller_marker = '''        return cornerCodes != null
-                  && hasCanonicalTopology('''
-          caller_replacement = '''        return cornerCodes.length == POSITION_COUNT
-                  && hasCanonicalTopology('''
-          if caller_marker not in source:
-              raise SystemExit('corner sentinel caller marker missing')
-          source = source.replace(caller_marker, caller_replacement)
+          source, caller_count = re.subn(
+              r'return\s+cornerCodes\s*!=\s*null\s*&&\s*hasCanonicalTopology\(',
+              'return cornerCodes.length == POSITION_COUNT\n                && hasCanonicalTopology(',
+              source,
+              count=1,
+          )
+          if caller_count != 1:
+              raise SystemExit(f'corner sentinel caller count: {caller_count}')
 
           corner_start = source.index('    private static int[] readCornerCodes(')
           corner_end = source.index('    private static boolean hasCanonicalTopology(', corner_start)
