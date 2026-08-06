@@ -10,11 +10,15 @@ import java.util.Objects;
 import java.util.Set;
 import pl.grzegorz2047.standalonethewalls.domain.TeamId;
 import pl.grzegorz2047.standalonethewalls.mapformat.Glb2ContainerDecoder;
+import pl.grzegorz2047.standalonethewalls.mapformat.Glb2Document;
 import pl.grzegorz2047.standalonethewalls.mapformat.Glb2Exception;
+import pl.grzegorz2047.standalonethewalls.mapformat.Glb2PreparationSupportDecoder;
 import pl.grzegorz2047.standalonethewalls.mapformat.MapManifest;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationGameplay;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationMapSpawn;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationRegion;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationSupportException;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationSupportMap;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationTeam;
 import pl.grzegorz2047.standalonethewalls.mapformat.VerifiedMapBundle;
 
@@ -27,7 +31,7 @@ public final class VerifiedPreparationMapAdapter {
     public static PreparationMapDefinition adapt(VerifiedMapBundle bundle)
             throws VerifiedPreparationMapException {
         VerifiedMapBundle verified = Objects.requireNonNull(bundle, "bundle");
-        validateGlbMembers(verified);
+        PreparationSupportMap supportMap = validateGlbMembers(verified);
 
         MapManifest manifest = verified.manifest();
         PreparationGameplay gameplay = verified.gameplay();
@@ -55,14 +59,22 @@ public final class VerifiedPreparationMapAdapter {
                         "preparation gameplay contains duplicate team regions");
             }
         }
-        return new PreparationMapDefinition(
-                manifest.id(),
-                decodeDigest(verified.archiveSha256().value()),
-                spawnPoints,
-                regions);
+        try {
+            return new PreparationMapDefinition(
+                    manifest.id(),
+                    decodeDigest(verified.archiveSha256().value()),
+                    spawnPoints,
+                    regions,
+                    supportMap);
+        } catch (IllegalArgumentException exception) {
+            throw new VerifiedPreparationMapException(
+                    VerifiedPreparationMapException.Code.INVALID_COLLISION,
+                    "verified preparation support layout does not cover authoritative spawns",
+                    exception);
+        }
     }
 
-    private static void validateGlbMembers(VerifiedMapBundle bundle)
+    private static PreparationSupportMap validateGlbMembers(VerifiedMapBundle bundle)
             throws VerifiedPreparationMapException {
         try {
             Glb2ContainerDecoder.decode(bundle.member("scene.glb"), bundle.manifest().limits());
@@ -73,11 +85,14 @@ public final class VerifiedPreparationMapAdapter {
                     exception);
         }
         try {
-            Glb2ContainerDecoder.decode(bundle.member("collision.glb"), bundle.manifest().limits());
-        } catch (Glb2Exception exception) {
+            Glb2Document collision =
+                    Glb2ContainerDecoder.decode(
+                            bundle.member("collision.glb"), bundle.manifest().limits());
+            return Glb2PreparationSupportDecoder.decode(collision);
+        } catch (Glb2Exception | PreparationSupportException exception) {
             throw new VerifiedPreparationMapException(
                     VerifiedPreparationMapException.Code.INVALID_COLLISION,
-                    "verified preparation collision GLB is invalid",
+                    "verified preparation collision GLB or support metadata is invalid",
                     exception);
         }
     }
