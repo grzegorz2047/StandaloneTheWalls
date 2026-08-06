@@ -137,20 +137,25 @@ public final class PreparationPlayerState {
                 pitchDegrees);
     }
 
-    public PreparationPlayerState moveHorizontal(double deltaX, double deltaZ) {
+    public MapVector3 horizontalPositionAfter(double deltaX, double deltaZ) {
         requireFinite(deltaX, "deltaX");
         requireFinite(deltaZ, "deltaZ");
         PreparationRegion region = scene.region();
-        double nextX =
-                clamp(addFinite(position.x(), deltaX), region.minimum().x(), region.maximum().x());
-        double nextZ =
-                clamp(addFinite(position.z(), deltaZ), region.minimum().z(), region.maximum().z());
-        if (Double.compare(nextX, position.x()) == 0 && Double.compare(nextZ, position.z()) == 0) {
+        return new MapVector3(
+                clamp(addFinite(position.x(), deltaX), region.minimum().x(), region.maximum().x()),
+                position.y(),
+                clamp(addFinite(position.z(), deltaZ), region.minimum().z(), region.maximum().z()));
+    }
+
+    public PreparationPlayerState moveHorizontal(double deltaX, double deltaZ) {
+        MapVector3 target = horizontalPositionAfter(deltaX, deltaZ);
+        if (Double.compare(target.x(), position.x()) == 0
+                && Double.compare(target.z(), position.z()) == 0) {
             return this;
         }
         return new PreparationPlayerState(
                 scene,
-                new MapVector3(nextX, position.y(), nextZ),
+                target,
                 verticalVelocityMetresPerSecond,
                 grounded,
                 yawDegrees,
