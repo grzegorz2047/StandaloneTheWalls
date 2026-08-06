@@ -2,14 +2,16 @@ package pl.grzegorz2047.standalonethewalls.client.preparation;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 import pl.grzegorz2047.standalonethewalls.mapformat.Glb2Document;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationBarrierPolicy;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationMapSpawn;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationObstacleMap;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationRegion;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationSupportMap;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationWorldBounds;
 
-/** Immutable client scene input created only after bundle, identity, and spawn verification. */
+/** Verified client scene input plus one-way central-barrier state for the owned round. */
 public final class VerifiedPreparationScene {
     private final String mapId;
     private final byte[] mapSha256;
@@ -22,6 +24,8 @@ public final class VerifiedPreparationScene {
     private final PreparationWorldBounds worldBounds;
     private final PreparationRegion region;
     private final PreparationMapSpawn spawn;
+    private final AtomicReference<PreparationBarrierPolicy> barrierPolicy =
+            new AtomicReference<>(PreparationBarrierPolicy.CLOSED);
 
     VerifiedPreparationScene(
             String mapId,
@@ -115,5 +119,14 @@ public final class VerifiedPreparationScene {
 
     public PreparationMapSpawn spawn() {
         return spawn;
+    }
+
+    public PreparationBarrierPolicy barrierPolicy() {
+        return barrierPolicy.get();
+    }
+
+    public boolean openCentralBarriers() {
+        return barrierPolicy.compareAndSet(
+                PreparationBarrierPolicy.CLOSED, PreparationBarrierPolicy.OPEN);
     }
 }
