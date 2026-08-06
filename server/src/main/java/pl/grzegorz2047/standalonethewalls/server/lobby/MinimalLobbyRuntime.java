@@ -39,6 +39,7 @@ import pl.grzegorz2047.standalonethewalls.domain.lobby.LobbyRosterState;
 import pl.grzegorz2047.standalonethewalls.domain.match.MatchConfiguration;
 import pl.grzegorz2047.standalonethewalls.domain.match.MatchPhase;
 import pl.grzegorz2047.standalonethewalls.mapformat.MinimalPreparationBundle;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationBarrierPolicy;
 import pl.grzegorz2047.standalonethewalls.mapformat.TwMapBundleException;
 import pl.grzegorz2047.standalonethewalls.mapformat.TwMapBundleLoader;
 import pl.grzegorz2047.standalonethewalls.mapformat.TwMapLoadPolicy;
@@ -751,11 +752,10 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
             return;
         }
         LobbyMatchSnapshot snapshot = Objects.requireNonNull(matchSnapshot, "matchSnapshot");
-        if (snapshot.phase() == MatchPhase.PREPARATION) {
-            if (!state.preparationTransitionAttempted) {
-                state.preparationTransitionAttempted = true;
-                publishPreparationTransition(state, snapshot);
-            }
+        if (snapshot.phase() == MatchPhase.PREPARATION
+                && !state.preparationTransitionAttempted) {
+            state.preparationTransitionAttempted = true;
+            publishPreparationTransition(state, snapshot);
             return;
         }
         byte[] payload =
@@ -815,7 +815,12 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
                     .drainLatest()
                     .ifPresent(input -> latestInputs.put(member.identity.playerId(), input));
         }
-        PreparationWorldSnapshot snapshot = movement.advanceTick(authoritativeTick, latestInputs);
+        PreparationBarrierPolicy barrierPolicy =
+                matchCoordinator.snapshot().phase() == MatchPhase.OPEN_COMBAT
+                        ? PreparationBarrierPolicy.OPEN
+                        : PreparationBarrierPolicy.CLOSED;
+        PreparationWorldSnapshot snapshot =
+                movement.advanceTick(authoritativeTick, latestInputs, barrierPolicy);
         if (authoritativeTick % PREPARATION_SNAPSHOT_INTERVAL_TICKS == 0L) {
             publishPreparationSnapshot(state, snapshot);
         }
