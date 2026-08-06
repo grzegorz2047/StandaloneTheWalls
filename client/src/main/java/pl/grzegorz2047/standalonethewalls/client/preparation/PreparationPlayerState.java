@@ -1,16 +1,17 @@
-package pl.grzegorz2047.standalonethewalls.client.preparation;
+package pl.grzegorz2047.standalethewalls.client.preparation;
 
 import java.util.Objects;
-import pl.grzegorz2047.standalonethewalls.mapformat.MapVector3;
-import pl.grzegorz2047.standalonethewalls.mapformat.PreparationRegion;
-import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationVerticalMotion;
+import java.util.OptionalDouble;
+import pl.grzegorz2047.standalethewalls.mapformat.MapVector3;
+import pl.grzegorz2047.standalethewalls.mapformat.PreparationRegion;
+import pl.grzegorz2047.standalethewalls.protocol.preparation.PreparationVerticalMotion;
 
 /** Immutable local preparation player and view state constrained to one verified team region. */
 public final class PreparationPlayerState {
     public static final double MINIMUM_PITCH_DEGREES = -85.0d;
     public static final double MAXIMUM_PITCH_DEGREES = 85.0d;
 
-    private static final double GROUND_TOLERANCE_METRES = 0.001d;
+    private static final double SUPPORT_TOLERANCE_METRES = 0.001d;
 
     private final VerifiedPreparationScene scene;
     private final MapVector3 position;
@@ -42,12 +43,12 @@ public final class PreparationPlayerState {
         if (grounded && Double.compare(verticalVelocityMetresPerSecond, 0.0d) != 0) {
             throw new IllegalArgumentException("grounded player must have zero vertical velocity");
         }
-        double groundHeight = scene.spawn().position().y();
-        if (position.y() < groundHeight - GROUND_TOLERANCE_METRES) {
-            throw new IllegalArgumentException("preparation player cannot be below flat ground");
+        double support = supportAtOrBelow(scene, position);
+        if (position.y() < support - SUPPORT_TOLERANCE_METRES) {
+            throw new IllegalArgumentException("preparation player cannot be below map support");
         }
-        if (grounded && Math.abs(position.y() - groundHeight) > GROUND_TOLERANCE_METRES) {
-            throw new IllegalArgumentException("grounded player must remain on flat ground");
+        if (grounded && Math.abs(position.y() - support) > SUPPORT_TOLERANCE_METRES) {
+            throw new IllegalArgumentException("grounded player must remain on map support");
         }
         this.verticalVelocityMetresPerSecond = verticalVelocityMetresPerSecond;
         this.grounded = grounded;
@@ -75,7 +76,7 @@ public final class PreparationPlayerState {
     }
 
     public double groundHeightMetres() {
-        return scene.spawn().position().y();
+        return supportAtOrBelow(scene, position);
     }
 
     public double verticalVelocityMetresPerSecond() {
@@ -119,6 +120,21 @@ public final class PreparationPlayerState {
                 authoritativeGrounded,
                 normalizeYaw(authoritativeYawDegrees),
                 authoritativePitchDegrees);
+    }
+
+    public PreparationPlayerState withMovementState(
+            double x,
+            double y,
+            double z,
+            double nextVerticalVelocityMetresPerSecond,
+            boolean nextGrounded) {
+        return new PreparationPlayerState(
+                scene,
+                new MapVector3(x, y, z),
+                nextVerticalVelocityMetresPerSecond,
+                nextGrounded,
+                yawDegrees,
+                pitchDegrees);
     }
 
     public PreparationPlayerState moveHorizontal(double deltaX, double deltaZ) {
@@ -180,6 +196,21 @@ public final class PreparationPlayerState {
         }
         return new PreparationPlayerState(
                 scene, position, verticalVelocityMetresPerSecond, grounded, nextYaw, nextPitch);
+    }
+
+    private static double supportAtOrBelow(
+            VerifiedPreparationScene scene, MapVector3 position) {
+        OptionalDouble support =
+                scene.supportMap()
+                        .highestPlayerCenterAtOrBelow(
+                                position.x(),
+                                position.z(),
+                                position.y() + SUPPORT_TOLERANCE_METRES);
+        if (support.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "preparation player position has no verified support below it");
+        }
+        return support.orElseThrow();
     }
 
     private static double addFinite(double value, double delta) {
