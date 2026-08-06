@@ -106,8 +106,7 @@ class Glb2CanonicalBoxMeshVerifierTest {
                 position,
                 indices.replace("\"componentType\":5123", "\"componentType\":5125"),
                 views);
-        assertRejectedLayout(
-                position, indices, views.replaceFirst("\"buffer\":0", "\"buffer\":1"));
+        assertRejectedLayout(position, indices, views.replaceFirst("\"buffer\":0", "\"buffer\":1"));
     }
 
     @Test
