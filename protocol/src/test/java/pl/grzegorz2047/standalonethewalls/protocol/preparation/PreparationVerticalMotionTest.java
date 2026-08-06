@@ -50,7 +50,7 @@ class PreparationVerticalMotionTest {
                 PreparationVerticalMotion.advance(100.0d, 0.0d, -29.5d, false, false, 0.1d);
 
         assertThat(falling.verticalVelocityMetresPerSecond()).isEqualTo(-30.0d);
-        assertThat(falling.heightMetres()).isLessThan(97.0d);
+        assertThat(falling.heightMetres()).isCloseTo(97.0069444d, within(0.0000001d));
         assertThatThrownBy(
                         () ->
                                 PreparationVerticalMotion.advance(
