@@ -243,6 +243,8 @@ final class Glb2CanonicalBoxMeshVerifier {
 
         int[] faceTriangleCounts = new int[6];
         int[] faceCornerMasks = new int[6];
+        int[] firstTriangleMasks = new int[6];
+        int[] sharedCornerMasks = new int[6];
         for (int index = 0; index < INDEX_COUNT; index += 3) {
             int first = cornerCodes[indices[index]];
             int second = cornerCodes[indices[index + 1]];
@@ -254,15 +256,32 @@ final class Glb2CanonicalBoxMeshVerifier {
             if (face < 0) {
                 return false;
             }
+            int triangleMask = (1 << first) | (1 << second) | (1 << third);
+            if (faceTriangleCounts[face] == 0) {
+                firstTriangleMasks[face] = triangleMask;
+            } else if (faceTriangleCounts[face] == 1) {
+                sharedCornerMasks[face] = firstTriangleMasks[face] & triangleMask;
+            }
             faceTriangleCounts[face]++;
-            faceCornerMasks[face] |= (1 << first) | (1 << second) | (1 << third);
+            faceCornerMasks[face] |= triangleMask;
         }
         for (int face = 0; face < faceTriangleCounts.length; face++) {
-            if (faceTriangleCounts[face] != 2 || Integer.bitCount(faceCornerMasks[face]) != 4) {
+            if (faceTriangleCounts[face] != 2
+                    || Integer.bitCount(faceCornerMasks[face]) != 4
+                    || !isFaceDiagonal(sharedCornerMasks[face])) {
                 return false;
             }
         }
         return true;
+    }
+
+    private static boolean isFaceDiagonal(int cornerMask) {
+        if (Integer.bitCount(cornerMask) != 2) {
+            return false;
+        }
+        int first = Integer.numberOfTrailingZeros(cornerMask);
+        int second = Integer.numberOfTrailingZeros(cornerMask & ~(1 << first));
+        return Integer.bitCount(first ^ second) == 2;
     }
 
     private static int face(int first, int second, int third) {

@@ -110,6 +110,17 @@ class Glb2CanonicalBoxMeshVerifierTest {
     }
 
     @Test
+    void rejectsFaceTrianglesSharingCubeEdgeInsteadOfDiagonal()
+            throws Glb2Exception, Glb2CanonicalBoxMeshVerifier.VerificationException {
+        byte[] overlappingFace = CanonicalCollisionGlbFixture.canonicalBinary();
+        ByteBuffer.wrap(overlappingFace)
+                .order(ByteOrder.LITTLE_ENDIAN)
+                .putShort(CanonicalCollisionGlbFixture.POSITION_BYTES + 4 * Short.BYTES, (short) 1);
+
+        assertRejected(overlappingFace);
+    }
+
+    @Test
     void rejectsOutOfRangeDegenerateMissingFaceAndUnusedVertexIndices()
             throws Glb2Exception, Glb2CanonicalBoxMeshVerifier.VerificationException {
         byte[] outOfRange = CanonicalCollisionGlbFixture.canonicalBinary();
