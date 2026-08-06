@@ -24,8 +24,7 @@ class PreparationJumpMovementControllerTest {
 
         assertThat(state.grounded()).isFalse();
         assertThat(state.position().y()).isCloseTo(0.7775d, within(0.0000001d));
-        assertThat(state.verticalVelocityMetresPerSecond())
-                .isCloseTo(5.1d, within(0.0000001d));
+        assertThat(state.verticalVelocityMetresPerSecond()).isCloseTo(5.1d, within(0.0000001d));
 
         for (int index = 0; index < 20 && !state.grounded(); index++) {
             state =
@@ -68,14 +67,7 @@ class PreparationJumpMovementControllerTest {
         assertThatThrownBy(
                         () ->
                                 PreparationMovementController.move(
-                                        spawn,
-                                        collisions,
-                                        0.0d,
-                                        0.0d,
-                                        false,
-                                        true,
-                                        true,
-                                        0.05d))
+                                        spawn, collisions, 0.0d, 0.0d, false, true, true, 0.05d))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

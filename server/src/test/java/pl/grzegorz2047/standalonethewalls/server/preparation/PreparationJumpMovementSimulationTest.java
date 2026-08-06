@@ -25,8 +25,7 @@ class PreparationJumpMovementSimulationTest {
                         11L,
                         Map.of(
                                 ALPHA,
-                                new PreparationInput(
-                                        2L, 1L, 0, 0, false, false, true, 0, 0)));
+                                new PreparationInput(2L, 1L, 0, 0, false, false, true, 0, 0)));
 
         PreparationPlayerSnapshot state = player(first);
         assertThat(state.yMillimetres()).isEqualTo(278);
@@ -42,8 +41,7 @@ class PreparationJumpMovementSimulationTest {
         assertThat(state.verticalVelocityMillimetresPerSecond()).isZero();
         assertThat(state.grounded()).isTrue();
 
-        PreparationPlayerSnapshot afterLanding =
-                player(simulation.advanceTick(++tick, Map.of()));
+        PreparationPlayerSnapshot afterLanding = player(simulation.advanceTick(++tick, Map.of()));
         assertThat(afterLanding.yMillimetres()).isZero();
         assertThat(afterLanding.grounded()).isTrue();
     }
@@ -52,10 +50,7 @@ class PreparationJumpMovementSimulationTest {
     void consumesAnAirJumpWithoutBufferingItForLanding() {
         PreparationMovementSimulation simulation = simulation();
         simulation.advanceTick(
-                11L,
-                Map.of(
-                        ALPHA,
-                        new PreparationInput(2L, 1L, 0, 0, false, false, true, 0, 0)));
+                11L, Map.of(ALPHA, new PreparationInput(2L, 1L, 0, 0, false, false, true, 0, 0)));
         PreparationPlayerSnapshot airborne =
                 player(
                         simulation.advanceTick(
@@ -71,8 +66,7 @@ class PreparationJumpMovementSimulationTest {
         while (!state.grounded() && tick < 40L) {
             state = player(simulation.advanceTick(++tick, Map.of()));
         }
-        PreparationPlayerSnapshot afterLanding =
-                player(simulation.advanceTick(++tick, Map.of()));
+        PreparationPlayerSnapshot afterLanding = player(simulation.advanceTick(++tick, Map.of()));
 
         assertThat(state.grounded()).isTrue();
         assertThat(afterLanding.grounded()).isTrue();
@@ -109,13 +103,7 @@ class PreparationJumpMovementSimulationTest {
                         Map.of(
                                 TeamId.RED,
                                 new PreparationRegionBounds(
-                                        TeamId.RED,
-                                        -1_000,
-                                        -1_000,
-                                        -1_000,
-                                        1_000,
-                                        1_000,
-                                        1_000)));
+                                        TeamId.RED, -1_000, -1_000, -1_000, 1_000, 1_000, 1_000)));
         PreparationSpawnAssignment assignment =
                 new PreparationSpawnAssignment(
                         4L,

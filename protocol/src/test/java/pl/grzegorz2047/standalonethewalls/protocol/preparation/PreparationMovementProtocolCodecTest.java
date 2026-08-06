@@ -100,8 +100,7 @@ class PreparationMovementProtocolCodecTest {
 
     @Test
     void encodesSprintAndJumpInTheSameCanonicalInput() throws PreparationProtocolException {
-        PreparationInput input =
-                new PreparationInput(5L, 10L, 127, 0, true, false, true, 0, 0);
+        PreparationInput input = new PreparationInput(5L, 10L, 127, 0, true, false, true, 0, 0);
 
         byte[] encoded = PreparationMovementProtocolCodec.encodeInput(input);
 
@@ -329,8 +328,7 @@ class PreparationMovementProtocolCodecTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new PreparationInput(1L, 1L, 0, 0, true, true, 0, 0))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(
-                        () -> new PreparationInput(1L, 1L, 0, 0, false, true, true, 0, 0))
+        assertThatThrownBy(() -> new PreparationInput(1L, 1L, 0, 0, false, true, true, 0, 0))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(
                         () ->
