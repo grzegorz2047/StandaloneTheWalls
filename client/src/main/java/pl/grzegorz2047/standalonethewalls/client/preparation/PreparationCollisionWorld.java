@@ -50,9 +50,7 @@ public final class PreparationCollisionWorld {
         MapVector3 point = Objects.requireNonNull(position, "position");
         OptionalDouble support =
                 supportMap.highestPlayerCenterAtOrBelow(
-                        point.x(),
-                        point.z(),
-                        point.y() + MAXIMUM_SUPPORT_DISTANCE_METRES);
+                        point.x(), point.z(), point.y() + MAXIMUM_SUPPORT_DISTANCE_METRES);
         if (support.isEmpty()) {
             return false;
         }

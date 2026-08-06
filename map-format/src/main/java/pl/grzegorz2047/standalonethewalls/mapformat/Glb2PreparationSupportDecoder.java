@@ -334,12 +334,7 @@ public final class Glb2PreparationSupportDecoder {
                     parser.skipChildren();
                 }
             }
-            if (nodeIndices == null) {
-                throw failure(
-                        PreparationSupportException.Code.MISSING_LAYOUT,
-                        "collision GLB scene has no direct nodes");
-            }
-            scenes.add(new Scene(nodeIndices));
+            scenes.add(new Scene(nodeIndices == null ? List.of() : nodeIndices));
         }
         return List.copyOf(scenes);
     }

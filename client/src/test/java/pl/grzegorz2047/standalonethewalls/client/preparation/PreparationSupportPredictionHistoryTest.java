@@ -23,13 +23,11 @@ class PreparationSupportPredictionHistoryTest {
         PreparationPredictionHistory history = new PreparationPredictionHistory();
 
         PreparationPlayerState predicted =
-                history.predict(
-                        ground, collisions, 1L, 1.0d, 0.0d, false, false, false, 0.1d);
+                history.predict(ground, collisions, 1L, 1.0d, 0.0d, false, false, false, 0.1d);
         history.markSubmitted(1L);
         PreparationPlayerState reconciled = history.reconcile(ground, collisions, 0L);
 
-        assertThat(predicted.position())
-                .isEqualTo(new MapVector3(-11.5d, 1.0d, -9.5d));
+        assertThat(predicted.position()).isEqualTo(new MapVector3(-11.5d, 1.0d, -9.5d));
         assertThat(reconciled.position()).isEqualTo(predicted.position());
         assertThat(reconciled.grounded()).isTrue();
         assertThat(reconciled.groundHeightMetres()).isEqualTo(1.0d);
@@ -47,18 +45,15 @@ class PreparationSupportPredictionHistoryTest {
                         .withAuthoritativeState(-12.0d, 0.5d, -9.5d, 0.0d, true, 0.0d, 0.0d);
         PreparationPredictionHistory history = new PreparationPredictionHistory();
         PreparationPlayerState platform =
-                history.predict(
-                        ground, collisions, 1L, 1.0d, 0.0d, false, false, false, 0.1d);
+                history.predict(ground, collisions, 1L, 1.0d, 0.0d, false, false, false, 0.1d);
         history.markSubmitted(1L);
-        history.predict(
-                platform, collisions, 2L, 1.0d, 0.0d, false, false, false, 0.1d);
+        history.predict(platform, collisions, 2L, 1.0d, 0.0d, false, false, false, 0.1d);
         PreparationPlayerState authoritative =
                 ground.withAuthoritativeState(-11.5d, 1.0d, -9.5d, 0.0d, true, 0.0d, 0.0d);
 
         PreparationPlayerState reconciled = history.reconcile(authoritative, collisions, 1L);
 
-        assertThat(reconciled.position())
-                .isEqualTo(new MapVector3(-11.0d, 1.0d, -9.5d));
+        assertThat(reconciled.position()).isEqualTo(new MapVector3(-11.0d, 1.0d, -9.5d));
         assertThat(reconciled.grounded()).isTrue();
         assertThat(reconciled.groundHeightMetres()).isEqualTo(1.0d);
     }
