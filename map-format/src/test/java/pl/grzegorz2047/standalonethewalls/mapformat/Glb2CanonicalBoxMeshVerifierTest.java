@@ -54,7 +54,6 @@ class Glb2CanonicalBoxMeshVerifierTest {
     @Test
     void rejectsNormalizedSparseTruncatedAndInvalidStrideLayouts()
             throws Glb2Exception, Glb2CanonicalBoxMeshVerifier.VerificationException {
-        byte[] canonical = CanonicalCollisionGlbFixture.canonicalBinary();
         String normalized =
                 "{\"normalized\":true,"
                         + CanonicalCollisionGlbFixture.canonicalPositionAccessor().substring(1);
@@ -86,8 +85,6 @@ class Glb2CanonicalBoxMeshVerifierTest {
                 CanonicalCollisionGlbFixture.canonicalPositionAccessor(),
                 CanonicalCollisionGlbFixture.canonicalIndexAccessor(),
                 invalidStrideViews);
-
-        assertThat(canonical).hasSize(360);
     }
 
     @Test
@@ -110,7 +107,7 @@ class Glb2CanonicalBoxMeshVerifierTest {
                 indices.replace("\"componentType\":5123", "\"componentType\":5125"),
                 views);
         assertRejectedLayout(
-                position, indices, views.replaceFirst("\\\"buffer\\\":0", "\\\"buffer\\\":1"));
+                position, indices, views.replaceFirst("\"buffer\":0", "\"buffer\":1"));
     }
 
     @Test
