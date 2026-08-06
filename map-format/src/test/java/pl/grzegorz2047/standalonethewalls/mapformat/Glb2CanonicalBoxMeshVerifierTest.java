@@ -102,17 +102,15 @@ class Glb2CanonicalBoxMeshVerifierTest {
                 position.replace("\"componentType\":5126", "\"componentType\":5123"),
                 indices,
                 views);
-        assertRejectedLayout(position.replace("\"bufferView\":0", "\"bufferView\":2"), indices, views);
         assertRejectedLayout(
-                "{\"byteOffset\":2147483647," + position.substring(1), indices, views);
+                position.replace("\"bufferView\":0", "\"bufferView\":2"), indices, views);
+        assertRejectedLayout("{\"byteOffset\":2147483647," + position.substring(1), indices, views);
         assertRejectedLayout(
                 position,
                 indices.replace("\"componentType\":5123", "\"componentType\":5125"),
                 views);
         assertRejectedLayout(
-                position,
-                indices,
-                views.replaceFirst("\\\"buffer\\\":0", "\\\"buffer\\\":1"));
+                position, indices, views.replaceFirst("\\\"buffer\\\":0", "\\\"buffer\\\":1"));
     }
 
     @Test
