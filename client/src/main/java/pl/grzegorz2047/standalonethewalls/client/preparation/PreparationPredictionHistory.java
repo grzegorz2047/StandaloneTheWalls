@@ -17,6 +17,7 @@ public final class PreparationPredictionHistory {
     private long lastAcknowledgedSequence;
     private long highestSubmittedSequence;
     private long consumedJumpSequence;
+    private PreparationBarrierPolicy activeBarrierPolicy = PreparationBarrierPolicy.CLOSED;
 
     public PreparationPredictionHistory() {
         this(DEFAULT_MAXIMUM_STEPS);
@@ -101,6 +102,8 @@ public final class PreparationPredictionHistory {
             double elapsedSeconds) {
         PreparationPlayerState player = Objects.requireNonNull(current, "current");
         PreparationCollisionWorld world = Objects.requireNonNull(collisions, "collisions");
+        synchronizeBarrierPolicy(player.barrierPolicy());
+        player = player.withBarrierPolicy(activeBarrierPolicy);
         requireCurrentSequence(sequence);
         if (pending.size() == maximumSteps) {
             throw new IllegalStateException("preparation prediction history is full");
@@ -114,7 +117,7 @@ public final class PreparationPredictionHistory {
                         sprinting,
                         crouching,
                         jumpEdge,
-                        player.barrierPolicy(),
+                        activeBarrierPolicy,
                         player.yawDegrees(),
                         player.pitchDegrees(),
                         elapsedSeconds);
@@ -144,6 +147,8 @@ public final class PreparationPredictionHistory {
             long acknowledgedSequence) {
         PreparationPlayerState state = Objects.requireNonNull(authoritative, "authoritative");
         PreparationCollisionWorld world = Objects.requireNonNull(collisions, "collisions");
+        synchronizeBarrierPolicy(state.barrierPolicy());
+        state = state.withBarrierPolicy(activeBarrierPolicy);
         if (acknowledgedSequence < lastAcknowledgedSequence) {
             throw new IllegalArgumentException("preparation acknowledgement regressed");
         }
@@ -162,8 +167,7 @@ public final class PreparationPredictionHistory {
     }
 
     public void clearPendingAtBarrierPolicyBoundary() {
-        pending.clear();
-        consumedJumpSequence = highestSubmittedSequence;
+        synchronizeBarrierPolicy(PreparationBarrierPolicy.OPEN);
     }
 
     public int pendingStepCount() {
@@ -176,6 +180,19 @@ public final class PreparationPredictionHistory {
 
     public long highestSubmittedSequence() {
         return highestSubmittedSequence;
+    }
+
+    private void synchronizeBarrierPolicy(PreparationBarrierPolicy nextPolicy) {
+        PreparationBarrierPolicy next = Objects.requireNonNull(nextPolicy, "nextPolicy");
+        if (next == activeBarrierPolicy) {
+            return;
+        }
+        if (activeBarrierPolicy == PreparationBarrierPolicy.OPEN) {
+            throw new IllegalArgumentException("preparation barrier policy regressed");
+        }
+        activeBarrierPolicy = PreparationBarrierPolicy.OPEN;
+        pending.clear();
+        consumedJumpSequence = highestSubmittedSequence;
     }
 
     private void requireCurrentSequence(long sequence) {
