@@ -16,12 +16,12 @@ To honour the JVM settings for this build a single-use Daemon process will be fo
 Daemon will be stopped at the end of the build 
 Calculating task graph as no cached configuration is available for tasks: spotlessApply :map-format:test :map-format:spotbugsMain :map-format:spotbugsTest
 > Task :spotlessGradleKotlin
+> Task :spotlessRepositoryText
 > Task :spotlessGradleKotlinApply
-> Task :map-format:processResources
+> Task :spotlessRepositoryTextApply
 > Task :map-format:processTestResources NO-SOURCE
 > Task :shared:processResources NO-SOURCE
-> Task :spotlessRepositoryText
-> Task :spotlessRepositoryTextApply
+> Task :map-format:processResources
 > Task :shared:compileJava
 > Task :shared:classes
 > Task :shared:jar
@@ -48,8 +48,36 @@ Execution failed for task ':map-format:spotbugsMain' (registered by plugin 'com.
 > Run with --scan to get full insights from a Build Scan (powered by Develocity).
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 1m 19s
+BUILD FAILED in 1m 5s
 13 actionable tasks: 13 executed
 Configuration cache entry stored.
+
+--- SPOTBUGS FINDINGS ---
+72:  <BugInstance type="PZLA_PREFER_ZERO_LENGTH_ARRAYS" priority="3" rank="20" abbrev="PZLA" category="STYLE" instanceHash="7ed8e6c5b461b7c6798ed91037100f90" instanceOccurrenceNum="0" instanceOccurrenceMax="0">
+73:    <ShortMessage>Consider returning a zero length array rather than null</ShortMessage>
+74:    <LongMessage>Should pl.grzegorz2047.standalonethewalls.mapformat.Glb2CanonicalBoxMeshVerifier.readCornerCodes(Glb2CanonicalBoxMeshVerifier$Accessor, List, byte[], int) return a zero length array rather than null?</LongMessage>
+76:      <SourceLine classname="pl.grzegorz2047.standalonethewalls.mapformat.Glb2CanonicalBoxMeshVerifier" start="29" end="581" sourcefile="Glb2CanonicalBoxMeshVerifier.java" sourcepath="pl/grzegorz2047/standalonethewalls/mapformat/Glb2CanonicalBoxMeshVerifier.java" relSourcepath="java/pl/grzegorz2047/standalonethewalls/mapformat/Glb2CanonicalBoxMeshVerifier.java">
+78:      </SourceLine>
+82:      <SourceLine classname="pl.grzegorz2047.standalonethewalls.mapformat.Glb2CanonicalBoxMeshVerifier" start="142" end="194" startBytecode="0" endBytecode="825" sourcefile="Glb2CanonicalBoxMeshVerifier.java" sourcepath="pl/grzegorz2047/standalonethewalls/mapformat/Glb2CanonicalBoxMeshVerifier.java" relSourcepath="java/pl/grzegorz2047/standalonethewalls/mapformat/Glb2CanonicalBoxMeshVerifier.java"/>
+85:    <SourceLine classname="pl.grzegorz2047.standalonethewalls.mapformat.Glb2CanonicalBoxMeshVerifier" primary="true" start="154" end="154" startBytecode="137" endBytecode="137" sourcefile="Glb2CanonicalBoxMeshVerifier.java" sourcepath="pl/grzegorz2047/standalonethewalls/mapformat/Glb2CanonicalBoxMeshVerifier.java" relSourcepath="java/pl/grzegorz2047/standalonethewalls/mapformat/Glb2CanonicalBoxMeshVerifier.java">
+87:    </SourceLine>
+88:    <SourceLine classname="pl.grzegorz2047.standalonethewalls.mapformat.Glb2CanonicalBoxMeshVerifier" start="159" end="159" startBytecode="202" endBytecode="202" sourcefile="Glb2CanonicalBoxMeshVerifier.java" sourcepath="pl/grzegorz2047/standalonethewalls/mapformat/Glb2CanonicalBoxMeshVerifier.java" relSourcepath="java/pl/grzegorz2047/standalonethewalls/mapformat/Glb2CanonicalBoxMeshVerifier.java">
+90:    </SourceLine>
+91:    <SourceLine classname="pl.grzegorz2047.standalonethewalls.mapformat.Glb2CanonicalBoxMeshVerifier" start="171" end="171" startBytecode="236" endBytecode="236" sourcefile="Glb2CanonicalBoxMeshVerifier.java" sourcepath="pl/grzegorz2047/standalonethewalls/mapformat/Glb2CanonicalBoxMeshVerifier.java" relSourcepath="java/pl/grzegorz2047/standalonethewalls/mapformat/Glb2CanonicalBoxMeshVerifier.java">
+93:    </SourceLine>
+94:    <SourceLine classname="pl.grzegorz2047.standalonethewalls.mapformat.Glb2CanonicalBoxMeshVerifier" start="184" end="184" startBytecode="324" endBytecode="324" sourcefile="Glb2CanonicalBoxMeshVerifier.java" sourcepath="pl/grzegorz2047/standalonethewalls/mapformat/Glb2CanonicalBoxMeshVerifier.java" relSourcepath="java/pl/grzegorz2047/standalonethewalls/mapformat/Glb2CanonicalBoxMeshVerifier.java">
+96:    </SourceLine>
+97:    <SourceLine classname="pl.grzegorz2047.standalonethewalls.mapformat.Glb2CanonicalBoxMeshVerifier" start="191" end="191" startBytecode="380" endBytecode="380" sourcefile="Glb2CanonicalBoxMeshVerifier.java" sourcepath="pl/grzegorz2047/standalonethewalls/mapformat/Glb2CanonicalBoxMeshVerifier.java" relSourcepath="java/pl/grzegorz2047/standalonethewalls/mapformat/Glb2CanonicalBoxMeshVerifier.java">
+99:    </SourceLine>
+100:  </BugInstance>
+101:  <BugInstance type="UPM_UNCALLED_PRIVATE_METHOD" priority="3" rank="20" abbrev="UPM" category="PERFORMANCE" instanceHash="6c93a84de034955c4cc73c010fbf96c4" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="561">
+102:    <ShortMessage>Private method is never called</ShortMessage>
+103:    <LongMessage>Private method pl.grzegorz2047.standalonethewalls.mapformat.Glb2CanonicalBoxMeshVerifier.readVectorTokens(JsonParser, JsonToken, String) is never called</LongMessage>
+105:      <SourceLine classname="pl.grzegorz2047.standalonethewalls.mapformat.Glb2CanonicalBoxMeshVerifier" start="29" end="581" sourcefile="Glb2CanonicalBoxMeshVerifier.java" sourcepath="pl/grzegorz2047/standalonethewalls/mapformat/Glb2CanonicalBoxMeshVerifier.java" relSourcepath="java/pl/grzegorz2047/standalonethewalls/mapformat/Glb2CanonicalBoxMeshVerifier.java">
+107:      </SourceLine>
+111:      <SourceLine classname="pl.grzegorz2047.standalonethewalls.mapformat.Glb2CanonicalBoxMeshVerifier" start="519" end="527" startBytecode="0" endBytecode="196" sourcefile="Glb2CanonicalBoxMeshVerifier.java" sourcepath="pl/grzegorz2047/standalonethewalls/mapformat/Glb2CanonicalBoxMeshVerifier.java" relSourcepath="java/pl/grzegorz2047/standalonethewalls/mapformat/Glb2CanonicalBoxMeshVerifier.java" synthetic="true"/>
+114:    <SourceLine classname="pl.grzegorz2047.standalonethewalls.mapformat.Glb2CanonicalBoxMeshVerifier" start="519" end="527" startBytecode="0" endBytecode="196" sourcefile="Glb2CanonicalBoxMeshVerifier.java" sourcepath="pl/grzegorz2047/standalonethewalls/mapformat/Glb2CanonicalBoxMeshVerifier.java" relSourcepath="java/pl/grzegorz2047/standalonethewalls/mapformat/Glb2CanonicalBoxMeshVerifier.java" synthetic="true">
+116:    </SourceLine>
+117:  </BugInstance>
 
 ISSUE_194_STATUS=FAILURE:1
