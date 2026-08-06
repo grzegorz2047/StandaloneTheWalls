@@ -32,12 +32,10 @@ class PreparationSupportMovementControllerTest {
                 PreparationMovementController.move(
                         platform, collisions, -1.0d, 0.0d, false, false, false, 0.1d);
 
-        assertThat(platform.position())
-                .isEqualTo(new MapVector3(-11.5d, 1.0d, -9.5d));
+        assertThat(platform.position()).isEqualTo(new MapVector3(-11.5d, 1.0d, -9.5d));
         assertThat(platform.grounded()).isTrue();
         assertThat(platform.verticalVelocityMetresPerSecond()).isZero();
-        assertThat(descended.position())
-                .isEqualTo(new MapVector3(-12.0d, 0.5d, -9.5d));
+        assertThat(descended.position()).isEqualTo(new MapVector3(-12.0d, 0.5d, -9.5d));
         assertThat(descended.grounded()).isTrue();
     }
 

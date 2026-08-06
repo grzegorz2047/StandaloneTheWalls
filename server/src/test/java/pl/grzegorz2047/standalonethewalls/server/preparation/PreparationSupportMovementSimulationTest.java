@@ -52,8 +52,7 @@ class PreparationSupportMovementSimulationTest {
 
     @Test
     void jumpLandsOnTheRaisedSupportHeight() {
-        PreparationMovementSimulation simulation =
-                simulation(0.25d, 1.0d, halfMetreSupports());
+        PreparationMovementSimulation simulation = simulation(0.25d, 1.0d, halfMetreSupports());
         PreparationPlayerSnapshot state =
                 player(
                         simulation.advanceTick(
@@ -79,14 +78,7 @@ class PreparationSupportMovementSimulationTest {
                 new PreparationSupportMap(
                         List.of(
                                 box("GroundCollision", -2.0d, -1.0d, -2.0d, 2.0d, 0.0d, 2.0d),
-                                box(
-                                        "TallSupportCollision",
-                                        -0.5d,
-                                        0.0d,
-                                        -1.0d,
-                                        0.0d,
-                                        1.0d,
-                                        1.0d)));
+                                box("TallSupportCollision", -0.5d, 0.0d, -1.0d, 0.0d, 1.0d, 1.0d)));
         PreparationMovementSimulation simulation = simulation(0.0d, 1.5d, supports);
 
         PreparationPlayerSnapshot falling =
@@ -116,13 +108,7 @@ class PreparationSupportMovementSimulationTest {
                         Map.of(
                                 TeamId.RED,
                                 new PreparationRegionBounds(
-                                        TeamId.RED,
-                                        -2_000,
-                                        -1_000,
-                                        -2_000,
-                                        2_000,
-                                        4_000,
-                                        2_000)),
+                                        TeamId.RED, -2_000, -1_000, -2_000, 2_000, 4_000, 2_000)),
                         supports);
         PreparationSpawnAssignment assignment =
                 new PreparationSpawnAssignment(
@@ -143,14 +129,7 @@ class PreparationSupportMovementSimulationTest {
         return new PreparationSupportMap(
                 List.of(
                         box("GroundCollision", -2.0d, -1.0d, -2.0d, 2.0d, 0.0d, 2.0d),
-                        box(
-                                "StepSupportCollision",
-                                0.0d,
-                                0.0d,
-                                -1.0d,
-                                1.0d,
-                                0.5d,
-                                1.0d)));
+                        box("StepSupportCollision", 0.0d, 0.0d, -1.0d, 1.0d, 0.5d, 1.0d)));
     }
 
     private static PreparationSupportBox box(

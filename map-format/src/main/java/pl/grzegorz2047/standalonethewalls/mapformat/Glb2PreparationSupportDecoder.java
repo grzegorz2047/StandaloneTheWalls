@@ -344,8 +344,7 @@ public final class Glb2PreparationSupportDecoder {
         return List.copyOf(scenes);
     }
 
-    private static List<Integer> readIndices(
-            JsonParser parser, JsonToken token, String description)
+    private static List<Integer> readIndices(JsonParser parser, JsonToken token, String description)
             throws IOException, PreparationSupportException {
         requireToken(token, JsonToken.START_ARRAY, description + " array");
         List<Integer> indices = new ArrayList<>();
@@ -368,8 +367,7 @@ public final class Glb2PreparationSupportDecoder {
         return validated;
     }
 
-    private static MapVector3 readVector3(
-            JsonParser parser, JsonToken token, String description)
+    private static MapVector3 readVector3(JsonParser parser, JsonToken token, String description)
             throws IOException, PreparationSupportException {
         requireToken(token, JsonToken.START_ARRAY, description + " array");
         double x = readRequiredNumber(parser, description);
