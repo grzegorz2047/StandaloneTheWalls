@@ -51,10 +51,8 @@ class PreparationObstacleMapTest {
 
         assertThat(map.hasPlayerClearance(0.0d, 0.5d, 0.0d, false)).isFalse();
         assertThat(map.hasPlayerClearance(0.0d, 0.5d, 0.0d, true)).isTrue();
-        assertThat(map.permitsMovement(-3.0d, 0.5d, 0.0d, 0.0d, 0.5d, 0.0d, false))
-                .isFalse();
-        assertThat(map.permitsMovement(-3.0d, 0.5d, 0.0d, 0.0d, 0.5d, 0.0d, true))
-                .isTrue();
+        assertThat(map.permitsMovement(-3.0d, 0.5d, 0.0d, 0.0d, 0.5d, 0.0d, false)).isFalse();
+        assertThat(map.permitsMovement(-3.0d, 0.5d, 0.0d, 0.0d, 0.5d, 0.0d, true)).isTrue();
     }
 
     @Test
@@ -79,12 +77,9 @@ class PreparationObstacleMapTest {
                                         3.2d,
                                         2.0d)));
 
-        assertThat(map.limitUpwardMovement(0.0d, 0.0d, 0.5d, 4.0d, false))
-                .isEqualTo(0.7d);
-        assertThat(map.limitUpwardMovement(3.0d, 0.0d, 0.5d, 4.0d, false))
-                .isEqualTo(4.0d);
-        assertThat(map.limitUpwardMovement(0.0d, 0.0d, 0.5d, 0.6d, false))
-                .isEqualTo(0.6d);
+        assertThat(map.limitUpwardMovement(0.0d, 0.0d, 0.5d, 4.0d, false)).isEqualTo(0.7d);
+        assertThat(map.limitUpwardMovement(3.0d, 0.0d, 0.5d, 4.0d, false)).isEqualTo(4.0d);
+        assertThat(map.limitUpwardMovement(0.0d, 0.0d, 0.5d, 0.6d, false)).isEqualTo(0.6d);
     }
 
     @Test
