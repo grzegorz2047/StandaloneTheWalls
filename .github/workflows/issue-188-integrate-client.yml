@@ -1,0 +1,66 @@
+name: Integrate issue 188 jump client
+
+on:
+  push:
+    branches:
+      - agent/issue-188-authoritative-jump
+
+permissions:
+  contents: write
+
+jobs:
+  integrate-client:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out jump branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: agent/issue-188-authoritative-jump
+          fetch-depth: 0
+
+      - name: Set up Java 21
+        uses: actions/setup-java@d7793b545071e98d581d3bf084a51c3213318a07
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
+
+      - name: Apply strict client integration
+        run: python tools/issue_188_client_integration.py
+
+      - name: Apply repository formatting
+        run: ./gradlew --no-daemon spotlessApply
+
+      - name: Commit client integration and remove helper
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f tools/issue_188_client_integration.py
+          rm -f .github/workflows/issue-188-integrate-client.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/SunderfrontClient.java \
+            client/src/main/resources/i18n/messages_en.properties \
+            client/src/main/resources/i18n/messages_pl.properties \
+            client/src/test/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationInputStateTest.java \
+            protocol/src/main/java/pl/grzegorz2047/standalonethewalls/protocol/preparation/PreparationInput.java \
+            protocol/src/main/java/pl/grzegorz2047/standalonethewalls/protocol/preparation/PreparationMovementProtocolCodec.java \
+            protocol/src/main/java/pl/grzegorz2047/standalonethewalls/protocol/preparation/PreparationPlayerSnapshot.java \
+            protocol/src/main/java/pl/grzegorz2047/standalonethewalls/protocol/preparation/PreparationVerticalMotion.java \
+            protocol/src/test/java/pl/grzegorz2047/standalonethewalls/protocol/preparation/PreparationVerticalMotionTest.java \
+            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationCollisionWorld.java \
+            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationInputState.java \
+            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationMovementController.java \
+            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationPlayerState.java \
+            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationPredictionHistory.java \
+            server/src/main/java/pl/grzegorz2047/standalonethewalls/server/preparation/PreparationMovementSimulation.java \
+            tools/issue_188_client_integration.py \
+            .github/workflows/issue-188-integrate-client.yml
+          git diff --cached --check
+          git commit -m "Integrate authoritative preparation jump client"
+          git push origin HEAD:agent/issue-188-authoritative-jump
