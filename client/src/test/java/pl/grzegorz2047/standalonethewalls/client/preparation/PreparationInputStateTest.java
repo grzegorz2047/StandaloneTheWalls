@@ -14,12 +14,14 @@ class PreparationInputStateTest {
         input.set(Direction.RIGHT, true);
         input.setSprinting(true);
         input.setCrouching(true);
+        input.setJumping(true, true);
 
         assertThat(input.captured()).isFalse();
         assertThat(input.forwardAxis()).isZero();
         assertThat(input.rightAxis()).isZero();
         assertThat(input.sprinting()).isFalse();
         assertThat(input.crouching()).isFalse();
+        assertThat(input.consumeJumpRequest()).isFalse();
     }
 
     @Test
@@ -39,13 +41,13 @@ class PreparationInputStateTest {
     }
 
     @Test
-    void releaseClearsEveryLatchedDirection() {
+    void releaseClearsEveryLatchedDirectionAndJumpEdge() {
         PreparationInputState input = new PreparationInputState();
         input.capture();
         input.set(Direction.FORWARD, true);
         input.set(Direction.LEFT, true);
         input.setSprinting(true);
-        input.setCrouching(true);
+        input.setJumping(true, true);
 
         assertThat(input.release()).isTrue();
 
@@ -54,14 +56,16 @@ class PreparationInputStateTest {
         assertThat(input.rightAxis()).isZero();
         assertThat(input.sprinting()).isFalse();
         assertThat(input.crouching()).isFalse();
+        assertThat(input.consumeJumpRequest()).isFalse();
         assertThat(input.release()).isFalse();
     }
 
     @Test
-    void crouchingOverridesSprintButReleasingItRestoresHeldSprint() {
+    void crouchingOverridesSprintAndClearsAQueuedJump() {
         PreparationInputState input = new PreparationInputState();
         input.capture();
         input.setSprinting(true);
+        input.setJumping(true, true);
 
         assertThat(input.sprinting()).isTrue();
         assertThat(input.crouching()).isFalse();
@@ -69,10 +73,44 @@ class PreparationInputStateTest {
         input.setCrouching(true);
         assertThat(input.sprinting()).isFalse();
         assertThat(input.crouching()).isTrue();
+        assertThat(input.consumeJumpRequest()).isFalse();
 
         input.setCrouching(false);
         assertThat(input.sprinting()).isTrue();
         assertThat(input.crouching()).isFalse();
+    }
+
+    @Test
+    void jumpIsAOneShotPressEdgeAndAutoRepeatDoesNotQueueAnother() {
+        PreparationInputState input = new PreparationInputState();
+        input.capture();
+
+        input.setJumping(true, true);
+        assertThat(input.consumeJumpRequest()).isTrue();
+        assertThat(input.consumeJumpRequest()).isFalse();
+
+        input.setJumping(true, true);
+        assertThat(input.consumeJumpRequest()).isFalse();
+
+        input.setJumping(false, true);
+        input.setJumping(true, true);
+        assertThat(input.consumeJumpRequest()).isTrue();
+    }
+
+    @Test
+    void airbornePressIsNotBufferedForA laterLanding() {
+        PreparationInputState input = new PreparationInputState();
+        input.capture();
+
+        input.setJumping(true, false);
+        assertThat(input.consumeJumpRequest()).isFalse();
+
+        input.setJumping(true, true);
+        assertThat(input.consumeJumpRequest()).isFalse();
+
+        input.setJumping(false, true);
+        input.setJumping(true, true);
+        assertThat(input.consumeJumpRequest()).isTrue();
     }
 
     @Test
