@@ -29,23 +29,25 @@ jobs:
         run: |
           set +e
           result=.github/issue-194-result.txt
-          : > "$result"
-          python3 .github/scripts/issue_194_apply.py >> "$result" 2>&1
+          log=/tmp/issue-194-focused.log
+          : > "$log"
+          python3 .github/scripts/issue_194_apply.py >> "$log" 2>&1
           status=$?
           if [ "$status" -eq 0 ]; then
-            ./gradlew --no-daemon spotlessApply :map-format:test :map-format:spotbugsMain :map-format:spotbugsTest >> "$result" 2>&1
+            ./gradlew --no-daemon spotlessApply :map-format:test :map-format:spotbugsMain :map-format:spotbugsTest >> "$log" 2>&1
             status=$?
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if [ "$status" -eq 0 ]; then
+            tail -n 200 "$log" > "$result"
             printf '\nISSUE_194_STATUS=SUCCESS\n' >> "$result"
             git add map-format/src/main map-format/src/test "$result"
             message="Verify canonical collision mesh bytes"
           else
-            printf '\nISSUE_194_STATUS=FAILURE:%s\n' "$status" >> "$result"
             git reset --hard HEAD
-            printf 'ISSUE_194_STATUS=FAILURE:%s\n' "$status" > "$result"
+            tail -n 400 "$log" > "$result"
+            printf '\nISSUE_194_STATUS=FAILURE:%s\n' "$status" >> "$result"
             git add "$result"
             message="Record issue 194 focused check failure"
           fi
