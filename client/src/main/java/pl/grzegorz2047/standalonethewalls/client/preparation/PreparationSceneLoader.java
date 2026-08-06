@@ -3,13 +3,17 @@ package pl.grzegorz2047.standalonethewalls.client.preparation;
 import java.security.MessageDigest;
 import java.util.HexFormat;
 import java.util.Objects;
+import java.util.OptionalDouble;
 import pl.grzegorz2047.standalonethewalls.mapformat.Glb2ContainerDecoder;
 import pl.grzegorz2047.standalonethewalls.mapformat.Glb2Document;
 import pl.grzegorz2047.standalonethewalls.mapformat.Glb2Exception;
+import pl.grzegorz2047.standalonethewalls.mapformat.Glb2PreparationSupportDecoder;
 import pl.grzegorz2047.standalonethewalls.mapformat.MinimalPreparationBundle;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationGameplay;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationMapSpawn;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationRegion;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationSupportException;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationSupportMap;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationTeam;
 import pl.grzegorz2047.standalonethewalls.mapformat.TwMapBundleException;
 import pl.grzegorz2047.standalonethewalls.mapformat.TwMapBundleLoader;
@@ -22,6 +26,7 @@ import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnA
 public final class PreparationSceneLoader {
     private static final String SCENE_PATH = "scene.glb";
     private static final String COLLISION_PATH = "collision.glb";
+    private static final double SUPPORT_TOLERANCE_METRES = 0.000001d;
     private static final TwMapLoadPolicy LOAD_POLICY =
             new TwMapLoadPolicy(2 * 1024 * 1024, 4 * 1024 * 1024, 16, 100);
 
@@ -67,6 +72,7 @@ public final class PreparationSceneLoader {
         byte[] collisionGlb = verifiedBundle.member(COLLISION_PATH);
         Glb2Document sceneDocument = decodeScene(verifiedBundle, sceneGlb);
         Glb2Document collisionDocument = decodeCollision(verifiedBundle, collisionGlb);
+        PreparationSupportMap supportMap = decodeSupports(collisionDocument);
 
         PreparationTeam team = preparationTeam(authoritativeAssignment.team());
         PreparationGameplay gameplay = verifiedBundle.gameplay();
@@ -96,6 +102,7 @@ public final class PreparationSceneLoader {
                     PreparationSceneLoadException.Code.SPAWN_STATE_MISMATCH,
                     "assigned spawn is outside the verified team region");
         }
+        requireSupportedSpawn(spawn, supportMap);
 
         return new VerifiedPreparationScene(
                 verifiedBundle.manifest().id(),
@@ -104,6 +111,7 @@ public final class PreparationSceneLoader {
                 collisionGlb,
                 sceneDocument,
                 collisionDocument,
+                supportMap,
                 region,
                 spawn);
     }
@@ -136,6 +144,33 @@ public final class PreparationSceneLoader {
                     PreparationSceneLoadException.Code.COLLISION_INVALID,
                     "verified preparation collision GLB is invalid",
                     exception);
+        }
+    }
+
+    private static PreparationSupportMap decodeSupports(Glb2Document collisionDocument)
+            throws PreparationSceneLoadException {
+        try {
+            return Glb2PreparationSupportDecoder.decode(collisionDocument);
+        } catch (PreparationSupportException exception) {
+            throw new PreparationSceneLoadException(
+                    PreparationSceneLoadException.Code.COLLISION_INVALID,
+                    "verified preparation collision supports are invalid",
+                    exception);
+        }
+    }
+
+    private static void requireSupportedSpawn(
+            PreparationMapSpawn spawn, PreparationSupportMap supportMap)
+            throws PreparationSceneLoadException {
+        OptionalDouble supported =
+                supportMap.highestPlayerCenterAtOrBelow(
+                        spawn.position().x(), spawn.position().z(), spawn.position().y());
+        if (supported.isEmpty()
+                || Math.abs(supported.orElseThrow() - spawn.position().y())
+                        > SUPPORT_TOLERANCE_METRES) {
+            throw failure(
+                    PreparationSceneLoadException.Code.SPAWN_STATE_MISMATCH,
+                    "preparation spawn is not supported by the verified collision GLB");
         }
     }
 

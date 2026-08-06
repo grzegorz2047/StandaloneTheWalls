@@ -9,23 +9,29 @@ import com.jme3.math.Vector3f;
 import com.jme3.scene.Node;
 import com.jme3.scene.Spatial;
 import java.util.Objects;
+import java.util.OptionalDouble;
 import pl.grzegorz2047.standalonethewalls.mapformat.MapVector3;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationSupportMap;
 
 /** Bounded player-body collision queries backed by the verified invisible collision GLB. */
 public final class PreparationCollisionWorld {
     public static final float PLAYER_BODY_RADIUS_METRES = 0.35f;
 
     private static final String GROUND = "GroundCollision";
+    private static final String SUPPORT_SUFFIX = "SupportCollision";
     private static final String CENTRAL_WALL_X = "CentralWallXCollision";
     private static final String CENTRAL_WALL_Z = "CentralWallZCollision";
-    private static final float MAXIMUM_SUPPORT_DISTANCE = 0.75f;
+    private static final double MAXIMUM_SUPPORT_DISTANCE_METRES = 0.75d;
     private static final float MAXIMUM_BODY_SAMPLE_SPACING_METRES = 0.05f;
     private static final float COLLISION_EPSILON = 0.0001f;
 
     private final Node graph;
+    private final PreparationSupportMap supportMap;
 
-    private PreparationCollisionWorld(Node graph) throws PreparationSceneGraphException {
+    private PreparationCollisionWorld(Node graph, PreparationSupportMap supportMap)
+            throws PreparationSceneGraphException {
         this.graph = Objects.requireNonNull(graph, "graph");
+        this.supportMap = Objects.requireNonNull(supportMap, "supportMap");
         requireNode(GROUND);
         requireNode(CENTRAL_WALL_X);
         requireNode(CENTRAL_WALL_Z);
@@ -34,23 +40,23 @@ public final class PreparationCollisionWorld {
     public static PreparationCollisionWorld load(
             AssetManager assetManager, VerifiedPreparationScene scene)
             throws PreparationSceneGraphException {
+        VerifiedPreparationScene verifiedScene = Objects.requireNonNull(scene, "scene");
         return new PreparationCollisionWorld(
-                PreparationSceneGraphLoader.loadCollision(assetManager, scene));
+                PreparationSceneGraphLoader.loadCollision(assetManager, verifiedScene),
+                verifiedScene.supportMap());
     }
 
     public boolean hasGroundSupport(MapVector3 position) {
         MapVector3 point = Objects.requireNonNull(position, "position");
-        Ray ray = new Ray(toVector(point), new Vector3f(0.0f, -1.0f, 0.0f));
-        ray.setLimit(MAXIMUM_SUPPORT_DISTANCE);
-        CollisionResults results = new CollisionResults();
-        graph.collideWith(ray, results);
-        for (CollisionResult result : results) {
-            if (belongsTo(result.getGeometry(), GROUND)
-                    && result.getDistance() <= MAXIMUM_SUPPORT_DISTANCE + COLLISION_EPSILON) {
-                return true;
-            }
+        OptionalDouble support =
+                supportMap.highestPlayerCenterAtOrBelow(
+                        point.x(), point.z(), point.y() + MAXIMUM_SUPPORT_DISTANCE_METRES);
+        if (support.isEmpty()) {
+            return false;
         }
-        return false;
+        double distance = point.y() - support.orElseThrow();
+        return distance >= -COLLISION_EPSILON
+                && distance <= MAXIMUM_SUPPORT_DISTANCE_METRES + COLLISION_EPSILON;
     }
 
     public boolean permitsHorizontal(MapVector3 current, MapVector3 target) {
@@ -96,7 +102,7 @@ public final class PreparationCollisionWorld {
         CollisionResults results = new CollisionResults();
         graph.collideWith(new BoundingSphere(PLAYER_BODY_RADIUS_METRES, center), results);
         for (CollisionResult result : results) {
-            if (!belongsTo(result.getGeometry(), GROUND)) {
+            if (!belongsToSupport(result.getGeometry())) {
                 return false;
             }
         }
@@ -109,7 +115,7 @@ public final class PreparationCollisionWorld {
         CollisionResults results = new CollisionResults();
         graph.collideWith(ray, results);
         for (CollisionResult result : results) {
-            if (!belongsTo(result.getGeometry(), GROUND)
+            if (!belongsToSupport(result.getGeometry())
                     && result.getDistance() <= distance + COLLISION_EPSILON) {
                 return true;
             }
@@ -124,10 +130,11 @@ public final class PreparationCollisionWorld {
         }
     }
 
-    private static boolean belongsTo(Spatial spatial, String name) {
+    private static boolean belongsToSupport(Spatial spatial) {
         Spatial current = spatial;
         while (current != null) {
-            if (name.equals(current.getName())) {
+            String name = current.getName();
+            if (GROUND.equals(name) || (name != null && name.endsWith(SUPPORT_SUFFIX))) {
                 return true;
             }
             current = current.getParent();

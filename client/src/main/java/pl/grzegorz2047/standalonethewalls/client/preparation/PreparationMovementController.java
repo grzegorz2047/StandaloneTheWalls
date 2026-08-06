@@ -1,6 +1,8 @@
 package pl.grzegorz2047.standalonethewalls.client.preparation;
 
 import java.util.Objects;
+import java.util.OptionalDouble;
+import pl.grzegorz2047.standalonethewalls.mapformat.MapVector3;
 import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationVerticalMotion;
 
 /** Deterministic preparation movement resolved through region and verified collision guards. */
@@ -8,10 +10,13 @@ public final class PreparationMovementController {
     public static final double MOVEMENT_SPEED_METRES_PER_SECOND = 5.0d;
     public static final double SPRINTING_SPEED_METRES_PER_SECOND = 8.0d;
     public static final double CROUCHING_SPEED_METRES_PER_SECOND = 3.0d;
+    public static final double MAXIMUM_GROUNDED_STEP_METRES = 0.5d;
     public static final double MAXIMUM_STEP_SECONDS =
             PreparationVerticalMotion.MAXIMUM_STEP_SECONDS;
     public static final double YAW_DEGREES_PER_MOUSE_PIXEL = 0.12d;
     public static final double PITCH_DEGREES_PER_MOUSE_PIXEL = 0.10d;
+
+    private static final double SUPPORT_TOLERANCE_METRES = 0.001d;
 
     private PreparationMovementController() {
         throw new AssertionError("No instances");
@@ -160,13 +165,39 @@ public final class PreparationMovementController {
                 step
                         * ((normalizedForward * PreparationFacing.forwardZ(yaw))
                                 + (normalizedRight * PreparationFacing.rightZ(yaw)));
-        PreparationPlayerState proposed = player.moveHorizontal(deltaX, deltaZ);
-        if (proposed == player
-                || !world.permitsHorizontal(
-                        player.position(), proposed.position(), player.grounded())) {
+        MapVector3 target = player.horizontalPositionAfter(deltaX, deltaZ);
+        if ((Double.compare(target.x(), player.position().x()) == 0
+                        && Double.compare(target.z(), player.position().z()) == 0)
+                || !world.permitsHorizontal(player.position(), target, false)) {
             return player;
         }
-        return proposed;
+
+        OptionalDouble highestSupport =
+                player.scene().supportMap().highestPlayerCenter(target.x(), target.z());
+        if (highestSupport.isEmpty()) {
+            return player;
+        }
+        double supportY = highestSupport.orElseThrow();
+        if (player.grounded()) {
+            double supportDelta = supportY - player.position().y();
+            if (supportDelta > MAXIMUM_GROUNDED_STEP_METRES + SUPPORT_TOLERANCE_METRES) {
+                return player;
+            }
+            if (supportDelta >= -MAXIMUM_GROUNDED_STEP_METRES - SUPPORT_TOLERANCE_METRES) {
+                return player.withMovementState(target.x(), supportY, target.z(), 0.0d, true);
+            }
+            return player.withMovementState(
+                    target.x(), player.position().y(), target.z(), 0.0d, false);
+        }
+        if (supportY > player.position().y() + SUPPORT_TOLERANCE_METRES) {
+            return player;
+        }
+        return player.withMovementState(
+                target.x(),
+                player.position().y(),
+                target.z(),
+                player.verticalVelocityMetresPerSecond(),
+                false);
     }
 
     private static void requireAxis(double value, String field) {

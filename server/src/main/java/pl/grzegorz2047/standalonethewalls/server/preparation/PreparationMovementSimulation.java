@@ -7,8 +7,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.TreeMap;
 import pl.grzegorz2047.standalonethewalls.domain.TeamId;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationSupportMap;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
 import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationInput;
@@ -23,6 +25,7 @@ public final class PreparationMovementSimulation {
     public static final int MOVEMENT_SPEED_MILLIMETRES_PER_SECOND = 5_000;
     public static final int SPRINTING_SPEED_MILLIMETRES_PER_SECOND = 8_000;
     public static final int CROUCHING_SPEED_MILLIMETRES_PER_SECOND = 3_000;
+    public static final int MAXIMUM_GROUNDED_STEP_MILLIMETRES = 500;
     private static final double WALKING_STEP_MILLIMETRES =
             (double) MOVEMENT_SPEED_MILLIMETRES_PER_SECOND / TICKS_PER_SECOND;
     private static final double SPRINTING_STEP_MILLIMETRES =
@@ -31,6 +34,7 @@ public final class PreparationMovementSimulation {
             (double) CROUCHING_SPEED_MILLIMETRES_PER_SECOND / TICKS_PER_SECOND;
     private static final double TICK_SECONDS = 1.0d / TICKS_PER_SECOND;
     private static final int MAXIMUM_JUMP_HEIGHT_MILLIMETRES = 1_000;
+    private static final double SUPPORT_TOLERANCE_MILLIMETRES = 1.0d;
 
     private final long roundNumber;
     private final TreeMap<PlayerId, PlayerState> players =
@@ -76,7 +80,7 @@ public final class PreparationMovementSimulation {
             }
             TeamId team = domainTeam(assignment.team());
             PreparationRegionBounds region = verifiedMap.region(team);
-            PlayerState state = PlayerState.atSpawn(assignment, region);
+            PlayerState state = PlayerState.atSpawn(assignment, region, verifiedMap.supportMap());
             if (simulation.players.put(playerId, state) != null) {
                 throw new IllegalArgumentException("duplicate preparation playerId");
             }
@@ -174,7 +178,7 @@ public final class PreparationMovementSimulation {
 
     private static final class PlayerState {
         private final PreparationRegionBounds region;
-        private final int groundYMillimetres;
+        private final PreparationSupportMap supportMap;
         private double xMillimetres;
         private double yMillimetres;
         private double zMillimetres;
@@ -188,14 +192,21 @@ public final class PreparationMovementSimulation {
 
         private PlayerState(
                 PreparationRegionBounds region,
+                PreparationSupportMap supportMap,
                 int xMillimetres,
                 int yMillimetres,
                 int zMillimetres,
                 int yawCentidegrees) {
             this.region = Objects.requireNonNull(region, "region");
+            this.supportMap = Objects.requireNonNull(supportMap, "supportMap");
             if (!region.contains(xMillimetres, yMillimetres, zMillimetres)) {
                 throw new IllegalArgumentException(
                         "preparation spawn is outside its authoritative team region");
+            }
+            double support = supportAtOrBelow(xMillimetres, zMillimetres, yMillimetres);
+            if (Math.abs(support - yMillimetres) > SUPPORT_TOLERANCE_MILLIMETRES) {
+                throw new IllegalArgumentException(
+                        "preparation spawn is not on authoritative collision support");
             }
             if ((long) yMillimetres + MAXIMUM_JUMP_HEIGHT_MILLIMETRES
                     > region.maximumYMillimetres()) {
@@ -204,15 +215,17 @@ public final class PreparationMovementSimulation {
             }
             this.xMillimetres = xMillimetres;
             this.yMillimetres = yMillimetres;
-            this.groundYMillimetres = yMillimetres;
             this.zMillimetres = zMillimetres;
             this.yawCentidegrees = yawCentidegrees;
         }
 
         private static PlayerState atSpawn(
-                PreparationSpawnAssignment assignment, PreparationRegionBounds region) {
+                PreparationSpawnAssignment assignment,
+                PreparationRegionBounds region,
+                PreparationSupportMap supportMap) {
             return new PlayerState(
                     region,
+                    supportMap,
                     toMillimetres(assignment.x()),
                     toMillimetres(assignment.y()),
                     toMillimetres(assignment.z()),
@@ -240,6 +253,7 @@ public final class PreparationMovementSimulation {
                 jumpRequested = grounded;
                 consumedJumpSequence = input.sequence();
             }
+            double groundYMillimetres = supportAtOrBelow(xMillimetres, zMillimetres, yMillimetres);
             PreparationVerticalMotion.Step vertical =
                     PreparationVerticalMotion.advance(
                             yMillimetres / 1_000.0d,
@@ -275,10 +289,59 @@ public final class PreparationMovementSimulation {
                             : input.sprinting()
                                     ? SPRINTING_STEP_MILLIMETRES
                                     : WALKING_STEP_MILLIMETRES;
-            double deltaX = step * ((forward * forwardX) + (right * rightX));
-            double deltaZ = step * ((forward * forwardZ) + (right * rightZ));
-            xMillimetres = region.clampX(xMillimetres + deltaX);
-            zMillimetres = region.clampZ(zMillimetres + deltaZ);
+            double targetX =
+                    region.clampX(xMillimetres + step * ((forward * forwardX) + (right * rightX)));
+            double targetZ =
+                    region.clampZ(zMillimetres + step * ((forward * forwardZ) + (right * rightZ)));
+            if (Double.compare(targetX, xMillimetres) == 0
+                    && Double.compare(targetZ, zMillimetres) == 0) {
+                return;
+            }
+            OptionalDouble support =
+                    supportMap.highestPlayerCenter(targetX / 1_000.0d, targetZ / 1_000.0d);
+            if (support.isEmpty()) {
+                return;
+            }
+            double supportYMillimetres = support.orElseThrow() * 1_000.0d;
+            if (grounded) {
+                double deltaY = supportYMillimetres - yMillimetres;
+                if (deltaY > MAXIMUM_GROUNDED_STEP_MILLIMETRES + SUPPORT_TOLERANCE_MILLIMETRES) {
+                    return;
+                }
+                xMillimetres = targetX;
+                zMillimetres = targetZ;
+                if (deltaY >= -MAXIMUM_GROUNDED_STEP_MILLIMETRES - SUPPORT_TOLERANCE_MILLIMETRES) {
+                    yMillimetres = supportYMillimetres;
+                    verticalVelocityMetresPerSecond = 0.0d;
+                    grounded = true;
+                } else {
+                    verticalVelocityMetresPerSecond = 0.0d;
+                    grounded = false;
+                }
+                return;
+            }
+            if (supportYMillimetres > yMillimetres + SUPPORT_TOLERANCE_MILLIMETRES) {
+                return;
+            }
+            xMillimetres = targetX;
+            zMillimetres = targetZ;
+        }
+
+        private double supportAtOrBelow(
+                double playerXMillimetres,
+                double playerZMillimetres,
+                double maximumPlayerCenterYMillimetres) {
+            OptionalDouble support =
+                    supportMap.highestPlayerCenterAtOrBelow(
+                            playerXMillimetres / 1_000.0d,
+                            playerZMillimetres / 1_000.0d,
+                            (maximumPlayerCenterYMillimetres + SUPPORT_TOLERANCE_MILLIMETRES)
+                                    / 1_000.0d);
+            if (support.isEmpty()) {
+                throw new IllegalStateException(
+                        "authoritative preparation player has no support below it");
+            }
+            return support.orElseThrow() * 1_000.0d;
         }
 
         private PreparationPlayerSnapshot snapshot(PlayerId playerId) {
