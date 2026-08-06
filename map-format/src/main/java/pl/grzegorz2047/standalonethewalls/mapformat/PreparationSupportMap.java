@@ -42,6 +42,10 @@ public final class PreparationSupportMap {
         return boxes;
     }
 
+    public OptionalDouble highestPlayerCenter(double xMetres, double zMetres) {
+        return highestPlayerCenterAtOrBelow(xMetres, zMetres, Double.MAX_VALUE);
+    }
+
     public OptionalDouble highestPlayerCenterAtOrBelow(
             double xMetres, double zMetres, double maximumPlayerCenterYMetres) {
         if (!Double.isFinite(xMetres)
