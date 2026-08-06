@@ -3,20 +3,27 @@ package pl.grzegorz2047.standalonethewalls.client.preparation;
 import java.util.Objects;
 import pl.grzegorz2047.standalonethewalls.mapformat.MapVector3;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationRegion;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationVerticalMotion;
 
 /** Immutable local preparation player and view state constrained to one verified team region. */
 public final class PreparationPlayerState {
     public static final double MINIMUM_PITCH_DEGREES = -85.0d;
     public static final double MAXIMUM_PITCH_DEGREES = 85.0d;
 
+    private static final double GROUND_TOLERANCE_METRES = 0.001d;
+
     private final VerifiedPreparationScene scene;
     private final MapVector3 position;
+    private final double verticalVelocityMetresPerSecond;
+    private final boolean grounded;
     private final double yawDegrees;
     private final double pitchDegrees;
 
     private PreparationPlayerState(
             VerifiedPreparationScene scene,
             MapVector3 position,
+            double verticalVelocityMetresPerSecond,
+            boolean grounded,
             double yawDegrees,
             double pitchDegrees) {
         this.scene = Objects.requireNonNull(scene, "scene");
@@ -25,6 +32,25 @@ public final class PreparationPlayerState {
             throw new IllegalArgumentException(
                     "preparation player position must remain inside the verified region");
         }
+        requireFinite(verticalVelocityMetresPerSecond, "verticalVelocityMetresPerSecond");
+        if (verticalVelocityMetresPerSecond
+                        < -PreparationVerticalMotion.MAXIMUM_FALL_SPEED_METRES_PER_SECOND
+                || verticalVelocityMetresPerSecond
+                        > PreparationVerticalMotion.JUMP_IMPULSE_METRES_PER_SECOND) {
+            throw new IllegalArgumentException("vertical velocity is outside the supported range");
+        }
+        if (grounded && Double.compare(verticalVelocityMetresPerSecond, 0.0d) != 0) {
+            throw new IllegalArgumentException("grounded player must have zero vertical velocity");
+        }
+        double groundHeight = scene.spawn().position().y();
+        if (position.y() < groundHeight - GROUND_TOLERANCE_METRES) {
+            throw new IllegalArgumentException("preparation player cannot be below flat ground");
+        }
+        if (grounded && Math.abs(position.y() - groundHeight) > GROUND_TOLERANCE_METRES) {
+            throw new IllegalArgumentException("grounded player must remain on flat ground");
+        }
+        this.verticalVelocityMetresPerSecond = verticalVelocityMetresPerSecond;
+        this.grounded = grounded;
         this.yawDegrees = requireNormalizedYaw(yawDegrees);
         this.pitchDegrees = requirePitch(pitchDegrees);
     }
@@ -34,6 +60,8 @@ public final class PreparationPlayerState {
         return new PreparationPlayerState(
                 verifiedScene,
                 verifiedScene.spawn().position(),
+                0.0d,
+                true,
                 normalizeYaw(verifiedScene.spawn().yawDegrees()),
                 0.0d);
     }
@@ -44,6 +72,18 @@ public final class PreparationPlayerState {
 
     public MapVector3 position() {
         return position;
+    }
+
+    public double groundHeightMetres() {
+        return scene.spawn().position().y();
+    }
+
+    public double verticalVelocityMetresPerSecond() {
+        return verticalVelocityMetresPerSecond;
+    }
+
+    public boolean grounded() {
+        return grounded;
     }
 
     public double yawDegrees() {
@@ -60,9 +100,29 @@ public final class PreparationPlayerState {
             double z,
             double authoritativeYawDegrees,
             double authoritativePitchDegrees) {
+        return withAuthoritativeState(
+                x,
+                y,
+                z,
+                0.0d,
+                true,
+                authoritativeYawDegrees,
+                authoritativePitchDegrees);
+    }
+
+    public PreparationPlayerState withAuthoritativeState(
+            double x,
+            double y,
+            double z,
+            double authoritativeVerticalVelocityMetresPerSecond,
+            boolean authoritativeGrounded,
+            double authoritativeYawDegrees,
+            double authoritativePitchDegrees) {
         return new PreparationPlayerState(
                 scene,
                 new MapVector3(x, y, z),
+                authoritativeVerticalVelocityMetresPerSecond,
+                authoritativeGrounded,
                 normalizeYaw(authoritativeYawDegrees),
                 authoritativePitchDegrees);
     }
@@ -79,7 +139,34 @@ public final class PreparationPlayerState {
             return this;
         }
         return new PreparationPlayerState(
-                scene, new MapVector3(nextX, position.y(), nextZ), yawDegrees, pitchDegrees);
+                scene,
+                new MapVector3(nextX, position.y(), nextZ),
+                verticalVelocityMetresPerSecond,
+                grounded,
+                yawDegrees,
+                pitchDegrees);
+    }
+
+    public PreparationPlayerState withVerticalState(
+            double heightMetres,
+            double nextVerticalVelocityMetresPerSecond,
+            boolean nextGrounded) {
+        requireFinite(heightMetres, "heightMetres");
+        if (Double.compare(heightMetres, position.y()) == 0
+                && Double.compare(
+                                nextVerticalVelocityMetresPerSecond,
+                                verticalVelocityMetresPerSecond)
+                        == 0
+                && nextGrounded == grounded) {
+            return this;
+        }
+        return new PreparationPlayerState(
+                scene,
+                new MapVector3(position.x(), heightMetres, position.z()),
+                nextVerticalVelocityMetresPerSecond,
+                nextGrounded,
+                yawDegrees,
+                pitchDegrees);
     }
 
     public PreparationPlayerState rotate(double deltaDegrees) {
@@ -99,7 +186,13 @@ public final class PreparationPlayerState {
                 && Double.compare(nextPitch, pitchDegrees) == 0) {
             return this;
         }
-        return new PreparationPlayerState(scene, position, nextYaw, nextPitch);
+        return new PreparationPlayerState(
+                scene,
+                position,
+                verticalVelocityMetresPerSecond,
+                grounded,
+                nextYaw,
+                nextPitch);
     }
 
     private static double addFinite(double value, double delta) {
