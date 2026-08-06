@@ -25,38 +25,31 @@ Calculating task graph as no cached configuration is available for tasks: spotle
 > Task :shared:compileJava
 > Task :shared:classes
 > Task :shared:jar
-
 > Task :map-format:compileJava
-/home/runner/work/StandaloneTheWalls/StandaloneTheWalls/map-format/src/main/java/pl/grzegorz2047/standalonethewalls/mapformat/Glb2CanonicalBoxMeshVerifier.java:589: warning: [serial] serializable class VerificationException has no definition of serialVersionUID
-    static final class VerificationException extends Exception {
-                 ^
-error: warnings found and -Werror specified
-1 error
-1 warning
-
-> Task :map-format:compileJava FAILED
+> Task :map-format:classes
+> Task :map-format:compileTestJava
+> Task :map-format:testClasses
 > Task :spotlessJava
-
-[Incubating] Problems report is available at: file:///home/runner/work/StandaloneTheWalls/StandaloneTheWalls/build/reports/problems/problems-report.html
+> Task :spotlessJavaApply
+> Task :spotlessApply
+> Task :map-format:test
+> Task :map-format:spotbugsMain FAILED
 
 FAILURE: Build failed with an exception.
 
 * What went wrong:
-Execution failed for task ':map-format:compileJava' (registered by plugin class 'org.gradle.api.plugins.JavaBasePlugin').
-> Compilation failed; see the compiler output below.
-  error: warnings found and -Werror specified
-  /home/runner/work/StandaloneTheWalls/StandaloneTheWalls/map-format/src/main/java/pl/grzegorz2047/standalonethewalls/mapformat/Glb2CanonicalBoxMeshVerifier.java:589: warning: [serial] serializable class VerificationException has no definition of serialVersionUID
-      static final class VerificationException extends Exception {
-                   ^
-  1 error
-  1 warning
+Execution failed for task ':map-format:spotbugsMain' (registered by plugin 'com.github.spotbugs').
+> A failure occurred while executing com.github.spotbugs.snom.internal.SpotBugsRunnerForHybrid$SpotBugsExecutor
+   > Verification failed: SpotBugs ended with exit code 1. See the report at: file:///home/runner/work/StandaloneTheWalls/StandaloneTheWalls/map-format/build/reports/spotbugs/html.html, file:///home/runner/work/StandaloneTheWalls/StandaloneTheWalls/map-format/build/reports/spotbugs/xml.xml
 
 * Try:
-> Check your code and dependencies to fix the compilation error(s)
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
 > Run with --scan to get full insights from a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
 
-BUILD FAILED in 1m 2s
-9 actionable tasks: 9 executed
+BUILD FAILED in 1m 19s
+13 actionable tasks: 13 executed
 Configuration cache entry stored.
 
 ISSUE_194_STATUS=FAILURE:1
