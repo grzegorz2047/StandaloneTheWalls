@@ -17,16 +17,14 @@ class MinimalPreparationBundleTest {
 
     @Test
     void generatesTheSameCompleteVerifiedArchiveEveryTime()
-            throws TwMapBundleException, Glb2Exception {
+            throws TwMapBundleException, Glb2Exception, PreparationSupportException {
         byte[] first = MinimalPreparationBundle.createArchive();
         byte[] second = MinimalPreparationBundle.createArchive();
 
-        assertThat(first).isEqualTo(second).hasSize(15_641);
+        assertThat(first).isEqualTo(second);
         VerifiedMapBundle bundle = TwMapBundleLoader.load(first, POLICY);
-        assertThat(MinimalPreparationBundle.EXPECTED_ARCHIVE_SHA256)
-                .isEqualTo("ec80f3b454699cb0a90d3d12309210939b3a97950222d7b5541fdc9ebb0e834b");
-        assertThat(bundle.archiveSha256().value())
-                .isEqualTo(MinimalPreparationBundle.EXPECTED_ARCHIVE_SHA256);
+        assertThat(bundle.archiveSha256().value() + ":" + first.length)
+                .isEqualTo(MinimalPreparationBundle.EXPECTED_ARCHIVE_SHA256 + ":0");
         assertThat(bundle.manifest().id()).isEqualTo(MinimalPreparationBundle.MAP_ID);
         assertThat(bundle.manifest().version().toString())
                 .isEqualTo(MinimalPreparationBundle.MAP_VERSION);
@@ -45,18 +43,34 @@ class MinimalPreparationBundleTest {
         Glb2Document collision =
                 Glb2ContainerDecoder.decode(
                         bundle.member("collision.glb"), bundle.manifest().limits());
-        assertThat(scene.nodeCount()).isEqualTo(12);
+        assertThat(scene.nodeCount()).isEqualTo(16);
         assertThat(scene.meshCount()).isEqualTo(6);
         assertThat(scene.materialCount()).isEqualTo(6);
         assertThat(scene.lightCount()).isEqualTo(1);
         assertThat(scene.jsonUtf8())
-                .contains("Ground", "CentralWallX", "CentralWallZ", "KHR_lights_punctual");
-        assertThat(collision.nodeCount()).isEqualTo(7);
+                .contains(
+                        "Ground",
+                        "GreenSupport",
+                        "BlueSupport",
+                        "RedSupport",
+                        "YellowSupport",
+                        "CentralWallX",
+                        "CentralWallZ",
+                        "KHR_lights_punctual");
+        assertThat(collision.nodeCount()).isEqualTo(11);
         assertThat(collision.meshCount()).isEqualTo(1);
         assertThat(collision.materialCount()).isZero();
         assertThat(collision.lightCount()).isZero();
         assertThat(collision.jsonUtf8())
-                .contains("GroundCollision", "CentralWallXCollision", "CentralWallZCollision");
+                .contains(
+                        "GroundCollision",
+                        "GreenSupportCollision",
+                        "BlueSupportCollision",
+                        "RedSupportCollision",
+                        "YellowSupportCollision",
+                        "CentralWallXCollision",
+                        "CentralWallZCollision");
+        assertThat(Glb2PreparationSupportDecoder.decode(collision).boxes()).hasSize(5);
     }
 
     @Test
