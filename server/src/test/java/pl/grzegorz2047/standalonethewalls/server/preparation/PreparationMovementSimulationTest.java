@@ -93,8 +93,7 @@ class PreparationMovementSimulationTest {
                         Map.of(ALPHA, new PreparationInput(2L, 1L, 127, 0, false, true, 0, 0)));
         PreparationWorldSnapshot standing =
                 crouchingSimulation.advanceTick(
-                        12L,
-                        Map.of(ALPHA, new PreparationInput(2L, 2L, 0, 0, false, false, 0, 0)));
+                        12L, Map.of(ALPHA, new PreparationInput(2L, 2L, 0, 0, false, false, 0, 0)));
         PreparationWorldSnapshot diagonal =
                 diagonalSimulation.advanceTick(
                         11L,

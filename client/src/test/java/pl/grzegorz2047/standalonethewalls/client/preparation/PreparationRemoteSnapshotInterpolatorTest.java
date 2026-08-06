@@ -35,31 +35,19 @@ class PreparationRemoteSnapshotInterpolatorTest {
     @Test
     void interpolatesAuthoritativeCrouchAmountAndExcludesTheLocalPlayer() {
         PreparationRemoteSnapshotInterpolator interpolator = interpolator();
-        interpolator.offer(
-                snapshot(
-                        30L,
-                        player(LOCAL, 0, 0, true),
-                        player(BRAVO, 0, 0, false)));
+        interpolator.offer(snapshot(30L, player(LOCAL, 0, 0, true), player(BRAVO, 0, 0, false)));
         assertThat(interpolator.current())
                 .extracting(PreparationRemotePlayerPose::playerId)
                 .containsExactly(BRAVO);
         assertThat(only(interpolator.current()).crouchAmount()).isZero();
 
-        interpolator.offer(
-                snapshot(
-                        32L,
-                        player(LOCAL, 0, 0, false),
-                        player(BRAVO, 0, 0, true)));
+        interpolator.offer(snapshot(32L, player(LOCAL, 0, 0, false), player(BRAVO, 0, 0, true)));
 
         assertThat(only(interpolator.advance(0.05d)).crouchAmount())
                 .isCloseTo(0.5d, within(0.000001d));
         assertThat(only(interpolator.advance(0.05d)).crouchAmount()).isEqualTo(1.0d);
 
-        interpolator.offer(
-                snapshot(
-                        34L,
-                        player(LOCAL, 0, 0, true),
-                        player(BRAVO, 0, 0, false)));
+        interpolator.offer(snapshot(34L, player(LOCAL, 0, 0, true), player(BRAVO, 0, 0, false)));
 
         assertThat(only(interpolator.advance(0.05d)).crouchAmount())
                 .isCloseTo(0.5d, within(0.000001d));

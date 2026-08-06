@@ -96,8 +96,7 @@ class PreparationMovementProtocolCodecTest {
 
     @Test
     void encodesTheExactFixedPointSnapshotVector() throws PreparationProtocolException {
-        PreparationPlayerSnapshot player =
-                player("a", 7L, 1_250, 2_000, -4_500, true, 4_500, -125);
+        PreparationPlayerSnapshot player = player("a", 7L, 1_250, 2_000, -4_500, true, 4_500, -125);
         PreparationWorldSnapshot snapshot = new PreparationWorldSnapshot(2L, 41L, List.of(player));
         byte[] playerId = player.playerId().value().getBytes(StandardCharsets.US_ASCII);
         byte[] expected =
