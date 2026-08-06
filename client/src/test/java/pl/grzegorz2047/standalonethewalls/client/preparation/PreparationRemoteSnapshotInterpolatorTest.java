@@ -33,6 +33,40 @@ class PreparationRemoteSnapshotInterpolatorTest {
     }
 
     @Test
+    void interpolatesAuthoritativeCrouchAmountAndExcludesTheLocalPlayer() {
+        PreparationRemoteSnapshotInterpolator interpolator = interpolator();
+        interpolator.offer(
+                snapshot(
+                        30L,
+                        player(LOCAL, 0, 0, true),
+                        player(BRAVO, 0, 0, false)));
+        assertThat(interpolator.current())
+                .extracting(PreparationRemotePlayerPose::playerId)
+                .containsExactly(BRAVO);
+        assertThat(only(interpolator.current()).crouchAmount()).isZero();
+
+        interpolator.offer(
+                snapshot(
+                        32L,
+                        player(LOCAL, 0, 0, false),
+                        player(BRAVO, 0, 0, true)));
+
+        assertThat(only(interpolator.advance(0.05d)).crouchAmount())
+                .isCloseTo(0.5d, within(0.000001d));
+        assertThat(only(interpolator.advance(0.05d)).crouchAmount()).isEqualTo(1.0d);
+
+        interpolator.offer(
+                snapshot(
+                        34L,
+                        player(LOCAL, 0, 0, true),
+                        player(BRAVO, 0, 0, false)));
+
+        assertThat(only(interpolator.advance(0.05d)).crouchAmount())
+                .isCloseTo(0.5d, within(0.000001d));
+        assertThat(only(interpolator.advance(0.05d)).crouchAmount()).isZero();
+    }
+
+    @Test
     void crossesTheYawBoundaryUsingTheShortestArc() {
         PreparationRemoteSnapshotInterpolator interpolator = interpolator();
         interpolator.offer(snapshot(2L, player(LOCAL, 0, 0), player(BRAVO, 0, 17_900)));
@@ -99,6 +133,12 @@ class PreparationRemoteSnapshotInterpolatorTest {
                 () -> interpolator.offer(snapshot(7L, player(LOCAL, 0, 0), player(BRAVO, 0, 0))));
         assertThrows(IllegalArgumentException.class, () -> interpolator.advance(-0.01d));
         assertThrows(IllegalArgumentException.class, () -> interpolator.advance(Double.NaN));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new PreparationRemotePlayerPose(BRAVO, 0, 0, 0, 0, 0, -0.01d));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new PreparationRemotePlayerPose(BRAVO, 0, 0, 0, 0, 0, 1.01d));
     }
 
     @Test
@@ -121,8 +161,13 @@ class PreparationRemoteSnapshotInterpolatorTest {
 
     private static PreparationPlayerSnapshot player(
             PlayerId playerId, int xMillimetres, int yawCentidegrees) {
+        return player(playerId, xMillimetres, yawCentidegrees, false);
+    }
+
+    private static PreparationPlayerSnapshot player(
+            PlayerId playerId, int xMillimetres, int yawCentidegrees, boolean crouching) {
         return new PreparationPlayerSnapshot(
-                playerId, 0L, xMillimetres, 500, 0, yawCentidegrees, 0);
+                playerId, 0L, xMillimetres, 500, 0, crouching, yawCentidegrees, 0);
     }
 
     private static PreparationRemotePlayerPose only(List<PreparationRemotePlayerPose> players) {
