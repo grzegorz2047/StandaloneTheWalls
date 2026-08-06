@@ -43,14 +43,7 @@ class PreparationMapSupportValidationTest {
                 new PreparationSupportMap(
                         List.of(
                                 box("GroundCollision", -1.0d, -1.0d, -1.0d, 1.0d, 0.0d, 1.0d),
-                                box(
-                                        "HighSupportCollision",
-                                        0.5d,
-                                        0.0d,
-                                        -0.5d,
-                                        1.0d,
-                                        1.0d,
-                                        0.5d)));
+                                box("HighSupportCollision", 0.5d, 0.0d, -0.5d, 1.0d, 1.0d, 0.5d)));
 
         assertThatThrownBy(() -> definition(supports))
                 .isInstanceOf(IllegalArgumentException.class)

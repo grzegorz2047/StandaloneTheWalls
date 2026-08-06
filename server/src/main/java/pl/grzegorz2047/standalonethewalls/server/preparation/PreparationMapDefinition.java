@@ -124,8 +124,7 @@ public record PreparationMapDefinition(
     }
 
     private static void requireSupportsInsideRegions(
-            PreparationSupportMap supportMap,
-            Iterable<PreparationRegionBounds> regions) {
+            PreparationSupportMap supportMap, Iterable<PreparationRegionBounds> regions) {
         for (PreparationSupportBox support : supportMap.boxes()) {
             boolean intersectsPlayableRegion = false;
             double playerCenterY =
