@@ -59,6 +59,50 @@ class PreparationJumpPredictionHistoryTest {
         assertThat(reconciled.grounded()).isEqualTo(expected.grounded());
     }
 
+    @Test
+    void consumesTheJumpEdgeOnlyOnceAcrossRepeatedFramesOfOneUnsubmittedSequence()
+            throws PreparationSceneLoadException, PreparationSceneGraphException {
+        PreparationPlayerState spawn = player();
+        PreparationCollisionWorld collisions = collisions(spawn);
+        PreparationPredictionHistory history = new PreparationPredictionHistory();
+        PreparationPlayerState state = spawn;
+
+        for (int frame = 0; frame < 20; frame++) {
+            state =
+                    history.predict(
+                            state, collisions, 1L, 0.0d, 0.0d, false, false, true, 0.05d);
+        }
+
+        assertThat(state.grounded()).isTrue();
+        assertThat(state.position().y()).isEqualTo(spawn.position().y());
+
+        PreparationPlayerState afterLanding =
+                history.predict(state, collisions, 1L, 0.0d, 0.0d, false, false, true, 0.05d);
+        assertThat(afterLanding.grounded()).isTrue();
+        assertThat(afterLanding.position().y()).isEqualTo(spawn.position().y());
+    }
+
+    @Test
+    void doesNotStoreAnAirJumpForAReplayFromA laterCorrection()
+            throws PreparationSceneLoadException, PreparationSceneGraphException {
+        PreparationPlayerState spawn = player();
+        PreparationCollisionWorld collisions = collisions(spawn);
+        PreparationPredictionHistory history = new PreparationPredictionHistory();
+        PreparationPlayerState airborne =
+                spawn.withAuthoritativeState(-15.0d, 0.8d, -14.0d, 4.0d, false, 45.0d, 0.0d);
+
+        PreparationPlayerState predicted =
+                history.predict(
+                        airborne, collisions, 1L, 0.0d, 0.0d, false, false, true, 0.05d);
+        PreparationPlayerState expected =
+                PreparationMovementController.move(
+                        airborne, collisions, 0.0d, 0.0d, false, false, false, 0.05d);
+
+        assertThat(predicted.position()).isEqualTo(expected.position());
+        assertThat(predicted.verticalVelocityMetresPerSecond())
+                .isEqualTo(expected.verticalVelocityMetresPerSecond());
+    }
+
     private static PreparationPlayerState player() throws PreparationSceneLoadException {
         byte[] digest = HexFormat.of().parseHex(MinimalPreparationBundle.EXPECTED_ARCHIVE_SHA256);
         PreparationSpawnAssignment assignment =
