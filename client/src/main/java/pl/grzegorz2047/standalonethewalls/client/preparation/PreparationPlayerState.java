@@ -20,7 +20,7 @@ public final class PreparationPlayerState {
     private final double verticalVelocityMetresPerSecond;
     private final boolean grounded;
     private final boolean crouching;
-    private final PreparationBarrierPolicy barrierPolicy;
+    private final PreparationBarrierPolicy storedBarrierPolicy;
     private final double yawDegrees;
     private final double pitchDegrees;
 
@@ -35,9 +35,14 @@ public final class PreparationPlayerState {
             double pitchDegrees) {
         this.scene = Objects.requireNonNull(scene, "scene");
         this.position = Objects.requireNonNull(position, "position");
-        this.barrierPolicy = Objects.requireNonNull(barrierPolicy, "barrierPolicy");
+        PreparationBarrierPolicy requested =
+                Objects.requireNonNull(barrierPolicy, "barrierPolicy");
+        storedBarrierPolicy =
+                scene.barrierPolicy() == PreparationBarrierPolicy.OPEN
+                        ? PreparationBarrierPolicy.OPEN
+                        : requested;
         boolean insideBounds =
-                barrierPolicy == PreparationBarrierPolicy.OPEN
+                storedBarrierPolicy == PreparationBarrierPolicy.OPEN
                         ? scene.worldBounds().contains(position)
                         : scene.region().contains(position);
         if (!insideBounds) {
@@ -63,7 +68,11 @@ public final class PreparationPlayerState {
         }
         if (!scene.obstacleMap()
                 .hasPlayerClearance(
-                        position.x(), position.y(), position.z(), crouching, barrierPolicy)) {
+                        position.x(),
+                        position.y(),
+                        position.z(),
+                        crouching,
+                        storedBarrierPolicy)) {
             throw new IllegalArgumentException(
                     "preparation player body overlaps a verified obstacle");
         }
@@ -112,7 +121,9 @@ public final class PreparationPlayerState {
     }
 
     public PreparationBarrierPolicy barrierPolicy() {
-        return barrierPolicy;
+        return scene.barrierPolicy() == PreparationBarrierPolicy.OPEN
+                ? PreparationBarrierPolicy.OPEN
+                : storedBarrierPolicy;
     }
 
     public double yawDegrees() {
@@ -125,10 +136,11 @@ public final class PreparationPlayerState {
 
     public PreparationPlayerState withBarrierPolicy(PreparationBarrierPolicy nextPolicy) {
         PreparationBarrierPolicy requested = Objects.requireNonNull(nextPolicy, "nextPolicy");
-        if (requested == barrierPolicy) {
+        PreparationBarrierPolicy current = barrierPolicy();
+        if (requested == current) {
             return this;
         }
-        if (barrierPolicy == PreparationBarrierPolicy.OPEN) {
+        if (current == PreparationBarrierPolicy.OPEN) {
             throw new IllegalArgumentException(
                     "central barriers cannot close again during the local round");
         }
@@ -187,7 +199,7 @@ public final class PreparationPlayerState {
                 authoritativeVerticalVelocityMetresPerSecond,
                 authoritativeGrounded,
                 authoritativeCrouching,
-                barrierPolicy,
+                barrierPolicy(),
                 normalizeYaw(authoritativeYawDegrees),
                 authoritativePitchDegrees);
     }
@@ -215,7 +227,7 @@ public final class PreparationPlayerState {
                 nextVerticalVelocityMetresPerSecond,
                 nextGrounded,
                 nextCrouching,
-                barrierPolicy,
+                barrierPolicy(),
                 yawDegrees,
                 pitchDegrees);
     }
@@ -230,7 +242,7 @@ public final class PreparationPlayerState {
                 verticalVelocityMetresPerSecond,
                 grounded,
                 nextCrouching,
-                barrierPolicy,
+                barrierPolicy(),
                 yawDegrees,
                 pitchDegrees);
     }
@@ -240,7 +252,7 @@ public final class PreparationPlayerState {
         requireFinite(deltaZ, "deltaZ");
         double requestedX = addFinite(position.x(), deltaX);
         double requestedZ = addFinite(position.z(), deltaZ);
-        if (barrierPolicy == PreparationBarrierPolicy.OPEN) {
+        if (barrierPolicy() == PreparationBarrierPolicy.OPEN) {
             PreparationWorldBounds bounds = scene.worldBounds();
             return new MapVector3(
                     bounds.clampX(requestedX), position.y(), bounds.clampZ(requestedZ));
@@ -264,7 +276,7 @@ public final class PreparationPlayerState {
                 verticalVelocityMetresPerSecond,
                 grounded,
                 crouching,
-                barrierPolicy,
+                barrierPolicy(),
                 yawDegrees,
                 pitchDegrees);
     }
@@ -286,7 +298,7 @@ public final class PreparationPlayerState {
                 nextVerticalVelocityMetresPerSecond,
                 nextGrounded,
                 crouching,
-                barrierPolicy,
+                barrierPolicy(),
                 yawDegrees,
                 pitchDegrees);
     }
@@ -314,7 +326,7 @@ public final class PreparationPlayerState {
                 verticalVelocityMetresPerSecond,
                 grounded,
                 crouching,
-                barrierPolicy,
+                barrierPolicy(),
                 nextYaw,
                 nextPitch);
     }
