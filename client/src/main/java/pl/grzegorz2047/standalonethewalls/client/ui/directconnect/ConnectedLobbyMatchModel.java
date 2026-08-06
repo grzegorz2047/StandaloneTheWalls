@@ -2,6 +2,7 @@ package pl.grzegorz2047.standalonethewalls.client.ui.directconnect;
 
 import java.util.Objects;
 import java.util.Optional;
+import pl.grzegorz2047.standalonethewalls.client.preparation.PreparationPhasePresentationBridge;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhase;
 
 /** Renderer-independent presentation of one authoritative match phase snapshot. */
@@ -38,6 +39,7 @@ public record ConnectedLobbyMatchModel(
     }
 
     public boolean lobbyControlsAllowed() {
+        PreparationPhasePresentationBridge.apply(phase);
         return phase == LobbyMatchPhase.WAITING_FOR_PLAYERS
                 || phase == LobbyMatchPhase.START_COUNTDOWN;
     }
