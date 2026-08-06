@@ -7,16 +7,23 @@ import pl.grzegorz2047.standalonethewalls.mapformat.MapVector3;
 
 /** Applies the verified preparation player position and bounded protocol view to the camera. */
 public final class PreparationCameraPlacement {
+    public static final double CROUCHING_CAMERA_DROP_METRES = 0.65d;
+
     private PreparationCameraPlacement() {
         throw new AssertionError("No instances");
     }
 
     public static void apply(Camera camera, PreparationPlayerState playerState) {
+        apply(camera, playerState, false);
+    }
+
+    public static void apply(Camera camera, PreparationPlayerState playerState, boolean crouching) {
         Camera target = Objects.requireNonNull(camera, "camera");
         PreparationPlayerState player = Objects.requireNonNull(playerState, "playerState");
         MapVector3 position = player.position();
+        double cameraY = position.y() - (crouching ? CROUCHING_CAMERA_DROP_METRES : 0.0d);
         target.setLocation(
-                new Vector3f((float) position.x(), (float) position.y(), (float) position.z()));
+                new Vector3f((float) position.x(), (float) cameraY, (float) position.z()));
         double pitchRadians = Math.toRadians(player.pitchDegrees());
         double horizontal = Math.cos(pitchRadians);
         target.lookAtDirection(

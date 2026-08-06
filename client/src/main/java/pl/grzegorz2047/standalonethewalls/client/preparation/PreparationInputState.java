@@ -17,6 +17,7 @@ public final class PreparationInputState {
     private boolean left;
     private boolean right;
     private boolean sprinting;
+    private boolean crouching;
 
     public boolean capture() {
         if (captured) {
@@ -59,8 +60,18 @@ public final class PreparationInputState {
         }
     }
 
+    public void setCrouching(boolean pressed) {
+        if (captured) {
+            crouching = pressed;
+        }
+    }
+
     public boolean sprinting() {
-        return sprinting;
+        return sprinting && !crouching;
+    }
+
+    public boolean crouching() {
+        return crouching;
     }
 
     public double forwardAxis() {
@@ -77,6 +88,7 @@ public final class PreparationInputState {
         left = false;
         right = false;
         sprinting = false;
+        crouching = false;
     }
 
     private static double axis(boolean positive, boolean negative) {

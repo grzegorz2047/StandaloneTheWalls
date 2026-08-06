@@ -35,7 +35,14 @@ public final class PreparationPredictionHistory {
             double rightAxis,
             double elapsedSeconds) {
         return predict(
-                current, collisions, sequence, forwardAxis, rightAxis, false, elapsedSeconds);
+                current,
+                collisions,
+                sequence,
+                forwardAxis,
+                rightAxis,
+                false,
+                false,
+                elapsedSeconds);
     }
 
     public PreparationPlayerState predict(
@@ -45,6 +52,26 @@ public final class PreparationPredictionHistory {
             double forwardAxis,
             double rightAxis,
             boolean sprinting,
+            double elapsedSeconds) {
+        return predict(
+                current,
+                collisions,
+                sequence,
+                forwardAxis,
+                rightAxis,
+                sprinting,
+                false,
+                elapsedSeconds);
+    }
+
+    public PreparationPlayerState predict(
+            PreparationPlayerState current,
+            PreparationCollisionWorld collisions,
+            long sequence,
+            double forwardAxis,
+            double rightAxis,
+            boolean sprinting,
+            boolean crouching,
             double elapsedSeconds) {
         PreparationPlayerState player = Objects.requireNonNull(current, "current");
         PreparationCollisionWorld world = Objects.requireNonNull(collisions, "collisions");
@@ -58,6 +85,7 @@ public final class PreparationPredictionHistory {
                         forwardAxis,
                         rightAxis,
                         sprinting,
+                        crouching,
                         player.yawDegrees(),
                         player.pitchDegrees(),
                         elapsedSeconds);
@@ -139,6 +167,7 @@ public final class PreparationPredictionHistory {
                 step.forwardAxis(),
                 step.rightAxis(),
                 step.sprinting(),
+                step.crouching(),
                 step.elapsedSeconds());
     }
 
@@ -147,6 +176,7 @@ public final class PreparationPredictionHistory {
             double forwardAxis,
             double rightAxis,
             boolean sprinting,
+            boolean crouching,
             double yawDegrees,
             double pitchDegrees,
             double elapsedSeconds) {
@@ -156,6 +186,10 @@ public final class PreparationPredictionHistory {
             }
             requireAxis(forwardAxis, "forwardAxis");
             requireAxis(rightAxis, "rightAxis");
+            if (sprinting && crouching) {
+                throw new IllegalArgumentException(
+                        "sprinting and crouching are mutually exclusive");
+            }
             if (!Double.isFinite(yawDegrees) || yawDegrees < -180.0d || yawDegrees >= 180.0d) {
                 throw new IllegalArgumentException("yawDegrees must be in [-180, 180)");
             }

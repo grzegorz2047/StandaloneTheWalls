@@ -13,11 +13,13 @@ class PreparationInputStateTest {
         input.set(Direction.FORWARD, true);
         input.set(Direction.RIGHT, true);
         input.setSprinting(true);
+        input.setCrouching(true);
 
         assertThat(input.captured()).isFalse();
         assertThat(input.forwardAxis()).isZero();
         assertThat(input.rightAxis()).isZero();
         assertThat(input.sprinting()).isFalse();
+        assertThat(input.crouching()).isFalse();
     }
 
     @Test
@@ -43,6 +45,7 @@ class PreparationInputStateTest {
         input.set(Direction.FORWARD, true);
         input.set(Direction.LEFT, true);
         input.setSprinting(true);
+        input.setCrouching(true);
 
         assertThat(input.release()).isTrue();
 
@@ -50,7 +53,26 @@ class PreparationInputStateTest {
         assertThat(input.forwardAxis()).isZero();
         assertThat(input.rightAxis()).isZero();
         assertThat(input.sprinting()).isFalse();
+        assertThat(input.crouching()).isFalse();
         assertThat(input.release()).isFalse();
+    }
+
+    @Test
+    void crouchingOverridesSprintButReleasingItRestoresHeldSprint() {
+        PreparationInputState input = new PreparationInputState();
+        input.capture();
+        input.setSprinting(true);
+
+        assertThat(input.sprinting()).isTrue();
+        assertThat(input.crouching()).isFalse();
+
+        input.setCrouching(true);
+        assertThat(input.sprinting()).isFalse();
+        assertThat(input.crouching()).isTrue();
+
+        input.setCrouching(false);
+        assertThat(input.sprinting()).isTrue();
+        assertThat(input.crouching()).isFalse();
     }
 
     @Test
