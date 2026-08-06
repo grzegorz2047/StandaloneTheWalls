@@ -17,7 +17,10 @@ class MinimalPreparationBundleTest {
 
     @Test
     void generatesTheSameCompleteVerifiedArchiveEveryTime()
-            throws TwMapBundleException, Glb2Exception, PreparationSupportException {
+            throws TwMapBundleException,
+                    Glb2Exception,
+                    PreparationSupportException,
+                    PreparationObstacleException {
         byte[] first = MinimalPreparationBundle.createArchive();
         byte[] second = MinimalPreparationBundle.createArchive();
 
@@ -71,6 +74,7 @@ class MinimalPreparationBundleTest {
                         "CentralWallXCollision",
                         "CentralWallZCollision");
         assertThat(Glb2PreparationSupportDecoder.decode(collision).boxes()).hasSize(5);
+        assertThat(Glb2PreparationObstacleDecoder.decode(collision).boxes()).hasSize(6);
     }
 
     @Test

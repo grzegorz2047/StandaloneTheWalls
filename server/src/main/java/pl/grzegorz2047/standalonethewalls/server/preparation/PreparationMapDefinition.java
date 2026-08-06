@@ -10,17 +10,19 @@ import java.util.OptionalDouble;
 import java.util.Set;
 import pl.grzegorz2047.standalonethewalls.domain.TeamId;
 import pl.grzegorz2047.standalonethewalls.mapformat.MapVector3;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationObstacleMap;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationSupportBox;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationSupportMap;
 import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationVerticalMotion;
 
-/** Immutable server-owned preparation map identity, regions, supports, and spawn candidates. */
+/** Immutable server-owned preparation map identity, regions, supports, obstacles, and spawns. */
 public record PreparationMapDefinition(
         String mapId,
         byte[] mapSha256,
         List<PreparationSpawnPoint> spawnPoints,
         Map<TeamId, PreparationRegionBounds> regions,
-        PreparationSupportMap supportMap) {
+        PreparationSupportMap supportMap,
+        PreparationObstacleMap obstacleMap) {
     public static final int MAXIMUM_MAP_ID_BYTES = 64;
     public static final int SHA_256_BYTES = 32;
     private static final int LEGACY_FIXTURE_PADDING_MILLIMETRES = 100_000;
@@ -37,7 +39,8 @@ public record PreparationMapDefinition(
                 mapSha256,
                 spawnPoints,
                 deriveFixtureRegions(spawnPoints),
-                deriveFixtureSupports(spawnPoints, deriveFixtureRegions(spawnPoints)));
+                deriveFixtureSupports(spawnPoints, deriveFixtureRegions(spawnPoints)),
+                PreparationObstacleMap.empty());
     }
 
     public PreparationMapDefinition(
@@ -45,7 +48,22 @@ public record PreparationMapDefinition(
             byte[] mapSha256,
             List<PreparationSpawnPoint> spawnPoints,
             Map<TeamId, PreparationRegionBounds> regions) {
-        this(mapId, mapSha256, spawnPoints, regions, deriveFixtureSupports(spawnPoints, regions));
+        this(
+                mapId,
+                mapSha256,
+                spawnPoints,
+                regions,
+                deriveFixtureSupports(spawnPoints, regions),
+                PreparationObstacleMap.empty());
+    }
+
+    public PreparationMapDefinition(
+            String mapId,
+            byte[] mapSha256,
+            List<PreparationSpawnPoint> spawnPoints,
+            Map<TeamId, PreparationRegionBounds> regions,
+            PreparationSupportMap supportMap) {
+        this(mapId, mapSha256, spawnPoints, regions, supportMap, PreparationObstacleMap.empty());
     }
 
     public PreparationMapDefinition {
@@ -84,6 +102,7 @@ public record PreparationMapDefinition(
             }
         }
         supportMap = Objects.requireNonNull(supportMap, "supportMap");
+        obstacleMap = Objects.requireNonNull(obstacleMap, "obstacleMap");
         requireSupportsInsideRegions(supportMap, copiedRegions.values());
         for (PreparationSpawnPoint spawnPoint : copiedSpawns) {
             PreparationRegionBounds region = copiedRegions.get(spawnPoint.team());
@@ -105,6 +124,10 @@ public record PreparationMapDefinition(
                             > SUPPORT_TOLERANCE_METRES) {
                 throw new IllegalArgumentException(
                         "preparation spawn is not supported by the authoritative collision map");
+            }
+            if (obstacleMap.overlapsPlayerBody(spawnPoint.x(), spawnPoint.y(), spawnPoint.z())) {
+                throw new IllegalArgumentException(
+                        "preparation spawn overlaps an authoritative obstacle");
             }
         }
         regions = Map.copyOf(copiedRegions);
