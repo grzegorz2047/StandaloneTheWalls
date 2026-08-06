@@ -29,11 +29,11 @@ class PreparationCollisionWorldTest {
             throws PreparationSceneLoadException, PreparationSceneGraphException {
         PreparationCollisionWorld collisions = collisionWorld();
 
-        assertThat(collisions.hasGroundSupport(new MapVector3(10.0d, 0.5d, 10.0d))).isTrue();
+        assertThat(collisions.hasGroundSupport(new MapVector3(15.0d, 0.5d, 15.0d))).isTrue();
         assertThat(collisions.hasGroundSupport(new MapVector3(25.0d, 0.5d, 25.0d))).isFalse();
         assertThat(
                         collisions.permitsHorizontal(
-                                new MapVector3(10.0d, 0.5d, 10.0d),
+                                new MapVector3(15.0d, 0.5d, 15.0d),
                                 new MapVector3(25.0d, 0.5d, 25.0d)))
                 .isFalse();
     }
