@@ -22,9 +22,7 @@ public final class PreparationCameraPlacement {
         PreparationPlayerState player = Objects.requireNonNull(playerState, "playerState");
         MapVector3 position = player.position();
         boolean effectiveCrouching = crouching || player.crouching();
-        double cameraY =
-                position.y()
-                        - (effectiveCrouching ? CROUCHING_CAMERA_DROP_METRES : 0.0d);
+        double cameraY = position.y() - (effectiveCrouching ? CROUCHING_CAMERA_DROP_METRES : 0.0d);
         target.setLocation(
                 new Vector3f((float) position.x(), (float) cameraY, (float) position.z()));
         double pitchRadians = Math.toRadians(player.pitchDegrees());

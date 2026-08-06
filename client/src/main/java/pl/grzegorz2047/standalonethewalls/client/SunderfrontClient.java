@@ -644,6 +644,7 @@ public final class SunderfrontClient extends SimpleApplication
                             authoritative.zMetres(),
                             authoritative.verticalVelocityMetresPerSecond(),
                             authoritative.grounded(),
+                            authoritative.crouching(),
                             authoritative.yawDegrees(),
                             authoritative.pitchDegrees());
             long acknowledgedSequence = authoritative.lastProcessedInputSequence();
