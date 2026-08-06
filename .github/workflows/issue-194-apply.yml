@@ -34,6 +34,23 @@ jobs:
           python3 .github/scripts/issue_194_apply.py >> "$log" 2>&1
           status=$?
           if [ "$status" -eq 0 ]; then
+            python3 - <<'PY' >> "$log" 2>&1
+          from pathlib import Path
+          path = Path('map-format/src/main/java/pl/grzegorz2047/standalonethewalls/mapformat/Glb2CanonicalBoxMeshVerifier.java')
+          source = path.read_text(encoding='utf-8')
+          marker = '''    static final class VerificationException extends Exception {
+                  private final Code code;'''
+          replacement = '''    static final class VerificationException extends Exception {
+                  private static final long serialVersionUID = 1L;
+
+                  private final Code code;'''
+          if marker not in source:
+              raise SystemExit('verification exception marker missing')
+          path.write_text(source.replace(marker, replacement), encoding='utf-8')
+          PY
+            status=$?
+          fi
+          if [ "$status" -eq 0 ]; then
             ./gradlew --no-daemon spotlessApply :map-format:test :map-format:spotbugsMain :map-format:spotbugsTest >> "$log" 2>&1
             status=$?
           fi
