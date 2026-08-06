@@ -38,28 +38,20 @@ jobs:
           path = Path('map-format/src/main/java/pl/grzegorz2047/standalonethewalls/mapformat/Glb2PreparationObstacleDecoder.java')
           source = path.read_text()
           if 'private static final String OBSTACLE_SUFFIX = "ObstacleCollision";' not in source:
-              old_constants = '''    private static final String WALL_X_SUFFIX = "WallXCollision";
-              private static final String WALL_Z_SUFFIX = "WallZCollision";'''
-              new_constants = '''    private static final String WALL_X_SUFFIX = "WallXCollision";
-              private static final String WALL_Z_SUFFIX = "WallZCollision";
-              private static final String OBSTACLE_SUFFIX = "ObstacleCollision";'''
-              if source.count(old_constants) != 1:
-                  raise SystemExit('unexpected obstacle suffix constants')
-              source = source.replace(old_constants, new_constants)
+              marker = '    private static final String WALL_Z_SUFFIX = "WallZCollision";'
+              replacement = marker + '\n    private static final String OBSTACLE_SUFFIX = "ObstacleCollision";'
+              if source.count(marker) != 1:
+                  raise SystemExit('unexpected obstacle suffix constant')
+              source = source.replace(marker, replacement)
           if 'name.endsWith(OBSTACLE_SUFFIX)' not in source:
-              old_predicate = '''                && (name.endsWith(WALL_SUFFIX)
-                                      || name.endsWith(WALL_X_SUFFIX)
-                                      || name.endsWith(WALL_Z_SUFFIX));'''
-              exact_predicate = '''                && (name.endsWith(WALL_SUFFIX)
-                        || name.endsWith(WALL_X_SUFFIX)
-                        || name.endsWith(WALL_Z_SUFFIX));'''
-              replacement = '''                && (name.endsWith(WALL_SUFFIX)
-                        || name.endsWith(WALL_X_SUFFIX)
-                        || name.endsWith(WALL_Z_SUFFIX)
-                        || name.endsWith(OBSTACLE_SUFFIX));'''
-              if source.count(exact_predicate) != 1:
+              marker = '                        || name.endsWith(WALL_Z_SUFFIX));'
+              replacement = (
+                  '                        || name.endsWith(WALL_Z_SUFFIX)\n'
+                  '                        || name.endsWith(OBSTACLE_SUFFIX));'
+              )
+              if source.count(marker) != 1:
                   raise SystemExit('unexpected obstacle name predicate')
-              source = source.replace(exact_predicate, replacement)
+              source = source.replace(marker, replacement)
           path.write_text(source)
           PY
 
