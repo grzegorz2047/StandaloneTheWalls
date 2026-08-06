@@ -118,10 +118,7 @@ class PreparationObstacleMovementSimulationTest {
     }
 
     private static PreparationMovementSimulation simulation(
-            double spawnX,
-            double spawnY,
-            double spawnZ,
-            PreparationObstacleBox obstacle) {
+            double spawnX, double spawnY, double spawnZ, PreparationObstacleBox obstacle) {
         PreparationObstacleMap obstacles = new PreparationObstacleMap(List.of(obstacle));
         PreparationMapDefinition map = map(spawnX, spawnY, spawnZ, obstacles);
         PreparationSpawnAssignment assignment =
@@ -140,16 +137,11 @@ class PreparationObstacleMovementSimulationTest {
     }
 
     private static PreparationMapDefinition map(
-            double spawnX,
-            double spawnY,
-            double spawnZ,
-            PreparationObstacleMap obstacles) {
+            double spawnX, double spawnY, double spawnZ, PreparationObstacleMap obstacles) {
         return new PreparationMapDefinition(
                 "minimal_preparation",
                 MAP_DIGEST,
-                List.of(
-                        new PreparationSpawnPoint(
-                                0, TeamId.RED, spawnX, spawnY, spawnZ, 0.0d)),
+                List.of(new PreparationSpawnPoint(0, TeamId.RED, spawnX, spawnY, spawnZ, 0.0d)),
                 Map.of(
                         TeamId.RED,
                         new PreparationRegionBounds(

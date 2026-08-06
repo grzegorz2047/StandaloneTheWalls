@@ -9,12 +9,14 @@ import org.junit.jupiter.api.Test;
 class PreparationObstacleMapTest {
     @Test
     void sortsBoxesAndRejectsDuplicateNames() {
-        PreparationObstacleBox west = box("WestWallCollision", -1.0d, 0.0d, -5.0d, 0.0d, 5.0d, 5.0d);
+        PreparationObstacleBox west =
+                box("WestWallCollision", -1.0d, 0.0d, -5.0d, 0.0d, 5.0d, 5.0d);
         PreparationObstacleBox east = box("EastWallCollision", 4.0d, 0.0d, -5.0d, 5.0d, 5.0d, 5.0d);
 
         PreparationObstacleMap map = new PreparationObstacleMap(List.of(west, east));
 
-        assertThat(map.boxes()).extracting(PreparationObstacleBox::name)
+        assertThat(map.boxes())
+                .extracting(PreparationObstacleBox::name)
                 .containsExactly("EastWallCollision", "WestWallCollision");
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> new PreparationObstacleMap(List.of(west, west)))

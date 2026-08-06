@@ -125,8 +125,7 @@ public record PreparationMapDefinition(
                 throw new IllegalArgumentException(
                         "preparation spawn is not supported by the authoritative collision map");
             }
-            if (obstacleMap.overlapsPlayerBody(
-                    spawnPoint.x(), spawnPoint.y(), spawnPoint.z())) {
+            if (obstacleMap.overlapsPlayerBody(spawnPoint.x(), spawnPoint.y(), spawnPoint.z())) {
                 throw new IllegalArgumentException(
                         "preparation spawn overlaps an authoritative obstacle");
             }

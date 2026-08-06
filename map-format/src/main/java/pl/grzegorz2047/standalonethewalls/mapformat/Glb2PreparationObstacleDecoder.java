@@ -400,7 +400,8 @@ public final class Glb2PreparationObstacleDecoder {
         double value = parser.getDoubleValue();
         if (!Double.isFinite(value)) {
             throw failure(
-                    PreparationObstacleException.Code.INVALID_NODE, description + " must be finite");
+                    PreparationObstacleException.Code.INVALID_NODE,
+                    description + " must be finite");
         }
         return value;
     }

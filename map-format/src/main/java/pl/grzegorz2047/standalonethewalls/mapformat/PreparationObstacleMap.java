@@ -70,11 +70,7 @@ public final class PreparationObstacleMap {
         for (PreparationObstacleBox box : boxes) {
             if (overlapsVertical(box, startYMetres, targetYMetres)
                     && sweptCircleIntersects(
-                            startXMetres,
-                            startZMetres,
-                            targetXMetres,
-                            targetZMetres,
-                            box)) {
+                            startXMetres, startZMetres, targetXMetres, targetZMetres, box)) {
                 return false;
             }
         }
@@ -99,8 +95,7 @@ public final class PreparationObstacleMap {
         double maximumX = box.maximum().x();
         double minimumZ = box.minimum().z();
         double maximumZ = box.maximum().z();
-        return pointDistanceSquaredToSegment(
-                                minimumX, minimumZ, startX, startZ, targetX, targetZ)
+        return pointDistanceSquaredToSegment(minimumX, minimumZ, startX, startZ, targetX, targetZ)
                         <= limit
                 || pointDistanceSquaredToSegment(
                                 minimumX, maximumZ, startX, startZ, targetX, targetZ)
@@ -120,18 +115,9 @@ public final class PreparationObstacleMap {
             double targetZ,
             PreparationObstacleBox box) {
         double[] interval = {0.0d, 1.0d};
-        return clipAxis(
-                        startX,
-                        targetX - startX,
-                        box.minimum().x(),
-                        box.maximum().x(),
-                        interval)
+        return clipAxis(startX, targetX - startX, box.minimum().x(), box.maximum().x(), interval)
                 && clipAxis(
-                        startZ,
-                        targetZ - startZ,
-                        box.minimum().z(),
-                        box.maximum().z(),
-                        interval);
+                        startZ, targetZ - startZ, box.minimum().z(), box.maximum().z(), interval);
     }
 
     private static boolean clipAxis(

@@ -95,7 +95,9 @@ public final class VerifiedPreparationMapAdapter {
             return new VerifiedCollision(
                     Glb2PreparationSupportDecoder.decode(collision),
                     Glb2PreparationObstacleDecoder.decode(collision));
-        } catch (Glb2Exception | PreparationSupportException | PreparationObstacleException exception) {
+        } catch (Glb2Exception
+                | PreparationSupportException
+                | PreparationObstacleException exception) {
             throw new VerifiedPreparationMapException(
                     VerifiedPreparationMapException.Code.INVALID_COLLISION,
                     "verified preparation collision GLB or semantic metadata is invalid",

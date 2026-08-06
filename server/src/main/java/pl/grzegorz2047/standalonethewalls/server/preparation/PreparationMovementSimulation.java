@@ -218,9 +218,7 @@ public final class PreparationMovementSimulation {
                         "preparation spawn is not on authoritative collision support");
             }
             if (obstacleMap.overlapsPlayerBody(
-                    xMillimetres / 1_000.0d,
-                    yMillimetres / 1_000.0d,
-                    zMillimetres / 1_000.0d)) {
+                    xMillimetres / 1_000.0d, yMillimetres / 1_000.0d, zMillimetres / 1_000.0d)) {
                 throw new IllegalArgumentException(
                         "preparation spawn overlaps an authoritative obstacle");
             }

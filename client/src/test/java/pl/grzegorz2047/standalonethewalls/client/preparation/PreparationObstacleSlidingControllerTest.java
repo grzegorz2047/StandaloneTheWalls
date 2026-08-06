@@ -42,10 +42,7 @@ class PreparationObstacleSlidingControllerTest {
                         new MapVector3(18.0d, 6.0d, 18.0d));
         PreparationMapSpawn spawn =
                 new PreparationMapSpawn(
-                        0,
-                        PreparationTeam.GREEN,
-                        new MapVector3(-0.86d, 0.5d, -2.0d),
-                        0.0d);
+                        0, PreparationTeam.GREEN, new MapVector3(-0.86d, 0.5d, -2.0d), 0.0d);
         return new VerifiedPreparationScene(
                 base.mapId(),
                 base.mapSha256(),
