@@ -94,13 +94,7 @@ public final class PreparationMovementController {
         double boundedSeconds = Math.min(elapsedSeconds, MAXIMUM_STEP_SECONDS);
         PreparationPlayerState postured = applyRequestedPosture(player, world, crouching);
         PreparationPlayerState moved =
-                moveHorizontal(
-                        postured,
-                        world,
-                        forwardAxis,
-                        rightAxis,
-                        sprinting,
-                        boundedSeconds);
+                moveHorizontal(postured, world, forwardAxis, rightAxis, sprinting, boundedSeconds);
         PreparationVerticalMotion.Step vertical =
                 PreparationVerticalMotion.advance(
                         moved.position().y(),
@@ -112,8 +106,7 @@ public final class PreparationMovementController {
         double limitedHeight =
                 world.limitUpwardMovement(
                         moved.position(), vertical.heightMetres(), moved.crouching());
-        if (limitedHeight
-                < vertical.heightMetres() - VERTICAL_COLLISION_TOLERANCE_METRES) {
+        if (limitedHeight < vertical.heightMetres() - VERTICAL_COLLISION_TOLERANCE_METRES) {
             vertical = new PreparationVerticalMotion.Step(limitedHeight, 0.0d, false);
         }
         return moved.withVerticalState(
@@ -150,8 +143,7 @@ public final class PreparationMovementController {
         if (requestedCrouching) {
             return player.withCrouching(true);
         }
-        if (!player.crouching()
-                || !world.hasPlayerClearance(player.position(), false)) {
+        if (!player.crouching() || !world.hasPlayerClearance(player.position(), false)) {
             return player;
         }
         return player.withCrouching(false);
@@ -206,8 +198,7 @@ public final class PreparationMovementController {
         MapVector3 target = player.horizontalPositionAfter(deltaX, deltaZ);
         if ((Double.compare(target.x(), player.position().x()) == 0
                         && Double.compare(target.z(), player.position().z()) == 0)
-                || !world.permitsHorizontal(
-                        player.position(), target, false, player.crouching())) {
+                || !world.permitsHorizontal(player.position(), target, false, player.crouching())) {
             return player;
         }
 
