@@ -1,0 +1,61 @@
+name: Issue 196 formatting proof
+
+on:
+  push:
+    branches:
+      - agent/issue-196-authoritative-headroom
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Set up Java 21
+        uses: actions/setup-java@d7793b545071e98d581d3bf084a51c3213318a07
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
+        with:
+          cache-read-only: true
+
+      - name: Apply repository formatting
+        run: ./gradlew --no-daemon spotlessApply
+
+      - name: Collect formatted files
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUTPUT=build/issue-196-formatted
+          FILES=(
+            map-format/src/main/java/pl/grzegorz2047/standalonethewalls/mapformat/PreparationPlayerBodyProfile.java
+            map-format/src/main/java/pl/grzegorz2047/standalonethewalls/mapformat/PreparationObstacleMap.java
+            map-format/src/test/java/pl/grzegorz2047/standalonethewalls/mapformat/PreparationObstacleMapTest.java
+            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/VerifiedPreparationScene.java
+            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationSceneLoader.java
+            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationCollisionWorld.java
+            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationPlayerState.java
+            client/src/main/java/pl/grzegorz2047/standalonethewalls/client/preparation/PreparationMovementController.java
+            server/src/main/java/pl/grzegorz2047/standalonethewalls/server/preparation/PreparationMovementSimulation.java
+            server/src/test/java/pl/grzegorz2047/standalonethewalls/server/preparation/PreparationObstacleMovementSimulationTest.java
+          )
+          for FILE in "${FILES[@]}"; do
+            mkdir -p "$OUTPUT/$(dirname "$FILE")"
+            cp "$FILE" "$OUTPUT/$FILE"
+          done
+
+      - name: Upload formatted files
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: issue-196-formatted
+          path: build/issue-196-formatted/**
+          if-no-files-found: error
+          retention-days: 1
