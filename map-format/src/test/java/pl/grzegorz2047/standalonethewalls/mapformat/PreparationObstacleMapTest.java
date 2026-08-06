@@ -24,14 +24,62 @@ class PreparationObstacleMapTest {
     }
 
     @Test
-    void detectsStaticBodyOverlapAndHonoursVerticalSeparation() {
+    void detectsTheFullStandingBodyAndHonoursVerticalSeparation() {
         PreparationObstacleMap map =
                 new PreparationObstacleMap(
                         List.of(box("WallCollision", -0.5d, 0.0d, -5.0d, 0.5d, 5.0d, 5.0d)));
 
         assertThat(map.overlapsPlayerBody(0.84d, 0.5d, 0.0d)).isTrue();
         assertThat(map.overlapsPlayerBody(0.86d, 0.5d, 0.0d)).isFalse();
-        assertThat(map.overlapsPlayerBody(0.0d, 5.36d, 0.0d)).isFalse();
+        assertThat(map.overlapsPlayerBody(0.0d, 5.49d, 0.0d)).isTrue();
+        assertThat(map.overlapsPlayerBody(0.0d, 5.5d, 0.0d)).isFalse();
+    }
+
+    @Test
+    void permitsCrouchingButBlocksStandingInsideALowPassage() {
+        PreparationObstacleMap map =
+                new PreparationObstacleMap(
+                        List.of(
+                                box(
+                                        "LowObstacleCollision",
+                                        -2.0d,
+                                        1.15d,
+                                        -2.0d,
+                                        2.0d,
+                                        1.35d,
+                                        2.0d)));
+
+        assertThat(map.hasPlayerClearance(0.0d, 0.5d, 0.0d, false)).isFalse();
+        assertThat(map.hasPlayerClearance(0.0d, 0.5d, 0.0d, true)).isTrue();
+        assertThat(map.permitsMovement(-3.0d, 0.5d, 0.0d, 0.0d, 0.5d, 0.0d, false)).isFalse();
+        assertThat(map.permitsMovement(-3.0d, 0.5d, 0.0d, 0.0d, 0.5d, 0.0d, true)).isTrue();
+    }
+
+    @Test
+    void limitsUpwardMovementAtTheNearestCeilingWithoutTunnelling() {
+        PreparationObstacleMap map =
+                new PreparationObstacleMap(
+                        List.of(
+                                box(
+                                        "CeilingObstacleCollision",
+                                        -2.0d,
+                                        2.0d,
+                                        -2.0d,
+                                        2.0d,
+                                        2.2d,
+                                        2.0d),
+                                box(
+                                        "HigherObstacleCollision",
+                                        -2.0d,
+                                        3.0d,
+                                        -2.0d,
+                                        2.0d,
+                                        3.2d,
+                                        2.0d)));
+
+        assertThat(map.limitUpwardMovement(0.0d, 0.0d, 0.5d, 4.0d, false)).isEqualTo(0.7d);
+        assertThat(map.limitUpwardMovement(3.0d, 0.0d, 0.5d, 4.0d, false)).isEqualTo(4.0d);
+        assertThat(map.limitUpwardMovement(0.0d, 0.0d, 0.5d, 0.6d, false)).isEqualTo(0.6d);
     }
 
     @Test

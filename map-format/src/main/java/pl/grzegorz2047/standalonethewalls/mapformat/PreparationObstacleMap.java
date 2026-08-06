@@ -7,10 +7,11 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-/** Bounded deterministic obstacle queries shared by map validation and server movement. */
+/** Bounded deterministic obstacle queries shared by map validation and player movement. */
 public final class PreparationObstacleMap {
     public static final int MAXIMUM_BOXES = 64;
-    public static final double PLAYER_BODY_RADIUS_METRES = 0.35d;
+    public static final double PLAYER_BODY_RADIUS_METRES =
+            PreparationPlayerBodyProfile.HORIZONTAL_RADIUS_METRES;
     private static final double COLLISION_EPSILON_METRES = 0.000001d;
 
     private final List<PreparationObstacleBox> boxes;
@@ -40,12 +41,22 @@ public final class PreparationObstacleMap {
         return boxes;
     }
 
+    public boolean hasPlayerClearance(
+            double xMetres, double yMetres, double zMetres, boolean crouching) {
+        return !overlapsPlayerBody(xMetres, yMetres, zMetres, crouching);
+    }
+
     public boolean overlapsPlayerBody(double xMetres, double yMetres, double zMetres) {
+        return overlapsPlayerBody(xMetres, yMetres, zMetres, false);
+    }
+
+    public boolean overlapsPlayerBody(
+            double xMetres, double yMetres, double zMetres, boolean crouching) {
         requireFinite(xMetres, "xMetres");
         requireFinite(yMetres, "yMetres");
         requireFinite(zMetres, "zMetres");
         for (PreparationObstacleBox box : boxes) {
-            if (overlapsVertical(box, yMetres, yMetres)
+            if (overlapsVertical(box, yMetres, yMetres, crouching)
                     && pointDistanceSquaredToHorizontalBox(xMetres, zMetres, box)
                             <= radiusSquaredWithEpsilon()) {
                 return true;
@@ -61,6 +72,24 @@ public final class PreparationObstacleMap {
             double targetXMetres,
             double targetYMetres,
             double targetZMetres) {
+        return permitsMovement(
+                startXMetres,
+                startYMetres,
+                startZMetres,
+                targetXMetres,
+                targetYMetres,
+                targetZMetres,
+                false);
+    }
+
+    public boolean permitsMovement(
+            double startXMetres,
+            double startYMetres,
+            double startZMetres,
+            double targetXMetres,
+            double targetYMetres,
+            double targetZMetres,
+            boolean crouching) {
         requireFinite(startXMetres, "startXMetres");
         requireFinite(startYMetres, "startYMetres");
         requireFinite(startZMetres, "startZMetres");
@@ -68,13 +97,48 @@ public final class PreparationObstacleMap {
         requireFinite(targetYMetres, "targetYMetres");
         requireFinite(targetZMetres, "targetZMetres");
         for (PreparationObstacleBox box : boxes) {
-            if (overlapsVertical(box, startYMetres, targetYMetres)
+            if (overlapsVertical(box, startYMetres, targetYMetres, crouching)
                     && sweptCircleIntersects(
                             startXMetres, startZMetres, targetXMetres, targetZMetres, box)) {
                 return false;
             }
         }
         return true;
+    }
+
+    public double limitUpwardMovement(
+            double xMetres,
+            double zMetres,
+            double startYMetres,
+            double targetYMetres,
+            boolean crouching) {
+        requireFinite(xMetres, "xMetres");
+        requireFinite(zMetres, "zMetres");
+        requireFinite(startYMetres, "startYMetres");
+        requireFinite(targetYMetres, "targetYMetres");
+        if (targetYMetres <= startYMetres) {
+            return targetYMetres;
+        }
+
+        double startHeadY = PreparationPlayerBodyProfile.maximumY(startYMetres, crouching);
+        double targetHeadY = PreparationPlayerBodyProfile.maximumY(targetYMetres, crouching);
+        double headOffset = PreparationPlayerBodyProfile.headOffsetFromPosition(crouching);
+        double limitedY = targetYMetres;
+        for (PreparationObstacleBox box : boxes) {
+            if (pointDistanceSquaredToHorizontalBox(xMetres, zMetres, box)
+                    > radiusSquaredWithEpsilon()) {
+                continue;
+            }
+            if (overlapsVertical(box, startYMetres, startYMetres, crouching)) {
+                return startYMetres;
+            }
+            double undersideY = box.minimum().y();
+            if (undersideY >= startHeadY - COLLISION_EPSILON_METRES
+                    && undersideY < targetHeadY - COLLISION_EPSILON_METRES) {
+                limitedY = Math.min(limitedY, undersideY - headOffset);
+            }
+        }
+        return Math.max(startYMetres, limitedY);
     }
 
     private static boolean sweptCircleIntersects(
@@ -173,16 +237,17 @@ public final class PreparationObstacleMap {
     }
 
     private static boolean overlapsVertical(
-            PreparationObstacleBox box, double startYMetres, double targetYMetres) {
+            PreparationObstacleBox box,
+            double startYMetres,
+            double targetYMetres,
+            boolean crouching) {
         double minimumBodyY =
-                Math.min(startYMetres, targetYMetres)
-                        - PLAYER_BODY_RADIUS_METRES
-                        - COLLISION_EPSILON_METRES;
+                PreparationPlayerBodyProfile.minimumY(Math.min(startYMetres, targetYMetres));
         double maximumBodyY =
-                Math.max(startYMetres, targetYMetres)
-                        + PLAYER_BODY_RADIUS_METRES
-                        + COLLISION_EPSILON_METRES;
-        return box.maximum().y() >= minimumBodyY && box.minimum().y() <= maximumBodyY;
+                PreparationPlayerBodyProfile.maximumY(
+                        Math.max(startYMetres, targetYMetres), crouching);
+        return box.maximum().y() > minimumBodyY + COLLISION_EPSILON_METRES
+                && box.minimum().y() < maximumBodyY - COLLISION_EPSILON_METRES;
     }
 
     private static double radiusSquaredWithEpsilon() {

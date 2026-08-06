@@ -3,6 +3,7 @@ package pl.grzegorz2047.standalonethewalls.client.preparation;
 import java.util.Objects;
 import pl.grzegorz2047.standalonethewalls.mapformat.Glb2Document;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationMapSpawn;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationObstacleMap;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationRegion;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationSupportMap;
 
@@ -15,6 +16,7 @@ public final class VerifiedPreparationScene {
     private final Glb2Document sceneDocument;
     private final Glb2Document collisionDocument;
     private final PreparationSupportMap supportMap;
+    private final PreparationObstacleMap obstacleMap;
     private final PreparationRegion region;
     private final PreparationMapSpawn spawn;
 
@@ -26,6 +28,7 @@ public final class VerifiedPreparationScene {
             Glb2Document sceneDocument,
             Glb2Document collisionDocument,
             PreparationSupportMap supportMap,
+            PreparationObstacleMap obstacleMap,
             PreparationRegion region,
             PreparationMapSpawn spawn) {
         this.mapId = Objects.requireNonNull(mapId, "mapId");
@@ -35,6 +38,7 @@ public final class VerifiedPreparationScene {
         this.sceneDocument = Objects.requireNonNull(sceneDocument, "sceneDocument");
         this.collisionDocument = Objects.requireNonNull(collisionDocument, "collisionDocument");
         this.supportMap = Objects.requireNonNull(supportMap, "supportMap");
+        this.obstacleMap = Objects.requireNonNull(obstacleMap, "obstacleMap");
         this.region = Objects.requireNonNull(region, "region");
         this.spawn = Objects.requireNonNull(spawn, "spawn");
     }
@@ -65,6 +69,10 @@ public final class VerifiedPreparationScene {
 
     public PreparationSupportMap supportMap() {
         return supportMap;
+    }
+
+    public PreparationObstacleMap obstacleMap() {
+        return obstacleMap;
     }
 
     public PreparationRegion region() {

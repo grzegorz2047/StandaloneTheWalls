@@ -10,6 +10,8 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import pl.grzegorz2047.standalonethewalls.mapformat.MapVector3;
 import pl.grzegorz2047.standalonethewalls.mapformat.MinimalPreparationBundle;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationObstacleBox;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationObstacleMap;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationSupportBox;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationSupportMap;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
@@ -37,6 +39,36 @@ class PreparationSupportMovementControllerTest {
         assertThat(platform.verticalVelocityMetresPerSecond()).isZero();
         assertThat(descended.position()).isEqualTo(new MapVector3(-12.0d, 0.5d, -9.5d));
         assertThat(descended.grounded()).isTrue();
+    }
+
+    @Test
+    void blocksStandingStepUpWithoutHeadroomButAllowsTheCrouchingBody()
+            throws PreparationSceneLoadException, PreparationSceneGraphException {
+        VerifiedPreparationScene base = scene();
+        List<PreparationObstacleBox> boxes = new ArrayList<>(base.obstacleMap().boxes());
+        boxes.add(
+                new PreparationObstacleBox(
+                        "PlatformCeilingObstacleCollision",
+                        new MapVector3(-11.44d, 2.0d, -10.0d),
+                        new MapVector3(-10.8d, 2.2d, -9.0d)));
+        VerifiedPreparationScene scene = withObstacles(base, new PreparationObstacleMap(boxes));
+        PreparationCollisionWorld collisions = collisions(scene);
+        PreparationPlayerState ground =
+                PreparationPlayerState.atAuthoritativeSpawn(scene)
+                        .withAuthoritativeState(-11.8d, 0.5d, -9.5d, 0.0d, true, false, 0.0d, 0.0d);
+
+        PreparationPlayerState standing =
+                PreparationMovementController.move(
+                        ground, collisions, 1.0d, 0.0d, false, false, false, 0.1d);
+        PreparationPlayerState crouching =
+                PreparationMovementController.move(
+                        ground, collisions, 1.0d, 0.0d, false, true, false, 0.1d);
+
+        assertThat(standing.position()).isEqualTo(new MapVector3(-11.8d, 0.5d, -9.5d));
+        assertThat(standing.crouching()).isFalse();
+        assertThat(crouching.position()).isEqualTo(new MapVector3(-11.5d, 1.0d, -9.5d));
+        assertThat(crouching.crouching()).isTrue();
+        assertThat(crouching.grounded()).isTrue();
     }
 
     @Test
@@ -115,6 +147,22 @@ class PreparationSupportMovementControllerTest {
                 scene.sceneDocument(),
                 scene.collisionDocument(),
                 supports,
+                scene.obstacleMap(),
+                scene.region(),
+                scene.spawn());
+    }
+
+    private static VerifiedPreparationScene withObstacles(
+            VerifiedPreparationScene scene, PreparationObstacleMap obstacles) {
+        return new VerifiedPreparationScene(
+                scene.mapId(),
+                scene.mapSha256(),
+                scene.sceneGlb(),
+                scene.collisionGlb(),
+                scene.sceneDocument(),
+                scene.collisionDocument(),
+                scene.supportMap(),
+                obstacles,
                 scene.region(),
                 scene.spawn());
     }

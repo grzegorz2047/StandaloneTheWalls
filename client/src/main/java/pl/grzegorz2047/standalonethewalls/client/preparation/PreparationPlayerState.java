@@ -17,6 +17,7 @@ public final class PreparationPlayerState {
     private final MapVector3 position;
     private final double verticalVelocityMetresPerSecond;
     private final boolean grounded;
+    private final boolean crouching;
     private final double yawDegrees;
     private final double pitchDegrees;
 
@@ -25,6 +26,7 @@ public final class PreparationPlayerState {
             MapVector3 position,
             double verticalVelocityMetresPerSecond,
             boolean grounded,
+            boolean crouching,
             double yawDegrees,
             double pitchDegrees) {
         this.scene = Objects.requireNonNull(scene, "scene");
@@ -50,8 +52,14 @@ public final class PreparationPlayerState {
         if (grounded && Math.abs(position.y() - support) > SUPPORT_TOLERANCE_METRES) {
             throw new IllegalArgumentException("grounded player must remain on map support");
         }
+        if (!scene.obstacleMap()
+                .hasPlayerClearance(position.x(), position.y(), position.z(), crouching)) {
+            throw new IllegalArgumentException(
+                    "preparation player body overlaps a verified obstacle");
+        }
         this.verticalVelocityMetresPerSecond = verticalVelocityMetresPerSecond;
         this.grounded = grounded;
+        this.crouching = crouching;
         this.yawDegrees = requireNormalizedYaw(yawDegrees);
         this.pitchDegrees = requirePitch(pitchDegrees);
     }
@@ -63,6 +71,7 @@ public final class PreparationPlayerState {
                 verifiedScene.spawn().position(),
                 0.0d,
                 true,
+                false,
                 normalizeYaw(verifiedScene.spawn().yawDegrees()),
                 0.0d);
     }
@@ -87,6 +96,10 @@ public final class PreparationPlayerState {
         return grounded;
     }
 
+    public boolean crouching() {
+        return crouching;
+    }
+
     public double yawDegrees() {
         return yawDegrees;
     }
@@ -102,7 +115,7 @@ public final class PreparationPlayerState {
             double authoritativeYawDegrees,
             double authoritativePitchDegrees) {
         return withAuthoritativeState(
-                x, y, z, 0.0d, true, authoritativeYawDegrees, authoritativePitchDegrees);
+                x, y, z, 0.0d, true, crouching, authoritativeYawDegrees, authoritativePitchDegrees);
     }
 
     public PreparationPlayerState withAuthoritativeState(
@@ -113,11 +126,32 @@ public final class PreparationPlayerState {
             boolean authoritativeGrounded,
             double authoritativeYawDegrees,
             double authoritativePitchDegrees) {
+        return withAuthoritativeState(
+                x,
+                y,
+                z,
+                authoritativeVerticalVelocityMetresPerSecond,
+                authoritativeGrounded,
+                crouching,
+                authoritativeYawDegrees,
+                authoritativePitchDegrees);
+    }
+
+    public PreparationPlayerState withAuthoritativeState(
+            double x,
+            double y,
+            double z,
+            double authoritativeVerticalVelocityMetresPerSecond,
+            boolean authoritativeGrounded,
+            boolean authoritativeCrouching,
+            double authoritativeYawDegrees,
+            double authoritativePitchDegrees) {
         return new PreparationPlayerState(
                 scene,
                 new MapVector3(x, y, z),
                 authoritativeVerticalVelocityMetresPerSecond,
                 authoritativeGrounded,
+                authoritativeCrouching,
                 normalizeYaw(authoritativeYawDegrees),
                 authoritativePitchDegrees);
     }
@@ -128,11 +162,37 @@ public final class PreparationPlayerState {
             double z,
             double nextVerticalVelocityMetresPerSecond,
             boolean nextGrounded) {
+        return withMovementState(
+                x, y, z, nextVerticalVelocityMetresPerSecond, nextGrounded, crouching);
+    }
+
+    public PreparationPlayerState withMovementState(
+            double x,
+            double y,
+            double z,
+            double nextVerticalVelocityMetresPerSecond,
+            boolean nextGrounded,
+            boolean nextCrouching) {
         return new PreparationPlayerState(
                 scene,
                 new MapVector3(x, y, z),
                 nextVerticalVelocityMetresPerSecond,
                 nextGrounded,
+                nextCrouching,
+                yawDegrees,
+                pitchDegrees);
+    }
+
+    public PreparationPlayerState withCrouching(boolean nextCrouching) {
+        if (nextCrouching == crouching) {
+            return this;
+        }
+        return new PreparationPlayerState(
+                scene,
+                position,
+                verticalVelocityMetresPerSecond,
+                grounded,
+                nextCrouching,
                 yawDegrees,
                 pitchDegrees);
     }
@@ -154,7 +214,13 @@ public final class PreparationPlayerState {
             return this;
         }
         return new PreparationPlayerState(
-                scene, target, verticalVelocityMetresPerSecond, grounded, yawDegrees, pitchDegrees);
+                scene,
+                target,
+                verticalVelocityMetresPerSecond,
+                grounded,
+                crouching,
+                yawDegrees,
+                pitchDegrees);
     }
 
     public PreparationPlayerState withVerticalState(
@@ -173,6 +239,7 @@ public final class PreparationPlayerState {
                 new MapVector3(position.x(), heightMetres, position.z()),
                 nextVerticalVelocityMetresPerSecond,
                 nextGrounded,
+                crouching,
                 yawDegrees,
                 pitchDegrees);
     }
@@ -195,7 +262,13 @@ public final class PreparationPlayerState {
             return this;
         }
         return new PreparationPlayerState(
-                scene, position, verticalVelocityMetresPerSecond, grounded, nextYaw, nextPitch);
+                scene,
+                position,
+                verticalVelocityMetresPerSecond,
+                grounded,
+                crouching,
+                nextYaw,
+                nextPitch);
     }
 
     private static double supportAtOrBelow(VerifiedPreparationScene scene, MapVector3 position) {

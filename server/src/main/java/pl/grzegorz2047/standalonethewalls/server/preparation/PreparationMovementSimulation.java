@@ -36,6 +36,7 @@ public final class PreparationMovementSimulation {
     private static final double TICK_SECONDS = 1.0d / TICKS_PER_SECOND;
     private static final int MAXIMUM_JUMP_HEIGHT_MILLIMETRES = 1_000;
     private static final double SUPPORT_TOLERANCE_MILLIMETRES = 1.0d;
+    private static final double VERTICAL_COLLISION_TOLERANCE_METRES = 0.000001d;
 
     private final long roundNumber;
     private final TreeMap<PlayerId, PlayerState> players =
@@ -191,6 +192,7 @@ public final class PreparationMovementSimulation {
         private double zMillimetres;
         private double verticalVelocityMetresPerSecond;
         private boolean grounded = true;
+        private boolean crouching;
         private long consumedJumpSequence;
         private long lastProcessedInputSequence;
         private int yawCentidegrees;
@@ -217,10 +219,13 @@ public final class PreparationMovementSimulation {
                 throw new IllegalArgumentException(
                         "preparation spawn is not on authoritative collision support");
             }
-            if (obstacleMap.overlapsPlayerBody(
-                    xMillimetres / 1_000.0d, yMillimetres / 1_000.0d, zMillimetres / 1_000.0d)) {
+            if (!obstacleMap.hasPlayerClearance(
+                    xMillimetres / 1_000.0d,
+                    yMillimetres / 1_000.0d,
+                    zMillimetres / 1_000.0d,
+                    false)) {
                 throw new IllegalArgumentException(
-                        "preparation spawn overlaps an authoritative obstacle");
+                        "preparation spawn has no authoritative standing clearance");
             }
             if ((long) yMillimetres + MAXIMUM_JUMP_HEIGHT_MILLIMETRES
                     > region.maximumYMillimetres()) {
@@ -262,11 +267,12 @@ public final class PreparationMovementSimulation {
         private void advance() {
             PreparationInput input = activeInput;
             if (input != null) {
+                applyRequestedPosture(input.crouching());
                 advanceHorizontal(input);
             }
             boolean jumpRequested = false;
             if (input != null && input.jumping() && input.sequence() != consumedJumpSequence) {
-                jumpRequested = grounded;
+                jumpRequested = grounded && !crouching;
                 consumedJumpSequence = input.sequence();
             }
             double groundYMillimetres = supportAtOrBelow(xMillimetres, zMillimetres, yMillimetres);
@@ -278,9 +284,35 @@ public final class PreparationMovementSimulation {
                             grounded,
                             jumpRequested,
                             TICK_SECONDS);
+            double limitedHeightMetres =
+                    obstacleMap.limitUpwardMovement(
+                            xMillimetres / 1_000.0d,
+                            zMillimetres / 1_000.0d,
+                            yMillimetres / 1_000.0d,
+                            vertical.heightMetres(),
+                            crouching);
+            if (limitedHeightMetres
+                    < vertical.heightMetres() - VERTICAL_COLLISION_TOLERANCE_METRES) {
+                vertical = new PreparationVerticalMotion.Step(limitedHeightMetres, 0.0d, false);
+            }
             yMillimetres = vertical.heightMetres() * 1_000.0d;
             verticalVelocityMetresPerSecond = vertical.verticalVelocityMetresPerSecond();
             grounded = vertical.grounded();
+        }
+
+        private void applyRequestedPosture(boolean requestedCrouching) {
+            if (requestedCrouching) {
+                crouching = true;
+                return;
+            }
+            if (crouching
+                    && obstacleMap.hasPlayerClearance(
+                            xMillimetres / 1_000.0d,
+                            yMillimetres / 1_000.0d,
+                            zMillimetres / 1_000.0d,
+                            false)) {
+                crouching = false;
+            }
         }
 
         private void advanceHorizontal(PreparationInput input) {
@@ -300,7 +332,7 @@ public final class PreparationMovementSimulation {
             double rightX = -Math.sin(radians);
             double rightZ = Math.cos(radians);
             double step =
-                    input.crouching()
+                    crouching
                             ? CROUCHING_STEP_MILLIMETRES
                             : input.sprinting()
                                     ? SPRINTING_STEP_MILLIMETRES
@@ -364,7 +396,8 @@ public final class PreparationMovementSimulation {
                     zMillimetres / 1_000.0d,
                     targetX / 1_000.0d,
                     targetYMillimetres / 1_000.0d,
-                    targetZ / 1_000.0d)) {
+                    targetZ / 1_000.0d,
+                    crouching)) {
                 return false;
             }
             xMillimetres = targetX;
@@ -405,7 +438,7 @@ public final class PreparationMovementSimulation {
                     (int) Math.round(zMillimetres),
                     (int) Math.round(verticalVelocityMetresPerSecond * 1_000.0d),
                     grounded,
-                    activeInput != null && activeInput.crouching(),
+                    crouching,
                     yawCentidegrees,
                     pitchCentidegrees);
         }

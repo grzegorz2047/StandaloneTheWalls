@@ -17,6 +17,7 @@ public final class PreparationMovementController {
     public static final double PITCH_DEGREES_PER_MOUSE_PIXEL = 0.10d;
 
     private static final double SUPPORT_TOLERANCE_METRES = 0.001d;
+    private static final double VERTICAL_COLLISION_TOLERANCE_METRES = 0.000001d;
 
     private PreparationMovementController() {
         throw new AssertionError("No instances");
@@ -91,23 +92,23 @@ public final class PreparationMovementController {
         }
 
         double boundedSeconds = Math.min(elapsedSeconds, MAXIMUM_STEP_SECONDS);
+        PreparationPlayerState postured = applyRequestedPosture(player, world, crouching);
         PreparationPlayerState moved =
-                moveHorizontal(
-                        player,
-                        world,
-                        forwardAxis,
-                        rightAxis,
-                        sprinting,
-                        crouching,
-                        boundedSeconds);
+                moveHorizontal(postured, world, forwardAxis, rightAxis, sprinting, boundedSeconds);
         PreparationVerticalMotion.Step vertical =
                 PreparationVerticalMotion.advance(
                         moved.position().y(),
                         moved.groundHeightMetres(),
                         moved.verticalVelocityMetresPerSecond(),
                         moved.grounded(),
-                        jumping,
+                        jumping && !moved.crouching(),
                         boundedSeconds);
+        double limitedHeight =
+                world.limitUpwardMovement(
+                        moved.position(), vertical.heightMetres(), moved.crouching());
+        if (limitedHeight < vertical.heightMetres() - VERTICAL_COLLISION_TOLERANCE_METRES) {
+            vertical = new PreparationVerticalMotion.Step(limitedHeight, 0.0d, false);
+        }
         return moved.withVerticalState(
                 vertical.heightMetres(),
                 vertical.verticalVelocityMetresPerSecond(),
@@ -135,13 +136,25 @@ public final class PreparationMovementController {
                 verticalMousePixels * PITCH_DEGREES_PER_MOUSE_PIXEL);
     }
 
+    private static PreparationPlayerState applyRequestedPosture(
+            PreparationPlayerState player,
+            PreparationCollisionWorld world,
+            boolean requestedCrouching) {
+        if (requestedCrouching) {
+            return player.withCrouching(true);
+        }
+        if (!player.crouching() || !world.hasPlayerClearance(player.position(), false)) {
+            return player;
+        }
+        return player.withCrouching(false);
+    }
+
     private static PreparationPlayerState moveHorizontal(
             PreparationPlayerState player,
             PreparationCollisionWorld world,
             double forwardAxis,
             double rightAxis,
             boolean sprinting,
-            boolean crouching,
             double elapsedSeconds) {
         if (elapsedSeconds == 0.0d || (forwardAxis == 0.0d && rightAxis == 0.0d)) {
             return player;
@@ -150,7 +163,7 @@ public final class PreparationMovementController {
         double normalizedForward = magnitude > 1.0d ? forwardAxis / magnitude : forwardAxis;
         double normalizedRight = magnitude > 1.0d ? rightAxis / magnitude : rightAxis;
         double speed =
-                crouching
+                player.crouching()
                         ? CROUCHING_SPEED_METRES_PER_SECOND
                         : sprinting
                                 ? SPRINTING_SPEED_METRES_PER_SECOND
@@ -185,7 +198,7 @@ public final class PreparationMovementController {
         MapVector3 target = player.horizontalPositionAfter(deltaX, deltaZ);
         if ((Double.compare(target.x(), player.position().x()) == 0
                         && Double.compare(target.z(), player.position().z()) == 0)
-                || !world.permitsHorizontal(player.position(), target, false)) {
+                || !world.permitsHorizontal(player.position(), target, false, player.crouching())) {
             return player;
         }
 
@@ -195,26 +208,39 @@ public final class PreparationMovementController {
             return player;
         }
         double supportY = highestSupport.orElseThrow();
+        double targetY = player.position().y();
+        boolean targetGrounded = player.grounded();
         if (player.grounded()) {
             double supportDelta = supportY - player.position().y();
             if (supportDelta > MAXIMUM_GROUNDED_STEP_METRES + SUPPORT_TOLERANCE_METRES) {
                 return player;
             }
             if (supportDelta >= -MAXIMUM_GROUNDED_STEP_METRES - SUPPORT_TOLERANCE_METRES) {
-                return player.withMovementState(target.x(), supportY, target.z(), 0.0d, true);
+                targetY = supportY;
+            } else {
+                targetGrounded = false;
             }
-            return player.withMovementState(
-                    target.x(), player.position().y(), target.z(), 0.0d, false);
+        } else if (supportY > player.position().y() + SUPPORT_TOLERANCE_METRES) {
+            return player;
         }
-        if (supportY > player.position().y() + SUPPORT_TOLERANCE_METRES) {
+        if (!player.scene()
+                .obstacleMap()
+                .permitsMovement(
+                        player.position().x(),
+                        player.position().y(),
+                        player.position().z(),
+                        target.x(),
+                        targetY,
+                        target.z(),
+                        player.crouching())) {
             return player;
         }
         return player.withMovementState(
                 target.x(),
-                player.position().y(),
+                targetY,
                 target.z(),
-                player.verticalVelocityMetresPerSecond(),
-                false);
+                targetGrounded ? 0.0d : player.verticalVelocityMetresPerSecond(),
+                targetGrounded);
     }
 
     private static void requireAxis(double value, String field) {

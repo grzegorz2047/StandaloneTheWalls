@@ -20,6 +20,7 @@ public final class Glb2PreparationObstacleDecoder {
     private static final String WALL_SUFFIX = "WallCollision";
     private static final String WALL_X_SUFFIX = "WallXCollision";
     private static final String WALL_Z_SUFFIX = "WallZCollision";
+    private static final String OBSTACLE_SUFFIX = "ObstacleCollision";
     private static final JsonFactory JSON_FACTORY =
             JsonFactory.builder()
                     .streamReadConstraints(
@@ -432,7 +433,8 @@ public final class Glb2PreparationObstacleDecoder {
         return name != null
                 && (name.endsWith(WALL_SUFFIX)
                         || name.endsWith(WALL_X_SUFFIX)
-                        || name.endsWith(WALL_Z_SUFFIX));
+                        || name.endsWith(WALL_Z_SUFFIX)
+                        || name.endsWith(OBSTACLE_SUFFIX));
     }
 
     private static Set<Integer> verifiedBoxMeshes(Glb2Document document)

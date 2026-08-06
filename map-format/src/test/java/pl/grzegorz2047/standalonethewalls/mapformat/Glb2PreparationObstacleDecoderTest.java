@@ -41,6 +41,22 @@ class Glb2PreparationObstacleDecoderTest {
     }
 
     @Test
+    void decodesGeneralCanonicalObstacleNodes() throws Glb2Exception, PreparationObstacleException {
+        Glb2Document document =
+                document(
+                        canonicalAccessor(),
+                        "[{\"mesh\":0,\"name\":\"LowCeilingObstacleCollision\",\"scale\":[4,0.2,4],\"translation\":[0,2.1,0]}]",
+                        "[0]");
+
+        assertThat(Glb2PreparationObstacleDecoder.decode(document).boxes())
+                .containsExactly(
+                        new PreparationObstacleBox(
+                                "LowCeilingObstacleCollision",
+                                new MapVector3(-2.0d, 2.0d, -2.0d),
+                                new MapVector3(2.0d, 2.2d, 2.0d)));
+    }
+
+    @Test
     void rejectsRotatedHiddenNestedWrongUnitCubeAndDuplicateObstacles() throws Glb2Exception {
         assertCode(
                 document(

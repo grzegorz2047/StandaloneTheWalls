@@ -7,10 +7,13 @@ import java.util.OptionalDouble;
 import pl.grzegorz2047.standalonethewalls.mapformat.Glb2ContainerDecoder;
 import pl.grzegorz2047.standalonethewalls.mapformat.Glb2Document;
 import pl.grzegorz2047.standalonethewalls.mapformat.Glb2Exception;
+import pl.grzegorz2047.standalonethewalls.mapformat.Glb2PreparationObstacleDecoder;
 import pl.grzegorz2047.standalonethewalls.mapformat.Glb2PreparationSupportDecoder;
 import pl.grzegorz2047.standalonethewalls.mapformat.MinimalPreparationBundle;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationGameplay;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationMapSpawn;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationObstacleException;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationObstacleMap;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationRegion;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationSupportException;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationSupportMap;
@@ -73,6 +76,7 @@ public final class PreparationSceneLoader {
         Glb2Document sceneDocument = decodeScene(verifiedBundle, sceneGlb);
         Glb2Document collisionDocument = decodeCollision(verifiedBundle, collisionGlb);
         PreparationSupportMap supportMap = decodeSupports(collisionDocument);
+        PreparationObstacleMap obstacleMap = decodeObstacles(collisionDocument);
 
         PreparationTeam team = preparationTeam(authoritativeAssignment.team());
         PreparationGameplay gameplay = verifiedBundle.gameplay();
@@ -103,6 +107,7 @@ public final class PreparationSceneLoader {
                     "assigned spawn is outside the verified team region");
         }
         requireSupportedSpawn(spawn, supportMap);
+        requireObstacleFreeSpawn(spawn, obstacleMap);
 
         return new VerifiedPreparationScene(
                 verifiedBundle.manifest().id(),
@@ -112,6 +117,7 @@ public final class PreparationSceneLoader {
                 sceneDocument,
                 collisionDocument,
                 supportMap,
+                obstacleMap,
                 region,
                 spawn);
     }
@@ -159,6 +165,18 @@ public final class PreparationSceneLoader {
         }
     }
 
+    private static PreparationObstacleMap decodeObstacles(Glb2Document collisionDocument)
+            throws PreparationSceneLoadException {
+        try {
+            return Glb2PreparationObstacleDecoder.decode(collisionDocument);
+        } catch (PreparationObstacleException exception) {
+            throw new PreparationSceneLoadException(
+                    PreparationSceneLoadException.Code.COLLISION_INVALID,
+                    "verified preparation collision obstacles are invalid",
+                    exception);
+        }
+    }
+
     private static void requireSupportedSpawn(
             PreparationMapSpawn spawn, PreparationSupportMap supportMap)
             throws PreparationSceneLoadException {
@@ -171,6 +189,17 @@ public final class PreparationSceneLoader {
             throw failure(
                     PreparationSceneLoadException.Code.SPAWN_STATE_MISMATCH,
                     "preparation spawn is not supported by the verified collision GLB");
+        }
+    }
+
+    private static void requireObstacleFreeSpawn(
+            PreparationMapSpawn spawn, PreparationObstacleMap obstacleMap)
+            throws PreparationSceneLoadException {
+        if (!obstacleMap.hasPlayerClearance(
+                spawn.position().x(), spawn.position().y(), spawn.position().z(), false)) {
+            throw failure(
+                    PreparationSceneLoadException.Code.SPAWN_STATE_MISMATCH,
+                    "preparation spawn has no standing clearance in the verified collision GLB");
         }
     }
 
