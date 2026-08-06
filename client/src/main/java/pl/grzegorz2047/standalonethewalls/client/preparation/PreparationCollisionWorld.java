@@ -29,11 +29,14 @@ public final class PreparationCollisionWorld {
 
     private final Node graph;
     private final PreparationSupportMap supportMap;
+    private final PreparationObstacleMap obstacleMap;
 
-    private PreparationCollisionWorld(Node graph, PreparationSupportMap supportMap)
+    private PreparationCollisionWorld(
+            Node graph, PreparationSupportMap supportMap, PreparationObstacleMap obstacleMap)
             throws PreparationSceneGraphException {
         this.graph = Objects.requireNonNull(graph, "graph");
         this.supportMap = Objects.requireNonNull(supportMap, "supportMap");
+        this.obstacleMap = Objects.requireNonNull(obstacleMap, "obstacleMap");
         requireNode(GROUND);
         requireNode(CENTRAL_WALL_X);
         requireNode(CENTRAL_WALL_Z);
@@ -45,7 +48,8 @@ public final class PreparationCollisionWorld {
         VerifiedPreparationScene verifiedScene = Objects.requireNonNull(scene, "scene");
         return new PreparationCollisionWorld(
                 PreparationSceneGraphLoader.loadCollision(assetManager, verifiedScene),
-                verifiedScene.supportMap());
+                verifiedScene.supportMap(),
+                verifiedScene.obstacleMap());
     }
 
     public boolean hasGroundSupport(MapVector3 position) {
@@ -61,16 +65,47 @@ public final class PreparationCollisionWorld {
                 && distance <= MAXIMUM_SUPPORT_DISTANCE_METRES + COLLISION_EPSILON;
     }
 
+    public boolean hasPlayerClearance(MapVector3 position, boolean crouching) {
+        MapVector3 point = Objects.requireNonNull(position, "position");
+        return obstacleMap.hasPlayerClearance(point.x(), point.y(), point.z(), crouching)
+                && hasBodyClearance(toVector(point));
+    }
+
+    public double limitUpwardMovement(
+            MapVector3 current, double targetYMetres, boolean crouching) {
+        MapVector3 point = Objects.requireNonNull(current, "current");
+        return obstacleMap.limitUpwardMovement(
+                point.x(), point.z(), point.y(), targetYMetres, crouching);
+    }
+
     public boolean permitsHorizontal(MapVector3 current, MapVector3 target) {
-        return permitsHorizontal(current, target, true);
+        return permitsHorizontal(current, target, true, false);
     }
 
     public boolean permitsHorizontal(
             MapVector3 current, MapVector3 target, boolean requireGroundSupport) {
+        return permitsHorizontal(current, target, requireGroundSupport, false);
+    }
+
+    public boolean permitsHorizontal(
+            MapVector3 current,
+            MapVector3 target,
+            boolean requireGroundSupport,
+            boolean crouching) {
         MapVector3 origin = Objects.requireNonNull(current, "current");
         MapVector3 destination = Objects.requireNonNull(target, "target");
         if (Double.compare(origin.y(), destination.y()) != 0) {
             throw new IllegalArgumentException("horizontal collision query must preserve height");
+        }
+        if (!obstacleMap.permitsMovement(
+                origin.x(),
+                origin.y(),
+                origin.z(),
+                destination.x(),
+                destination.y(),
+                destination.z(),
+                crouching)) {
+            return false;
         }
 
         Vector3f start = toVector(origin);
