@@ -1,10 +1,10 @@
-package pl.grzegorz2047.standalethewalls.client.preparation;
+package pl.grzegorz2047.standalonethewalls.client.preparation;
 
 import java.util.Objects;
 import java.util.OptionalDouble;
-import pl.grzegorz2047.standalethewalls.mapformat.MapVector3;
-import pl.grzegorz2047.standalethewalls.mapformat.PreparationRegion;
-import pl.grzegorz2047.standalethewalls.protocol.preparation.PreparationVerticalMotion;
+import pl.grzegorz2047.standalonethewalls.mapformat.MapVector3;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationRegion;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationVerticalMotion;
 
 /** Immutable local preparation player and view state constrained to one verified team region. */
 public final class PreparationPlayerState {
