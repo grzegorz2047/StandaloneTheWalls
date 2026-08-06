@@ -10,9 +10,29 @@ public record PreparationPlayerSnapshot(
         int xMillimetres,
         int yMillimetres,
         int zMillimetres,
+        boolean crouching,
         int yawCentidegrees,
         int pitchCentidegrees) {
     public static final int MAXIMUM_ABSOLUTE_COORDINATE_MILLIMETRES = 1_000_000_000;
+
+    public PreparationPlayerSnapshot(
+            PlayerId playerId,
+            long lastProcessedInputSequence,
+            int xMillimetres,
+            int yMillimetres,
+            int zMillimetres,
+            int yawCentidegrees,
+            int pitchCentidegrees) {
+        this(
+                playerId,
+                lastProcessedInputSequence,
+                xMillimetres,
+                yMillimetres,
+                zMillimetres,
+                false,
+                yawCentidegrees,
+                pitchCentidegrees);
+    }
 
     public PreparationPlayerSnapshot {
         Objects.requireNonNull(playerId, "playerId");
