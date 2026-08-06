@@ -71,8 +71,7 @@ public final class PreparationCollisionWorld {
                 && hasBodyClearance(toVector(point));
     }
 
-    public double limitUpwardMovement(
-            MapVector3 current, double targetYMetres, boolean crouching) {
+    public double limitUpwardMovement(MapVector3 current, double targetYMetres, boolean crouching) {
         MapVector3 point = Objects.requireNonNull(current, "current");
         return obstacleMap.limitUpwardMovement(
                 point.x(), point.z(), point.y(), targetYMetres, crouching);
