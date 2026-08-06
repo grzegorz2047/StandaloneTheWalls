@@ -5,14 +5,13 @@ on:
     branches:
       - agent/issue-194-canonical-collision-bytes
     paths:
-      - .github/scripts/issue_194_apply.py
       - .github/workflows/issue-194-apply.yml
 
 permissions:
   contents: write
 
 jobs:
-  apply-and-verify:
+  verify-current-sources:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out branch
@@ -24,80 +23,29 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - name: Apply, verify and persist result
+      - name: Format, verify and persist result
         shell: bash
         run: |
           set +e
           result=.github/issue-194-result.txt
           log=/tmp/issue-194-focused.log
-          : > "$log"
-          python3 .github/scripts/issue_194_apply.py >> "$log" 2>&1
+          ./gradlew --no-daemon spotlessApply :map-format:test :map-format:spotbugsMain :map-format:spotbugsTest > "$log" 2>&1
           status=$?
-          if [ "$status" -eq 0 ]; then
-            python3 - <<'PY' >> "$log" 2>&1
-          from pathlib import Path
-          import re
-
-          path = Path('map-format/src/main/java/pl/grzegorz2047/standalonethewalls/mapformat/Glb2CanonicalBoxMeshVerifier.java')
-          source = path.read_text(encoding='utf-8')
-
-          serial_marker = '''    static final class VerificationException extends Exception {
-                  private final Code code;'''
-          serial_replacement = '''    static final class VerificationException extends Exception {
-                  private static final long serialVersionUID = 1L;
-
-                  private final Code code;'''
-          if serial_marker not in source:
-              raise SystemExit('verification exception marker missing')
-          source = source.replace(serial_marker, serial_replacement)
-
-          source, caller_count = re.subn(
-              r'return\s+cornerCodes\s*!=\s*null\s*&&\s*hasCanonicalTopology\(',
-              'return cornerCodes.length == POSITION_COUNT\n                && hasCanonicalTopology(',
-              source,
-              count=1,
-          )
-          if caller_count != 1:
-              raise SystemExit(f'corner sentinel caller count: {caller_count}')
-
-          corner_start = source.index('    private static int[] readCornerCodes(')
-          corner_end = source.index('    private static boolean hasCanonicalTopology(', corner_start)
-          corner_block = source[corner_start:corner_end]
-          if 'return null;' not in corner_block:
-              raise SystemExit('corner sentinel returns missing')
-          corner_block = corner_block.replace('return null;', 'return new int[0];')
-          source = source[:corner_start] + corner_block + source[corner_end:]
-
-          unused_start = source.index('    private static List<Integer> readVectorTokens(')
-          unused_end = source.index('    private static MapVector3 readVector3(', unused_start)
-          source = source[:unused_start] + source[unused_end:]
-
-          path.write_text(source, encoding='utf-8')
-          PY
-            status=$?
-          fi
-          if [ "$status" -eq 0 ]; then
-            ./gradlew --no-daemon spotlessApply :map-format:test :map-format:spotbugsMain :map-format:spotbugsTest >> "$log" 2>&1
-            status=$?
-          fi
           if [ "$status" -ne 0 ] && [ -f map-format/build/reports/spotbugs/xml.xml ]; then
             printf '\n--- SPOTBUGS FINDINGS ---\n' >> "$log"
             grep -n -E 'BugInstance|ShortMessage|LongMessage|SourceLine' map-format/build/reports/spotbugs/xml.xml >> "$log" 2>&1
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          tail -n 400 "$log" > "$result"
           if [ "$status" -eq 0 ]; then
-            tail -n 200 "$log" > "$result"
             printf '\nISSUE_194_STATUS=SUCCESS\n' >> "$result"
-            git add map-format/src/main map-format/src/test "$result"
-            message="Verify canonical collision mesh bytes"
+            message="Verify canonical collision mesh boundaries"
           else
-            git reset --hard HEAD
-            tail -n 400 "$log" > "$result"
             printf '\nISSUE_194_STATUS=FAILURE:%s\n' "$status" >> "$result"
-            git add "$result"
-            message="Record issue 194 focused check failure"
+            message="Record issue 194 boundary check failure"
           fi
+          git add map-format/src/main map-format/src/test "$result"
           if ! git diff --cached --quiet; then
             git commit -m "$message"
             git push origin HEAD:agent/issue-194-canonical-collision-bytes
