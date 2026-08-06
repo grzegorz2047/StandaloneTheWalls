@@ -83,7 +83,7 @@ class PreparationJumpPredictionHistoryTest {
     }
 
     @Test
-    void doesNotStoreAnAirJumpForAReplayFromA laterCorrection()
+    void doesNotStoreAnAirJumpForALaterCorrection()
             throws PreparationSceneLoadException, PreparationSceneGraphException {
         PreparationPlayerState spawn = player();
         PreparationCollisionWorld collisions = collisions(spawn);
