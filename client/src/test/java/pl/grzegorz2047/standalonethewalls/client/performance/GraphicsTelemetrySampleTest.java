@@ -10,7 +10,8 @@ class GraphicsTelemetrySampleTest {
     @Test
     void retainsAvailableAndUnavailableGpuTimingExplicitly() {
         GraphicsTelemetrySample measured =
-                new GraphicsTelemetrySample(12_000_000L, OptionalLong.of(11_000_000L), 512L, 42, 900);
+                new GraphicsTelemetrySample(
+                        12_000_000L, OptionalLong.of(11_000_000L), 512L, 42, 900);
         GraphicsTelemetrySample unavailable =
                 new GraphicsTelemetrySample(13_000_000L, OptionalLong.empty(), 640L, 43, 901);
 
