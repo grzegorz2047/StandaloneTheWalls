@@ -2,7 +2,9 @@ package pl.grzegorz2047.standalonethewalls.client.performance;
 
 import java.util.Optional;
 
-/** Renderer-independent quality budgets used by benchmark selection and later client integration. */
+/**
+ * Renderer-independent quality budgets used by benchmark selection and later client integration.
+ */
 public enum GraphicsQualityPreset {
     LOW(0.75d, 0.67d, 1.00d, 1024, 0.75d, 0.50d, 4, false, 1_000, 2, 512),
     MEDIUM(1.00d, 0.75d, 1.00d, 2048, 1.00d, 0.75d, 8, true, 2_500, 4, 1_024),
