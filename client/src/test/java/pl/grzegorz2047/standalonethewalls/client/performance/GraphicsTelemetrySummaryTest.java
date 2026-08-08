@@ -83,13 +83,7 @@ class GraphicsTelemetrySummaryTest {
                 .isThrownBy(
                         () ->
                                 new GraphicsTelemetrySummary(
-                                        1,
-                                        oneSample,
-                                        Optional.of(oneSample),
-                                        0,
-                                        0L,
-                                        0,
-                                        0));
+                                        1, oneSample, Optional.of(oneSample), 0, 0L, 0, 0));
     }
 
     private static GraphicsTelemetrySample sample(
