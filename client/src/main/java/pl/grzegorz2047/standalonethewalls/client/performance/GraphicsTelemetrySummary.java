@@ -35,8 +35,10 @@ public record GraphicsTelemetrySummary(
             throw new IllegalArgumentException("GPU statistics do not match GPU sample coverage");
         }
         if (peakResidentMemoryBytes < 0L
-                || peakResidentMemoryBytes > GraphicsTelemetrySample.MAXIMUM_RESIDENT_MEMORY_BYTES) {
-            throw new IllegalArgumentException("peakResidentMemoryBytes is outside the bounded range");
+                || peakResidentMemoryBytes
+                        > GraphicsTelemetrySample.MAXIMUM_RESIDENT_MEMORY_BYTES) {
+            throw new IllegalArgumentException(
+                    "peakResidentMemoryBytes is outside the bounded range");
         }
         requirePeakCounter(peakDrawCalls, "peakDrawCalls");
         requirePeakCounter(peakRenderedObjectCount, "peakRenderedObjectCount");
@@ -45,7 +47,8 @@ public record GraphicsTelemetrySummary(
     public static GraphicsTelemetrySummary fromSamples(List<GraphicsTelemetrySample> samples) {
         Objects.requireNonNull(samples, "samples");
         if (samples.isEmpty() || samples.size() > FrameTimeStatistics.MAXIMUM_SAMPLES) {
-            throw new IllegalArgumentException("telemetry sample count is outside the bounded range");
+            throw new IllegalArgumentException(
+                    "telemetry sample count is outside the bounded range");
         }
 
         List<Long> cpuFrameTimes = new ArrayList<>(samples.size());
