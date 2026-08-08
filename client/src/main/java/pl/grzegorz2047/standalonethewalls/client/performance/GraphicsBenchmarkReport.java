@@ -57,8 +57,10 @@ public record GraphicsBenchmarkReport(
                 throw new IllegalArgumentException(fieldName + " contains a control character");
             }
             if (Character.isHighSurrogate(character)) {
-                if (index + 1 >= value.length() || !Character.isLowSurrogate(value.charAt(index + 1))) {
-                    throw new IllegalArgumentException(fieldName + " contains an unpaired surrogate");
+                if (index + 1 >= value.length()
+                        || !Character.isLowSurrogate(value.charAt(index + 1))) {
+                    throw new IllegalArgumentException(
+                            fieldName + " contains an unpaired surrogate");
                 }
                 index++;
             } else if (Character.isLowSurrogate(character)) {
