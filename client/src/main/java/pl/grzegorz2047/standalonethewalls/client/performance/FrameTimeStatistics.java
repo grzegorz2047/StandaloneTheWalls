@@ -5,8 +5,7 @@ import java.util.List;
 import java.util.Objects;
 
 /** Deterministic bounded frame-time summary using nearest-rank p95/p99 percentiles. */
-public record FrameTimeStatistics(
-        int sampleCount, long medianNanos, long p95Nanos, long p99Nanos) {
+public record FrameTimeStatistics(int sampleCount, long medianNanos, long p95Nanos, long p99Nanos) {
     public static final int MAXIMUM_SAMPLES = 4_096;
     public static final long MAXIMUM_SAMPLE_NANOS = 10_000_000_000L;
 
@@ -25,7 +24,8 @@ public record FrameTimeStatistics(
     public static FrameTimeStatistics fromNanos(List<Long> samples) {
         Objects.requireNonNull(samples, "samples");
         if (samples.isEmpty() || samples.size() > MAXIMUM_SAMPLES) {
-            throw new IllegalArgumentException("frame-time sample count is outside the bounded range");
+            throw new IllegalArgumentException(
+                    "frame-time sample count is outside the bounded range");
         }
 
         long[] sorted = new long[samples.size()];
@@ -40,10 +40,7 @@ public record FrameTimeStatistics(
         Arrays.sort(sorted);
 
         return new FrameTimeStatistics(
-                sorted.length,
-                median(sorted),
-                nearestRank(sorted, 95),
-                nearestRank(sorted, 99));
+                sorted.length, median(sorted), nearestRank(sorted, 95), nearestRank(sorted, 99));
     }
 
     public double medianMilliseconds() {
