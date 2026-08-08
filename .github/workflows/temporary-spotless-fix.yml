@@ -37,3 +37,5 @@ jobs:
           git add -A
           git commit -m "Apply Spotless formatting"
           git push origin "HEAD:${GITHUB_REF_NAME}"
+
+# Trigger formatter after workflow registration.
