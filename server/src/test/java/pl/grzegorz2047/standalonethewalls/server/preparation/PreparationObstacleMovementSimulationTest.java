@@ -362,12 +362,10 @@ class PreparationObstacleMovementSimulationTest {
                         -0.39d,
                         5.0d,
                         2.0d);
-        PreparationMovementSimulation opened =
-                simulation(-0.8d, 0.5d, 0.0d, centralBarrier);
+        PreparationMovementSimulation opened = simulation(-0.8d, 0.5d, 0.0d, centralBarrier);
 
         opened.advanceTick(11L, Map.of(), PreparationBarrierPolicy.OPEN);
-        PreparationMovementSimulation fresh =
-                simulation(-0.8d, 0.5d, 0.0d, centralBarrier);
+        PreparationMovementSimulation fresh = simulation(-0.8d, 0.5d, 0.0d, centralBarrier);
 
         assertThat(opened.barrierPolicy()).isEqualTo(PreparationBarrierPolicy.OPEN);
         assertThat(fresh.barrierPolicy()).isEqualTo(PreparationBarrierPolicy.CLOSED);

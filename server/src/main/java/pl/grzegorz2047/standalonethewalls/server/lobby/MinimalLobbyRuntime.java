@@ -798,9 +798,7 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
         List<LobbyParticipantId> failed =
                 new ArrayList<>(
                         sendToMembers(
-                                state.members,
-                                MessageType.LOBBY_MATCH_SNAPSHOT,
-                                snapshotPayload));
+                                state.members, MessageType.LOBBY_MATCH_SNAPSHOT, snapshotPayload));
         Map<LobbyParticipantId, ReliableChannel> channels = preparationChannels(state);
         for (PreparationClientSpawn delivery : plan) {
             if (failed.contains(delivery.participantId())) {
@@ -813,9 +811,7 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
             }
             try {
                 PreparationSpawnPublisher.publish(
-                        List.of(delivery),
-                        Map.of(delivery.participantId(), channel),
-                        sendTimeout);
+                        List.of(delivery), Map.of(delivery.participantId(), channel), sendTimeout);
             } catch (PreparationSpawnPublishException exception) {
                 if (exception.code() == PreparationSpawnPublishException.Code.SEND_START_FAILED
                         || exception.code() == PreparationSpawnPublishException.Code.SEND_FAILED

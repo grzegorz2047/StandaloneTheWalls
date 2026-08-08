@@ -559,7 +559,8 @@ class MinimalLobbyRuntimeTest {
             assertThat(authoritativeMovement)
                     .isEqualTo(latestPreparationWorldSnapshotUnchecked(bravo));
             PreparationPlayerSnapshot movedAlpha = player(authoritativeMovement, alpha.playerId());
-            PreparationPlayerSnapshot unmovedBravo = player(authoritativeMovement, bravo.playerId());
+            PreparationPlayerSnapshot unmovedBravo =
+                    player(authoritativeMovement, bravo.playerId());
             assertThat(movedAlpha.lastProcessedInputSequence()).isEqualTo(1L);
             assertThat(
                             Math.hypot(
@@ -1301,7 +1302,8 @@ class MinimalLobbyRuntimeTest {
         List<SentMessage> snapshots =
                 session.channel.sent().stream()
                         .filter(
-                                message -> message.messageType() == MessageType.LOBBY_MATCH_SNAPSHOT)
+                                message ->
+                                        message.messageType() == MessageType.LOBBY_MATCH_SNAPSHOT)
                         .toList();
         return snapshots.isEmpty()
                 ? Optional.empty()
