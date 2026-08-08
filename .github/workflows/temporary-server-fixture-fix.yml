@@ -27,28 +27,16 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
 
           path = Path('server/src/test/java/pl/grzegorz2047/standalonethewalls/server/preparation/PreparationObstacleMovementSimulationTest.java')
           text = path.read_text()
-          old = '''                                obstacle(
-                                          "PermanentObstacleCollision",
-                                          0.35d,
-                                          0.0d,
-                                          -2.0d,
-                                          0.36d,
-                                          5.0d,
-                                          2.0d)))'''
-          new = '''                                obstacle(
-                                          "PermanentObstacleCollision",
-                                          0.75d,
-                                          0.0d,
-                                          -2.0d,
-                                          0.76d,
-                                          5.0d,
-                                          2.0d)))'''
-          if text.count(old) != 1:
+          pattern = r'("PermanentObstacleCollision",\s*)0\.35d,(\s*0\.0d,\s*-2\.0d,\s*)0\.36d,'
+          replacement = r'\g<1>0.75d,\g<2>0.76d,'
+          updated, count = re.subn(pattern, replacement, text, count=1)
+          if count != 1:
               raise SystemExit('expected exactly one permanent obstacle fixture')
-          path.write_text(text.replace(old, new))
+          path.write_text(updated)
           PY
 
       - name: Format and verify focused server test
@@ -64,5 +52,3 @@ jobs:
           git add server/src/test/java/pl/grzegorz2047/standalonethewalls/server/preparation/PreparationObstacleMovementSimulationTest.java
           git commit -m "Fix permanent obstacle acceptance fixture"
           git push origin "HEAD:${GITHUB_REF_NAME}"
-
-# Trigger after workflow registration.
