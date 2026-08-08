@@ -1,0 +1,66 @@
+name: Temporary Server Fixture Fix
+
+on:
+  push:
+    branches:
+      - agent/issue-198-open-central-walls
+
+permissions:
+  contents: write
+
+jobs:
+  fix-fixture:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Move permanent obstacle beyond the first open step
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('server/src/test/java/pl/grzegorz2047/standalonethewalls/server/preparation/PreparationObstacleMovementSimulationTest.java')
+          text = path.read_text()
+          old = '''                                obstacle(
+                                          "PermanentObstacleCollision",
+                                          0.35d,
+                                          0.0d,
+                                          -2.0d,
+                                          0.36d,
+                                          5.0d,
+                                          2.0d)))'''
+          new = '''                                obstacle(
+                                          "PermanentObstacleCollision",
+                                          0.75d,
+                                          0.0d,
+                                          -2.0d,
+                                          0.76d,
+                                          5.0d,
+                                          2.0d)))'''
+          if text.count(old) != 1:
+              raise SystemExit('expected exactly one permanent obstacle fixture')
+          path.write_text(text.replace(old, new))
+          PY
+
+      - name: Format and verify focused server test
+        run: |
+          ./gradlew --no-daemon spotlessApply
+          ./gradlew --no-daemon :server:test --tests '*PreparationObstacleMovementSimulationTest.opensCentralBarrierAtTheFirstOpenTickAndKeepsPermanentObstacles'
+
+      - name: Commit fixture correction
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add server/src/test/java/pl/grzegorz2047/standalonethewalls/server/preparation/PreparationObstacleMovementSimulationTest.java
+          git commit -m "Fix permanent obstacle acceptance fixture"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
