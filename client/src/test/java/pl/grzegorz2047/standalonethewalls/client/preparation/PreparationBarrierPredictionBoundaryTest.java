@@ -47,7 +47,12 @@ class PreparationBarrierPredictionBoundaryTest {
         assertThat(history.pendingStepCount()).isOne();
         assertThatIllegalArgumentException()
                 .isThrownBy(
-                        () -> outsideTeamRegion.withBarrierPolicy(PreparationBarrierPolicy.CLOSED))
+                        () -> {
+                            PreparationPlayerState unexpectedlyClosed =
+                                    outsideTeamRegion.withBarrierPolicy(
+                                            PreparationBarrierPolicy.CLOSED);
+                            assertThat(unexpectedlyClosed).isSameAs(outsideTeamRegion);
+                        })
                 .withMessageContaining("cannot close");
     }
 
