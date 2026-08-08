@@ -17,9 +17,7 @@ class FrameTimeStatisticsTest {
                         List.of(5_000_000L, 1_000_000L, 4_000_000L, 2_000_000L, 3_000_000L));
 
         assertThat(single)
-                .isEqualTo(
-                        new FrameTimeStatistics(
-                                1, 10_000_000L, 10_000_000L, 10_000_000L));
+                .isEqualTo(new FrameTimeStatistics(1, 10_000_000L, 10_000_000L, 10_000_000L));
         assertThat(odd.medianNanos()).isEqualTo(3_000_000L);
         assertThat(odd.p95Nanos()).isEqualTo(5_000_000L);
         assertThat(odd.p99Nanos()).isEqualTo(5_000_000L);
