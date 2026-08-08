@@ -19,7 +19,8 @@ class PreparationSceneGraphLoaderTest {
 
         Node graph = PreparationSceneGraphLoader.load(assetManager, verified);
 
-        assertThat(graph.getName()).isEqualTo("verified-preparation-minimal_preparation");
+        assertThat(graph.getName())
+                .isEqualTo("verified-preparation-phase-aware-minimal_preparation");
         assertThat(graph.getQuantity()).isOne();
         assertThat(graph.getChild("Ground")).isNotNull();
         assertThat(graph.getChild("GreenRegion")).isNotNull();
