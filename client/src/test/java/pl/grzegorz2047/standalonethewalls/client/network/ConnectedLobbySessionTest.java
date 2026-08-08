@@ -8,6 +8,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayDeque;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -19,6 +20,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
+import pl.grzegorz2047.standalonethewalls.mapformat.MinimalPreparationBundle;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationBarrierPolicy;
 import pl.grzegorz2047.standalonethewalls.protocol.MessageType;
 import pl.grzegorz2047.standalonethewalls.protocol.ProtocolEnvelope;
 import pl.grzegorz2047.standalonethewalls.protocol.ProtocolVersion;
@@ -29,10 +32,13 @@ import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyCountdownCancellationReason;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhase;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhaseSnapshot;
+import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMember;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbySnapshot;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnAssignment;
+import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationSpawnProtocolCodec;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.AuthenticatedReliableSession;
 import pl.grzegorz2047.standalonethewalls.transport.bctls.AuthenticatedReliableSessionTestFactory;
 
@@ -160,6 +166,80 @@ class ConnectedLobbySessionTest {
         assertEquals(1, channel.closeCount());
     }
 
+    @Test
+    void openCombatOpensVerifiedSceneBeforeTheRendererGraphIsLoaded()
+            throws InterruptedException, ExecutionException, TimeoutException {
+        StubReliableChannel channel = new StubReliableChannel();
+        AuthenticatedReliableSession transport =
+                AuthenticatedReliableSessionTestFactory.create(channel, PLAYER_ID, HANDLE);
+        LobbySnapshot roster =
+                new LobbySnapshot(
+                        1L, List.of(new LobbyMember(PLAYER_ID, HANDLE, LobbyTeam.GREEN, true)));
+        LobbyMatchPhaseSnapshot preparation =
+                new LobbyMatchPhaseSnapshot(
+                        1L,
+                        1L,
+                        0L,
+                        LobbyMatchPhase.PREPARATION,
+                        2L,
+                        1,
+                        1L,
+                        LobbyCountdownCancellationReason.NONE);
+        ConnectedLobbySession session =
+                new ConnectedLobbySession(transport, roster, preparation, ignored -> {});
+        session.startReceiving();
+
+        byte[] digest = HexFormat.of().parseHex(MinimalPreparationBundle.EXPECTED_ARCHIVE_SHA256);
+        PreparationSpawnAssignment assignment =
+                new PreparationSpawnAssignment(
+                        1L,
+                        1L,
+                        MinimalPreparationBundle.MAP_ID,
+                        digest,
+                        LobbyTeam.GREEN,
+                        0,
+                        -15.0d,
+                        0.5d,
+                        -14.0d,
+                        45.0d);
+        channel.deliver(preparationSpawnEnvelope(assignment, 1L));
+        waitUntil(() -> session.currentVerifiedPreparationScene().isPresent());
+        var scene = session.currentVerifiedPreparationScene().orElseThrow();
+        assertEquals(PreparationBarrierPolicy.CLOSED, scene.barrierPolicy());
+
+        channel.deliver(
+                matchSnapshotEnvelope(
+                        new LobbyMatchPhaseSnapshot(
+                                2L,
+                                1L,
+                                1L,
+                                LobbyMatchPhase.WALLS_OPENING,
+                                1L,
+                                1,
+                                1L,
+                                LobbyCountdownCancellationReason.NONE),
+                        2L));
+        waitUntil(() -> session.currentMatchSnapshot().revision() == 2L);
+        assertEquals(PreparationBarrierPolicy.CLOSED, scene.barrierPolicy());
+
+        channel.deliver(
+                matchSnapshotEnvelope(
+                        new LobbyMatchPhaseSnapshot(
+                                3L,
+                                1L,
+                                2L,
+                                LobbyMatchPhase.OPEN_COMBAT,
+                                2L,
+                                1,
+                                1L,
+                                LobbyCountdownCancellationReason.NONE),
+                        3L));
+        waitUntil(() -> session.currentMatchSnapshot().phase() == LobbyMatchPhase.OPEN_COMBAT);
+        assertEquals(PreparationBarrierPolicy.OPEN, scene.barrierPolicy());
+
+        session.closeAsync().toCompletableFuture().get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+    }
+
     private static ConnectedLobbySession createSession(
             StubReliableChannel channel, LobbySnapshot initial) {
         AuthenticatedReliableSession transport =
@@ -186,6 +266,26 @@ class ConnectedLobbySessionTest {
 
     private static LobbySnapshot snapshot(long revision, CanonicalHandle handle) {
         return new LobbySnapshot(revision, List.of(new LobbyMember(PLAYER_ID, handle)));
+    }
+
+    private static ProtocolEnvelope matchSnapshotEnvelope(
+            LobbyMatchPhaseSnapshot snapshot, long sequence) {
+        return new ProtocolEnvelope(
+                ProtocolVersion.CURRENT,
+                MessageType.LOBBY_MATCH_SNAPSHOT,
+                SESSION_ID,
+                sequence,
+                LobbyMatchProtocolCodec.encodeSnapshot(snapshot));
+    }
+
+    private static ProtocolEnvelope preparationSpawnEnvelope(
+            PreparationSpawnAssignment assignment, long sequence) {
+        return new ProtocolEnvelope(
+                ProtocolVersion.CURRENT,
+                MessageType.PREPARATION_SPAWN_ASSIGNMENT,
+                SESSION_ID,
+                sequence,
+                PreparationSpawnProtocolCodec.encodeAssignment(assignment));
     }
 
     private static ProtocolEnvelope snapshotEnvelope(LobbySnapshot snapshot, long sequence) {
