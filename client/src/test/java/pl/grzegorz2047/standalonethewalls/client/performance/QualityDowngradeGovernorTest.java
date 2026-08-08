@@ -45,8 +45,7 @@ class QualityDowngradeGovernorTest {
                 governor.observe(GraphicsQualityPreset.HIGH, OVER_BUDGET_NANOS, BUDGET_NANOS);
         assertThat(governor.observe(medium, OVER_BUDGET_NANOS, BUDGET_NANOS))
                 .isEqualTo(GraphicsQualityPreset.MEDIUM);
-        GraphicsQualityPreset low =
-                governor.observe(medium, OVER_BUDGET_NANOS, BUDGET_NANOS);
+        GraphicsQualityPreset low = governor.observe(medium, OVER_BUDGET_NANOS, BUDGET_NANOS);
 
         assertThat(medium).isEqualTo(GraphicsQualityPreset.MEDIUM);
         assertThat(low).isEqualTo(GraphicsQualityPreset.LOW);
@@ -72,10 +71,8 @@ class QualityDowngradeGovernorTest {
 
         QualityDowngradeGovernor governor = new QualityDowngradeGovernor(2);
         assertThatIllegalArgumentException()
-                .isThrownBy(
-                        () -> governor.observe(GraphicsQualityPreset.HIGH, 0L, BUDGET_NANOS));
+                .isThrownBy(() -> governor.observe(GraphicsQualityPreset.HIGH, 0L, BUDGET_NANOS));
         assertThatIllegalArgumentException()
-                .isThrownBy(
-                        () -> governor.observe(GraphicsQualityPreset.HIGH, 1L, 0L));
+                .isThrownBy(() -> governor.observe(GraphicsQualityPreset.HIGH, 1L, 0L));
     }
 }
