@@ -434,7 +434,9 @@ class MinimalLobbyRuntimeTest {
             waitUntil(
                     () ->
                             latestMatchSnapshotUnchecked(alpha).phase()
-                                    == LobbyMatchPhase.PREPARATION);
+                                            == LobbyMatchPhase.PREPARATION
+                                    && latestMatchSnapshotUnchecked(alpha)
+                                            .equals(latestMatchSnapshotUnchecked(bravo)));
             LobbyMatchPhaseSnapshot preparation = latestMatchSnapshotUnchecked(alpha);
             assertThat(preparation).isEqualTo(latestMatchSnapshotUnchecked(bravo));
             assertThat(preparation.authoritativeTick()).isEqualTo(5L);
@@ -557,8 +559,7 @@ class MinimalLobbyRuntimeTest {
             assertThat(authoritativeMovement)
                     .isEqualTo(latestPreparationWorldSnapshotUnchecked(bravo));
             PreparationPlayerSnapshot movedAlpha = player(authoritativeMovement, alpha.playerId());
-            PreparationPlayerSnapshot unmovedBravo =
-                    player(authoritativeMovement, bravo.playerId());
+            PreparationPlayerSnapshot unmovedBravo = player(authoritativeMovement, bravo.playerId());
             assertThat(movedAlpha.lastProcessedInputSequence()).isEqualTo(1L);
             assertThat(
                             Math.hypot(
@@ -640,6 +641,196 @@ class MinimalLobbyRuntimeTest {
             assertThat(charlieSnapshot.rosterRevision()).isEqualTo(7L);
             assertThat(charlieSnapshot.connectedPlayers()).isEqualTo(3);
             assertThat(latestSnapshotUnchecked(charlie).members()).hasSize(3);
+        } finally {
+            lobby.close();
+            queue.close();
+        }
+    }
+
+    @Test
+    void preparationSpawnSendFailureRemovesOnlyBrokenSessionAndKeepsRemainingWorld()
+            throws InterruptedException {
+        AuthorizedPlayerSessionQueue queue = queue(2);
+        TestSession alpha = new TestSession(1, playerId('a'), "alpha");
+        TestSession bravo = new TestSession(2, playerId('b'), "bravo");
+        enqueue(queue, alpha);
+        enqueue(queue, bravo);
+        MinimalLobbyRuntime lobby = countdownLobby(queue);
+
+        try {
+            lobby.start();
+            waitUntil(() -> lobby.memberCount() == 2);
+            readyTwoPlayers(alpha, bravo);
+            waitUntil(
+                    () ->
+                            latestMatchSnapshotUnchecked(alpha).phase()
+                                    == LobbyMatchPhase.START_COUNTDOWN);
+            assertThat(lobby.offerSimulationTick(0L)).isTrue();
+            waitUntil(() -> latestMatchSnapshotUnchecked(alpha).ticksRemaining() == 2L);
+            assertThat(lobby.offerSimulationTick(1L)).isTrue();
+            waitUntil(() -> latestMatchSnapshotUnchecked(alpha).ticksRemaining() == 1L);
+
+            bravo.channel.failNextSend(MessageType.PREPARATION_SPAWN_ASSIGNMENT);
+            assertThat(lobby.offerSimulationTick(2L)).isTrue();
+            waitUntil(
+                    () ->
+                            lobby.memberCount() == 1
+                                    && bravo.closeCount() == 1
+                                    && latestMatchSnapshotUnchecked(alpha).phase()
+                                            == LobbyMatchPhase.PREPARATION
+                                    && latestMatchSnapshotUnchecked(alpha).connectedPlayers() == 1
+                                    && preparationAssignmentCount(alpha) == 1
+                                    && preparationWorldSnapshotCount(alpha) >= 1);
+
+            assertThat(lobby.isRunning()).isTrue();
+            assertThat(lobby.failure()).isEmpty();
+            assertThat(alpha.closeCount()).isZero();
+            assertThat(latestSnapshotUnchecked(alpha).members())
+                    .extracting(LobbyMember::playerId)
+                    .containsExactly(alpha.playerId());
+            assertThat(latestPreparationWorldSnapshotUnchecked(alpha).players())
+                    .extracting(PreparationPlayerSnapshot::playerId)
+                    .containsExactly(alpha.playerId());
+        } finally {
+            lobby.close();
+            queue.close();
+        }
+    }
+
+    @Test
+    void openingSnapshotSendFailureRemovesOnlyBrokenSessionAndPreservesOpening()
+            throws InterruptedException {
+        AuthorizedPlayerSessionQueue queue = queue(2);
+        TestSession alpha = new TestSession(1, playerId('a'), "alpha");
+        TestSession bravo = new TestSession(2, playerId('b'), "bravo");
+        enqueue(queue, alpha);
+        enqueue(queue, bravo);
+        MinimalLobbyRuntime lobby = countdownLobby(queue);
+
+        try {
+            lobby.start();
+            waitUntil(() -> lobby.memberCount() == 2);
+            readyTwoPlayers(alpha, bravo);
+            waitUntil(
+                    () ->
+                            latestMatchSnapshotUnchecked(alpha).phase()
+                                    == LobbyMatchPhase.START_COUNTDOWN);
+            assertThat(lobby.offerSimulationTick(0L)).isTrue();
+            assertThat(lobby.offerSimulationTick(1L)).isTrue();
+            assertThat(lobby.offerSimulationTick(2L)).isTrue();
+            waitUntil(() -> preparationAssignmentCount(alpha) == 1);
+            assertThat(lobby.offerSimulationTick(3L)).isTrue();
+            waitUntil(
+                    () ->
+                            latestMatchSnapshotUnchecked(alpha).phase()
+                                            == LobbyMatchPhase.PREPARATION
+                                    && latestMatchSnapshotUnchecked(alpha).ticksRemaining() == 1L);
+
+            bravo.channel.failNextSend(MessageType.LOBBY_MATCH_SNAPSHOT);
+            assertThat(lobby.offerSimulationTick(4L)).isTrue();
+            waitUntil(
+                    () ->
+                            lobby.memberCount() == 1
+                                    && bravo.closeCount() == 1
+                                    && latestMatchSnapshotUnchecked(alpha).phase()
+                                            == LobbyMatchPhase.WALLS_OPENING
+                                    && latestMatchSnapshotUnchecked(alpha).connectedPlayers() == 1);
+
+            assertThat(lobby.isRunning()).isTrue();
+            assertThat(lobby.failure()).isEmpty();
+            assertThat(alpha.closeCount()).isZero();
+            assertThat(lobby.offerSimulationTick(5L)).isTrue();
+            waitUntil(
+                    () ->
+                            latestMatchSnapshotUnchecked(alpha).phase()
+                                    == LobbyMatchPhase.OPEN_COMBAT);
+        } finally {
+            lobby.close();
+            queue.close();
+        }
+    }
+
+    @Test
+    void openCombatSnapshotSendFailureRemovesOnlyBrokenSessionAndPreservesOpenCombat()
+            throws InterruptedException {
+        AuthorizedPlayerSessionQueue queue = queue(2);
+        TestSession alpha = new TestSession(1, playerId('a'), "alpha");
+        TestSession bravo = new TestSession(2, playerId('b'), "bravo");
+        enqueue(queue, alpha);
+        enqueue(queue, bravo);
+        MinimalLobbyRuntime lobby = countdownLobby(queue);
+
+        try {
+            lobby.start();
+            waitUntil(() -> lobby.memberCount() == 2);
+            readyTwoPlayers(alpha, bravo);
+            waitUntil(
+                    () ->
+                            latestMatchSnapshotUnchecked(alpha).phase()
+                                    == LobbyMatchPhase.START_COUNTDOWN);
+            for (long tick = 0L; tick <= 4L; tick++) {
+                assertThat(lobby.offerSimulationTick(tick)).isTrue();
+            }
+            waitUntil(
+                    () ->
+                            latestMatchSnapshotUnchecked(alpha).phase()
+                                    == LobbyMatchPhase.WALLS_OPENING);
+
+            bravo.channel.failNextSend(MessageType.LOBBY_MATCH_SNAPSHOT);
+            assertThat(lobby.offerSimulationTick(5L)).isTrue();
+            waitUntil(
+                    () ->
+                            lobby.memberCount() == 1
+                                    && bravo.closeCount() == 1
+                                    && latestMatchSnapshotUnchecked(alpha).phase()
+                                            == LobbyMatchPhase.OPEN_COMBAT
+                                    && latestMatchSnapshotUnchecked(alpha).connectedPlayers() == 1);
+
+            assertThat(lobby.isRunning()).isTrue();
+            assertThat(lobby.failure()).isEmpty();
+            assertThat(alpha.closeCount()).isZero();
+        } finally {
+            lobby.close();
+            queue.close();
+        }
+    }
+
+    @Test
+    void shutdownAtOpeningBoundaryClosesSessionsAndRejectsOpenCombatTick()
+            throws InterruptedException {
+        AuthorizedPlayerSessionQueue queue = queue(2);
+        TestSession alpha = new TestSession(1, playerId('a'), "alpha");
+        TestSession bravo = new TestSession(2, playerId('b'), "bravo");
+        enqueue(queue, alpha);
+        enqueue(queue, bravo);
+        MinimalLobbyRuntime lobby = countdownLobby(queue);
+
+        try {
+            lobby.start();
+            waitUntil(() -> lobby.memberCount() == 2);
+            readyTwoPlayers(alpha, bravo);
+            waitUntil(
+                    () ->
+                            latestMatchSnapshotUnchecked(alpha).phase()
+                                    == LobbyMatchPhase.START_COUNTDOWN);
+            for (long tick = 0L; tick <= 4L; tick++) {
+                assertThat(lobby.offerSimulationTick(tick)).isTrue();
+            }
+            waitUntil(
+                    () ->
+                            latestMatchSnapshotUnchecked(alpha).phase()
+                                    == LobbyMatchPhase.WALLS_OPENING);
+
+            lobby.close();
+            lobby.close();
+
+            assertThat(lobby.isRunning()).isFalse();
+            assertThat(lobby.offerSimulationTick(5L)).isFalse();
+            assertThat(lobby.failure()).isEmpty();
+            assertThat(lobby.memberCount()).isZero();
+            assertThat(alpha.closeCount()).isEqualTo(1);
+            assertThat(bravo.closeCount()).isEqualTo(1);
+            assertThat(queue.activeTransferCount()).isZero();
         } finally {
             lobby.close();
             queue.close();
@@ -1110,8 +1301,7 @@ class MinimalLobbyRuntimeTest {
         List<SentMessage> snapshots =
                 session.channel.sent().stream()
                         .filter(
-                                message ->
-                                        message.messageType() == MessageType.LOBBY_MATCH_SNAPSHOT)
+                                message -> message.messageType() == MessageType.LOBBY_MATCH_SNAPSHOT)
                         .toList();
         return snapshots.isEmpty()
                 ? Optional.empty()
