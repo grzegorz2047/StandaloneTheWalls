@@ -3,6 +3,7 @@ package pl.grzegorz2047.standalonethewalls.client.performance;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
+import java.util.Locale;
 import org.junit.jupiter.api.Test;
 
 class GraphicsBenchmarkReportTest {
@@ -20,7 +21,7 @@ class GraphicsBenchmarkReportTest {
                         GraphicsQualityPreset.MEDIUM,
                         benchmarkResult());
 
-        assertThat(report.repositoryCommit()).isEqualTo(COMMIT.toLowerCase(java.util.Locale.ROOT));
+        assertThat(report.repositoryCommit()).isEqualTo(COMMIT.toLowerCase(Locale.ROOT));
         assertThat(report.assetPackId()).isEqualTo("assets.lock.json");
         assertThat(report.assetPackVersion()).isEqualTo("schema-1");
         assertThat(report.scenarioId()).isEqualTo("integrated-gpu-reference");
@@ -61,7 +62,11 @@ class GraphicsBenchmarkReportTest {
                 .isThrownBy(
                         () ->
                                 reportWithMetadata(
-                                        "x".repeat(GraphicsBenchmarkReport.MAXIMUM_METADATA_LENGTH + 1)));
+                                        "x"
+                                                .repeat(
+                                                        GraphicsBenchmarkReport
+                                                                        .MAXIMUM_METADATA_LENGTH
+                                                                + 1)));
         assertThatIllegalArgumentException().isThrownBy(() -> reportWithMetadata("line\nbreak"));
         assertThatIllegalArgumentException().isThrownBy(() -> reportWithMetadata("\uD800"));
         assertThatIllegalArgumentException().isThrownBy(() -> reportWithMetadata("   "));
@@ -78,25 +83,17 @@ class GraphicsBenchmarkReportTest {
     }
 
     private static GraphicsBenchmarkReport reportWithMetadata(String metadata) {
-        return new GraphicsBenchmarkReport(
-                COMMIT,
-                metadata,
-                "1",
-                "scenario",
-                1,
-                GraphicsQualityPreset.LOW,
-                benchmarkResult());
+        return report(metadata, 1);
     }
 
     private static GraphicsBenchmarkReport reportWithScenarioVersion(int scenarioVersion) {
+        return report("assets", scenarioVersion);
+    }
+
+    private static GraphicsBenchmarkReport report(String metadata, int scenarioVersion) {
+        GraphicsQualityPreset preset = GraphicsQualityPreset.LOW;
         return new GraphicsBenchmarkReport(
-                COMMIT,
-                "assets",
-                "1",
-                "scenario",
-                scenarioVersion,
-                GraphicsQualityPreset.LOW,
-                benchmarkResult());
+                COMMIT, metadata, "1", "scenario", scenarioVersion, preset, benchmarkResult());
     }
 
     private static GraphicsBenchmarkResult benchmarkResult() {
