@@ -352,6 +352,28 @@ class PreparationObstacleMovementSimulationTest {
     }
 
     @Test
+    void freshSimulationStartsClosedAfterAnotherSimulationOpened() {
+        PreparationObstacleBox centralBarrier =
+                obstacle(
+                        PreparationObstacleMap.CENTRAL_WALL_X_NAME,
+                        -0.4d,
+                        0.0d,
+                        -2.0d,
+                        -0.39d,
+                        5.0d,
+                        2.0d);
+        PreparationMovementSimulation opened =
+                simulation(-0.8d, 0.5d, 0.0d, centralBarrier);
+
+        opened.advanceTick(11L, Map.of(), PreparationBarrierPolicy.OPEN);
+        PreparationMovementSimulation fresh =
+                simulation(-0.8d, 0.5d, 0.0d, centralBarrier);
+
+        assertThat(opened.barrierPolicy()).isEqualTo(PreparationBarrierPolicy.OPEN);
+        assertThat(fresh.barrierPolicy()).isEqualTo(PreparationBarrierPolicy.CLOSED);
+    }
+
+    @Test
     void rejectsASpawnWithoutAuthoritativeStandingClearance() {
         PreparationObstacleMap obstacles =
                 new PreparationObstacleMap(
