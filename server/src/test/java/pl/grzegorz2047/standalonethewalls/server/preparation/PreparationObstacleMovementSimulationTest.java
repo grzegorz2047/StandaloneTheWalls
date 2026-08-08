@@ -266,10 +266,10 @@ class PreparationObstacleMovementSimulationTest {
                                         2.0d),
                                 obstacle(
                                         "PermanentObstacleCollision",
-                                        0.35d,
+                                        0.75d,
                                         0.0d,
                                         -2.0d,
-                                        0.36d,
+                                        0.76d,
                                         5.0d,
                                         2.0d)));
         PreparationMapDefinition map =
