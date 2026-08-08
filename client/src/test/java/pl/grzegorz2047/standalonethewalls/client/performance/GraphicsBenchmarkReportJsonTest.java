@@ -70,8 +70,7 @@ class GraphicsBenchmarkReportJsonTest {
                 new GraphicsBenchmarkResult(
                         GraphicsQualityPreset.MEDIUM,
                         GraphicsBenchmarkResult.TargetStatus.MEETS_PRIMARY_TARGET,
-                        new FrameTimeStatistics(
-                                120, 12_000_000L, 16_700_000L, 17_100_000L),
+                        new FrameTimeStatistics(120, 12_000_000L, 16_700_000L, 17_100_000L),
                         1920,
                         1080,
                         0.75d));
