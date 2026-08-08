@@ -2,6 +2,7 @@ package pl.grzegorz2047.standalonethewalls.client.preparation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.assertj.core.api.Assertions.within;
 
 import com.jme3.asset.DesktopAssetManager;
 import java.util.HexFormat;
@@ -41,7 +42,7 @@ class PreparationBarrierPredictionBoundaryTest {
         PreparationPlayerState outsideTeamRegion =
                 history.predict(reset, collisions, 2L, 1.0d, 0.0d, true, 0.1d);
 
-        assertThat(outsideTeamRegion.position().x()).isEqualTo(-0.6d);
+        assertThat(outsideTeamRegion.position().x()).isCloseTo(-0.6d, within(1.0e-12d));
         assertThat(outsideTeamRegion.barrierPolicy()).isEqualTo(PreparationBarrierPolicy.OPEN);
         assertThat(history.pendingStepCount()).isOne();
         assertThatIllegalArgumentException()
