@@ -17,7 +17,7 @@ public final class GraphicsBenchmarkReportJson {
         StringBuilder json = new StringBuilder(512);
         json.append('{');
         appendNumberField(json, "schemaVersion", GraphicsBenchmarkReport.SCHEMA_VERSION);
-        appendStringField(json, "repositoryCommit", report.repositoryCommit());
+        appendStringFieldAfterComma(json, "repositoryCommit", report.repositoryCommit());
         json.append(",\"assetPack\":{");
         appendStringField(json, "id", report.assetPackId());
         appendStringFieldAfterComma(json, "version", report.assetPackVersion());
