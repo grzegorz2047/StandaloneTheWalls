@@ -477,6 +477,42 @@ class MinimalLobbyRuntimeTest {
             assertThat(preparationAssignmentMessageIndex(bravo))
                     .isLessThan(preparationWorldSnapshotMessageIndex(bravo));
 
+            assertThat(lobby.offerSimulationTick(6L)).isTrue();
+            waitUntil(
+                    () ->
+                            latestMatchSnapshotUnchecked(alpha).authoritativeTick() == 6L
+                                    && latestMatchSnapshotUnchecked(alpha).phase()
+                                            == LobbyMatchPhase.PREPARATION
+                                    && latestMatchSnapshotUnchecked(alpha).ticksRemaining() == 1L
+                                    && latestMatchSnapshotUnchecked(alpha)
+                                            .equals(latestMatchSnapshotUnchecked(bravo)));
+            LobbyMatchPhaseSnapshot lastPreparation = latestMatchSnapshotUnchecked(alpha);
+            assertThat(lastPreparation.revision()).isEqualTo(preparation.revision() + 1L);
+
+            assertThat(lobby.offerSimulationTick(7L)).isTrue();
+            waitUntil(
+                    () ->
+                            latestMatchSnapshotUnchecked(alpha).authoritativeTick() == 7L
+                                    && latestMatchSnapshotUnchecked(alpha).phase()
+                                            == LobbyMatchPhase.WALLS_OPENING
+                                    && latestMatchSnapshotUnchecked(alpha).ticksRemaining() == 1L
+                                    && latestMatchSnapshotUnchecked(alpha)
+                                            .equals(latestMatchSnapshotUnchecked(bravo)));
+            LobbyMatchPhaseSnapshot opening = latestMatchSnapshotUnchecked(alpha);
+            assertThat(opening.revision()).isEqualTo(lastPreparation.revision() + 1L);
+
+            assertThat(lobby.offerSimulationTick(8L)).isTrue();
+            waitUntil(
+                    () ->
+                            latestMatchSnapshotUnchecked(alpha).authoritativeTick() == 8L
+                                    && latestMatchSnapshotUnchecked(alpha).phase()
+                                            == LobbyMatchPhase.OPEN_COMBAT
+                                    && latestMatchSnapshotUnchecked(alpha).ticksRemaining() == 2L
+                                    && latestMatchSnapshotUnchecked(alpha)
+                                            .equals(latestMatchSnapshotUnchecked(bravo)));
+            LobbyMatchPhaseSnapshot openCombat = latestMatchSnapshotUnchecked(alpha);
+            assertThat(openCombat.revision()).isEqualTo(opening.revision() + 1L);
+
             int rosterSnapshotsBeforeLockedCommand = snapshotCount(alpha);
             sendSelect(alpha, 3L, LobbyTeam.RED);
             waitForResult(alpha, 3L);
@@ -498,8 +534,8 @@ class MinimalLobbyRuntimeTest {
                             0));
 
             PreparationWorldSnapshot moved = null;
-            long movementTick = 6L;
-            while (movementTick <= 12L && moved == null) {
+            long movementTick = 9L;
+            while (movementTick <= 15L && moved == null) {
                 assertThat(lobby.offerSimulationTick(movementTick)).isTrue();
                 if (movementTick % 2L == 0L) {
                     long expectedTick = movementTick;
@@ -532,8 +568,21 @@ class MinimalLobbyRuntimeTest {
                     .isLessThanOrEqualTo(1_750.0d);
             assertThat(unmovedBravo).isEqualTo(initialBravo);
 
+            LobbyMatchPhaseSnapshot beforeDisconnect = latestMatchSnapshotUnchecked(alpha);
             bravo.channel.completeEof();
-            waitUntil(() -> lobby.memberCount() == 1 && bravo.closeCount() == 1);
+            waitUntil(
+                    () ->
+                            lobby.memberCount() == 1
+                                    && bravo.closeCount() == 1
+                                    && latestMatchSnapshotUnchecked(alpha).connectedPlayers() == 1);
+            LobbyMatchPhaseSnapshot afterDisconnect = latestMatchSnapshotUnchecked(alpha);
+            assertThat(afterDisconnect.phase()).isEqualTo(beforeDisconnect.phase());
+            assertThat(afterDisconnect.ticksRemaining())
+                    .isEqualTo(beforeDisconnect.ticksRemaining());
+            assertThat(afterDisconnect.authoritativeTick())
+                    .isGreaterThanOrEqualTo(beforeDisconnect.authoritativeTick());
+            assertThat(afterDisconnect.revision()).isEqualTo(beforeDisconnect.revision() + 1L);
+
             long removalSnapshotTick = authoritativeMovement.authoritativeTick() + 2L;
             for (long tick = authoritativeMovement.authoritativeTick() + 1L;
                     tick <= removalSnapshotTick;
@@ -547,12 +596,6 @@ class MinimalLobbyRuntimeTest {
             assertThat(latestPreparationWorldSnapshotUnchecked(alpha).players())
                     .extracting(PreparationPlayerSnapshot::playerId)
                     .containsExactly(alpha.playerId());
-
-            waitUntil(() -> lobby.matchSnapshot().phase().name().equals("PREPARATION"));
-            LobbyMatchPhaseSnapshot afterDisconnect = latestMatchSnapshotUnchecked(alpha);
-            assertThat(afterDisconnect.phase()).isEqualTo(LobbyMatchPhase.PREPARATION);
-            assertThat(afterDisconnect.connectedPlayers()).isEqualTo(1);
-            assertThat(afterDisconnect.revision()).isEqualTo(preparation.revision() + 1L);
             assertThat(preparationAssignmentCount(alpha)).isOne();
             assertThat(preparationAssignmentCount(bravo)).isOne();
         } finally {
