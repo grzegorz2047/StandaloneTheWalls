@@ -64,3 +64,5 @@ jobs:
           git add server/src/test/java/pl/grzegorz2047/standalonethewalls/server/preparation/PreparationObstacleMovementSimulationTest.java
           git commit -m "Fix permanent obstacle acceptance fixture"
           git push origin "HEAD:${GITHUB_REF_NAME}"
+
+# Trigger after workflow registration.
