@@ -39,6 +39,7 @@ import pl.grzegorz2047.standalonethewalls.domain.lobby.LobbyRosterState;
 import pl.grzegorz2047.standalonethewalls.domain.match.MatchConfiguration;
 import pl.grzegorz2047.standalonethewalls.domain.match.MatchPhase;
 import pl.grzegorz2047.standalonethewalls.mapformat.MinimalPreparationBundle;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationBarrierPolicy;
 import pl.grzegorz2047.standalonethewalls.mapformat.TwMapBundleException;
 import pl.grzegorz2047.standalonethewalls.mapformat.TwMapBundleLoader;
 import pl.grzegorz2047.standalonethewalls.mapformat.TwMapLoadPolicy;
@@ -73,9 +74,9 @@ import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationClientSp
 import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationInputMailbox;
 import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationMapDefinition;
 import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationMovementSimulation;
+import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationSpawnPublishException;
+import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationSpawnPublisher;
 import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationTransitionPlanner;
-import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationTransitionPublishException;
-import pl.grzegorz2047.standalonethewalls.server.preparation.PreparationTransitionPublisher;
 import pl.grzegorz2047.standalonethewalls.server.preparation.VerifiedPreparationMapAdapter;
 import pl.grzegorz2047.standalonethewalls.server.preparation.VerifiedPreparationMapException;
 import pl.grzegorz2047.standalonethewalls.server.realtime.RealtimeTicketProvisioner;
@@ -751,11 +752,9 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
             return;
         }
         LobbyMatchSnapshot snapshot = Objects.requireNonNull(matchSnapshot, "matchSnapshot");
-        if (snapshot.phase() == MatchPhase.PREPARATION) {
-            if (!state.preparationTransitionAttempted) {
-                state.preparationTransitionAttempted = true;
-                publishPreparationTransition(state, snapshot);
-            }
+        if (snapshot.phase() == MatchPhase.PREPARATION && !state.preparationTransitionAttempted) {
+            state.preparationTransitionAttempted = true;
+            publishPreparationTransition(state, snapshot);
             return;
         }
         byte[] payload =
@@ -792,18 +791,54 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
                         matchSnapshot.authoritativeTick(),
                         preparationMap,
                         assignments);
-        try {
-            PreparationTransitionPublisher.publish(
-                    plan, matchSnapshot, preparationChannels(state), sendTimeout);
-        } catch (PreparationTransitionPublishException exception) {
-            state.preparationMovement = null;
-            for (MemberState member : state.members.values()) {
-                member.preparationInputMailbox.close();
+
+        byte[] snapshotPayload =
+                LobbyMatchProtocolCodec.encodeSnapshot(
+                        LobbyMatchProtocolAdapter.toProtocol(matchSnapshot));
+        List<LobbyParticipantId> failed =
+                new ArrayList<>(
+                        sendToMembers(
+                                state.members, MessageType.LOBBY_MATCH_SNAPSHOT, snapshotPayload));
+        Map<LobbyParticipantId, ReliableChannel> channels = preparationChannels(state);
+        for (PreparationClientSpawn delivery : plan) {
+            if (failed.contains(delivery.participantId())) {
+                continue;
             }
-            throw exception;
+            ReliableChannel channel = channels.get(delivery.participantId());
+            if (channel == null) {
+                throw new IllegalStateException(
+                        "preparation transition member disappeared before assignment send");
+            }
+            try {
+                PreparationSpawnPublisher.publish(
+                        List.of(delivery), Map.of(delivery.participantId(), channel), sendTimeout);
+            } catch (PreparationSpawnPublishException exception) {
+                if (exception.code() == PreparationSpawnPublishException.Code.SEND_START_FAILED
+                        || exception.code() == PreparationSpawnPublishException.Code.SEND_FAILED
+                        || exception.code() == PreparationSpawnPublishException.Code.SEND_TIMEOUT
+                        || exception.code() == PreparationSpawnPublishException.Code.INTERRUPTED) {
+                    failed.add(delivery.participantId());
+                    continue;
+                }
+                state.preparationMovement = null;
+                for (MemberState member : state.members.values()) {
+                    member.preparationInputMailbox.close();
+                }
+                throw exception;
+            }
         }
-        publishPreparationSnapshot(
-                state, state.preparationMovement.currentSnapshot().orElseThrow());
+
+        if (!failed.isEmpty()) {
+            removeFailedMembers(state, failed);
+            if (state.members.isEmpty()) {
+                return;
+            }
+            stabilizeSnapshots(state);
+        }
+        PreparationMovementSimulation movement = state.preparationMovement;
+        if (movement != null) {
+            publishPreparationSnapshot(state, movement.currentSnapshot().orElseThrow());
+        }
     }
 
     private void advancePreparationMovement(
@@ -815,7 +850,12 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
                     .drainLatest()
                     .ifPresent(input -> latestInputs.put(member.identity.playerId(), input));
         }
-        PreparationWorldSnapshot snapshot = movement.advanceTick(authoritativeTick, latestInputs);
+        PreparationBarrierPolicy barrierPolicy =
+                matchCoordinator.snapshot().phase() == MatchPhase.OPEN_COMBAT
+                        ? PreparationBarrierPolicy.OPEN
+                        : PreparationBarrierPolicy.CLOSED;
+        PreparationWorldSnapshot snapshot =
+                movement.advanceTick(authoritativeTick, latestInputs, barrierPolicy);
         if (authoritativeTick % PREPARATION_SNAPSHOT_INTERVAL_TICKS == 0L) {
             publishPreparationSnapshot(state, snapshot);
         }

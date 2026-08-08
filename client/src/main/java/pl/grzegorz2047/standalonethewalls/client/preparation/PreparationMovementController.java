@@ -5,7 +5,7 @@ import java.util.OptionalDouble;
 import pl.grzegorz2047.standalonethewalls.mapformat.MapVector3;
 import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationVerticalMotion;
 
-/** Deterministic preparation movement resolved through region and verified collision guards. */
+/** Deterministic preparation movement resolved through active bounds and verified collision. */
 public final class PreparationMovementController {
     public static final double MOVEMENT_SPEED_METRES_PER_SECOND = 5.0d;
     public static final double SPRINTING_SPEED_METRES_PER_SECOND = 8.0d;
@@ -105,7 +105,10 @@ public final class PreparationMovementController {
                         boundedSeconds);
         double limitedHeight =
                 world.limitUpwardMovement(
-                        moved.position(), vertical.heightMetres(), moved.crouching());
+                        moved.position(),
+                        vertical.heightMetres(),
+                        moved.crouching(),
+                        moved.barrierPolicy());
         if (limitedHeight < vertical.heightMetres() - VERTICAL_COLLISION_TOLERANCE_METRES) {
             vertical = new PreparationVerticalMotion.Step(limitedHeight, 0.0d, false);
         }
@@ -143,7 +146,8 @@ public final class PreparationMovementController {
         if (requestedCrouching) {
             return player.withCrouching(true);
         }
-        if (!player.crouching() || !world.hasPlayerClearance(player.position(), false)) {
+        if (!player.crouching()
+                || !world.hasPlayerClearance(player.position(), false, player.barrierPolicy())) {
             return player;
         }
         return player.withCrouching(false);
@@ -198,7 +202,12 @@ public final class PreparationMovementController {
         MapVector3 target = player.horizontalPositionAfter(deltaX, deltaZ);
         if ((Double.compare(target.x(), player.position().x()) == 0
                         && Double.compare(target.z(), player.position().z()) == 0)
-                || !world.permitsHorizontal(player.position(), target, false, player.crouching())) {
+                || !world.permitsHorizontal(
+                        player.position(),
+                        target,
+                        false,
+                        player.crouching(),
+                        player.barrierPolicy())) {
             return player;
         }
 
@@ -232,7 +241,8 @@ public final class PreparationMovementController {
                         target.x(),
                         targetY,
                         target.z(),
-                        player.crouching())) {
+                        player.crouching(),
+                        player.barrierPolicy())) {
             return player;
         }
         return player.withMovementState(

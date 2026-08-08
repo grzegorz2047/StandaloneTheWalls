@@ -13,7 +13,7 @@ import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyMatchPhaseSnapshot
 
 class LobbyMatchProtocolAdapterTest {
     @Test
-    void mapsWaitingCountdownAndPreparationWithoutEnumOrdinals() {
+    void mapsPublishedPhasesWithoutEnumOrdinals() {
         LobbyMatchPhaseSnapshot waiting =
                 LobbyMatchProtocolAdapter.toProtocol(
                         snapshot(
@@ -26,6 +26,12 @@ class LobbyMatchProtocolAdapterTest {
         LobbyMatchPhaseSnapshot preparation =
                 LobbyMatchProtocolAdapter.toProtocol(
                         snapshot(MatchPhase.PREPARATION, 400L, Optional.empty()));
+        LobbyMatchPhaseSnapshot opening =
+                LobbyMatchProtocolAdapter.toProtocol(
+                        snapshot(MatchPhase.WALLS_OPENING, 50L, Optional.empty()));
+        LobbyMatchPhaseSnapshot combat =
+                LobbyMatchProtocolAdapter.toProtocol(
+                        snapshot(MatchPhase.OPEN_COMBAT, 8_400L, Optional.empty()));
 
         assertThat(waiting.phase()).isEqualTo(LobbyMatchPhase.WAITING_FOR_PLAYERS);
         assertThat(waiting.authoritativeTick()).isEqualTo(LobbyMatchSnapshot.BEFORE_FIRST_TICK);
@@ -36,6 +42,10 @@ class LobbyMatchProtocolAdapterTest {
         assertThat(countdown.cancellationReason()).isEqualTo(LobbyCountdownCancellationReason.NONE);
         assertThat(preparation.phase()).isEqualTo(LobbyMatchPhase.PREPARATION);
         assertThat(preparation.ticksRemaining()).isEqualTo(400L);
+        assertThat(opening.phase()).isEqualTo(LobbyMatchPhase.WALLS_OPENING);
+        assertThat(opening.ticksRemaining()).isEqualTo(50L);
+        assertThat(combat.phase()).isEqualTo(LobbyMatchPhase.OPEN_COMBAT);
+        assertThat(combat.ticksRemaining()).isEqualTo(8_400L);
     }
 
     @Test

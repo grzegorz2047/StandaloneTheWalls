@@ -19,16 +19,11 @@ final class LobbyMatchProtocolAdapter {
                     case WAITING_FOR_PLAYERS -> LobbyMatchPhase.WAITING_FOR_PLAYERS;
                     case START_COUNTDOWN -> LobbyMatchPhase.START_COUNTDOWN;
                     case PREPARATION -> LobbyMatchPhase.PREPARATION;
-                    case BOOT,
-                            LOADING_MAP,
-                            WALLS_OPENING,
-                            OPEN_COMBAT,
-                            DEATHMATCH_TRANSITION,
-                            DEATHMATCH,
-                            RESULTS,
-                            RESETTING ->
+                    case WALLS_OPENING -> LobbyMatchPhase.WALLS_OPENING;
+                    case OPEN_COMBAT -> LobbyMatchPhase.OPEN_COMBAT;
+                    case BOOT, LOADING_MAP, DEATHMATCH_TRANSITION, DEATHMATCH, RESULTS, RESETTING ->
                             throw new IllegalArgumentException(
-                                    "match phase is outside the lobby protocol slice");
+                                    "match phase is outside the published protocol slice");
                 };
         LobbyCountdownCancellationReason cancellationReason =
                 source.cancellationReason()

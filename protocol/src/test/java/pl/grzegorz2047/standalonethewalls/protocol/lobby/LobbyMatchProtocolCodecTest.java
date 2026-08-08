@@ -52,7 +52,7 @@ class LobbyMatchProtocolCodecTest {
     }
 
     @Test
-    void roundTripsWaitingCancellationAndPreparationSnapshots() throws LobbyProtocolException {
+    void roundTripsAllPublishedMatchPhases() throws LobbyProtocolException {
         LobbyMatchPhaseSnapshot waiting =
                 new LobbyMatchPhaseSnapshot(
                         0L,
@@ -83,6 +83,26 @@ class LobbyMatchProtocolCodecTest {
                         6,
                         1L,
                         LobbyCountdownCancellationReason.NONE);
+        LobbyMatchPhaseSnapshot opening =
+                new LobbyMatchPhaseSnapshot(
+                        10L,
+                        12L,
+                        1_299L,
+                        LobbyMatchPhase.WALLS_OPENING,
+                        100L,
+                        6,
+                        1L,
+                        LobbyCountdownCancellationReason.NONE);
+        LobbyMatchPhaseSnapshot combat =
+                new LobbyMatchPhaseSnapshot(
+                        11L,
+                        12L,
+                        1_399L,
+                        LobbyMatchPhase.OPEN_COMBAT,
+                        8_400L,
+                        6,
+                        1L,
+                        LobbyCountdownCancellationReason.NONE);
 
         assertThat(
                         LobbyMatchProtocolCodec.decodeSnapshot(
@@ -96,6 +116,14 @@ class LobbyMatchProtocolCodecTest {
                         LobbyMatchProtocolCodec.decodeSnapshot(
                                 LobbyMatchProtocolCodec.encodeSnapshot(preparation)))
                 .isEqualTo(preparation);
+        assertThat(
+                        LobbyMatchProtocolCodec.decodeSnapshot(
+                                LobbyMatchProtocolCodec.encodeSnapshot(opening)))
+                .isEqualTo(opening);
+        assertThat(
+                        LobbyMatchProtocolCodec.decodeSnapshot(
+                                LobbyMatchProtocolCodec.encodeSnapshot(combat)))
+                .isEqualTo(combat);
     }
 
     @Test

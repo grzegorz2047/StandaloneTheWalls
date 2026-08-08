@@ -450,6 +450,12 @@ public final class ConnectedLobbySession implements AutoCloseable {
                                 DirectConnectFailureCode.LOBBY_MATCH_SNAPSHOT_ROSTER_MISMATCH));
             }
             matchSnapshot.set(next);
+            if (next.phase() == LobbyMatchPhase.OPEN_COMBAT) {
+                PreparationState currentPreparation = preparationState.get();
+                if (currentPreparation != null) {
+                    currentPreparation.scene().openCentralBarriers();
+                }
+            }
         }
         return Optional.empty();
     }

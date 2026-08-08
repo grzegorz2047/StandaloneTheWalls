@@ -38,6 +38,7 @@ public record ConnectedLobbyMatchModel(
     }
 
     public boolean lobbyControlsAllowed() {
-        return phase != LobbyMatchPhase.PREPARATION;
+        return phase == LobbyMatchPhase.WAITING_FOR_PLAYERS
+                || phase == LobbyMatchPhase.START_COUNTDOWN;
     }
 }

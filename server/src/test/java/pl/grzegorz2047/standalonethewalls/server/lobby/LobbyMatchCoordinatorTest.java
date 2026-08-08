@@ -57,24 +57,33 @@ class LobbyMatchCoordinatorTest {
     }
 
     @Test
-    void entersPreparationExactlyOnceAndStopsAcceptingLobbyCommands() {
+    void advancesPreparationAndWallsOpeningExactlyOnceThenStopsAtOpenCombat() {
         LobbyMatchCoordinator coordinator = new LobbyMatchCoordinator(LOBBY, MATCH);
         coordinator.updateRoster(twoPlayers(1L, true, true));
 
         LobbyMatchSnapshot lastCountdownTick = coordinator.advanceTick(0L).orElseThrow();
         LobbyMatchSnapshot prepared = coordinator.advanceTick(1L).orElseThrow();
+        LobbyMatchSnapshot lastPreparationTick = coordinator.advanceTick(2L).orElseThrow();
+        LobbyMatchSnapshot opening = coordinator.advanceTick(3L).orElseThrow();
+        LobbyMatchSnapshot combat = coordinator.advanceTick(4L).orElseThrow();
 
         assertThat(lastCountdownTick.phase()).isEqualTo(MatchPhase.START_COUNTDOWN);
         assertThat(lastCountdownTick.ticksRemaining()).isOne();
         assertThat(prepared.phase()).isEqualTo(MatchPhase.PREPARATION);
         assertThat(prepared.ticksRemaining()).isEqualTo(2L);
+        assertThat(lastPreparationTick.phase()).isEqualTo(MatchPhase.PREPARATION);
+        assertThat(lastPreparationTick.ticksRemaining()).isOne();
+        assertThat(opening.phase()).isEqualTo(MatchPhase.WALLS_OPENING);
+        assertThat(opening.ticksRemaining()).isOne();
+        assertThat(combat.phase()).isEqualTo(MatchPhase.OPEN_COMBAT);
+        assertThat(combat.ticksRemaining()).isEqualTo(2L);
         assertThat(coordinator.acceptsLobbyCommands()).isFalse();
 
-        long preparationRevision = prepared.revision();
-        assertThat(coordinator.advanceTick(1L)).isEmpty();
-        assertThat(coordinator.advanceTick(2L)).isEmpty();
-        assertThat(coordinator.snapshot().revision()).isEqualTo(preparationRevision);
-        assertThat(coordinator.snapshot().phase()).isEqualTo(MatchPhase.PREPARATION);
+        long combatRevision = combat.revision();
+        assertThat(coordinator.advanceTick(4L)).isEmpty();
+        assertThat(coordinator.advanceTick(5L)).isEmpty();
+        assertThat(coordinator.snapshot().revision()).isEqualTo(combatRevision);
+        assertThat(coordinator.snapshot().phase()).isEqualTo(MatchPhase.OPEN_COMBAT);
         assertThat(coordinator.snapshot().ticksRemaining()).isEqualTo(2L);
     }
 

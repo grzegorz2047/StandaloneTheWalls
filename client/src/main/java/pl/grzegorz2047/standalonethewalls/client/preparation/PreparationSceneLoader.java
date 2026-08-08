@@ -18,6 +18,7 @@ import pl.grzegorz2047.standalonethewalls.mapformat.PreparationRegion;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationSupportException;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationSupportMap;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationTeam;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationWorldBounds;
 import pl.grzegorz2047.standalonethewalls.mapformat.TwMapBundleException;
 import pl.grzegorz2047.standalonethewalls.mapformat.TwMapBundleLoader;
 import pl.grzegorz2047.standalonethewalls.mapformat.TwMapLoadPolicy;
@@ -118,6 +119,7 @@ public final class PreparationSceneLoader {
                 collisionDocument,
                 supportMap,
                 obstacleMap,
+                PreparationWorldBounds.fromRegions(gameplay.regions()),
                 region,
                 spawn);
     }

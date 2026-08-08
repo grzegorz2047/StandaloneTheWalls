@@ -19,13 +19,35 @@ class PreparationSceneGraphLoaderTest {
 
         Node graph = PreparationSceneGraphLoader.load(assetManager, verified);
 
-        assertThat(graph.getName()).isEqualTo("verified-preparation-minimal_preparation");
+        assertThat(graph.getName())
+                .isEqualTo("verified-preparation-phase-aware-minimal_preparation");
         assertThat(graph.getQuantity()).isOne();
         assertThat(graph.getChild("Ground")).isNotNull();
         assertThat(graph.getChild("GreenRegion")).isNotNull();
         assertThat(graph.getChild("CentralWallX")).isNotNull();
         assertThat(graph.getChild("PreparationSun")).isNotNull();
         assertThat(graph.getParent()).isNull();
+    }
+
+    @Test
+    void openPolicyDetachesOnlyCentralWallVisualsOnLogicalUpdate()
+            throws PreparationSceneLoadException, PreparationSceneGraphException {
+        DesktopAssetManager assetManager = new DesktopAssetManager(true);
+        VerifiedPreparationScene verified = verifiedGreenScene();
+        Node graph = PreparationSceneGraphLoader.load(assetManager, verified);
+
+        assertThat(graph.getChild("CentralWallX")).isNotNull();
+        assertThat(graph.getChild("CentralWallZ")).isNotNull();
+        assertThat(graph.getChild("Ground")).isNotNull();
+        assertThat(graph.getChild("PreparationSun")).isNotNull();
+
+        assertThat(verified.openCentralBarriers()).isTrue();
+        graph.updateLogicalState(0.0f);
+
+        assertThat(graph.getChild("CentralWallX")).isNull();
+        assertThat(graph.getChild("CentralWallZ")).isNull();
+        assertThat(graph.getChild("Ground")).isNotNull();
+        assertThat(graph.getChild("PreparationSun")).isNotNull();
     }
 
     @Test

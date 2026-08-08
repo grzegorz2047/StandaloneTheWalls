@@ -10,8 +10,11 @@ import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.TreeMap;
 import pl.grzegorz2047.standalonethewalls.domain.TeamId;
+import pl.grzegorz2047.standalonethewalls.mapformat.MapVector3;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationBarrierPolicy;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationObstacleMap;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationSupportMap;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationWorldBounds;
 import pl.grzegorz2047.standalonethewalls.protocol.identity.PlayerId;
 import pl.grzegorz2047.standalonethewalls.protocol.lobby.LobbyTeam;
 import pl.grzegorz2047.standalonethewalls.protocol.preparation.PreparationInput;
@@ -42,6 +45,7 @@ public final class PreparationMovementSimulation {
     private final TreeMap<PlayerId, PlayerState> players =
             new TreeMap<>(Comparator.comparing(PlayerId::value));
     private long lastAdvancedTick;
+    private PreparationBarrierPolicy barrierPolicy = PreparationBarrierPolicy.CLOSED;
 
     private PreparationMovementSimulation(long roundNumber, long initialTick) {
         if (roundNumber < 1L) {
@@ -69,6 +73,7 @@ public final class PreparationMovementSimulation {
 
         PreparationMovementSimulation simulation =
                 new PreparationMovementSimulation(roundNumber, initialTick);
+        PreparationWorldBounds worldBounds = worldBounds(verifiedMap.regions().values());
         for (Map.Entry<PlayerId, PreparationSpawnAssignment> entry :
                 initialAssignments.entrySet()) {
             PlayerId playerId = Objects.requireNonNull(entry.getKey(), "playerId");
@@ -86,6 +91,7 @@ public final class PreparationMovementSimulation {
                     PlayerState.atSpawn(
                             assignment,
                             region,
+                            worldBounds,
                             verifiedMap.supportMap(),
                             verifiedMap.obstacleMap());
             if (simulation.players.put(playerId, state) != null) {
@@ -107,14 +113,32 @@ public final class PreparationMovementSimulation {
         return lastAdvancedTick;
     }
 
+    public PreparationBarrierPolicy barrierPolicy() {
+        return barrierPolicy;
+    }
+
     public boolean remove(PlayerId playerId) {
         return players.remove(Objects.requireNonNull(playerId, "playerId")) != null;
     }
 
     public PreparationWorldSnapshot advanceTick(
             long authoritativeTick, Map<PlayerId, PreparationInput> latestInputs) {
+        return advanceTick(authoritativeTick, latestInputs, barrierPolicy);
+    }
+
+    public PreparationWorldSnapshot advanceTick(
+            long authoritativeTick,
+            Map<PlayerId, PreparationInput> latestInputs,
+            PreparationBarrierPolicy requestedBarrierPolicy) {
         if (authoritativeTick <= lastAdvancedTick) {
             throw new IllegalArgumentException("authoritativeTick must advance monotonically");
+        }
+        PreparationBarrierPolicy nextBarrierPolicy =
+                Objects.requireNonNull(requestedBarrierPolicy, "requestedBarrierPolicy");
+        if (barrierPolicy == PreparationBarrierPolicy.OPEN
+                && nextBarrierPolicy == PreparationBarrierPolicy.CLOSED) {
+            throw new IllegalArgumentException(
+                    "central barriers cannot close again during an authoritative round");
         }
         Map<PlayerId, PreparationInput> inputs =
                 Map.copyOf(Objects.requireNonNull(latestInputs, "latestInputs"));
@@ -130,8 +154,9 @@ public final class PreparationMovementSimulation {
             }
             player.accept(input);
         }
+        barrierPolicy = nextBarrierPolicy;
         for (PlayerState player : players.values()) {
-            player.advance();
+            player.advance(barrierPolicy);
         }
         lastAdvancedTick = authoritativeTick;
         return snapshot(authoritativeTick);
@@ -147,6 +172,32 @@ public final class PreparationMovementSimulation {
             snapshots.add(entry.getValue().snapshot(entry.getKey()));
         }
         return new PreparationWorldSnapshot(roundNumber, authoritativeTick, snapshots);
+    }
+
+    private static PreparationWorldBounds worldBounds(Iterable<PreparationRegionBounds> regions) {
+        int minimumX = Integer.MAX_VALUE;
+        int minimumY = Integer.MAX_VALUE;
+        int minimumZ = Integer.MAX_VALUE;
+        int maximumX = Integer.MIN_VALUE;
+        int maximumY = Integer.MIN_VALUE;
+        int maximumZ = Integer.MIN_VALUE;
+        boolean found = false;
+        for (PreparationRegionBounds region : regions) {
+            PreparationRegionBounds candidate = Objects.requireNonNull(region, "region");
+            found = true;
+            minimumX = Math.min(minimumX, candidate.minimumXMillimetres());
+            minimumY = Math.min(minimumY, candidate.minimumYMillimetres());
+            minimumZ = Math.min(minimumZ, candidate.minimumZMillimetres());
+            maximumX = Math.max(maximumX, candidate.maximumXMillimetres());
+            maximumY = Math.max(maximumY, candidate.maximumYMillimetres());
+            maximumZ = Math.max(maximumZ, candidate.maximumZMillimetres());
+        }
+        if (!found) {
+            throw new IllegalArgumentException("authoritative map has no movement regions");
+        }
+        return new PreparationWorldBounds(
+                new MapVector3(minimumX / 1_000.0d, minimumY / 1_000.0d, minimumZ / 1_000.0d),
+                new MapVector3(maximumX / 1_000.0d, maximumY / 1_000.0d, maximumZ / 1_000.0d));
     }
 
     private static TeamId domainTeam(LobbyTeam team) {
@@ -185,6 +236,7 @@ public final class PreparationMovementSimulation {
 
     private static final class PlayerState {
         private final PreparationRegionBounds region;
+        private final PreparationWorldBounds worldBounds;
         private final PreparationSupportMap supportMap;
         private final PreparationObstacleMap obstacleMap;
         private double xMillimetres;
@@ -201,6 +253,7 @@ public final class PreparationMovementSimulation {
 
         private PlayerState(
                 PreparationRegionBounds region,
+                PreparationWorldBounds worldBounds,
                 PreparationSupportMap supportMap,
                 PreparationObstacleMap obstacleMap,
                 int xMillimetres,
@@ -208,6 +261,7 @@ public final class PreparationMovementSimulation {
                 int zMillimetres,
                 int yawCentidegrees) {
             this.region = Objects.requireNonNull(region, "region");
+            this.worldBounds = Objects.requireNonNull(worldBounds, "worldBounds");
             this.supportMap = Objects.requireNonNull(supportMap, "supportMap");
             this.obstacleMap = Objects.requireNonNull(obstacleMap, "obstacleMap");
             if (!region.contains(xMillimetres, yMillimetres, zMillimetres)) {
@@ -223,7 +277,8 @@ public final class PreparationMovementSimulation {
                     xMillimetres / 1_000.0d,
                     yMillimetres / 1_000.0d,
                     zMillimetres / 1_000.0d,
-                    false)) {
+                    false,
+                    PreparationBarrierPolicy.CLOSED)) {
                 throw new IllegalArgumentException(
                         "preparation spawn has no authoritative standing clearance");
             }
@@ -241,10 +296,12 @@ public final class PreparationMovementSimulation {
         private static PlayerState atSpawn(
                 PreparationSpawnAssignment assignment,
                 PreparationRegionBounds region,
+                PreparationWorldBounds worldBounds,
                 PreparationSupportMap supportMap,
                 PreparationObstacleMap obstacleMap) {
             return new PlayerState(
                     region,
+                    worldBounds,
                     supportMap,
                     obstacleMap,
                     toMillimetres(assignment.x()),
@@ -264,11 +321,11 @@ public final class PreparationMovementSimulation {
             pitchCentidegrees = input.pitchCentidegrees();
         }
 
-        private void advance() {
+        private void advance(PreparationBarrierPolicy activeBarrierPolicy) {
             PreparationInput input = activeInput;
             if (input != null) {
-                applyRequestedPosture(input.crouching());
-                advanceHorizontal(input);
+                applyRequestedPosture(input.crouching(), activeBarrierPolicy);
+                advanceHorizontal(input, activeBarrierPolicy);
             }
             boolean jumpRequested = false;
             if (input != null && input.jumping() && input.sequence() != consumedJumpSequence) {
@@ -290,7 +347,8 @@ public final class PreparationMovementSimulation {
                             zMillimetres / 1_000.0d,
                             yMillimetres / 1_000.0d,
                             vertical.heightMetres(),
-                            crouching);
+                            crouching,
+                            activeBarrierPolicy);
             if (limitedHeightMetres
                     < vertical.heightMetres() - VERTICAL_COLLISION_TOLERANCE_METRES) {
                 vertical = new PreparationVerticalMotion.Step(limitedHeightMetres, 0.0d, false);
@@ -300,7 +358,8 @@ public final class PreparationMovementSimulation {
             grounded = vertical.grounded();
         }
 
-        private void applyRequestedPosture(boolean requestedCrouching) {
+        private void applyRequestedPosture(
+                boolean requestedCrouching, PreparationBarrierPolicy activeBarrierPolicy) {
             if (requestedCrouching) {
                 crouching = true;
                 return;
@@ -310,12 +369,14 @@ public final class PreparationMovementSimulation {
                             xMillimetres / 1_000.0d,
                             yMillimetres / 1_000.0d,
                             zMillimetres / 1_000.0d,
-                            false)) {
+                            false,
+                            activeBarrierPolicy)) {
                 crouching = false;
             }
         }
 
-        private void advanceHorizontal(PreparationInput input) {
+        private void advanceHorizontal(
+                PreparationInput input, PreparationBarrierPolicy activeBarrierPolicy) {
             if (input.forwardAxis() == 0 && input.rightAxis() == 0) {
                 return;
             }
@@ -337,17 +398,23 @@ public final class PreparationMovementSimulation {
                             : input.sprinting()
                                     ? SPRINTING_STEP_MILLIMETRES
                                     : WALKING_STEP_MILLIMETRES;
+            double requestedX = xMillimetres + step * ((forward * forwardX) + (right * rightX));
+            double requestedZ = zMillimetres + step * ((forward * forwardZ) + (right * rightZ));
             double targetX =
-                    region.clampX(xMillimetres + step * ((forward * forwardX) + (right * rightX)));
+                    activeBarrierPolicy == PreparationBarrierPolicy.OPEN
+                            ? worldBounds.clampX(requestedX / 1_000.0d) * 1_000.0d
+                            : region.clampX(requestedX);
             double targetZ =
-                    region.clampZ(zMillimetres + step * ((forward * forwardZ) + (right * rightZ)));
+                    activeBarrierPolicy == PreparationBarrierPolicy.OPEN
+                            ? worldBounds.clampZ(requestedZ / 1_000.0d) * 1_000.0d
+                            : region.clampZ(requestedZ);
             if (Double.compare(targetX, xMillimetres) == 0
                     && Double.compare(targetZ, zMillimetres) == 0) {
                 return;
             }
             double originalX = xMillimetres;
             double originalZ = zMillimetres;
-            if (tryMove(targetX, targetZ)) {
+            if (tryMove(targetX, targetZ, activeBarrierPolicy)) {
                 return;
             }
             double deltaX = targetX - originalX;
@@ -356,15 +423,16 @@ public final class PreparationMovementSimulation {
                 return;
             }
             if (Math.abs(deltaX) >= Math.abs(deltaZ)) {
-                if (!tryMove(targetX, originalZ)) {
-                    tryMove(originalX, targetZ);
+                if (!tryMove(targetX, originalZ, activeBarrierPolicy)) {
+                    tryMove(originalX, targetZ, activeBarrierPolicy);
                 }
-            } else if (!tryMove(originalX, targetZ)) {
-                tryMove(targetX, originalZ);
+            } else if (!tryMove(originalX, targetZ, activeBarrierPolicy)) {
+                tryMove(targetX, originalZ, activeBarrierPolicy);
             }
         }
 
-        private boolean tryMove(double targetX, double targetZ) {
+        private boolean tryMove(
+                double targetX, double targetZ, PreparationBarrierPolicy activeBarrierPolicy) {
             if (Double.compare(targetX, xMillimetres) == 0
                     && Double.compare(targetZ, zMillimetres) == 0) {
                 return false;
@@ -397,7 +465,8 @@ public final class PreparationMovementSimulation {
                     targetX / 1_000.0d,
                     targetYMillimetres / 1_000.0d,
                     targetZ / 1_000.0d,
-                    crouching)) {
+                    crouching,
+                    activeBarrierPolicy)) {
                 return false;
             }
             xMillimetres = targetX;
