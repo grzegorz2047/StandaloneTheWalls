@@ -39,10 +39,12 @@ class QualityDowngradeGovernorTest {
     void canProgressFromHighToMediumToLowButNeverBelowLow() {
         QualityDowngradeGovernor governor = new QualityDowngradeGovernor(2);
 
-        governor.observe(GraphicsQualityPreset.HIGH, OVER_BUDGET_NANOS, BUDGET_NANOS);
+        assertThat(governor.observe(GraphicsQualityPreset.HIGH, OVER_BUDGET_NANOS, BUDGET_NANOS))
+                .isEqualTo(GraphicsQualityPreset.HIGH);
         GraphicsQualityPreset medium =
                 governor.observe(GraphicsQualityPreset.HIGH, OVER_BUDGET_NANOS, BUDGET_NANOS);
-        governor.observe(medium, OVER_BUDGET_NANOS, BUDGET_NANOS);
+        assertThat(governor.observe(medium, OVER_BUDGET_NANOS, BUDGET_NANOS))
+                .isEqualTo(GraphicsQualityPreset.MEDIUM);
         GraphicsQualityPreset low =
                 governor.observe(medium, OVER_BUDGET_NANOS, BUDGET_NANOS);
 
