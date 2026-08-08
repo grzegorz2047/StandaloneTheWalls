@@ -36,8 +36,7 @@ class PreparationWorldBoundsTest {
                 .withMessageContaining("at least one");
         PreparationWorldBounds bounds =
                 new PreparationWorldBounds(
-                        new MapVector3(-1.0d, -1.0d, -1.0d),
-                        new MapVector3(1.0d, 1.0d, 1.0d));
+                        new MapVector3(-1.0d, -1.0d, -1.0d), new MapVector3(1.0d, 1.0d, 1.0d));
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> bounds.clampX(Double.NaN))
                 .withMessageContaining("finite");

@@ -17,8 +17,7 @@ public record PreparationWorldBounds(MapVector3 minimum, MapVector3 maximum) {
     }
 
     public static PreparationWorldBounds fromRegions(List<PreparationRegion> regions) {
-        List<PreparationRegion> verified =
-                List.copyOf(Objects.requireNonNull(regions, "regions"));
+        List<PreparationRegion> verified = List.copyOf(Objects.requireNonNull(regions, "regions"));
         if (verified.isEmpty()) {
             throw new IllegalArgumentException("preparation world requires at least one region");
         }

@@ -752,8 +752,7 @@ public final class MinimalLobbyRuntime implements AutoCloseable {
             return;
         }
         LobbyMatchSnapshot snapshot = Objects.requireNonNull(matchSnapshot, "matchSnapshot");
-        if (snapshot.phase() == MatchPhase.PREPARATION
-                && !state.preparationTransitionAttempted) {
+        if (snapshot.phase() == MatchPhase.PREPARATION && !state.preparationTransitionAttempted) {
             state.preparationTransitionAttempted = true;
             publishPreparationTransition(state, snapshot);
             return;

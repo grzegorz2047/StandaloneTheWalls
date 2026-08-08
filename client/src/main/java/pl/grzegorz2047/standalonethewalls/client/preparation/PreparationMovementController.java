@@ -147,8 +147,7 @@ public final class PreparationMovementController {
             return player.withCrouching(true);
         }
         if (!player.crouching()
-                || !world.hasPlayerClearance(
-                        player.position(), false, player.barrierPolicy())) {
+                || !world.hasPlayerClearance(player.position(), false, player.barrierPolicy())) {
             return player;
         }
         return player.withCrouching(false);

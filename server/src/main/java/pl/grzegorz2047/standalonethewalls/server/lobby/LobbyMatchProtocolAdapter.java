@@ -21,12 +21,7 @@ final class LobbyMatchProtocolAdapter {
                     case PREPARATION -> LobbyMatchPhase.PREPARATION;
                     case WALLS_OPENING -> LobbyMatchPhase.WALLS_OPENING;
                     case OPEN_COMBAT -> LobbyMatchPhase.OPEN_COMBAT;
-                    case BOOT,
-                            LOADING_MAP,
-                            DEATHMATCH_TRANSITION,
-                            DEATHMATCH,
-                            RESULTS,
-                            RESETTING ->
+                    case BOOT, LOADING_MAP, DEATHMATCH_TRANSITION, DEATHMATCH, RESULTS, RESETTING ->
                             throw new IllegalArgumentException(
                                     "match phase is outside the published protocol slice");
                 };

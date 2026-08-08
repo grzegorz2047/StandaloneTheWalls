@@ -54,11 +54,7 @@ public final class PreparationObstacleMap {
     public boolean hasPlayerClearance(
             double xMetres, double yMetres, double zMetres, boolean crouching) {
         return hasPlayerClearance(
-                xMetres,
-                yMetres,
-                zMetres,
-                crouching,
-                PreparationBarrierPolicy.CLOSED);
+                xMetres, yMetres, zMetres, crouching, PreparationBarrierPolicy.CLOSED);
     }
 
     public boolean hasPlayerClearance(
@@ -77,11 +73,7 @@ public final class PreparationObstacleMap {
     public boolean overlapsPlayerBody(
             double xMetres, double yMetres, double zMetres, boolean crouching) {
         return overlapsPlayerBody(
-                xMetres,
-                yMetres,
-                zMetres,
-                crouching,
-                PreparationBarrierPolicy.CLOSED);
+                xMetres, yMetres, zMetres, crouching, PreparationBarrierPolicy.CLOSED);
     }
 
     public boolean overlapsPlayerBody(
@@ -93,8 +85,7 @@ public final class PreparationObstacleMap {
         requireFinite(xMetres, "xMetres");
         requireFinite(yMetres, "yMetres");
         requireFinite(zMetres, "zMetres");
-        PreparationBarrierPolicy policy =
-                Objects.requireNonNull(barrierPolicy, "barrierPolicy");
+        PreparationBarrierPolicy policy = Objects.requireNonNull(barrierPolicy, "barrierPolicy");
         for (PreparationObstacleBox box : boxes) {
             if (!blocks(box, policy)) {
                 continue;
@@ -159,8 +150,7 @@ public final class PreparationObstacleMap {
         requireFinite(targetXMetres, "targetXMetres");
         requireFinite(targetYMetres, "targetYMetres");
         requireFinite(targetZMetres, "targetZMetres");
-        PreparationBarrierPolicy policy =
-                Objects.requireNonNull(barrierPolicy, "barrierPolicy");
+        PreparationBarrierPolicy policy = Objects.requireNonNull(barrierPolicy, "barrierPolicy");
         for (PreparationObstacleBox box : boxes) {
             if (!blocks(box, policy)) {
                 continue;
@@ -204,8 +194,7 @@ public final class PreparationObstacleMap {
             return targetYMetres;
         }
 
-        PreparationBarrierPolicy policy =
-                Objects.requireNonNull(barrierPolicy, "barrierPolicy");
+        PreparationBarrierPolicy policy = Objects.requireNonNull(barrierPolicy, "barrierPolicy");
         double startHeadY = PreparationPlayerBodyProfile.maximumY(startYMetres, crouching);
         double targetHeadY = PreparationPlayerBodyProfile.maximumY(targetYMetres, crouching);
         double headOffset = PreparationPlayerBodyProfile.headOffsetFromPosition(crouching);

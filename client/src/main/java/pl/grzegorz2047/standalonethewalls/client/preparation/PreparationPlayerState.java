@@ -35,8 +35,7 @@ public final class PreparationPlayerState {
             double pitchDegrees) {
         this.scene = Objects.requireNonNull(scene, "scene");
         this.position = Objects.requireNonNull(position, "position");
-        PreparationBarrierPolicy requested =
-                Objects.requireNonNull(barrierPolicy, "barrierPolicy");
+        PreparationBarrierPolicy requested = Objects.requireNonNull(barrierPolicy, "barrierPolicy");
         storedBarrierPolicy =
                 scene.barrierPolicy() == PreparationBarrierPolicy.OPEN
                         ? PreparationBarrierPolicy.OPEN
@@ -68,11 +67,7 @@ public final class PreparationPlayerState {
         }
         if (!scene.obstacleMap()
                 .hasPlayerClearance(
-                        position.x(),
-                        position.y(),
-                        position.z(),
-                        crouching,
-                        storedBarrierPolicy)) {
+                        position.x(), position.y(), position.z(), crouching, storedBarrierPolicy)) {
             throw new IllegalArgumentException(
                     "preparation player body overlaps a verified obstacle");
         }

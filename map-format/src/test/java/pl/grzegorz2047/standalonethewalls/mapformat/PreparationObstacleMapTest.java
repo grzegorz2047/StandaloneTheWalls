@@ -143,21 +143,9 @@ class PreparationObstacleMapTest {
                                         2.0d)));
 
         assertThat(map.centralBarrierCount()).isOne();
-        assertThat(
-                        map.hasPlayerClearance(
-                                0.0d,
-                                0.5d,
-                                0.0d,
-                                false,
-                                PreparationBarrierPolicy.CLOSED))
+        assertThat(map.hasPlayerClearance(0.0d, 0.5d, 0.0d, false, PreparationBarrierPolicy.CLOSED))
                 .isFalse();
-        assertThat(
-                        map.hasPlayerClearance(
-                                0.0d,
-                                0.5d,
-                                0.0d,
-                                false,
-                                PreparationBarrierPolicy.OPEN))
+        assertThat(map.hasPlayerClearance(0.0d, 0.5d, 0.0d, false, PreparationBarrierPolicy.OPEN))
                 .isTrue();
         assertThat(
                         map.permitsMovement(
@@ -183,21 +171,11 @@ class PreparationObstacleMapTest {
                 .isTrue();
         assertThat(
                         map.limitUpwardMovement(
-                                0.0d,
-                                0.0d,
-                                0.5d,
-                                1.0d,
-                                false,
-                                PreparationBarrierPolicy.CLOSED))
+                                0.0d, 0.0d, 0.5d, 1.0d, false, PreparationBarrierPolicy.CLOSED))
                 .isEqualTo(0.5d);
         assertThat(
                         map.limitUpwardMovement(
-                                0.0d,
-                                0.0d,
-                                0.5d,
-                                1.0d,
-                                false,
-                                PreparationBarrierPolicy.OPEN))
+                                0.0d, 0.0d, 0.5d, 1.0d, false, PreparationBarrierPolicy.OPEN))
                 .isEqualTo(1.0d);
         assertThat(
                         map.permitsMovement(

@@ -71,14 +71,10 @@ public final class PreparationCollisionWorld {
     }
 
     public boolean hasPlayerClearance(
-            MapVector3 position,
-            boolean crouching,
-            PreparationBarrierPolicy barrierPolicy) {
+            MapVector3 position, boolean crouching, PreparationBarrierPolicy barrierPolicy) {
         MapVector3 point = Objects.requireNonNull(position, "position");
-        PreparationBarrierPolicy policy =
-                Objects.requireNonNull(barrierPolicy, "barrierPolicy");
-        return obstacleMap.hasPlayerClearance(
-                        point.x(), point.y(), point.z(), crouching, policy)
+        PreparationBarrierPolicy policy = Objects.requireNonNull(barrierPolicy, "barrierPolicy");
+        return obstacleMap.hasPlayerClearance(point.x(), point.y(), point.z(), crouching, policy)
                 && hasBodyClearance(toVector(point), policy);
     }
 
@@ -103,18 +99,13 @@ public final class PreparationCollisionWorld {
     }
 
     public boolean permitsHorizontal(MapVector3 current, MapVector3 target) {
-        return permitsHorizontal(
-                current, target, true, false, PreparationBarrierPolicy.CLOSED);
+        return permitsHorizontal(current, target, true, false, PreparationBarrierPolicy.CLOSED);
     }
 
     public boolean permitsHorizontal(
             MapVector3 current, MapVector3 target, boolean requireGroundSupport) {
         return permitsHorizontal(
-                current,
-                target,
-                requireGroundSupport,
-                false,
-                PreparationBarrierPolicy.CLOSED);
+                current, target, requireGroundSupport, false, PreparationBarrierPolicy.CLOSED);
     }
 
     public boolean permitsHorizontal(
@@ -123,11 +114,7 @@ public final class PreparationCollisionWorld {
             boolean requireGroundSupport,
             boolean crouching) {
         return permitsHorizontal(
-                current,
-                target,
-                requireGroundSupport,
-                crouching,
-                PreparationBarrierPolicy.CLOSED);
+                current, target, requireGroundSupport, crouching, PreparationBarrierPolicy.CLOSED);
     }
 
     public boolean permitsHorizontal(
@@ -138,8 +125,7 @@ public final class PreparationCollisionWorld {
             PreparationBarrierPolicy barrierPolicy) {
         MapVector3 origin = Objects.requireNonNull(current, "current");
         MapVector3 destination = Objects.requireNonNull(target, "target");
-        PreparationBarrierPolicy policy =
-                Objects.requireNonNull(barrierPolicy, "barrierPolicy");
+        PreparationBarrierPolicy policy = Objects.requireNonNull(barrierPolicy, "barrierPolicy");
         if (Double.compare(origin.y(), destination.y()) != 0) {
             throw new IllegalArgumentException("horizontal collision query must preserve height");
         }
@@ -182,8 +168,7 @@ public final class PreparationCollisionWorld {
         return !requireGroundSupport || hasGroundSupport(destination);
     }
 
-    private boolean hasBodyClearance(
-            Vector3f center, PreparationBarrierPolicy barrierPolicy) {
+    private boolean hasBodyClearance(Vector3f center, PreparationBarrierPolicy barrierPolicy) {
         CollisionResults results = new CollisionResults();
         graph.collideWith(new BoundingSphere(PLAYER_BODY_RADIUS_METRES, center), results);
         for (CollisionResult result : results) {
@@ -219,8 +204,7 @@ public final class PreparationCollisionWorld {
         }
     }
 
-    private static boolean blocks(
-            Spatial spatial, PreparationBarrierPolicy barrierPolicy) {
+    private static boolean blocks(Spatial spatial, PreparationBarrierPolicy barrierPolicy) {
         return !belongsToSupport(spatial)
                 && (barrierPolicy.blocksCentralBarriers() || !belongsToCentralBarrier(spatial));
     }

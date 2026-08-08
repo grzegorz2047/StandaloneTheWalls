@@ -276,28 +276,14 @@ class PreparationObstacleMovementSimulationTest {
                 new PreparationMapDefinition(
                         "minimal_preparation",
                         MAP_DIGEST,
-                        List.of(
-                                new PreparationSpawnPoint(
-                                        0, TeamId.RED, -0.8d, 0.5d, 0.0d, 0.0d)),
+                        List.of(new PreparationSpawnPoint(0, TeamId.RED, -0.8d, 0.5d, 0.0d, 0.0d)),
                         Map.of(
                                 TeamId.RED,
                                 new PreparationRegionBounds(
-                                        TeamId.RED,
-                                        -2_000,
-                                        -1_000,
-                                        -2_000,
-                                        -400,
-                                        6_000,
-                                        2_000),
+                                        TeamId.RED, -2_000, -1_000, -2_000, -400, 6_000, 2_000),
                                 TeamId.BLUE,
                                 new PreparationRegionBounds(
-                                        TeamId.BLUE,
-                                        -400,
-                                        -1_000,
-                                        -2_000,
-                                        2_000,
-                                        6_000,
-                                        2_000)),
+                                        TeamId.BLUE, -400, -1_000, -2_000, 2_000, 6_000, 2_000)),
                         GROUND,
                         obstacles);
         PreparationSpawnAssignment assignment =
@@ -313,8 +299,7 @@ class PreparationObstacleMovementSimulationTest {
                         0.0d,
                         0.0d);
         PreparationMovementSimulation simulation =
-                PreparationMovementSimulation.start(
-                        2L, 10L, map, Map.of(ALPHA, assignment));
+                PreparationMovementSimulation.start(2L, 10L, map, Map.of(ALPHA, assignment));
 
         PreparationPlayerSnapshot lastClosed =
                 player(

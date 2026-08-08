@@ -174,8 +174,7 @@ public final class PreparationMovementSimulation {
         return new PreparationWorldSnapshot(roundNumber, authoritativeTick, snapshots);
     }
 
-    private static PreparationWorldBounds worldBounds(
-            Iterable<PreparationRegionBounds> regions) {
+    private static PreparationWorldBounds worldBounds(Iterable<PreparationRegionBounds> regions) {
         int minimumX = Integer.MAX_VALUE;
         int minimumY = Integer.MAX_VALUE;
         int minimumZ = Integer.MAX_VALUE;
@@ -197,10 +196,8 @@ public final class PreparationMovementSimulation {
             throw new IllegalArgumentException("authoritative map has no movement regions");
         }
         return new PreparationWorldBounds(
-                new MapVector3(
-                        minimumX / 1_000.0d, minimumY / 1_000.0d, minimumZ / 1_000.0d),
-                new MapVector3(
-                        maximumX / 1_000.0d, maximumY / 1_000.0d, maximumZ / 1_000.0d));
+                new MapVector3(minimumX / 1_000.0d, minimumY / 1_000.0d, minimumZ / 1_000.0d),
+                new MapVector3(maximumX / 1_000.0d, maximumY / 1_000.0d, maximumZ / 1_000.0d));
     }
 
     private static TeamId domainTeam(LobbyTeam team) {
@@ -401,10 +398,8 @@ public final class PreparationMovementSimulation {
                             : input.sprinting()
                                     ? SPRINTING_STEP_MILLIMETRES
                                     : WALKING_STEP_MILLIMETRES;
-            double requestedX =
-                    xMillimetres + step * ((forward * forwardX) + (right * rightX));
-            double requestedZ =
-                    zMillimetres + step * ((forward * forwardZ) + (right * rightZ));
+            double requestedX = xMillimetres + step * ((forward * forwardX) + (right * rightX));
+            double requestedZ = zMillimetres + step * ((forward * forwardZ) + (right * rightZ));
             double targetX =
                     activeBarrierPolicy == PreparationBarrierPolicy.OPEN
                             ? worldBounds.clampX(requestedX / 1_000.0d) * 1_000.0d
@@ -437,9 +432,7 @@ public final class PreparationMovementSimulation {
         }
 
         private boolean tryMove(
-                double targetX,
-                double targetZ,
-                PreparationBarrierPolicy activeBarrierPolicy) {
+                double targetX, double targetZ, PreparationBarrierPolicy activeBarrierPolicy) {
             if (Double.compare(targetX, xMillimetres) == 0
                     && Double.compare(targetZ, zMillimetres) == 0) {
                 return false;
