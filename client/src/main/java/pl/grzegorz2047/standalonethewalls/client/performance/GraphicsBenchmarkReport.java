@@ -11,8 +11,9 @@ public record GraphicsBenchmarkReport(
         String scenarioId,
         int scenarioVersion,
         GraphicsQualityPreset measuredPreset,
-        GraphicsBenchmarkResult result) {
-    public static final int SCHEMA_VERSION = 1;
+        GraphicsBenchmarkResult result,
+        GraphicsTelemetrySummary telemetrySummary) {
+    public static final int SCHEMA_VERSION = 2;
     static final int MAXIMUM_METADATA_LENGTH = 160;
     static final int MAXIMUM_SCENARIO_VERSION = 1_000_000;
 
@@ -25,7 +26,12 @@ public record GraphicsBenchmarkReport(
             throw new IllegalArgumentException("scenarioVersion is outside the bounded range");
         }
         Objects.requireNonNull(measuredPreset, "measuredPreset");
-        Objects.requireNonNull(result, "result");
+        result = Objects.requireNonNull(result, "result");
+        telemetrySummary = Objects.requireNonNull(telemetrySummary, "telemetrySummary");
+        if (!result.statistics().equals(telemetrySummary.cpuFrameTime())) {
+            throw new IllegalArgumentException(
+                    "benchmark result CPU statistics do not match telemetry summary");
+        }
     }
 
     private static String normalizeCommit(String repositoryCommit) {
