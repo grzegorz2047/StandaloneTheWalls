@@ -76,7 +76,9 @@ class GraphicsQualityStateStoreTest {
                         "recommendedPreset=LOW\nmanualOverride=NONE\n"));
         assertMalformed(store, valid.replace("manualOverride=NONE", "futureField=NONE"));
         assertMalformed(store, valid.substring(0, valid.length() - 1));
-        assertMalformed(store, valid.replace("recommendedPreset=MEDIUM", "recommendedPreset=ULTRA"));
+        assertMalformed(
+                store,
+                valid.replace("recommendedPreset=MEDIUM", "recommendedPreset=ULTRA"));
         assertMalformed(store, valid.replace("schemaVersion=1", "schemaVersion=2"));
 
         Files.writeString(store.stateFile(), "x".repeat(4_097), StandardCharsets.UTF_8);
@@ -87,9 +89,12 @@ class GraphicsQualityStateStoreTest {
     @Test
     void compatibilityKeyRejectsUnsafeMetadataAndInvalidScenarioVersion() {
         assertThatThrownBy(
-                        () -> new GraphicsBenchmarkCompatibilityKey("core\nassets", "7", "scene", 1))
+                        () ->
+                                new GraphicsBenchmarkCompatibilityKey(
+                                        "core\nassets", "7", "scene", 1))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new GraphicsBenchmarkCompatibilityKey("core", "7", "scene", 0))
+        assertThatThrownBy(
+                        () -> new GraphicsBenchmarkCompatibilityKey("core", "7", "scene", 0))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
