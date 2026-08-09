@@ -149,14 +149,7 @@ class GraphicsBenchmarkRunStateTest {
     private static GraphicsBenchmarkSession.Config config(
             GraphicsQualityPreset preset, int warmUpFrameCount, int measurementFrameCount) {
         return new GraphicsBenchmarkSession.Config(
-                COMMIT,
-                KEY,
-                preset,
-                1920,
-                1080,
-                1.0d,
-                warmUpFrameCount,
-                measurementFrameCount);
+                COMMIT, KEY, preset, 1920, 1080, 1.0d, warmUpFrameCount, measurementFrameCount);
     }
 
     private static GraphicsTelemetrySample sample(
