@@ -85,7 +85,9 @@ class GraphicsQualityStartupCoordinatorTest {
     @Test
     void mismatchedBenchmarkOutcomeIsRejectedWithoutWritingState() throws IOException {
         GraphicsQualityStartupCoordinator coordinator = coordinator();
-        coordinator.begin();
+        GraphicsQualityStartupCoordinator.StartupPlan plan = coordinator.begin();
+        assertThat(plan.action())
+                .isEqualTo(GraphicsQualityStartupDecision.Action.RUN_BENCHMARK);
         GraphicsBenchmarkSession.Outcome mismatched = outcome(STALE_KEY, Optional.empty());
 
         assertThatIllegalArgumentException()
@@ -102,7 +104,9 @@ class GraphicsQualityStartupCoordinatorTest {
         assertThatIllegalStateException()
                 .isThrownBy(() -> coordinator.completeBenchmark(validOutcome));
 
-        coordinator.begin();
+        GraphicsQualityStartupCoordinator.StartupPlan plan = coordinator.begin();
+        assertThat(plan.action())
+                .isEqualTo(GraphicsQualityStartupDecision.Action.RUN_BENCHMARK);
         assertThat(coordinator.completeBenchmark(validOutcome)).isEqualTo(GraphicsQualityPreset.MEDIUM);
         assertThatIllegalStateException()
                 .isThrownBy(() -> coordinator.completeBenchmark(validOutcome));
@@ -111,10 +115,11 @@ class GraphicsQualityStartupCoordinatorTest {
 
     @Test
     void malformedPersistedStateRemainsVisibleToCaller() throws IOException {
-        Files.writeString(
-                tempDirectory.resolve(GraphicsQualityStateStore.FILE_NAME),
-                "not-a-valid-state\n",
-                StandardCharsets.UTF_8);
+        Path stateFile = tempDirectory.resolve(GraphicsQualityStateStore.FILE_NAME);
+        assertThat(
+                        Files.writeString(
+                                stateFile, "not-a-valid-state\n", StandardCharsets.UTF_8))
+                .isEqualTo(stateFile);
         GraphicsQualityStartupCoordinator coordinator = coordinator();
 
         assertThatThrownBy(coordinator::begin)
