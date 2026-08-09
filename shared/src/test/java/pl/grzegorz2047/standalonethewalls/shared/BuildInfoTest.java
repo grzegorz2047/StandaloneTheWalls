@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
@@ -14,8 +15,9 @@ class BuildInfoTest {
     @Test
     void generatedBuildProvenanceMatchesRuntimeAccessor() throws IOException {
         try (InputStream input =
-                BuildInfo.class.getResourceAsStream(BuildInfo.BUILD_PROVENANCE_RESOURCE)) {
-            assertThat(input).isNotNull();
+                Objects.requireNonNull(
+                        BuildInfo.class.getResourceAsStream(BuildInfo.BUILD_PROVENANCE_RESOURCE),
+                        "generated build provenance")) {
             String content = new String(input.readAllBytes(), StandardCharsets.UTF_8);
 
             assertThat(BuildInfo.parseRepositoryCommit(content)).isEqualTo(BuildInfo.repositoryCommit());
