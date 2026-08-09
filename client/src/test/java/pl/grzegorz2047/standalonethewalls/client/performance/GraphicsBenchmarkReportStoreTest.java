@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -54,6 +55,10 @@ class GraphicsBenchmarkReportStoreTest {
     }
 
     private static GraphicsBenchmarkReport report() {
+        FrameTimeStatistics statistics =
+                new FrameTimeStatistics(3, 10_000_000L, 12_000_000L, 12_000_000L);
+        GraphicsTelemetrySummary telemetry =
+                new GraphicsTelemetrySummary(3, statistics, Optional.empty(), 0, 256L, 24, 48);
         return new GraphicsBenchmarkReport(
                 COMMIT,
                 "core",
@@ -64,9 +69,10 @@ class GraphicsBenchmarkReportStoreTest {
                 new GraphicsBenchmarkResult(
                         GraphicsQualityPreset.MEDIUM,
                         GraphicsBenchmarkResult.TargetStatus.MEETS_PRIMARY_TARGET,
-                        new FrameTimeStatistics(3, 10_000_000L, 12_000_000L, 12_000_000L),
+                        statistics,
                         1920,
                         1080,
-                        1.0d));
+                        1.0d),
+                telemetry);
     }
 }
