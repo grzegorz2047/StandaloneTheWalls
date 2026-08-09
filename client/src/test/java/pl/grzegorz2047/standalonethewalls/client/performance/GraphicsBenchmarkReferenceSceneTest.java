@@ -14,11 +14,12 @@ import org.junit.jupiter.api.Test;
 
 class GraphicsBenchmarkReferenceSceneTest {
     @Test
-    void buildsTheRepresentativeSceneWithoutARenderContext() {
+    void buildsTheFullRepresentativeSceneWithoutARenderContext() {
         DesktopAssetManager assetManager = new DesktopAssetManager(true);
 
         Node scene = GraphicsBenchmarkReferenceScene.build(assetManager);
 
+        assertThat(GraphicsBenchmarkReferenceScene.SCENARIO_VERSION).isEqualTo(2);
         assertThat(scene.getName()).isEqualTo(GraphicsBenchmarkReferenceScene.ROOT_NAME);
         assertThat(scene.getParent()).isNull();
         assertThat(scene.getQuantity()).isEqualTo(5);
@@ -54,28 +55,45 @@ class GraphicsBenchmarkReferenceSceneTest {
                 .isEqualTo(GraphicsBenchmarkReferenceScene.VFX_PROXY_GEOMETRY_COUNT);
         assertThat(vfx.getChildren())
                 .allSatisfy(GraphicsBenchmarkReferenceSceneTest::assertTransparent);
+
+        assertThat(fingerprint(scene))
+                .isEqualTo(
+                        fingerprint(
+                                GraphicsBenchmarkReferenceScene.build(
+                                        assetManager, GraphicsQualityPreset.HIGH)));
+    }
+
+    @Test
+    void measuredPresetsApplyDeterministicVegetationDensityWithoutRemovingCoreWorkload() {
+        DesktopAssetManager assetManager = new DesktopAssetManager(true);
+
+        assertPresetWorkload(assetManager, GraphicsQualityPreset.LOW, 16);
+        assertPresetWorkload(assetManager, GraphicsQualityPreset.MEDIUM, 24);
+        assertPresetWorkload(assetManager, GraphicsQualityPreset.HIGH, 32);
     }
 
     @Test
     void independentBuildsHaveTheSameFingerprintWithoutSharingSceneObjects() {
         DesktopAssetManager assetManager = new DesktopAssetManager(true);
 
-        Node first = GraphicsBenchmarkReferenceScene.build(assetManager);
-        Node second = GraphicsBenchmarkReferenceScene.build(assetManager);
-        Node firstTeams = childNode(first, GraphicsBenchmarkReferenceScene.TEAMS_NODE_NAME);
-        Node secondTeams = childNode(second, GraphicsBenchmarkReferenceScene.TEAMS_NODE_NAME);
-        Spatial firstPlayer = childNode(firstTeams, "Team-0").getChild(0);
-        Spatial secondPlayer = childNode(secondTeams, "Team-0").getChild(0);
+        for (GraphicsQualityPreset preset : GraphicsQualityPreset.values()) {
+            Node first = GraphicsBenchmarkReferenceScene.build(assetManager, preset);
+            Node second = GraphicsBenchmarkReferenceScene.build(assetManager, preset);
+            Node firstTeams = childNode(first, GraphicsBenchmarkReferenceScene.TEAMS_NODE_NAME);
+            Node secondTeams = childNode(second, GraphicsBenchmarkReferenceScene.TEAMS_NODE_NAME);
+            Spatial firstPlayer = childNode(firstTeams, "Team-0").getChild(0);
+            Spatial secondPlayer = childNode(secondTeams, "Team-0").getChild(0);
 
-        assertThat(fingerprint(second)).isEqualTo(fingerprint(first));
-        assertThat(second).isNotSameAs(first);
-        assertThat(second.getChild(GraphicsBenchmarkReferenceScene.TERRAIN_NODE_NAME))
-                .isNotSameAs(first.getChild(GraphicsBenchmarkReferenceScene.TERRAIN_NODE_NAME));
-        assertThat(secondPlayer).isNotSameAs(firstPlayer);
+            assertThat(fingerprint(second)).isEqualTo(fingerprint(first));
+            assertThat(second).isNotSameAs(first);
+            assertThat(second.getChild(GraphicsBenchmarkReferenceScene.TERRAIN_NODE_NAME))
+                    .isNotSameAs(first.getChild(GraphicsBenchmarkReferenceScene.TERRAIN_NODE_NAME));
+            assertThat(secondPlayer).isNotSameAs(firstPlayer);
+        }
     }
 
     @Test
-    void lightSetIsNamedAndContainsAllRequiredWorkloadTypes() {
+    void fullLightSetIsNamedAndContainsAllRequiredWorkloadTypes() {
         Node scene = GraphicsBenchmarkReferenceScene.build(new DesktopAssetManager(true));
         List<String> lightNames = new ArrayList<>();
         List<Light.Type> lightTypes = new ArrayList<>();
@@ -100,6 +118,38 @@ class GraphicsBenchmarkReferenceSceneTest {
                         Light.Type.Point,
                         Light.Type.Point,
                         Light.Type.Point);
+    }
+
+    private static void assertPresetWorkload(
+            DesktopAssetManager assetManager,
+            GraphicsQualityPreset preset,
+            int expectedVegetationInstances) {
+        Node scene = GraphicsBenchmarkReferenceScene.build(assetManager, preset);
+        Node teams = childNode(scene, GraphicsBenchmarkReferenceScene.TEAMS_NODE_NAME);
+        Node structures = childNode(scene, GraphicsBenchmarkReferenceScene.STRUCTURES_NODE_NAME);
+        Node vegetation = childNode(scene, GraphicsBenchmarkReferenceScene.VEGETATION_NODE_NAME);
+        Node vfx = childNode(scene, GraphicsBenchmarkReferenceScene.VFX_NODE_NAME);
+
+        assertThat(GraphicsBenchmarkReferenceScene.vegetationInstanceCount(preset))
+                .isEqualTo(expectedVegetationInstances);
+        assertThat(vegetation.getQuantity()).isEqualTo(expectedVegetationInstances);
+        assertThat(countGeometries(vegetation)).isEqualTo(expectedVegetationInstances * 2);
+        assertThat(countGeometries(scene))
+                .isEqualTo(GraphicsBenchmarkReferenceScene.geometryCount(preset));
+        assertThat(teams.getQuantity()).isEqualTo(GraphicsBenchmarkReferenceScene.TEAM_COUNT);
+        assertThat(teams.getChildren())
+                .allSatisfy(
+                        team ->
+                                assertThat(((Node) team).getQuantity())
+                                        .isEqualTo(GraphicsBenchmarkReferenceScene.PLAYERS_PER_TEAM));
+        assertThat(structures.getQuantity())
+                .isEqualTo(GraphicsBenchmarkReferenceScene.STRUCTURE_GEOMETRY_COUNT);
+        assertThat(vfx.getQuantity())
+                .isEqualTo(GraphicsBenchmarkReferenceScene.VFX_PROXY_GEOMETRY_COUNT);
+        assertThat(GraphicsBenchmarkReferenceScene.teamPointLightCount(preset))
+                .isLessThanOrEqualTo(preset.maximumDynamicLights());
+        assertThat(scene.getLocalLightList())
+                .hasSize(GraphicsBenchmarkReferenceScene.lightCount(preset));
     }
 
     private static void assertTransparent(Spatial spatial) {
