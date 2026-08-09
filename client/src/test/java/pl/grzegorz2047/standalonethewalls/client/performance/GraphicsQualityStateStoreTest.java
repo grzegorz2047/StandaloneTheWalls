@@ -3,6 +3,7 @@ package pl.grzegorz2047.standalonethewalls.client.performance;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,7 +15,7 @@ class GraphicsQualityStateStoreTest {
     @TempDir Path temporaryDirectory;
 
     @Test
-    void missingStateIsNormalFirstRunCondition() throws Exception {
+    void missingStateIsNormalFirstRunCondition() throws IOException {
         GraphicsQualityStateStore store =
                 new GraphicsQualityStateStore(temporaryDirectory.resolve("fresh"));
 
@@ -22,7 +23,7 @@ class GraphicsQualityStateStoreTest {
     }
 
     @Test
-    void saveLoadRoundTripsCanonicalStateAndReplacesPreviousValue() throws Exception {
+    void saveLoadRoundTripsCanonicalStateAndReplacesPreviousValue() throws IOException {
         Path dataDirectory = temporaryDirectory.resolve("client-data");
         GraphicsQualityStateStore store = new GraphicsQualityStateStore(dataDirectory);
         GraphicsBenchmarkCompatibilityKey key =
@@ -50,13 +51,12 @@ class GraphicsQualityStateStoreTest {
 
         assertThat(store.load()).contains(replacement);
         try (var paths = Files.list(dataDirectory)) {
-            assertThat(paths.map(path -> path.getFileName().toString()).toList())
-                    .containsExactly(GraphicsQualityStateStore.FILE_NAME);
+            assertThat(paths.toList()).containsExactly(store.stateFile());
         }
     }
 
     @Test
-    void rejectsDuplicateUnknownMalformedAndOversizedState() throws Exception {
+    void rejectsDuplicateUnknownMalformedAndOversizedState() throws IOException {
         GraphicsQualityStateStore store = new GraphicsQualityStateStore(temporaryDirectory);
         String valid =
                 "schemaVersion=1\n"
@@ -94,7 +94,7 @@ class GraphicsQualityStateStoreTest {
     }
 
     private static void assertMalformed(GraphicsQualityStateStore store, String content)
-            throws Exception {
+            throws IOException {
         Files.writeString(store.stateFile(), content, StandardCharsets.UTF_8);
         assertThatThrownBy(store::load)
                 .isInstanceOf(GraphicsQualityStateStore.MalformedStateException.class);
