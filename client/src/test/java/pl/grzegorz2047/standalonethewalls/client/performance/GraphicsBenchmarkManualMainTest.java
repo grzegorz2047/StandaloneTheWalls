@@ -19,7 +19,9 @@ class GraphicsBenchmarkManualMainTest {
     @Test
     void preparesExactSessionConfigFromBuildAndAssetIdentity() throws IOException {
         Path assetLock = tempDirectory.resolve("assets.lock.json");
-        assertThat(Files.writeString(assetLock, "{\"packs\":[],\"schema\":1}", StandardCharsets.UTF_8))
+        assertThat(
+                        Files.writeString(
+                                assetLock, "{\"packs\":[],\"schema\":1}", StandardCharsets.UTF_8))
                 .isEqualTo(assetLock);
         Path output = tempDirectory.resolve("reports");
         String[] arguments = arguments(assetLock, output);
@@ -48,8 +50,7 @@ class GraphicsBenchmarkManualMainTest {
         String[] arguments = arguments(missingAssetLock, tempDirectory.resolve("reports"));
 
         assertThatIllegalStateException()
-                .isThrownBy(
-                        () -> GraphicsBenchmarkManualMain.prepare(arguments, Optional.empty()));
+                .isThrownBy(() -> GraphicsBenchmarkManualMain.prepare(arguments, Optional.empty()));
     }
 
     private static String[] arguments(Path assetLock, Path outputDirectory) {

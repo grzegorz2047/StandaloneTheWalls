@@ -30,7 +30,8 @@ record GraphicsBenchmarkManualOptions(
             throw new IllegalArgumentException("warm-up frame count is outside the bounded range");
         }
         if (measurementFrames < 1 || measurementFrames > FrameTimeStatistics.MAXIMUM_SAMPLES) {
-            throw new IllegalArgumentException("measurement frame count is outside the bounded range");
+            throw new IllegalArgumentException(
+                    "measurement frame count is outside the bounded range");
         }
         assetLock = normalize(assetLock, "assetLock");
         outputDirectory = normalize(outputDirectory, "outputDirectory");

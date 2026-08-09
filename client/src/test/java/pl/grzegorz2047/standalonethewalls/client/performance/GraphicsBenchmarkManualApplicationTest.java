@@ -69,7 +69,9 @@ class GraphicsBenchmarkManualApplicationTest {
     @Test
     void persistenceFailureCompletesWithBoundedFailure() throws IOException {
         Path blockedOutputDirectory = tempDirectory.resolve("blocked-output");
-        assertThat(Files.writeString(blockedOutputDirectory, "not-a-directory", StandardCharsets.UTF_8))
+        assertThat(
+                        Files.writeString(
+                                blockedOutputDirectory, "not-a-directory", StandardCharsets.UTF_8))
                 .isEqualTo(blockedOutputDirectory);
         GraphicsBenchmarkReportStore store =
                 new GraphicsBenchmarkReportStore(blockedOutputDirectory);
@@ -116,8 +118,7 @@ class GraphicsBenchmarkManualApplicationTest {
             }
             emitted = true;
             return Optional.of(
-                    new GraphicsTelemetrySample(
-                            20_000_000L, OptionalLong.empty(), 128L, 12, 34));
+                    new GraphicsTelemetrySample(20_000_000L, OptionalLong.empty(), 128L, 12, 34));
         }
 
         @Override

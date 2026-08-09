@@ -67,7 +67,8 @@ final class GraphicsBenchmarkManualApplication extends SimpleApplication {
         try {
             timeoutNanos = timeout.toNanos();
         } catch (ArithmeticException exception) {
-            throw new IllegalArgumentException("benchmark timeout is outside the bounded range", exception);
+            throw new IllegalArgumentException(
+                    "benchmark timeout is outside the bounded range", exception);
         }
         if (timeoutNanos <= 0L) {
             throw new IllegalArgumentException("benchmark timeout must be positive");

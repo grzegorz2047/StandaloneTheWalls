@@ -63,7 +63,9 @@ class GraphicsBenchmarkManualOptionsTest {
                         });
         assertThatIllegalArgumentException()
                 .isThrownBy(
-                        () -> GraphicsBenchmarkManualOptions.parse(new String[] {"--unknown", "x"}));
+                        () ->
+                                GraphicsBenchmarkManualOptions.parse(
+                                        new String[] {"--unknown", "x"}));
         assertThatIllegalArgumentException()
                 .isThrownBy(
                         () ->
