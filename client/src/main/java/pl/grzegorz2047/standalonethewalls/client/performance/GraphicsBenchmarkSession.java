@@ -79,7 +79,8 @@ public final class GraphicsBenchmarkSession {
                         compatibilityKey.scenarioId(),
                         compatibilityKey.scenarioVersion(),
                         config.measuredPreset(),
-                        result);
+                        result,
+                        summary);
         GraphicsQualityState qualityState =
                 previousState
                         .map(
@@ -126,11 +127,11 @@ public final class GraphicsBenchmarkSession {
             GraphicsQualityState qualityState) {
         public Outcome {
             Objects.requireNonNull(report, "report");
-            Objects.requireNonNull(telemetrySummary, "telemetrySummary");
+            telemetrySummary = Objects.requireNonNull(telemetrySummary, "telemetrySummary");
             Objects.requireNonNull(qualityState, "qualityState");
-            if (!report.result().statistics().equals(telemetrySummary.cpuFrameTime())) {
+            if (!report.telemetrySummary().equals(telemetrySummary)) {
                 throw new IllegalArgumentException(
-                        "benchmark report CPU statistics do not match telemetry summary");
+                        "benchmark report telemetry does not match outcome telemetry summary");
             }
             if (!qualityState
                     .compatibilityKey()
