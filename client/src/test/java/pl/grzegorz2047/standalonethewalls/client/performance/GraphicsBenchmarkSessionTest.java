@@ -102,9 +102,16 @@ class GraphicsBenchmarkSessionTest {
                         1.0d);
         GraphicsBenchmarkReport report =
                 new GraphicsBenchmarkReport(
-                        COMMIT, "core", "8", "first-run", 3, GraphicsQualityPreset.MEDIUM, differentResult);
+                        COMMIT,
+                        "core",
+                        "8",
+                        "first-run",
+                        3,
+                        GraphicsQualityPreset.MEDIUM,
+                        differentResult);
         GraphicsQualityState state =
-                new GraphicsQualityState(KEY, differentResult.recommendedPreset(), Optional.empty());
+                new GraphicsQualityState(
+                        KEY, differentResult.recommendedPreset(), Optional.empty());
         assertThatIllegalArgumentException()
                 .isThrownBy(
                         () ->
