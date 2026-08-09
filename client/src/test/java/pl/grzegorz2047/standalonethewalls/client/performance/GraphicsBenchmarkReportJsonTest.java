@@ -39,12 +39,10 @@ class GraphicsBenchmarkReportJsonTest {
     @Test
     void serializesPartialGpuCoverageWithoutInventingMissingSamples() {
         FrameTimeStatistics cpu = benchmarkStatistics();
-        FrameTimeStatistics gpu =
-                new FrameTimeStatistics(2, 13_000_000L, 14_000_000L, 14_000_000L);
+        FrameTimeStatistics gpu = new FrameTimeStatistics(2, 13_000_000L, 14_000_000L, 14_000_000L);
         GraphicsTelemetrySummary telemetry =
                 new GraphicsTelemetrySummary(120, cpu, Optional.of(gpu), 2, 700_000_000L, 444, 555);
-        GraphicsBenchmarkReport report =
-                report("core-pack", "v2", "reference-scene", telemetry);
+        GraphicsBenchmarkReport report = report("core-pack", "v2", "reference-scene", telemetry);
 
         assertThat(GraphicsBenchmarkReportJson.serialize(report))
                 .isEqualTo(
