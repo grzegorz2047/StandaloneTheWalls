@@ -29,7 +29,8 @@ class GraphicsBenchmarkReportStoreTest {
         store.save(report);
 
         assertThat(store.load()).contains(expected);
-        assertThat(Files.readString(store.reportFile(), StandardCharsets.UTF_8)).isEqualTo(expected);
+        assertThat(Files.readString(store.reportFile(), StandardCharsets.UTF_8))
+                .isEqualTo(expected);
     }
 
     @Test
@@ -47,8 +48,7 @@ class GraphicsBenchmarkReportStoreTest {
         assertThatThrownBy(store::load)
                 .isInstanceOf(GraphicsBenchmarkReportStore.MalformedReportException.class);
 
-        assertThat(Files.write(reportFile, new byte[] {(byte) 0xC3, 0x28}))
-                .isEqualTo(reportFile);
+        assertThat(Files.write(reportFile, new byte[] {(byte) 0xC3, 0x28})).isEqualTo(reportFile);
         assertThatThrownBy(store::load)
                 .isInstanceOf(GraphicsBenchmarkReportStore.MalformedReportException.class);
     }
