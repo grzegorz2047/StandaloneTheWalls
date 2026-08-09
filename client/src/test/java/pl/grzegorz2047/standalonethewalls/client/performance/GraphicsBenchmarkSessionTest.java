@@ -104,13 +104,7 @@ class GraphicsBenchmarkSessionTest {
                         1.0d);
         GraphicsTelemetrySummary differentTelemetry =
                 new GraphicsTelemetrySummary(
-                        1,
-                        differentResult.statistics(),
-                        Optional.empty(),
-                        0,
-                        32L,
-                        2,
-                        3);
+                        1, differentResult.statistics(), Optional.empty(), 0, 32L, 2, 3);
         GraphicsBenchmarkReport report =
                 new GraphicsBenchmarkReport(
                         COMMIT,
