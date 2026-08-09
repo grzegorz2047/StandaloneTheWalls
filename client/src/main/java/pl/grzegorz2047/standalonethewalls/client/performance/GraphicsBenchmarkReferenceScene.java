@@ -79,7 +79,7 @@ public final class GraphicsBenchmarkReferenceScene {
                                 "Team-" + teamIndex + "-Player-" + playerIndex,
                                 new Box(0.35f, 0.9f, 0.35f));
                 float offsetX = (playerIndex % 4 - 1.5f) * 1.2f;
-                float offsetZ = (playerIndex / 4 - 0.5f) * 1.6f;
+                float offsetZ = (playerIndex / 4.0f - 0.5f) * 1.6f;
                 player.setLocalTranslation(teamX + offsetX, 0.9f, teamZ + offsetZ);
                 player.setMaterial(material);
                 team.attachChild(player);
@@ -91,8 +91,7 @@ public final class GraphicsBenchmarkReferenceScene {
 
     private static Node buildStructures(AssetManager assetManager) {
         Node structures = new Node(STRUCTURES_NODE_NAME);
-        Material material =
-                litMaterial(assetManager, new ColorRGBA(0.42f, 0.40f, 0.38f, 1.0f));
+        Material material = litMaterial(assetManager, new ColorRGBA(0.42f, 0.40f, 0.38f, 1.0f));
         for (int index = 0; index < STRUCTURE_GEOMETRY_COUNT; index++) {
             boolean tower = index % 5 == 0;
             Geometry structure =
@@ -103,9 +102,7 @@ public final class GraphicsBenchmarkReferenceScene {
             float radius = tower ? 15.0f : 12.5f;
             float y = tower ? 2.5f : 1.2f;
             structure.setLocalTranslation(
-                    (float) Math.cos(angle) * radius,
-                    y,
-                    (float) Math.sin(angle) * radius);
+                    (float) Math.cos(angle) * radius, y, (float) Math.sin(angle) * radius);
             structure.rotate(0.0f, -angle, 0.0f);
             structure.setMaterial(material);
             structures.attachChild(structure);
@@ -126,7 +123,8 @@ public final class GraphicsBenchmarkReferenceScene {
             plant.setLocalTranslation(
                     (float) Math.cos(angle) * radius, 0.0f, (float) Math.sin(angle) * radius);
 
-            Geometry trunk = new Geometry("Vegetation-" + index + "-Trunk", new Box(0.18f, 1.1f, 0.18f));
+            Geometry trunk =
+                    new Geometry("Vegetation-" + index + "-Trunk", new Box(0.18f, 1.1f, 0.18f));
             trunk.setLocalTranslation(0.0f, 1.1f, 0.0f);
             trunk.setMaterial(trunkMaterial);
             plant.attachChild(trunk);
@@ -145,8 +143,7 @@ public final class GraphicsBenchmarkReferenceScene {
         Node vfx = new Node(VFX_NODE_NAME);
         Material material = transparentMaterial(assetManager);
         for (int index = 0; index < VFX_PROXY_GEOMETRY_COUNT; index++) {
-            Geometry proxy =
-                    new Geometry("VfxProxy-" + index, new Box(0.08f, 1.6f, 2.4f));
+            Geometry proxy = new Geometry("VfxProxy-" + index, new Box(0.08f, 1.6f, 2.4f));
             float angle = (float) (Math.PI * index / VFX_PROXY_GEOMETRY_COUNT);
             proxy.setLocalTranslation(
                     (float) Math.cos(angle) * 3.0f,
@@ -211,7 +208,8 @@ public final class GraphicsBenchmarkReferenceScene {
             case 1 -> new ColorRGBA(0.18f, 0.35f, 0.86f, 1.0f);
             case 2 -> new ColorRGBA(0.16f, 0.70f, 0.30f, 1.0f);
             case 3 -> new ColorRGBA(0.90f, 0.72f, 0.16f, 1.0f);
-            default -> throw new IllegalArgumentException("teamIndex is outside the benchmark range");
+            default ->
+                    throw new IllegalArgumentException("teamIndex is outside the benchmark range");
         };
     }
 }
