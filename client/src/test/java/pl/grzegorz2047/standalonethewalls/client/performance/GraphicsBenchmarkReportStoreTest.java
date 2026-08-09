@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
@@ -28,7 +29,7 @@ class GraphicsBenchmarkReportStoreTest {
         store.save(report);
 
         assertThat(store.load()).contains(expected);
-        assertThat(Files.readString(store.reportFile())).isEqualTo(expected);
+        assertThat(Files.readString(store.reportFile(), StandardCharsets.UTF_8)).isEqualTo(expected);
     }
 
     @Test
@@ -36,16 +37,18 @@ class GraphicsBenchmarkReportStoreTest {
         GraphicsBenchmarkReportStore store = new GraphicsBenchmarkReportStore(tempDirectory);
         Path reportFile = store.reportFile();
 
-        Files.writeString(reportFile, "   \n");
+        assertThat(Files.writeString(reportFile, "   \n", StandardCharsets.UTF_8))
+                .isEqualTo(reportFile);
         assertThatThrownBy(store::load)
                 .isInstanceOf(GraphicsBenchmarkReportStore.MalformedReportException.class);
 
         byte[] oversized = new byte[(int) GraphicsBenchmarkReportStore.MAXIMUM_FILE_BYTES + 1];
-        Files.write(reportFile, oversized);
+        assertThat(Files.write(reportFile, oversized)).isEqualTo(reportFile);
         assertThatThrownBy(store::load)
                 .isInstanceOf(GraphicsBenchmarkReportStore.MalformedReportException.class);
 
-        Files.write(reportFile, new byte[] {(byte) 0xC3, 0x28});
+        assertThat(Files.write(reportFile, new byte[] {(byte) 0xC3, 0x28}))
+                .isEqualTo(reportFile);
         assertThatThrownBy(store::load)
                 .isInstanceOf(GraphicsBenchmarkReportStore.MalformedReportException.class);
     }
