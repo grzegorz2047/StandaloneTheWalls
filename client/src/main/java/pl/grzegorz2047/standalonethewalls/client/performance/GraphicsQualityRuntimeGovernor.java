@@ -2,9 +2,7 @@ package pl.grzegorz2047.standalonethewalls.client.performance;
 
 import java.util.Objects;
 
-/**
- * Coordinates render-scale reduction before allowing one-way preset degradation.
- */
+/** Coordinates render-scale reduction before allowing one-way preset degradation. */
 public final class GraphicsQualityRuntimeGovernor {
     private final double renderScaleReductionStep;
     private final int requiredRenderScaleOverBudgetWindows;
@@ -25,8 +23,7 @@ public final class GraphicsQualityRuntimeGovernor {
                         currentPreset,
                         renderScaleReductionStep,
                         requiredRenderScaleOverBudgetWindows);
-        presetDowngradeGovernor =
-                new QualityDowngradeGovernor(requiredPresetOverBudgetWindows);
+        presetDowngradeGovernor = new QualityDowngradeGovernor(requiredPresetOverBudgetWindows);
     }
 
     public synchronized Snapshot observe(long observedP95Nanos, long budgetNanos) {
@@ -35,8 +32,7 @@ public final class GraphicsQualityRuntimeGovernor {
 
         if (observedP95Nanos <= budgetNanos) {
             GraphicsQualityPreset stablePreset =
-                    presetDowngradeGovernor.observe(
-                            currentPreset, observedP95Nanos, budgetNanos);
+                    presetDowngradeGovernor.observe(currentPreset, observedP95Nanos, budgetNanos);
             if (stablePreset != currentPreset) {
                 throw new IllegalStateException("healthy observation changed the quality preset");
             }
