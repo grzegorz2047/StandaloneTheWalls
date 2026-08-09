@@ -35,12 +35,14 @@ public final class GraphicsQualityStateStore {
         }
         long size = Files.size(stateFile);
         if (size < 1L || size > MAXIMUM_FILE_BYTES) {
-            throw new MalformedStateException("graphics quality state size is outside the bounded range");
+            throw new MalformedStateException(
+                    "graphics quality state size is outside the bounded range");
         }
         try {
             return Optional.of(parse(Files.readString(stateFile, StandardCharsets.UTF_8)));
         } catch (MalformedInputException exception) {
-            throw new MalformedStateException("graphics quality state is not valid UTF-8", exception);
+            throw new MalformedStateException(
+                    "graphics quality state is not valid UTF-8", exception);
         }
     }
 
@@ -91,7 +93,8 @@ public final class GraphicsQualityStateStore {
     static GraphicsQualityState parse(String content) throws MalformedStateException {
         Objects.requireNonNull(content, "content");
         if (content.indexOf('\r') >= 0 || !content.endsWith("\n")) {
-            throw new MalformedStateException("graphics quality state must use canonical LF lines");
+            throw new MalformedStateException(
+                    "graphics quality state must use canonical LF lines");
         }
         String body = content.substring(0, content.length() - 1);
         String[] lines = body.split("\n", -1);
@@ -107,16 +110,19 @@ public final class GraphicsQualityStateStore {
             }
             String key = line.substring(0, separator);
             if (!isKnownField(key)) {
-                throw new MalformedStateException("graphics quality state contains an unknown field");
+                throw new MalformedStateException(
+                        "graphics quality state contains an unknown field");
             }
             if (fields.putIfAbsent(key, line.substring(separator + 1)) != null) {
-                throw new MalformedStateException("graphics quality state contains a duplicate field");
+                throw new MalformedStateException(
+                        "graphics quality state contains a duplicate field");
             }
         }
 
         try {
             if (Integer.parseInt(required(fields, "schemaVersion")) != SCHEMA_VERSION) {
-                throw new MalformedStateException("graphics quality state schema version is unsupported");
+                throw new MalformedStateException(
+                        "graphics quality state schema version is unsupported");
             }
             GraphicsBenchmarkCompatibilityKey compatibilityKey =
                     new GraphicsBenchmarkCompatibilityKey(
@@ -135,7 +141,8 @@ public final class GraphicsQualityStateStore {
         } catch (MalformedStateException exception) {
             throw exception;
         } catch (RuntimeException exception) {
-            throw new MalformedStateException("graphics quality state value is invalid", exception);
+            throw new MalformedStateException(
+                    "graphics quality state value is invalid", exception);
         }
     }
 
@@ -143,7 +150,8 @@ public final class GraphicsQualityStateStore {
             throws MalformedStateException {
         String value = fields.get(key);
         if (value == null) {
-            throw new MalformedStateException("graphics quality state is missing a required field");
+            throw new MalformedStateException(
+                    "graphics quality state is missing a required field");
         }
         return value;
     }
