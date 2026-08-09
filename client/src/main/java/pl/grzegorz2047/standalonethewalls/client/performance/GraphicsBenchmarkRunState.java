@@ -54,23 +54,25 @@ public final class GraphicsBenchmarkRunState extends BaseAppState {
                 Objects.requireNonNull(
                         telemetrySourceFactory.create(application.getRenderer()),
                         "benchmark telemetry source");
-        Node newScene;
+        boolean initialized = false;
         try {
-            newScene = sceneFactory.build(application.getAssetManager());
+            Node newScene = sceneFactory.build(application.getAssetManager());
             Objects.requireNonNull(newScene, "benchmark scene");
             if (newScene.getParent() != null) {
                 throw new IllegalArgumentException("benchmark scene must be detached");
             }
             newScene.setCullHint(Spatial.CullHint.Never);
             simpleApplication.getRootNode().attachChild(newScene);
-        } catch (RuntimeException exception) {
-            newTelemetrySource.close();
-            throw exception;
-        }
 
-        applicationRoot = simpleApplication.getRootNode();
-        benchmarkScene = newScene;
-        telemetrySource = newTelemetrySource;
+            applicationRoot = simpleApplication.getRootNode();
+            benchmarkScene = newScene;
+            telemetrySource = newTelemetrySource;
+            initialized = true;
+        } finally {
+            if (!initialized) {
+                newTelemetrySource.close();
+            }
+        }
     }
 
     @Override
