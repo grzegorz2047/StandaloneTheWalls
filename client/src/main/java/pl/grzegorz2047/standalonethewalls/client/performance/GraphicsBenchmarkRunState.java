@@ -14,6 +14,7 @@ import java.util.Optional;
 /** Runs one opt-in reference benchmark through the real jME frame loop. */
 public final class GraphicsBenchmarkRunState extends BaseAppState {
     private final GraphicsBenchmarkSession session;
+    private final GraphicsQualityPreset measuredPreset;
     private final SceneFactory sceneFactory;
     private final TelemetrySourceFactory telemetrySourceFactory;
     private Node applicationRoot;
@@ -35,7 +36,9 @@ public final class GraphicsBenchmarkRunState extends BaseAppState {
             Optional<GraphicsQualityState> previousState,
             SceneFactory sceneFactory,
             TelemetrySourceFactory telemetrySourceFactory) {
-        session = new GraphicsBenchmarkSession(config, previousState);
+        GraphicsBenchmarkSession.Config checkedConfig = Objects.requireNonNull(config, "config");
+        session = new GraphicsBenchmarkSession(checkedConfig, previousState);
+        measuredPreset = checkedConfig.measuredPreset();
         this.sceneFactory = Objects.requireNonNull(sceneFactory, "sceneFactory");
         this.telemetrySourceFactory =
                 Objects.requireNonNull(telemetrySourceFactory, "telemetrySourceFactory");
@@ -56,7 +59,7 @@ public final class GraphicsBenchmarkRunState extends BaseAppState {
                         "benchmark telemetry source");
         boolean initialized = false;
         try {
-            Node newScene = sceneFactory.build(application.getAssetManager());
+            Node newScene = sceneFactory.build(application.getAssetManager(), measuredPreset);
             Objects.requireNonNull(newScene, "benchmark scene");
             if (newScene.getParent() != null) {
                 throw new IllegalArgumentException("benchmark scene must be detached");
@@ -155,7 +158,7 @@ public final class GraphicsBenchmarkRunState extends BaseAppState {
 
     @FunctionalInterface
     interface SceneFactory {
-        Node build(AssetManager assetManager);
+        Node build(AssetManager assetManager, GraphicsQualityPreset preset);
     }
 
     @FunctionalInterface
