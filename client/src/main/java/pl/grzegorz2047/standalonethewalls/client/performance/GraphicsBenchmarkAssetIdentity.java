@@ -1,6 +1,7 @@
 package pl.grzegorz2047.standalonethewalls.client.performance;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
@@ -15,6 +16,7 @@ public final class GraphicsBenchmarkAssetIdentity {
     public static final long MAXIMUM_LOCK_BYTES = 1_048_576L;
 
     private static final String VERSION_PREFIX = "sha256:";
+    private static final int MAXIMUM_READ_BYTES = Math.toIntExact(MAXIMUM_LOCK_BYTES) + 1;
 
     private final String assetSetVersion;
 
@@ -33,8 +35,11 @@ public final class GraphicsBenchmarkAssetIdentity {
         if (expectedSize < 1L || expectedSize > MAXIMUM_LOCK_BYTES) {
             throw new IOException("asset lock size is outside the bounded range");
         }
-        byte[] bytes = Files.readAllBytes(lockFile);
-        if (bytes.length != expectedSize) {
+        byte[] bytes;
+        try (InputStream input = Files.newInputStream(lockFile, LinkOption.NOFOLLOW_LINKS)) {
+            bytes = input.readNBytes(MAXIMUM_READ_BYTES);
+        }
+        if (bytes.length != expectedSize || bytes.length > MAXIMUM_LOCK_BYTES) {
             throw new IOException("asset lock changed while being read");
         }
         return new GraphicsBenchmarkAssetIdentity(VERSION_PREFIX + sha256(bytes));
