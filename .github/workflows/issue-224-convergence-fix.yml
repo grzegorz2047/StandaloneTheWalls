@@ -1,4 +1,4 @@
-name: Issue 224 Convergence Rewrite
+name: Issue 224 Cleanup
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  rewrite:
+  cleanup:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -17,27 +17,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Harden movement snapshot convergence wait
-        shell: python
-        run: |
-          from pathlib import Path
-
-          path = Path("server/src/test/java/pl/grzegorz2047/standalonethewalls/server/identity/session/MinimalLobbyRuntimeTest.java")
-          source = path.read_text(encoding="utf-8")
-          old = """                    waitUntil(\n                            () ->\n                                    latestPreparationWorldSnapshotUnchecked(alpha)\n                                                    .authoritativeTick()\n                                            >= expectedTick);\n"""
-          new = """                    waitUntil(\n                            () -> {\n                                PreparationWorldSnapshot alphaSnapshot =\n                                        latestPreparationWorldSnapshotUnchecked(alpha);\n                                return alphaSnapshot.authoritativeTick() >= expectedTick\n                                        && alphaSnapshot.equals(\n                                                latestPreparationWorldSnapshotUnchecked(bravo));\n                            });\n"""
-          if old not in source:
-              raise SystemExit("expected movement snapshot wait not found")
-          path.write_text(source.replace(old, new, 1), encoding="utf-8")
-
-      - name: Commit rewrite
+      - name: Remove temporary helper files
         shell: bash
         run: |
-          if git diff --quiet; then
-            exit 0
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add server/src/test/java/pl/grzegorz2047/standalonethewalls/server/identity/session/MinimalLobbyRuntimeTest.java
-          git commit -m "Harden two-session movement convergence wait"
+          git rm .github/workflows/issue-224-convergence-fix.yml
+          git rm .github/issue-224-convergence-fix.trigger
+          git commit -m "Remove temporary convergence helper"
           git push
