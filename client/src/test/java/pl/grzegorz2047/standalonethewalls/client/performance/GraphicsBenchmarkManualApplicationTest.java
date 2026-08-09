@@ -13,6 +13,7 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -29,7 +30,8 @@ class GraphicsBenchmarkManualApplicationTest {
     @TempDir Path tempDirectory;
 
     @Test
-    void headlessLifecyclePersistsOneCompleteSchemaV2Report() throws Exception {
+    void headlessLifecyclePersistsOneCompleteSchemaV2Report()
+            throws IOException, InterruptedException, ExecutionException, TimeoutException {
         Path reportDirectory = tempDirectory.resolve("reports");
         GraphicsBenchmarkReportStore store = new GraphicsBenchmarkReportStore(reportDirectory);
         FakeTelemetrySource source = new FakeTelemetrySource();
@@ -61,7 +63,7 @@ class GraphicsBenchmarkManualApplicationTest {
         assertThat(Files.readString(store.reportFile(), StandardCharsets.UTF_8))
                 .isEqualTo(GraphicsBenchmarkReportJson.serialize(outcome.report()));
         try (Stream<Path> files = Files.list(reportDirectory)) {
-            assertThat(files.map(path -> path.getFileName().toString()).toList())
+            assertThat(files.map(reportDirectory::relativize).map(Path::toString).toList())
                     .containsExactly(GraphicsBenchmarkReportStore.FILE_NAME);
         }
     }
