@@ -97,10 +97,7 @@ class GraphicsBenchmarkRunStateTest {
         parent.attachChild(attached);
         GraphicsBenchmarkRunState state =
                 new GraphicsBenchmarkRunState(
-                        config(0, 1),
-                        Optional.empty(),
-                        ignored -> attached,
-                        ignored -> source);
+                        config(0, 1), Optional.empty(), ignored -> attached, ignored -> source);
 
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> state.initialize(new TestApplication()));
