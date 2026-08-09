@@ -141,7 +141,8 @@ class GraphicsBenchmarkReferenceSceneTest {
                 .allSatisfy(
                         team ->
                                 assertThat(((Node) team).getQuantity())
-                                        .isEqualTo(GraphicsBenchmarkReferenceScene.PLAYERS_PER_TEAM));
+                                        .isEqualTo(
+                                                GraphicsBenchmarkReferenceScene.PLAYERS_PER_TEAM));
         assertThat(structures.getQuantity())
                 .isEqualTo(GraphicsBenchmarkReferenceScene.STRUCTURE_GEOMETRY_COUNT);
         assertThat(vfx.getQuantity())
