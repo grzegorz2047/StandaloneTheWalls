@@ -24,15 +24,16 @@ class GraphicsBenchmarkReferenceSceneTest {
         assertThat(scene.getQuantity()).isEqualTo(5);
         assertThat(countGeometries(scene))
                 .isEqualTo(GraphicsBenchmarkReferenceScene.TOTAL_GEOMETRY_COUNT);
-        assertThat(scene.getLocalLightList())
-                .hasSize(GraphicsBenchmarkReferenceScene.LIGHT_COUNT);
+        assertThat(scene.getLocalLightList()).hasSize(GraphicsBenchmarkReferenceScene.LIGHT_COUNT);
 
         Node terrain = childNode(scene, GraphicsBenchmarkReferenceScene.TERRAIN_NODE_NAME);
         assertThat(terrain.getQuantity()).isOne();
 
         Node teams = childNode(scene, GraphicsBenchmarkReferenceScene.TEAMS_NODE_NAME);
         assertThat(teams.getQuantity()).isEqualTo(GraphicsBenchmarkReferenceScene.TEAM_COUNT);
-        for (int teamIndex = 0; teamIndex < GraphicsBenchmarkReferenceScene.TEAM_COUNT; teamIndex++) {
+        for (int teamIndex = 0;
+                teamIndex < GraphicsBenchmarkReferenceScene.TEAM_COUNT;
+                teamIndex++) {
             Node team = childNode(teams, "Team-" + teamIndex);
             assertThat(team.getQuantity())
                     .isEqualTo(GraphicsBenchmarkReferenceScene.PLAYERS_PER_TEAM);
@@ -51,7 +52,8 @@ class GraphicsBenchmarkReferenceSceneTest {
         Node vfx = childNode(scene, GraphicsBenchmarkReferenceScene.VFX_NODE_NAME);
         assertThat(vfx.getQuantity())
                 .isEqualTo(GraphicsBenchmarkReferenceScene.VFX_PROXY_GEOMETRY_COUNT);
-        assertThat(vfx.getChildren()).allSatisfy(GraphicsBenchmarkReferenceSceneTest::assertTransparent);
+        assertThat(vfx.getChildren())
+                .allSatisfy(GraphicsBenchmarkReferenceSceneTest::assertTransparent);
     }
 
     @Test
