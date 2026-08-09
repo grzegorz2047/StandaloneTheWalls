@@ -87,7 +87,9 @@ public final class MinimalPreparationBundle {
         }
         return "{\"author\":\"Sunderfront Team\",\"files\":{"
                 + files
-                + "},\"id\":\"minimal_preparation\",\"license\":\"CC0-1.0\",\"limits\":{\"archiveBytes\":1048576,\"fileCount\":5,\"sceneNodes\":64,\"textureDimension\":64,\"triangles\":256,\"uncompressedBytes\":2097152},\"maximumPlayers\":40,\"minimumPlayers\":4,\"name\":\"Minimal Preparation\",\"playersPerTeam\":10,\"requiredProtocol\":{\"major\":1,\"minor\":0},\"schemaVersion\":1,\"teamCount\":4,\"version\":\"1.0.0\"}";
+                + "},\"id\":\"minimal_preparation\",\"license\":\"CC0-1.0\",\"limits\":"
+                + LowProfileMapBudget.manifestLimitsJson()
+                + ",\"maximumPlayers\":40,\"minimumPlayers\":4,\"name\":\"Minimal Preparation\",\"playersPerTeam\":10,\"requiredProtocol\":{\"major\":1,\"minor\":0},\"schemaVersion\":1,\"teamCount\":4,\"version\":\"1.0.0\"}";
     }
 
     private static String gameplay() {

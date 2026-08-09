@@ -25,6 +25,7 @@ class MinimalPreparationBundleTest {
         byte[] second = MinimalPreparationBundle.createArchive();
 
         assertThat(first).isEqualTo(second).hasSize(14_589);
+        assertThat(first.length).isLessThanOrEqualTo(LowProfileMapBudget.MAX_ARCHIVE_BYTES);
         VerifiedMapBundle bundle = TwMapBundleLoader.load(first, POLICY);
         assertThat(bundle.archiveSha256().value())
                 .isEqualTo(MinimalPreparationBundle.EXPECTED_ARCHIVE_SHA256);
@@ -39,7 +40,15 @@ class MinimalPreparationBundleTest {
                         "gameplay.json",
                         "licenses.json",
                         "scene.glb",
-                        "thumbnail.webp");
+                        "thumbnail.webp")
+                .hasSizeLessThanOrEqualTo(LowProfileMapBudget.MAX_MEMBER_FILE_COUNT);
+        long uncompressedMemberBytes = 0L;
+        for (String memberName : bundle.memberNames()) {
+            uncompressedMemberBytes =
+                    Math.addExact(uncompressedMemberBytes, bundle.member(memberName).length);
+        }
+        assertThat(uncompressedMemberBytes)
+                .isLessThanOrEqualTo(LowProfileMapBudget.MAX_UNCOMPRESSED_MEMBER_BYTES);
 
         Glb2Document scene =
                 Glb2ContainerDecoder.decode(bundle.member("scene.glb"), bundle.manifest().limits());
@@ -47,9 +56,11 @@ class MinimalPreparationBundleTest {
                 Glb2ContainerDecoder.decode(
                         bundle.member("collision.glb"), bundle.manifest().limits());
         assertThat(scene.nodeCount()).isEqualTo(16);
+        assertThat(scene.nodeCount()).isLessThanOrEqualTo(LowProfileMapBudget.MAX_SCENE_NODES);
         assertThat(scene.meshCount()).isEqualTo(6);
         assertThat(scene.materialCount()).isEqualTo(6);
         assertThat(scene.lightCount()).isEqualTo(1);
+        assertThat(scene.lightCount()).isLessThanOrEqualTo(LowProfileMapBudget.MAX_SCENE_LIGHTS);
         assertThat(scene.jsonUtf8())
                 .contains(
                         "Ground",
@@ -61,9 +72,12 @@ class MinimalPreparationBundleTest {
                         "CentralWallZ",
                         "KHR_lights_punctual");
         assertThat(collision.nodeCount()).isEqualTo(11);
+        assertThat(collision.nodeCount()).isLessThanOrEqualTo(LowProfileMapBudget.MAX_SCENE_NODES);
         assertThat(collision.meshCount()).isEqualTo(1);
         assertThat(collision.materialCount()).isZero();
         assertThat(collision.lightCount()).isZero();
+        assertThat(collision.lightCount())
+                .isLessThanOrEqualTo(LowProfileMapBudget.MAX_SCENE_LIGHTS);
         assertThat(collision.jsonUtf8())
                 .contains(
                         "GroundCollision",
