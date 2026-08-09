@@ -4,12 +4,14 @@ import java.util.Objects;
 import java.util.Optional;
 
 /** Decides whether startup can reuse a persisted quality choice or must benchmark again. */
-public record GraphicsQualityStartupDecision(Action action, Optional<GraphicsQualityPreset> preset) {
+public record GraphicsQualityStartupDecision(
+        Action action, Optional<GraphicsQualityPreset> preset) {
     public GraphicsQualityStartupDecision {
         Objects.requireNonNull(action, "action");
         preset = Objects.requireNonNull(preset, "preset");
         if ((action == Action.RUN_BENCHMARK) == preset.isPresent()) {
-            throw new IllegalArgumentException("startup decision action and preset are inconsistent");
+            throw new IllegalArgumentException(
+                    "startup decision action and preset are inconsistent");
         }
     }
 
@@ -18,7 +20,8 @@ public record GraphicsQualityStartupDecision(Action action, Optional<GraphicsQua
             GraphicsBenchmarkCompatibilityKey currentKey) {
         Objects.requireNonNull(persistedState, "persistedState");
         Objects.requireNonNull(currentKey, "currentKey");
-        if (persistedState.isEmpty() || persistedState.orElseThrow().requiresBenchmark(currentKey)) {
+        if (persistedState.isEmpty()
+                || persistedState.orElseThrow().requiresBenchmark(currentKey)) {
             return new GraphicsQualityStartupDecision(Action.RUN_BENCHMARK, Optional.empty());
         }
         return new GraphicsQualityStartupDecision(
