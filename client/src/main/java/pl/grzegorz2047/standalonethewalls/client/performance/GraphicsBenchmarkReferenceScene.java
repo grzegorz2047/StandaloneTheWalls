@@ -18,14 +18,15 @@ import java.util.Objects;
 /** Builds the deterministic representative scene used by the integrated-GPU benchmark. */
 public final class GraphicsBenchmarkReferenceScene {
     public static final String SCENARIO_ID = "integrated-gpu-reference";
-    public static final int SCENARIO_VERSION = 1;
+    public static final int SCENARIO_VERSION = 2;
     public static final int TEAM_COUNT = 4;
     public static final int PLAYERS_PER_TEAM = 8;
     public static final int STRUCTURE_GEOMETRY_COUNT = 20;
     public static final int VEGETATION_INSTANCE_COUNT = 32;
     public static final int VEGETATION_GEOMETRY_COUNT = VEGETATION_INSTANCE_COUNT * 2;
     public static final int VFX_PROXY_GEOMETRY_COUNT = 12;
-    public static final int LIGHT_COUNT = 6;
+    public static final int NON_DYNAMIC_LIGHT_COUNT = 2;
+    public static final int LIGHT_COUNT = NON_DYNAMIC_LIGHT_COUNT + TEAM_COUNT;
     public static final int TOTAL_GEOMETRY_COUNT =
             1
                     + TEAM_COUNT * PLAYERS_PER_TEAM
@@ -45,16 +46,49 @@ public final class GraphicsBenchmarkReferenceScene {
     }
 
     public static Node build(AssetManager assetManager) {
+        return build(assetManager, GraphicsQualityPreset.HIGH);
+    }
+
+    public static Node build(AssetManager assetManager, GraphicsQualityPreset preset) {
         Objects.requireNonNull(assetManager, "assetManager");
+        Objects.requireNonNull(preset, "preset");
         Node root = new Node(ROOT_NAME);
 
         root.attachChild(buildTerrain(assetManager));
         root.attachChild(buildTeams(assetManager));
         root.attachChild(buildStructures(assetManager));
-        root.attachChild(buildVegetation(assetManager));
+        root.attachChild(buildVegetation(assetManager, preset));
         root.attachChild(buildVfx(assetManager));
-        addLights(root);
+        addLights(root, preset);
         return root;
+    }
+
+    public static int vegetationInstanceCount(GraphicsQualityPreset preset) {
+        Objects.requireNonNull(preset, "preset");
+        int count =
+                Math.toIntExact(
+                        Math.round(VEGETATION_INSTANCE_COUNT * preset.vegetationDensity()));
+        if (count < 0 || count > VEGETATION_INSTANCE_COUNT) {
+            throw new IllegalArgumentException("preset vegetation density is outside scene bounds");
+        }
+        return count;
+    }
+
+    public static int geometryCount(GraphicsQualityPreset preset) {
+        return 1
+                + TEAM_COUNT * PLAYERS_PER_TEAM
+                + STRUCTURE_GEOMETRY_COUNT
+                + vegetationInstanceCount(preset) * 2
+                + VFX_PROXY_GEOMETRY_COUNT;
+    }
+
+    public static int teamPointLightCount(GraphicsQualityPreset preset) {
+        Objects.requireNonNull(preset, "preset");
+        return Math.min(TEAM_COUNT, preset.maximumDynamicLights());
+    }
+
+    public static int lightCount(GraphicsQualityPreset preset) {
+        return NON_DYNAMIC_LIGHT_COUNT + teamPointLightCount(preset);
     }
 
     private static Node buildTerrain(AssetManager assetManager) {
@@ -110,13 +144,14 @@ public final class GraphicsBenchmarkReferenceScene {
         return structures;
     }
 
-    private static Node buildVegetation(AssetManager assetManager) {
+    private static Node buildVegetation(AssetManager assetManager, GraphicsQualityPreset preset) {
         Node vegetation = new Node(VEGETATION_NODE_NAME);
         Material trunkMaterial =
                 litMaterial(assetManager, new ColorRGBA(0.30f, 0.19f, 0.10f, 1.0f));
         Material canopyMaterial =
                 litMaterial(assetManager, new ColorRGBA(0.18f, 0.42f, 0.16f, 1.0f));
-        for (int index = 0; index < VEGETATION_INSTANCE_COUNT; index++) {
+        int vegetationCount = vegetationInstanceCount(preset);
+        for (int index = 0; index < vegetationCount; index++) {
             Node plant = new Node("Vegetation-" + index);
             float angle = (float) (Math.PI * 2.0d * index / VEGETATION_INSTANCE_COUNT);
             float radius = 17.0f + (index % 4) * 1.25f;
@@ -157,7 +192,7 @@ public final class GraphicsBenchmarkReferenceScene {
         return vfx;
     }
 
-    private static void addLights(Node root) {
+    private static void addLights(Node root, GraphicsQualityPreset preset) {
         AmbientLight ambient = new AmbientLight();
         ambient.setName("BenchmarkAmbient");
         ambient.setColor(new ColorRGBA(0.28f, 0.28f, 0.30f, 1.0f));
@@ -169,7 +204,8 @@ public final class GraphicsBenchmarkReferenceScene {
         sun.setDirection(new Vector3f(-1.0f, -2.0f, -1.0f).normalizeLocal());
         root.addLight(sun);
 
-        for (int teamIndex = 0; teamIndex < TEAM_COUNT; teamIndex++) {
+        int teamLightCount = teamPointLightCount(preset);
+        for (int teamIndex = 0; teamIndex < teamLightCount; teamIndex++) {
             PointLight point = new PointLight();
             point.setName("BenchmarkTeamLight-" + teamIndex);
             point.setColor(teamColor(teamIndex));
