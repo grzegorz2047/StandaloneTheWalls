@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 import java.util.Locale;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class GraphicsBenchmarkReportTest {
@@ -19,8 +20,10 @@ class GraphicsBenchmarkReportTest {
                         "integrated-gpu-reference",
                         3,
                         GraphicsQualityPreset.MEDIUM,
-                        benchmarkResult());
+                        benchmarkResult(),
+                        telemetrySummary());
 
+        assertThat(GraphicsBenchmarkReport.SCHEMA_VERSION).isEqualTo(2);
         assertThat(report.repositoryCommit()).isEqualTo(COMMIT.toLowerCase(Locale.ROOT));
         assertThat(report.assetPackId()).isEqualTo("assets.lock.json");
         assertThat(report.assetPackVersion()).isEqualTo("schema-1");
@@ -28,6 +31,33 @@ class GraphicsBenchmarkReportTest {
         assertThat(report.scenarioVersion()).isEqualTo(3);
         assertThat(report.measuredPreset()).isEqualTo(GraphicsQualityPreset.MEDIUM);
         assertThat(report.result()).isEqualTo(benchmarkResult());
+        assertThat(report.telemetrySummary()).isEqualTo(telemetrySummary());
+    }
+
+    @Test
+    void rejectsTelemetryFromADifferentMeasurementWindow() {
+        GraphicsTelemetrySummary mismatched =
+                new GraphicsTelemetrySummary(
+                        1,
+                        new FrameTimeStatistics(1, 10_000_000L, 10_000_000L, 10_000_000L),
+                        Optional.empty(),
+                        0,
+                        64L,
+                        5,
+                        6);
+
+        assertThatIllegalArgumentException()
+                .isThrownBy(
+                        () ->
+                                new GraphicsBenchmarkReport(
+                                        COMMIT,
+                                        "assets",
+                                        "1",
+                                        "scenario",
+                                        1,
+                                        GraphicsQualityPreset.LOW,
+                                        benchmarkResult(),
+                                        mismatched));
     }
 
     @Test
@@ -42,7 +72,8 @@ class GraphicsBenchmarkReportTest {
                                         "scenario",
                                         1,
                                         GraphicsQualityPreset.LOW,
-                                        benchmarkResult()));
+                                        benchmarkResult(),
+                                        telemetrySummary()));
         assertThatIllegalArgumentException()
                 .isThrownBy(
                         () ->
@@ -53,7 +84,8 @@ class GraphicsBenchmarkReportTest {
                                         "scenario",
                                         1,
                                         GraphicsQualityPreset.LOW,
-                                        benchmarkResult()));
+                                        benchmarkResult(),
+                                        telemetrySummary()));
     }
 
     @Test
@@ -93,16 +125,32 @@ class GraphicsBenchmarkReportTest {
     private static GraphicsBenchmarkReport report(String metadata, int scenarioVersion) {
         GraphicsQualityPreset preset = GraphicsQualityPreset.LOW;
         return new GraphicsBenchmarkReport(
-                COMMIT, metadata, "1", "scenario", scenarioVersion, preset, benchmarkResult());
+                COMMIT,
+                metadata,
+                "1",
+                "scenario",
+                scenarioVersion,
+                preset,
+                benchmarkResult(),
+                telemetrySummary());
     }
 
     private static GraphicsBenchmarkResult benchmarkResult() {
         return new GraphicsBenchmarkResult(
                 GraphicsQualityPreset.MEDIUM,
                 GraphicsBenchmarkResult.TargetStatus.MEETS_PRIMARY_TARGET,
-                new FrameTimeStatistics(120, 12_000_000L, 16_700_000L, 17_000_000L),
+                benchmarkStatistics(),
                 1920,
                 1080,
                 1.0d);
+    }
+
+    private static GraphicsTelemetrySummary telemetrySummary() {
+        return new GraphicsTelemetrySummary(
+                120, benchmarkStatistics(), Optional.empty(), 0, 512_000_000L, 321, 654);
+    }
+
+    private static FrameTimeStatistics benchmarkStatistics() {
+        return new FrameTimeStatistics(120, 12_000_000L, 16_700_000L, 17_000_000L);
     }
 }
