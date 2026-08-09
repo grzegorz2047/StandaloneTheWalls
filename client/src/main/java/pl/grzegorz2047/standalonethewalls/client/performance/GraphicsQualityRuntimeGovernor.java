@@ -31,14 +31,19 @@ public final class GraphicsQualityRuntimeGovernor {
 
     public synchronized Snapshot observe(long observedP95Nanos, long budgetNanos) {
         boolean wasAtMinimumScale = renderScaleGovernor.atMinimumScale();
-        renderScaleGovernor.observe(observedP95Nanos, budgetNanos);
+        double observedRenderScale = renderScaleGovernor.observe(observedP95Nanos, budgetNanos);
 
         if (observedP95Nanos <= budgetNanos) {
-            presetDowngradeGovernor.observe(currentPreset, observedP95Nanos, budgetNanos);
-            return snapshot();
+            GraphicsQualityPreset stablePreset =
+                    presetDowngradeGovernor.observe(
+                            currentPreset, observedP95Nanos, budgetNanos);
+            if (stablePreset != currentPreset) {
+                throw new IllegalStateException("healthy observation changed the quality preset");
+            }
+            return snapshot(observedRenderScale);
         }
         if (!wasAtMinimumScale) {
-            return snapshot();
+            return snapshot(observedRenderScale);
         }
 
         GraphicsQualityPreset observedPreset =
@@ -50,14 +55,19 @@ public final class GraphicsQualityRuntimeGovernor {
                             currentPreset,
                             renderScaleReductionStep,
                             requiredRenderScaleOverBudgetWindows);
+            return snapshot();
         }
-        return snapshot();
+        return snapshot(observedRenderScale);
     }
 
     public synchronized Snapshot snapshot() {
+        return snapshot(renderScaleGovernor.currentRenderScale());
+    }
+
+    private Snapshot snapshot(double renderScale) {
         return new Snapshot(
                 currentPreset,
-                renderScaleGovernor.currentRenderScale(),
+                renderScale,
                 renderScaleGovernor.atMinimumScale(),
                 renderScaleGovernor.consecutiveOverBudgetWindows(),
                 presetDowngradeGovernor.consecutiveOverBudgetWindows());
