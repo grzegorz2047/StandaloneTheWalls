@@ -9,6 +9,7 @@ import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pl.grzegorz2047.standalonethewalls.client.i18n.ClientMessages;
+import pl.grzegorz2047.standalonethewalls.client.performance.GraphicsTelemetryCaptureState;
 import pl.grzegorz2047.standalonethewalls.shared.BuildInfo;
 
 /** Process adapter for display and headless smoke modes. */
@@ -40,6 +41,7 @@ public final class ClientLauncher {
             if (options.smokeMode()) {
                 return runSmoke(application);
             }
+            application.getStateManager().attach(new GraphicsTelemetryCaptureState());
             application.start();
             return EXIT_OK;
         } catch (IllegalArgumentException exception) {
