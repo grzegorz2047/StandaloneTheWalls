@@ -542,10 +542,13 @@ class MinimalLobbyRuntimeTest {
                 if (movementTick % 2L == 0L) {
                     long expectedTick = movementTick;
                     waitUntil(
-                            () ->
-                                    latestPreparationWorldSnapshotUnchecked(alpha)
-                                                    .authoritativeTick()
-                                            >= expectedTick);
+                            () -> {
+                                PreparationWorldSnapshot alphaSnapshot =
+                                        latestPreparationWorldSnapshotUnchecked(alpha);
+                                return alphaSnapshot.authoritativeTick() >= expectedTick
+                                        && alphaSnapshot.equals(
+                                                latestPreparationWorldSnapshotUnchecked(bravo));
+                            });
                     PreparationWorldSnapshot candidate =
                             latestPreparationWorldSnapshotUnchecked(alpha);
                     if (player(candidate, alpha.playerId()).lastProcessedInputSequence() == 1L) {
