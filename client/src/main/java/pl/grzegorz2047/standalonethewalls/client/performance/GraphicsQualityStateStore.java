@@ -93,8 +93,7 @@ public final class GraphicsQualityStateStore {
     static GraphicsQualityState parse(String content) throws MalformedStateException {
         Objects.requireNonNull(content, "content");
         if (content.indexOf('\r') >= 0 || !content.endsWith("\n")) {
-            throw new MalformedStateException(
-                    "graphics quality state must use canonical LF lines");
+            throw new MalformedStateException("graphics quality state must use canonical LF lines");
         }
         String body = content.substring(0, content.length() - 1);
         String[] lines = body.split("\n", -1);
@@ -141,8 +140,7 @@ public final class GraphicsQualityStateStore {
         } catch (MalformedStateException exception) {
             throw exception;
         } catch (RuntimeException exception) {
-            throw new MalformedStateException(
-                    "graphics quality state value is invalid", exception);
+            throw new MalformedStateException("graphics quality state value is invalid", exception);
         }
     }
 
@@ -150,8 +148,7 @@ public final class GraphicsQualityStateStore {
             throws MalformedStateException {
         String value = fields.get(key);
         if (value == null) {
-            throw new MalformedStateException(
-                    "graphics quality state is missing a required field");
+            throw new MalformedStateException("graphics quality state is missing a required field");
         }
         return value;
     }
@@ -164,7 +161,8 @@ public final class GraphicsQualityStateStore {
                     "scenarioId",
                     "scenarioVersion",
                     "recommendedPreset",
-                    "manualOverride" -> true;
+                    "manualOverride" ->
+                    true;
             default -> false;
         };
     }
