@@ -219,10 +219,8 @@ class GraphicsQualityRuntimeGovernorTest {
 
         GraphicsQualityRuntimeGovernor governor =
                 governor(GraphicsQualityPreset.MEDIUM, 0.10d, 2, 2);
-        assertThatIllegalArgumentException()
-                .isThrownBy(() -> governor.observe(0L, BUDGET_NANOS));
-        assertThatIllegalArgumentException()
-                .isThrownBy(() -> governor.observe(1L, 0L));
+        assertThatIllegalArgumentException().isThrownBy(() -> governor.observe(0L, BUDGET_NANOS));
+        assertThatIllegalArgumentException().isThrownBy(() -> governor.observe(1L, 0L));
         assertThatIllegalArgumentException()
                 .isThrownBy(
                         () ->
@@ -250,8 +248,7 @@ class GraphicsQualityRuntimeGovernorTest {
         assertThat(snapshot.preset()).isEqualTo(preset);
         assertThat(snapshot.renderScale()).isEqualTo(renderScale);
         assertThat(snapshot.minimumRenderScale()).isEqualTo(minimumRenderScale);
-        assertThat(snapshot.renderScaleOverBudgetWindows())
-                .isEqualTo(renderScaleOverBudgetWindows);
+        assertThat(snapshot.renderScaleOverBudgetWindows()).isEqualTo(renderScaleOverBudgetWindows);
         assertThat(snapshot.presetOverBudgetWindows()).isEqualTo(presetOverBudgetWindows);
     }
 }
