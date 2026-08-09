@@ -36,7 +36,9 @@ class GraphicsQualityStartupDecisionTest {
         GraphicsQualityState overridden =
                 automatic.withManualOverride(Optional.of(GraphicsQualityPreset.LOW));
 
-        assertThat(GraphicsQualityStartupDecision.evaluate(Optional.of(automatic), CURRENT_KEY).preset())
+        assertThat(
+                        GraphicsQualityStartupDecision.evaluate(Optional.of(automatic), CURRENT_KEY)
+                                .preset())
                 .contains(GraphicsQualityPreset.MEDIUM);
         assertThat(
                         GraphicsQualityStartupDecision.evaluate(Optional.of(overridden), CURRENT_KEY)
