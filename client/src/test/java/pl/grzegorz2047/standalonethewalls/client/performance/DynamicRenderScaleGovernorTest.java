@@ -63,15 +63,9 @@ class DynamicRenderScaleGovernorTest {
         assertThatNullPointerException()
                 .isThrownBy(() -> new DynamicRenderScaleGovernor(null, 0.05d, 2));
         assertThatIllegalArgumentException()
-                .isThrownBy(
-                        () ->
-                                new DynamicRenderScaleGovernor(
-                                        GraphicsQualityPreset.LOW, 0.0d, 2));
+                .isThrownBy(() -> new DynamicRenderScaleGovernor(GraphicsQualityPreset.LOW, 0.0d, 2));
         assertThatIllegalArgumentException()
-                .isThrownBy(
-                        () ->
-                                new DynamicRenderScaleGovernor(
-                                        GraphicsQualityPreset.LOW, -0.05d, 2));
+                .isThrownBy(() -> new DynamicRenderScaleGovernor(GraphicsQualityPreset.LOW, -0.05d, 2));
         assertThatIllegalArgumentException()
                 .isThrownBy(
                         () ->
@@ -83,26 +77,15 @@ class DynamicRenderScaleGovernorTest {
                                 new DynamicRenderScaleGovernor(
                                         GraphicsQualityPreset.LOW, Double.POSITIVE_INFINITY, 2));
         assertThatIllegalArgumentException()
-                .isThrownBy(
-                        () ->
-                                new DynamicRenderScaleGovernor(
-                                        GraphicsQualityPreset.LOW, 1.01d, 2));
+                .isThrownBy(() -> new DynamicRenderScaleGovernor(GraphicsQualityPreset.LOW, 1.01d, 2));
         assertThatIllegalArgumentException()
-                .isThrownBy(
-                        () ->
-                                new DynamicRenderScaleGovernor(
-                                        GraphicsQualityPreset.LOW, 0.05d, 0));
+                .isThrownBy(() -> new DynamicRenderScaleGovernor(GraphicsQualityPreset.LOW, 0.05d, 0));
         assertThatIllegalArgumentException()
-                .isThrownBy(
-                        () ->
-                                new DynamicRenderScaleGovernor(
-                                        GraphicsQualityPreset.LOW, 0.05d, 121));
+                .isThrownBy(() -> new DynamicRenderScaleGovernor(GraphicsQualityPreset.LOW, 0.05d, 121));
 
         DynamicRenderScaleGovernor governor = governor(GraphicsQualityPreset.LOW, 0.05d, 2);
-        assertThatIllegalArgumentException()
-                .isThrownBy(() -> governor.observe(0L, BUDGET_NANOS));
-        assertThatIllegalArgumentException()
-                .isThrownBy(() -> governor.observe(1L, 0L));
+        assertThatIllegalArgumentException().isThrownBy(() -> governor.observe(0L, BUDGET_NANOS));
+        assertThatIllegalArgumentException().isThrownBy(() -> governor.observe(1L, 0L));
         assertThatIllegalArgumentException()
                 .isThrownBy(
                         () ->
@@ -130,8 +113,7 @@ class DynamicRenderScaleGovernorTest {
         assertThat(governor.atMinimumScale()).isTrue();
         assertThat(governor.currentRenderScale()).isEqualTo(expectedMinimum);
         assertThat(governor.consecutiveOverBudgetWindows()).isZero();
-        assertThat(governor.observe(OVER_BUDGET_NANOS, BUDGET_NANOS))
-                .isEqualTo(expectedMinimum);
+        assertThat(governor.observe(OVER_BUDGET_NANOS, BUDGET_NANOS)).isEqualTo(expectedMinimum);
         assertThat(governor.consecutiveOverBudgetWindows()).isZero();
     }
 }
