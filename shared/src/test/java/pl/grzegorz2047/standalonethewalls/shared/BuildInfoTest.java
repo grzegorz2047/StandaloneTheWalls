@@ -20,7 +20,8 @@ class BuildInfoTest {
                         "generated build provenance")) {
             String content = new String(input.readAllBytes(), StandardCharsets.UTF_8);
 
-            assertThat(BuildInfo.parseRepositoryCommit(content)).isEqualTo(BuildInfo.repositoryCommit());
+            assertThat(BuildInfo.parseRepositoryCommit(content))
+                    .isEqualTo(BuildInfo.repositoryCommit());
         }
 
         String githubCommit = System.getenv("GITHUB_SHA");
@@ -32,7 +33,9 @@ class BuildInfoTest {
 
     @Test
     void unavailableMarkerProducesEmptyRepositoryCommit() {
-        assertThat(BuildInfo.parseRepositoryCommit("schemaVersion=1\nrepositoryCommit=unavailable\n"))
+        assertThat(
+                        BuildInfo.parseRepositoryCommit(
+                                "schemaVersion=1\nrepositoryCommit=unavailable\n"))
                 .isEmpty();
     }
 
@@ -66,7 +69,9 @@ class BuildInfoTest {
     void sixtyFourCharacterRepositoryCommitIsAccepted() {
         String commit = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
-        assertThat(BuildInfo.parseRepositoryCommit("schemaVersion=1\nrepositoryCommit=" + commit + "\n"))
+        assertThat(
+                        BuildInfo.parseRepositoryCommit(
+                                "schemaVersion=1\nrepositoryCommit=" + commit + "\n"))
                 .isEqualTo(Optional.of(commit));
     }
 }
