@@ -28,8 +28,7 @@ public final class GraphicsTelemetryCaptureState extends BaseAppState {
         if (sampler == null || application == null) {
             return;
         }
-        sampler
-                .sample(timePerFrame, application.getRootNode(), application.getGuiNode())
+        sampler.sample(timePerFrame, application.getRootNode(), application.getGuiNode())
                 .ifPresent(window::add);
     }
 
