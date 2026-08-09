@@ -6,7 +6,9 @@ import java.util.Optional;
 public enum LobbyMatchPhase {
     WAITING_FOR_PLAYERS(1),
     START_COUNTDOWN(2),
-    PREPARATION(3);
+    PREPARATION(3),
+    WALLS_OPENING(4),
+    OPEN_COMBAT(5);
 
     private final int wireCode;
 
@@ -23,6 +25,8 @@ public enum LobbyMatchPhase {
             case 1 -> Optional.of(WAITING_FOR_PLAYERS);
             case 2 -> Optional.of(START_COUNTDOWN);
             case 3 -> Optional.of(PREPARATION);
+            case 4 -> Optional.of(WALLS_OPENING);
+            case 5 -> Optional.of(OPEN_COMBAT);
             default -> Optional.empty();
         };
     }

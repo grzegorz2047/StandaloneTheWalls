@@ -10,9 +10,13 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.HexFormat;
 import java.util.Objects;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationBarrierPolicy;
 
 /** Converts already verified preparation GLB bytes into detached jMonkeyEngine scene graphs. */
 public final class PreparationSceneGraphLoader {
+    private static final String CENTRAL_WALL_X_VISUAL = "CentralWallX";
+    private static final String CENTRAL_WALL_Z_VISUAL = "CentralWallZ";
+
     private PreparationSceneGraphLoader() {
         throw new AssertionError("No instances");
     }
@@ -20,12 +24,14 @@ public final class PreparationSceneGraphLoader {
     public static Node load(AssetManager assetManager, VerifiedPreparationScene scene)
             throws PreparationSceneGraphException {
         VerifiedPreparationScene verified = Objects.requireNonNull(scene, "scene");
-        return loadGlb(
-                assetManager,
-                verified,
-                verified.sceneGlb(),
-                "scene.glb",
-                "verified-preparation-" + verified.mapId());
+        Node loaded =
+                loadGlb(
+                        assetManager,
+                        verified,
+                        verified.sceneGlb(),
+                        "scene.glb",
+                        "verified-preparation-" + verified.mapId());
+        return new PhaseAwareWorldNode(loaded, verified);
     }
 
     public static Node loadCollision(AssetManager assetManager, VerifiedPreparationScene scene)
@@ -68,6 +74,55 @@ public final class PreparationSceneGraphLoader {
         } catch (AssetLoadException | IllegalArgumentException | IOException exception) {
             throw new PreparationSceneGraphException(
                     "verified preparation " + memberName + " could not be loaded", exception);
+        }
+    }
+
+    private static Spatial findNamedSpatial(Spatial current, String name) {
+        if (name.equals(current.getName())) {
+            return current;
+        }
+        if (current instanceof Node node) {
+            for (Spatial child : node.getChildren()) {
+                Spatial found = findNamedSpatial(child, name);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static final class PhaseAwareWorldNode extends Node {
+        private final VerifiedPreparationScene scene;
+        private Spatial centralWallX;
+        private Spatial centralWallZ;
+        private boolean opened;
+
+        private PhaseAwareWorldNode(Node loaded, VerifiedPreparationScene scene)
+                throws PreparationSceneGraphException {
+            super("verified-preparation-phase-aware-" + scene.mapId());
+            this.scene = Objects.requireNonNull(scene, "scene");
+            attachChild(Objects.requireNonNull(loaded, "loaded"));
+            centralWallX = findNamedSpatial(this, CENTRAL_WALL_X_VISUAL);
+            centralWallZ = findNamedSpatial(this, CENTRAL_WALL_Z_VISUAL);
+            if (centralWallX == null || centralWallZ == null) {
+                throw new PreparationSceneGraphException(
+                        "verified preparation scene is missing exact central wall visuals");
+            }
+            updateModelBound();
+            updateGeometricState();
+        }
+
+        @Override
+        public void updateLogicalState(float timePerFrame) {
+            if (!opened && scene.barrierPolicy() == PreparationBarrierPolicy.OPEN) {
+                centralWallX.removeFromParent();
+                centralWallZ.removeFromParent();
+                centralWallX = null;
+                centralWallZ = null;
+                opened = true;
+            }
+            super.updateLogicalState(timePerFrame);
         }
     }
 }

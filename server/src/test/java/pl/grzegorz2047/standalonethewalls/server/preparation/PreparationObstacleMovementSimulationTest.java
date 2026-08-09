@@ -9,6 +9,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import pl.grzegorz2047.standalonethewalls.domain.TeamId;
 import pl.grzegorz2047.standalonethewalls.mapformat.MapVector3;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationBarrierPolicy;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationObstacleBox;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationObstacleMap;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationSupportBox;
@@ -248,6 +249,126 @@ class PreparationObstacleMovementSimulationTest {
         assertThat(landed.yMillimetres()).isEqualTo(500);
         assertThat(landed.verticalVelocityMillimetresPerSecond()).isZero();
         assertThat(landed.grounded()).isTrue();
+    }
+
+    @Test
+    void opensCentralBarrierAtTheFirstOpenTickAndKeepsPermanentObstacles() {
+        PreparationObstacleMap obstacles =
+                new PreparationObstacleMap(
+                        List.of(
+                                obstacle(
+                                        PreparationObstacleMap.CENTRAL_WALL_X_NAME,
+                                        -0.41d,
+                                        0.0d,
+                                        -2.0d,
+                                        -0.39d,
+                                        5.0d,
+                                        2.0d),
+                                obstacle(
+                                        "PermanentObstacleCollision",
+                                        0.75d,
+                                        0.0d,
+                                        -2.0d,
+                                        0.76d,
+                                        5.0d,
+                                        2.0d)));
+        PreparationMapDefinition map =
+                new PreparationMapDefinition(
+                        "minimal_preparation",
+                        MAP_DIGEST,
+                        List.of(new PreparationSpawnPoint(0, TeamId.RED, -0.8d, 0.5d, 0.0d, 0.0d)),
+                        Map.of(
+                                TeamId.RED,
+                                new PreparationRegionBounds(
+                                        TeamId.RED, -2_000, -1_000, -2_000, -400, 6_000, 2_000),
+                                TeamId.BLUE,
+                                new PreparationRegionBounds(
+                                        TeamId.BLUE, -400, -1_000, -2_000, 2_000, 6_000, 2_000)),
+                        GROUND,
+                        obstacles);
+        PreparationSpawnAssignment assignment =
+                new PreparationSpawnAssignment(
+                        4L,
+                        2L,
+                        "minimal_preparation",
+                        MAP_DIGEST,
+                        LobbyTeam.RED,
+                        0,
+                        -0.8d,
+                        0.5d,
+                        0.0d,
+                        0.0d);
+        PreparationMovementSimulation simulation =
+                PreparationMovementSimulation.start(2L, 10L, map, Map.of(ALPHA, assignment));
+
+        PreparationPlayerSnapshot lastClosed =
+                player(
+                        simulation.advanceTick(
+                                11L,
+                                Map.of(
+                                        ALPHA,
+                                        new PreparationInput(
+                                                2L, 1L, 127, 0, true, false, false, 0, 0)),
+                                PreparationBarrierPolicy.CLOSED));
+        PreparationPlayerSnapshot firstOpen =
+                player(
+                        simulation.advanceTick(
+                                12L,
+                                Map.of(
+                                        ALPHA,
+                                        new PreparationInput(
+                                                2L, 2L, 127, 0, true, false, false, 0, 0)),
+                                PreparationBarrierPolicy.OPEN));
+        PreparationPlayerSnapshot outsideTeamRegion =
+                player(
+                        simulation.advanceTick(
+                                13L,
+                                Map.of(
+                                        ALPHA,
+                                        new PreparationInput(
+                                                2L, 3L, 127, 0, true, false, false, 0, 0)),
+                                PreparationBarrierPolicy.OPEN));
+        PreparationPlayerSnapshot permanentObstacle =
+                player(
+                        simulation.advanceTick(
+                                14L,
+                                Map.of(
+                                        ALPHA,
+                                        new PreparationInput(
+                                                2L, 4L, 127, 0, true, false, false, 0, 0)),
+                                PreparationBarrierPolicy.OPEN));
+
+        assertThat(lastClosed.xMillimetres()).isEqualTo(-800);
+        assertThat(firstOpen.xMillimetres()).isEqualTo(-400);
+        assertThat(outsideTeamRegion.xMillimetres()).isZero();
+        assertThat(permanentObstacle.xMillimetres()).isZero();
+        assertThat(simulation.barrierPolicy()).isEqualTo(PreparationBarrierPolicy.OPEN);
+        assertThatIllegalArgumentException()
+                .isThrownBy(
+                        () ->
+                                simulation.advanceTick(
+                                        15L, Map.of(), PreparationBarrierPolicy.CLOSED))
+                .withMessageContaining("cannot close");
+    }
+
+    @Test
+    void freshSimulationStartsClosedAfterAnotherSimulationOpened() {
+        PreparationObstacleBox centralBarrier =
+                obstacle(
+                        PreparationObstacleMap.CENTRAL_WALL_X_NAME,
+                        -0.4d,
+                        0.0d,
+                        -2.0d,
+                        -0.39d,
+                        5.0d,
+                        2.0d);
+        PreparationMovementSimulation opened = simulation(-0.8d, 0.5d, 0.0d, centralBarrier);
+
+        opened.advanceTick(11L, Map.of(), PreparationBarrierPolicy.OPEN);
+        PreparationMovementSimulation fresh = simulation(-0.8d, 0.5d, 0.0d, centralBarrier);
+
+        assertThat(opened.barrierPolicy()).isEqualTo(PreparationBarrierPolicy.OPEN);
+        assertThat(fresh.barrierPolicy()).isEqualTo(PreparationBarrierPolicy.CLOSED);
     }
 
     @Test

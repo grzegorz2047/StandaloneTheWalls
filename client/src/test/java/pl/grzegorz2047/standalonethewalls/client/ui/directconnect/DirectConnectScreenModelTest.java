@@ -38,16 +38,20 @@ class DirectConnectScreenModelTest {
     }
 
     @Test
-    void preparationLocksTeamAndReadinessControlsWithoutHidingTheLobby() {
-        ConnectedLobbyScreenModel lobby = connectedLobby(LobbyMatchPhase.PREPARATION);
-        DirectConnectScreenModel connected =
-                model(DirectConnectUiPhase.CONNECTED, Optional.empty(), Optional.of(lobby));
+    void everyPostCountdownPhaseLocksTeamAndReadinessControlsWithoutHidingTheLobby() {
+        for (LobbyMatchPhase phase :
+                List.of(
+                        LobbyMatchPhase.PREPARATION,
+                        LobbyMatchPhase.WALLS_OPENING,
+                        LobbyMatchPhase.OPEN_COMBAT)) {
+            ConnectedLobbyScreenModel lobby = connectedLobby(phase);
+            DirectConnectScreenModel connected =
+                    model(DirectConnectUiPhase.CONNECTED, Optional.empty(), Optional.of(lobby));
 
-        assertEquals(
-                LobbyMatchPhase.PREPARATION,
-                connected.connectedLobby().orElseThrow().match().phase());
-        assertFalse(connected.connectedLobby().orElseThrow().controlsEnabled());
-        assertTrue(connected.connectedLobby().orElseThrow().lobby().ownMember().isPresent());
+            assertEquals(phase, connected.connectedLobby().orElseThrow().match().phase());
+            assertFalse(connected.connectedLobby().orElseThrow().controlsEnabled());
+            assertTrue(connected.connectedLobby().orElseThrow().lobby().ownMember().isPresent());
+        }
     }
 
     @Test

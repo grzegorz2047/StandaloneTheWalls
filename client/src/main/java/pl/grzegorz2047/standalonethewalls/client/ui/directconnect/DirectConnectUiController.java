@@ -261,6 +261,12 @@ public final class DirectConnectUiController implements AutoCloseable {
         return session.currentVerifiedPreparationScene();
     }
 
+    public Optional<LobbyMatchPhaseSnapshot> currentMatchSnapshot() {
+        requireOpen();
+        ConnectedLobbySession session = connectedSession;
+        return session == null ? Optional.empty() : Optional.of(session.currentMatchSnapshot());
+    }
+
     public Optional<PreparationSpawnAssignment> currentPreparationSpawnAssignment() {
         requireOpen();
         ConnectedLobbySession session = connectedSession;
@@ -576,10 +582,13 @@ public final class DirectConnectUiController implements AutoCloseable {
                 lobbyCommandStatus = messages.text("direct.lobby.command.idle");
                 ConnectedLobbyModel lobby =
                         ConnectedLobbyModel.from(snapshot, Optional.of(transferred.playerId()));
+                boolean lobbyControlsAllowed =
+                        matchSnapshot.phase() == LobbyMatchPhase.WAITING_FOR_PLAYERS
+                                || matchSnapshot.phase() == LobbyMatchPhase.START_COUNTDOWN;
                 focus =
-                        matchSnapshot.phase() == LobbyMatchPhase.PREPARATION
-                                ? DirectConnectUiFocus.PRIMARY_ACTION
-                                : focusForTeam(lobby.ownMember().orElseThrow().team());
+                        lobbyControlsAllowed
+                                ? focusForTeam(lobby.ownMember().orElseThrow().team())
+                                : DirectConnectUiFocus.PRIMARY_ACTION;
                 publish(connectedModel(snapshot, matchSnapshot, false, lobbyCommandStatus));
                 transferred
                         .termination()
@@ -786,6 +795,10 @@ public final class DirectConnectUiController implements AutoCloseable {
                             messages.text(
                                     "direct.lobby.phase.countdown", snapshot.ticksRemaining());
                     case PREPARATION -> messages.text("direct.lobby.phase.preparation");
+                    case WALLS_OPENING ->
+                            messages.text(
+                                    "direct.lobby.phase.walls_opening", snapshot.ticksRemaining());
+                    case OPEN_COMBAT -> messages.text("direct.lobby.phase.open_combat");
                 };
         Optional<String> cancellation =
                 switch (snapshot.cancellationReason()) {

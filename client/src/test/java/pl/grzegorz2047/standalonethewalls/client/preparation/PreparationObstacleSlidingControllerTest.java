@@ -8,6 +8,7 @@ import java.util.HexFormat;
 import org.junit.jupiter.api.Test;
 import pl.grzegorz2047.standalonethewalls.mapformat.MapVector3;
 import pl.grzegorz2047.standalonethewalls.mapformat.MinimalPreparationBundle;
+import pl.grzegorz2047.standalonethewalls.mapformat.PreparationBarrierPolicy;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationMapSpawn;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationRegion;
 import pl.grzegorz2047.standalonethewalls.mapformat.PreparationTeam;
@@ -30,6 +31,26 @@ class PreparationObstacleSlidingControllerTest {
         assertThat(sliding.position().z()).isCloseTo(-1.6464466d, within(0.000001d));
         assertThat(sliding.position().y()).isEqualTo(0.5d);
         assertThat(sliding.grounded()).isTrue();
+    }
+
+    @Test
+    void openPolicyCrossesTheVerifiedCentralWallAndKeepsSupport()
+            throws PreparationSceneLoadException, PreparationSceneGraphException {
+        VerifiedPreparationScene scene = broadCentralWallScene();
+        PreparationPlayerState player = PreparationPlayerState.atAuthoritativeSpawn(scene);
+        PreparationCollisionWorld collisions =
+                PreparationCollisionWorld.load(new DesktopAssetManager(true), scene);
+        assertThat(scene.openCentralBarriers()).isTrue();
+
+        PreparationPlayerState crossed =
+                PreparationMovementController.move(player, collisions, 1.0d, 0.0d, 0.1d);
+
+        assertThat(crossed.position().x()).isCloseTo(-0.36d, within(0.000001d));
+        assertThat(crossed.position().z()).isEqualTo(-2.0d);
+        assertThat(crossed.position().y()).isEqualTo(0.5d);
+        assertThat(crossed.grounded()).isTrue();
+        assertThat(crossed.barrierPolicy()).isEqualTo(PreparationBarrierPolicy.OPEN);
+        assertThat(scene.openCentralBarriers()).isFalse();
     }
 
     private static VerifiedPreparationScene broadCentralWallScene()

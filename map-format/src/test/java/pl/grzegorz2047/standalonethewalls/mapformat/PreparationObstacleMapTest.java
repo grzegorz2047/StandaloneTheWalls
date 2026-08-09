@@ -113,6 +113,95 @@ class PreparationObstacleMapTest {
     }
 
     @Test
+    void opensOnlyTheTwoExactCentralBarrierNamesForEveryQueryType() {
+        PreparationObstacleMap map =
+                new PreparationObstacleMap(
+                        List.of(
+                                box(
+                                        PreparationObstacleMap.CENTRAL_WALL_X_NAME,
+                                        -0.05d,
+                                        0.0d,
+                                        -2.0d,
+                                        0.05d,
+                                        5.0d,
+                                        2.0d),
+                                box(
+                                        "PermanentObstacleCollision",
+                                        3.95d,
+                                        0.0d,
+                                        -2.0d,
+                                        4.05d,
+                                        5.0d,
+                                        2.0d),
+                                box(
+                                        "CentralWallXCollisionObstacleCollision",
+                                        7.95d,
+                                        0.0d,
+                                        -2.0d,
+                                        8.05d,
+                                        5.0d,
+                                        2.0d)));
+
+        assertThat(map.centralBarrierCount()).isOne();
+        assertThat(map.hasPlayerClearance(0.0d, 0.5d, 0.0d, false, PreparationBarrierPolicy.CLOSED))
+                .isFalse();
+        assertThat(map.hasPlayerClearance(0.0d, 0.5d, 0.0d, false, PreparationBarrierPolicy.OPEN))
+                .isTrue();
+        assertThat(
+                        map.permitsMovement(
+                                -1.0d,
+                                0.5d,
+                                0.0d,
+                                1.0d,
+                                0.5d,
+                                0.0d,
+                                false,
+                                PreparationBarrierPolicy.CLOSED))
+                .isFalse();
+        assertThat(
+                        map.permitsMovement(
+                                -1.0d,
+                                0.5d,
+                                0.0d,
+                                1.0d,
+                                0.5d,
+                                0.0d,
+                                false,
+                                PreparationBarrierPolicy.OPEN))
+                .isTrue();
+        assertThat(
+                        map.limitUpwardMovement(
+                                0.0d, 0.0d, 0.5d, 1.0d, false, PreparationBarrierPolicy.CLOSED))
+                .isEqualTo(0.5d);
+        assertThat(
+                        map.limitUpwardMovement(
+                                0.0d, 0.0d, 0.5d, 1.0d, false, PreparationBarrierPolicy.OPEN))
+                .isEqualTo(1.0d);
+        assertThat(
+                        map.permitsMovement(
+                                3.0d,
+                                0.5d,
+                                0.0d,
+                                5.0d,
+                                0.5d,
+                                0.0d,
+                                false,
+                                PreparationBarrierPolicy.OPEN))
+                .isFalse();
+        assertThat(
+                        map.permitsMovement(
+                                7.0d,
+                                0.5d,
+                                0.0d,
+                                9.0d,
+                                0.5d,
+                                0.0d,
+                                false,
+                                PreparationBarrierPolicy.OPEN))
+                .isFalse();
+    }
+
+    @Test
     void rejectsMoreThanTheBoundedObstacleCount() {
         List<PreparationObstacleBox> boxes =
                 java.util.stream.IntStream.rangeClosed(0, PreparationObstacleMap.MAXIMUM_BOXES)
