@@ -66,8 +66,7 @@ public final class GraphicsBenchmarkReferenceScene {
     public static int vegetationInstanceCount(GraphicsQualityPreset preset) {
         Objects.requireNonNull(preset, "preset");
         int count =
-                Math.toIntExact(
-                        Math.round(VEGETATION_INSTANCE_COUNT * preset.vegetationDensity()));
+                Math.toIntExact(Math.round(VEGETATION_INSTANCE_COUNT * preset.vegetationDensity()));
         if (count < 0 || count > VEGETATION_INSTANCE_COUNT) {
             throw new IllegalArgumentException("preset vegetation density is outside scene bounds");
         }
