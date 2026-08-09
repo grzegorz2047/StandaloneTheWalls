@@ -63,8 +63,7 @@ public final class GraphicsBenchmarkSession {
             return Optional.empty();
         }
 
-        GraphicsTelemetrySummary summary =
-                GraphicsTelemetrySummary.fromSamples(measurementSamples);
+        GraphicsTelemetrySummary summary = GraphicsTelemetrySummary.fromSamples(measurementSamples);
         GraphicsBenchmarkResult result =
                 BenchmarkQualitySelector.select(
                         summary.cpuFrameTime(),
@@ -133,7 +132,9 @@ public final class GraphicsBenchmarkSession {
                 throw new IllegalArgumentException(
                         "benchmark report CPU statistics do not match telemetry summary");
             }
-            if (!qualityState.compatibilityKey().equals(GraphicsBenchmarkCompatibilityKey.fromReport(report))) {
+            if (!qualityState
+                    .compatibilityKey()
+                    .equals(GraphicsBenchmarkCompatibilityKey.fromReport(report))) {
                 throw new IllegalArgumentException(
                         "benchmark report and quality state compatibility keys do not match");
             }
