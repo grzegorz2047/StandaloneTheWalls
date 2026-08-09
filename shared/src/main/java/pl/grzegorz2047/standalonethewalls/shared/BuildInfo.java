@@ -29,14 +29,16 @@ public final class BuildInfo {
         Objects.requireNonNull(content, "content");
         String[] lines = content.split("\\n", -1);
         if (lines.length != 3 || !lines[2].isEmpty()) {
-            throw new IllegalArgumentException("build provenance must contain exactly two LF lines");
+            throw new IllegalArgumentException(
+                    "build provenance must contain exactly two LF lines");
         }
         if (!"schemaVersion=1".equals(lines[0])) {
             throw new IllegalArgumentException("unsupported build provenance schema");
         }
         String prefix = "repositoryCommit=";
         if (!lines[1].startsWith(prefix)) {
-            throw new IllegalArgumentException("build provenance repositoryCommit field is missing");
+            throw new IllegalArgumentException(
+                    "build provenance repositoryCommit field is missing");
         }
         String repositoryCommit = lines[1].substring(prefix.length());
         if (UNAVAILABLE_REPOSITORY_COMMIT.equals(repositoryCommit)) {
