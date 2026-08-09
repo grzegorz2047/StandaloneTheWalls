@@ -29,9 +29,7 @@ class GraphicsQualityStateStoreTest {
                 new GraphicsBenchmarkCompatibilityKey("core=assets", "7", "first-run", 2);
         GraphicsQualityState initial =
                 new GraphicsQualityState(
-                        key,
-                        GraphicsQualityPreset.MEDIUM,
-                        Optional.of(GraphicsQualityPreset.LOW));
+                        key, GraphicsQualityPreset.MEDIUM, Optional.of(GraphicsQualityPreset.LOW));
 
         store.save(initial);
 
@@ -72,13 +70,11 @@ class GraphicsQualityStateStoreTest {
         assertMalformed(
                 store,
                 valid.replace(
-                        "manualOverride=NONE\n",
-                        "recommendedPreset=LOW\nmanualOverride=NONE\n"));
+                        "manualOverride=NONE\n", "recommendedPreset=LOW\nmanualOverride=NONE\n"));
         assertMalformed(store, valid.replace("manualOverride=NONE", "futureField=NONE"));
         assertMalformed(store, valid.substring(0, valid.length() - 1));
         assertMalformed(
-                store,
-                valid.replace("recommendedPreset=MEDIUM", "recommendedPreset=ULTRA"));
+                store, valid.replace("recommendedPreset=MEDIUM", "recommendedPreset=ULTRA"));
         assertMalformed(store, valid.replace("schemaVersion=1", "schemaVersion=2"));
 
         Files.writeString(store.stateFile(), "x".repeat(4_097), StandardCharsets.UTF_8);
@@ -93,8 +89,7 @@ class GraphicsQualityStateStoreTest {
                                 new GraphicsBenchmarkCompatibilityKey(
                                         "core\nassets", "7", "scene", 1))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(
-                        () -> new GraphicsBenchmarkCompatibilityKey("core", "7", "scene", 0))
+        assertThatThrownBy(() -> new GraphicsBenchmarkCompatibilityKey("core", "7", "scene", 0))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
