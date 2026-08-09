@@ -24,7 +24,8 @@ class GraphicsBenchmarkReferenceSceneTest {
         assertThat(scene.getQuantity()).isEqualTo(5);
         assertThat(countGeometries(scene))
                 .isEqualTo(GraphicsBenchmarkReferenceScene.TOTAL_GEOMETRY_COUNT);
-        assertThat(scene.getLocalLightList()).hasSize(GraphicsBenchmarkReferenceScene.LIGHT_COUNT);
+        assertThat(scene.getLocalLightList())
+                .hasSize(GraphicsBenchmarkReferenceScene.LIGHT_COUNT);
 
         Node terrain = childNode(scene, GraphicsBenchmarkReferenceScene.TERRAIN_NODE_NAME);
         assertThat(terrain.getQuantity()).isOne();
@@ -50,11 +51,7 @@ class GraphicsBenchmarkReferenceSceneTest {
         Node vfx = childNode(scene, GraphicsBenchmarkReferenceScene.VFX_NODE_NAME);
         assertThat(vfx.getQuantity())
                 .isEqualTo(GraphicsBenchmarkReferenceScene.VFX_PROXY_GEOMETRY_COUNT);
-        assertThat(vfx.getChildren())
-                .allSatisfy(
-                        spatial ->
-                                assertThat(spatial.getQueueBucket())
-                                        .isEqualTo(RenderQueue.Bucket.Transparent));
+        assertThat(vfx.getChildren()).allSatisfy(GraphicsBenchmarkReferenceSceneTest::assertTransparent);
     }
 
     @Test
@@ -63,21 +60,16 @@ class GraphicsBenchmarkReferenceSceneTest {
 
         Node first = GraphicsBenchmarkReferenceScene.build(assetManager);
         Node second = GraphicsBenchmarkReferenceScene.build(assetManager);
+        Node firstTeams = childNode(first, GraphicsBenchmarkReferenceScene.TEAMS_NODE_NAME);
+        Node secondTeams = childNode(second, GraphicsBenchmarkReferenceScene.TEAMS_NODE_NAME);
+        Spatial firstPlayer = childNode(firstTeams, "Team-0").getChild(0);
+        Spatial secondPlayer = childNode(secondTeams, "Team-0").getChild(0);
 
         assertThat(fingerprint(second)).isEqualTo(fingerprint(first));
         assertThat(second).isNotSameAs(first);
         assertThat(second.getChild(GraphicsBenchmarkReferenceScene.TERRAIN_NODE_NAME))
                 .isNotSameAs(first.getChild(GraphicsBenchmarkReferenceScene.TERRAIN_NODE_NAME));
-        assertThat(
-                        childNode(
-                                        childNode(second, GraphicsBenchmarkReferenceScene.TEAMS_NODE_NAME),
-                                        "Team-0")
-                                .getChild(0))
-                .isNotSameAs(
-                        childNode(
-                                        childNode(first, GraphicsBenchmarkReferenceScene.TEAMS_NODE_NAME),
-                                        "Team-0")
-                                .getChild(0));
+        assertThat(secondPlayer).isNotSameAs(firstPlayer);
     }
 
     @Test
@@ -108,6 +100,10 @@ class GraphicsBenchmarkReferenceSceneTest {
                         Light.Type.Point);
     }
 
+    private static void assertTransparent(Spatial spatial) {
+        assertThat(spatial.getQueueBucket()).isEqualTo(RenderQueue.Bucket.Transparent);
+    }
+
     private static Node childNode(Node parent, String name) {
         return (Node) parent.getChild(name);
     }
@@ -133,16 +129,8 @@ class GraphicsBenchmarkReferenceSceneTest {
     }
 
     private static void appendFingerprint(Spatial spatial, List<String> output) {
-        output.add(
-                spatial.getClass().getSimpleName()
-                        + ":"
-                        + spatial.getName()
-                        + "@"
-                        + Float.toString(spatial.getLocalTranslation().x)
-                        + ","
-                        + Float.toString(spatial.getLocalTranslation().y)
-                        + ","
-                        + Float.toString(spatial.getLocalTranslation().z));
+        String typeAndName = spatial.getClass().getSimpleName() + ":" + spatial.getName();
+        output.add(typeAndName + "@" + spatial.getLocalTranslation());
         if (spatial instanceof Node node) {
             for (Spatial child : node.getChildren()) {
                 appendFingerprint(child, output);
