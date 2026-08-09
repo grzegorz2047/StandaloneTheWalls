@@ -8,18 +8,25 @@ import java.util.Optional;
 /** Coordinates one startup quality-state decision and an optional benchmark persistence step. */
 public final class GraphicsQualityStartupCoordinator {
     private final GraphicsQualityStateStore stateStore;
+    private final GraphicsBenchmarkReportStore reportStore;
     private final GraphicsBenchmarkCompatibilityKey currentKey;
     private StartupPlan plan;
     private boolean benchmarkCompleted;
 
     public GraphicsQualityStartupCoordinator(
             Path dataDirectory, GraphicsBenchmarkCompatibilityKey currentKey) {
-        this(new GraphicsQualityStateStore(dataDirectory), currentKey);
+        this(
+                new GraphicsQualityStateStore(dataDirectory),
+                new GraphicsBenchmarkReportStore(dataDirectory),
+                currentKey);
     }
 
     GraphicsQualityStartupCoordinator(
-            GraphicsQualityStateStore stateStore, GraphicsBenchmarkCompatibilityKey currentKey) {
+            GraphicsQualityStateStore stateStore,
+            GraphicsBenchmarkReportStore reportStore,
+            GraphicsBenchmarkCompatibilityKey currentKey) {
         this.stateStore = Objects.requireNonNull(stateStore, "stateStore");
+        this.reportStore = Objects.requireNonNull(reportStore, "reportStore");
         this.currentKey = Objects.requireNonNull(currentKey, "currentKey");
     }
 
@@ -59,6 +66,7 @@ public final class GraphicsQualityStartupCoordinator {
                     "benchmark outcome compatibility key does not match startup key");
         }
 
+        reportStore.save(outcome.report());
         stateStore.save(qualityState);
         benchmarkCompleted = true;
         return qualityState.effectivePreset();
