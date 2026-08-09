@@ -25,7 +25,13 @@ abstract class GenerateBuildProvenanceTask : DefaultTask() {
                 check(input.length == 40 || input.length == 64) {
                     "Repository commit must be a full 40- or 64-character Git object id"
                 }
-                check(input.all { character -> character.isDigit() || character.lowercaseChar() in 'a'..'f' }) {
+                check(
+                    input.all { character ->
+                        character in '0'..'9' ||
+                            character in 'a'..'f' ||
+                            character in 'A'..'F'
+                    }
+                ) {
                     "Repository commit must be hexadecimal"
                 }
                 input.lowercase()
