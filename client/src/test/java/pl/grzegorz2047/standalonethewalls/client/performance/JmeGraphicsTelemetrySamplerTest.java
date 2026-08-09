@@ -41,8 +41,7 @@ class JmeGraphicsTelemetrySamplerTest {
     void restoresPreviouslyEnabledStatisticsAndCloseIsIdempotent() {
         FixedStatistics statistics = new FixedStatistics(1);
         statistics.setEnabled(true);
-        JmeGraphicsTelemetrySampler sampler =
-                new JmeGraphicsTelemetrySampler(statistics, () -> 0L);
+        JmeGraphicsTelemetrySampler sampler = new JmeGraphicsTelemetrySampler(statistics, () -> 0L);
 
         sampler.close();
         sampler.close();
@@ -58,8 +57,7 @@ class JmeGraphicsTelemetrySamplerTest {
                 new JmeGraphicsTelemetrySampler(statistics, () -> 0L)) {
             assertThatIllegalArgumentException()
                     .isThrownBy(() -> sampler.sample(Float.NaN, new Node()));
-            assertThatIllegalArgumentException()
-                    .isThrownBy(() -> sampler.sample(0f, new Node()));
+            assertThatIllegalArgumentException().isThrownBy(() -> sampler.sample(0f, new Node()));
         }
 
         Statistics missingObjects =
