@@ -46,6 +46,7 @@ class GraphicsBenchmarkSessionTest {
         assertThat(outcome.telemetrySummary().peakResidentMemoryBytes()).isEqualTo(400L);
         assertThat(outcome.telemetrySummary().peakDrawCalls()).isEqualTo(40);
         assertThat(outcome.telemetrySummary().peakRenderedObjectCount()).isEqualTo(400);
+        assertThat(outcome.report().telemetrySummary()).isEqualTo(outcome.telemetrySummary());
         assertThat(outcome.report().repositoryCommit()).isEqualTo(COMMIT);
         assertThat(outcome.report().assetPackVersion()).isEqualTo("8");
         assertThat(outcome.report().scenarioVersion()).isEqualTo(3);
@@ -72,6 +73,7 @@ class GraphicsBenchmarkSessionTest {
 
         assertThat(outcome.qualityState().manualOverride()).isEmpty();
         assertThat(outcome.qualityState().recommendedPreset()).isEqualTo(GraphicsQualityPreset.LOW);
+        assertThat(outcome.report().telemetrySummary()).isEqualTo(outcome.telemetrySummary());
         assertThat(outcome.report().result().targetStatus())
                 .isEqualTo(GraphicsBenchmarkResult.TargetStatus.MEETS_MINIMUM_TARGET);
     }
@@ -100,6 +102,15 @@ class GraphicsBenchmarkSessionTest {
                         1920,
                         1080,
                         1.0d);
+        GraphicsTelemetrySummary differentTelemetry =
+                new GraphicsTelemetrySummary(
+                        1,
+                        differentResult.statistics(),
+                        Optional.empty(),
+                        0,
+                        32L,
+                        2,
+                        3);
         GraphicsBenchmarkReport report =
                 new GraphicsBenchmarkReport(
                         COMMIT,
@@ -108,7 +119,8 @@ class GraphicsBenchmarkSessionTest {
                         "first-run",
                         3,
                         GraphicsQualityPreset.MEDIUM,
-                        differentResult);
+                        differentResult,
+                        differentTelemetry);
         GraphicsQualityState state =
                 new GraphicsQualityState(
                         KEY, differentResult.recommendedPreset(), Optional.empty());
