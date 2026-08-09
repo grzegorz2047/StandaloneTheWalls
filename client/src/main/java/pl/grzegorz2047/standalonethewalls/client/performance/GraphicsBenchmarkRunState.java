@@ -50,7 +50,9 @@ public final class GraphicsBenchmarkRunState extends BaseAppState {
         }
 
         TelemetrySource newTelemetrySource =
-                telemetrySourceFactory.create(application.getRenderer());
+                Objects.requireNonNull(
+                        telemetrySourceFactory.create(application.getRenderer()),
+                        "benchmark telemetry source");
         Node newScene;
         try {
             newScene = sceneFactory.build(application.getAssetManager());
