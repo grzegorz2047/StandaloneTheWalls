@@ -109,7 +109,8 @@ public final class JmeGraphicsTelemetrySampler implements AutoCloseable {
         for (Spatial child : node.getChildren()) {
             count = Math.addExact(count, countGeometries(child));
             if (count > GraphicsTelemetrySample.MAXIMUM_COUNTER_VALUE) {
-                throw new IllegalArgumentException("scene object count is outside the bounded range");
+                throw new IllegalArgumentException(
+                        "scene object count is outside the bounded range");
             }
         }
         return count;
