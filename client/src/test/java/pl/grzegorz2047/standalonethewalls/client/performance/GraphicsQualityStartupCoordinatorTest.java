@@ -64,8 +64,9 @@ class GraphicsQualityStartupCoordinatorTest {
                         STALE_KEY,
                         GraphicsQualityPreset.LOW,
                         Optional.of(GraphicsQualityPreset.HIGH));
-        GraphicsQualityStateStore store = new GraphicsQualityStateStore(tempDirectory);
-        store.save(staleState);
+        GraphicsQualityStateStore stateStore = new GraphicsQualityStateStore(tempDirectory);
+        GraphicsBenchmarkReportStore reportStore = new GraphicsBenchmarkReportStore(tempDirectory);
+        stateStore.save(staleState);
         GraphicsQualityStartupCoordinator coordinator = coordinator();
 
         GraphicsQualityStartupCoordinator.StartupPlan plan = coordinator.begin();
@@ -79,14 +80,16 @@ class GraphicsQualityStartupCoordinatorTest {
         GraphicsQualityPreset effectivePreset = coordinator.completeBenchmark(outcome);
 
         assertThat(effectivePreset).isEqualTo(GraphicsQualityPreset.HIGH);
-        GraphicsQualityState persisted = store.load().orElseThrow();
+        GraphicsQualityState persisted = stateStore.load().orElseThrow();
         assertThat(persisted.compatibilityKey()).isEqualTo(CURRENT_KEY);
         assertThat(persisted.recommendedPreset()).isEqualTo(GraphicsQualityPreset.MEDIUM);
         assertThat(persisted.manualOverride()).contains(GraphicsQualityPreset.HIGH);
+        assertThat(reportStore.load())
+                .contains(GraphicsBenchmarkReportJson.serialize(outcome.report()));
     }
 
     @Test
-    void mismatchedBenchmarkOutcomeIsRejectedWithoutWritingState() throws IOException {
+    void mismatchedBenchmarkOutcomeIsRejectedWithoutWritingEitherFile() throws IOException {
         GraphicsQualityStartupCoordinator coordinator = coordinator();
         GraphicsQualityStartupCoordinator.StartupPlan plan = coordinator.begin();
         assertThat(plan.action()).isEqualTo(GraphicsQualityStartupDecision.Action.RUN_BENCHMARK);
@@ -96,6 +99,27 @@ class GraphicsQualityStartupCoordinatorTest {
                 .isThrownBy(() -> coordinator.completeBenchmark(mismatched));
 
         assertThat(new GraphicsQualityStateStore(tempDirectory).load()).isEmpty();
+        assertThat(new GraphicsBenchmarkReportStore(tempDirectory).load()).isEmpty();
+    }
+
+    @Test
+    void reportWriteFailureLeavesExistingQualityStateUnchanged() throws IOException {
+        GraphicsQualityState staleState =
+                new GraphicsQualityState(STALE_KEY, GraphicsQualityPreset.LOW, Optional.empty());
+        GraphicsQualityStateStore stateStore = new GraphicsQualityStateStore(tempDirectory);
+        stateStore.save(staleState);
+        GraphicsQualityStartupCoordinator coordinator = coordinator();
+        GraphicsQualityStartupCoordinator.StartupPlan plan = coordinator.begin();
+        assertThat(plan.action()).isEqualTo(GraphicsQualityStartupDecision.Action.RUN_BENCHMARK);
+
+        Path reportPath = tempDirectory.resolve(GraphicsBenchmarkReportStore.FILE_NAME);
+        assertThat(Files.createDirectory(reportPath)).isEqualTo(reportPath);
+        GraphicsBenchmarkSession.Outcome validOutcome =
+                outcome(CURRENT_KEY, plan.benchmarkPreviousState());
+
+        assertThatThrownBy(() -> coordinator.completeBenchmark(validOutcome))
+                .isInstanceOf(IOException.class);
+        assertThat(stateStore.load()).contains(staleState);
     }
 
     @Test
@@ -110,6 +134,8 @@ class GraphicsQualityStartupCoordinatorTest {
         assertThat(plan.action()).isEqualTo(GraphicsQualityStartupDecision.Action.RUN_BENCHMARK);
         assertThat(coordinator.completeBenchmark(validOutcome))
                 .isEqualTo(GraphicsQualityPreset.MEDIUM);
+        assertThat(new GraphicsBenchmarkReportStore(tempDirectory).load())
+                .contains(GraphicsBenchmarkReportJson.serialize(validOutcome.report()));
         assertThatIllegalStateException()
                 .isThrownBy(() -> coordinator.completeBenchmark(validOutcome));
         assertThatIllegalStateException().isThrownBy(coordinator::begin);
