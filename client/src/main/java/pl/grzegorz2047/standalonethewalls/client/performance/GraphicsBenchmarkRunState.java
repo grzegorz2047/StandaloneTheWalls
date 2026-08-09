@@ -19,6 +19,7 @@ public final class GraphicsBenchmarkRunState extends BaseAppState {
     private Node applicationRoot;
     private Node benchmarkScene;
     private TelemetrySource telemetrySource;
+    private GraphicsBenchmarkSession.Outcome completedOutcome;
 
     public GraphicsBenchmarkRunState(
             GraphicsBenchmarkSession.Config config, Optional<GraphicsQualityState> previousState) {
@@ -74,10 +75,13 @@ public final class GraphicsBenchmarkRunState extends BaseAppState {
 
     @Override
     public void update(float timePerFrame) {
-        if (telemetrySource == null || benchmarkScene == null || session.outcome().isPresent()) {
+        if (telemetrySource == null || benchmarkScene == null || completedOutcome != null) {
             return;
         }
-        telemetrySource.sample(timePerFrame, benchmarkScene).ifPresent(session::accept);
+        telemetrySource
+                .sample(timePerFrame, benchmarkScene)
+                .flatMap(session::accept)
+                .ifPresent(outcome -> completedOutcome = outcome);
     }
 
     @Override
@@ -116,7 +120,7 @@ public final class GraphicsBenchmarkRunState extends BaseAppState {
     }
 
     public Optional<GraphicsBenchmarkSession.Outcome> outcome() {
-        return session.outcome();
+        return Optional.ofNullable(completedOutcome);
     }
 
     boolean benchmarkSceneAttached() {
