@@ -56,7 +56,8 @@ class GraphicsBenchmarkAssetIdentityTest {
                 GraphicsBenchmarkAssetIdentity.fromLock(second);
 
         assertThat(secondIdentity.assetSetVersion()).isNotEqualTo(firstIdentity.assetSetVersion());
-        assertThat(secondIdentity.compatibilityKey()).isNotEqualTo(firstIdentity.compatibilityKey());
+        assertThat(secondIdentity.compatibilityKey())
+                .isNotEqualTo(firstIdentity.compatibilityKey());
     }
 
     @Test
@@ -84,7 +85,8 @@ class GraphicsBenchmarkAssetIdentityTest {
         assertThatNullPointerException()
                 .isThrownBy(() -> GraphicsBenchmarkAssetIdentity.fromLock(null));
         assertThatIOException().isThrownBy(() -> GraphicsBenchmarkAssetIdentity.fromLock(missing));
-        assertThatIOException().isThrownBy(() -> GraphicsBenchmarkAssetIdentity.fromLock(directory));
+        assertThatIOException()
+                .isThrownBy(() -> GraphicsBenchmarkAssetIdentity.fromLock(directory));
         assertThatIOException().isThrownBy(() -> GraphicsBenchmarkAssetIdentity.fromLock(empty));
         assertThatIOException()
                 .isThrownBy(() -> GraphicsBenchmarkAssetIdentity.fromLock(oversizedFile));
