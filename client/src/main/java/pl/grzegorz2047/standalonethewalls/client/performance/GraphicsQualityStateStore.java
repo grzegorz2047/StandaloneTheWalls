@@ -162,6 +162,8 @@ public final class GraphicsQualityStateStore {
     }
 
     public static final class MalformedStateException extends IOException {
+        private static final long serialVersionUID = 1L;
+
         public MalformedStateException(String message) {
             super(message);
         }
