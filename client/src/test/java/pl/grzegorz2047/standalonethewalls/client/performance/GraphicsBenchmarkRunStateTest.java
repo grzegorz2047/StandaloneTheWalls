@@ -11,6 +11,7 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 class GraphicsBenchmarkRunStateTest {
@@ -33,6 +34,28 @@ class GraphicsBenchmarkRunStateTest {
                                 (proxy, method, arguments) -> null);
 
         assertThatIllegalArgumentException().isThrownBy(() -> state.initialize(application));
+    }
+
+    @Test
+    void forwardsMeasuredPresetToTheReferenceSceneFactory() {
+        AtomicReference<GraphicsQualityPreset> measuredPreset = new AtomicReference<>();
+        FakeTelemetrySource source = new FakeTelemetrySource();
+        GraphicsBenchmarkRunState state =
+                new GraphicsBenchmarkRunState(
+                        config(GraphicsQualityPreset.LOW, 0, 1),
+                        Optional.empty(),
+                        (ignoredAssetManager, preset) -> {
+                            measuredPreset.set(preset);
+                            return new Node(GraphicsBenchmarkReferenceScene.ROOT_NAME);
+                        },
+                        ignoredRenderer -> source);
+        TestApplication application = new TestApplication();
+
+        state.initialize(application);
+
+        assertThat(measuredPreset).hasValue(GraphicsQualityPreset.LOW);
+        state.cleanup(application);
+        assertThat(source.closed).isTrue();
     }
 
     @Test
@@ -97,7 +120,10 @@ class GraphicsBenchmarkRunStateTest {
         parent.attachChild(attached);
         GraphicsBenchmarkRunState state =
                 new GraphicsBenchmarkRunState(
-                        config(0, 1), Optional.empty(), ignored -> attached, ignored -> source);
+                        config(0, 1),
+                        Optional.empty(),
+                        (ignoredAssetManager, ignoredPreset) -> attached,
+                        ignoredRenderer -> source);
 
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> state.initialize(new TestApplication()));
@@ -110,16 +136,22 @@ class GraphicsBenchmarkRunStateTest {
         return new GraphicsBenchmarkRunState(
                 config,
                 Optional.empty(),
-                ignored -> new Node(GraphicsBenchmarkReferenceScene.ROOT_NAME),
-                ignored -> source);
+                (ignoredAssetManager, ignoredPreset) ->
+                        new Node(GraphicsBenchmarkReferenceScene.ROOT_NAME),
+                ignoredRenderer -> source);
     }
 
     private static GraphicsBenchmarkSession.Config config(
             int warmUpFrameCount, int measurementFrameCount) {
+        return config(GraphicsQualityPreset.MEDIUM, warmUpFrameCount, measurementFrameCount);
+    }
+
+    private static GraphicsBenchmarkSession.Config config(
+            GraphicsQualityPreset preset, int warmUpFrameCount, int measurementFrameCount) {
         return new GraphicsBenchmarkSession.Config(
                 COMMIT,
                 KEY,
-                GraphicsQualityPreset.MEDIUM,
+                preset,
                 1920,
                 1080,
                 1.0d,
