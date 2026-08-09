@@ -33,11 +33,9 @@ public final class GraphicsQualityStartupCoordinator {
         plan =
                 switch (decision.action()) {
                     case RUN_BENCHMARK ->
-                            new StartupPlan(
-                                    decision.action(), Optional.empty(), persistedState);
+                            new StartupPlan(decision.action(), Optional.empty(), persistedState);
                     case USE_PERSISTED_PRESET ->
-                            new StartupPlan(
-                                    decision.action(), decision.preset(), Optional.empty());
+                            new StartupPlan(decision.action(), decision.preset(), Optional.empty());
                 };
         return plan;
     }
@@ -52,7 +50,8 @@ public final class GraphicsQualityStartupCoordinator {
             throw new IllegalStateException("graphics quality startup did not require a benchmark");
         }
         if (benchmarkCompleted) {
-            throw new IllegalStateException("graphics quality benchmark has already been persisted");
+            throw new IllegalStateException(
+                    "graphics quality benchmark has already been persisted");
         }
         GraphicsQualityState qualityState = outcome.qualityState();
         if (!qualityState.compatibilityKey().equals(currentKey)) {

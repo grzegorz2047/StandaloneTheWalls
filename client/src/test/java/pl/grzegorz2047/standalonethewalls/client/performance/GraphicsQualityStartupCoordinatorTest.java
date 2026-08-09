@@ -29,8 +29,7 @@ class GraphicsQualityStartupCoordinatorTest {
 
         GraphicsQualityStartupCoordinator.StartupPlan plan = coordinator.begin();
 
-        assertThat(plan.action())
-                .isEqualTo(GraphicsQualityStartupDecision.Action.RUN_BENCHMARK);
+        assertThat(plan.action()).isEqualTo(GraphicsQualityStartupDecision.Action.RUN_BENCHMARK);
         assertThat(plan.effectivePreset()).isEmpty();
         assertThat(plan.benchmarkPreviousState()).isEmpty();
     }
@@ -39,7 +38,9 @@ class GraphicsQualityStartupCoordinatorTest {
     void compatibleStateUsesItsEffectiveManualOverrideWithoutBenchmark() throws IOException {
         GraphicsQualityState state =
                 new GraphicsQualityState(
-                        CURRENT_KEY, GraphicsQualityPreset.LOW, Optional.of(GraphicsQualityPreset.HIGH));
+                        CURRENT_KEY,
+                        GraphicsQualityPreset.LOW,
+                        Optional.of(GraphicsQualityPreset.HIGH));
         new GraphicsQualityStateStore(tempDirectory).save(state);
         GraphicsQualityStartupCoordinator coordinator = coordinator();
 
@@ -50,7 +51,10 @@ class GraphicsQualityStartupCoordinatorTest {
         assertThat(plan.effectivePreset()).contains(GraphicsQualityPreset.HIGH);
         assertThat(plan.benchmarkPreviousState()).isEmpty();
         assertThatIllegalStateException()
-                .isThrownBy(() -> coordinator.completeBenchmark(outcome(CURRENT_KEY, Optional.empty())));
+                .isThrownBy(
+                        () ->
+                                coordinator.completeBenchmark(
+                                        outcome(CURRENT_KEY, Optional.empty())));
     }
 
     @Test
@@ -66,8 +70,7 @@ class GraphicsQualityStartupCoordinatorTest {
 
         GraphicsQualityStartupCoordinator.StartupPlan plan = coordinator.begin();
 
-        assertThat(plan.action())
-                .isEqualTo(GraphicsQualityStartupDecision.Action.RUN_BENCHMARK);
+        assertThat(plan.action()).isEqualTo(GraphicsQualityStartupDecision.Action.RUN_BENCHMARK);
         assertThat(plan.effectivePreset()).isEmpty();
         assertThat(plan.benchmarkPreviousState()).contains(staleState);
 
@@ -86,8 +89,7 @@ class GraphicsQualityStartupCoordinatorTest {
     void mismatchedBenchmarkOutcomeIsRejectedWithoutWritingState() throws IOException {
         GraphicsQualityStartupCoordinator coordinator = coordinator();
         GraphicsQualityStartupCoordinator.StartupPlan plan = coordinator.begin();
-        assertThat(plan.action())
-                .isEqualTo(GraphicsQualityStartupDecision.Action.RUN_BENCHMARK);
+        assertThat(plan.action()).isEqualTo(GraphicsQualityStartupDecision.Action.RUN_BENCHMARK);
         GraphicsBenchmarkSession.Outcome mismatched = outcome(STALE_KEY, Optional.empty());
 
         assertThatIllegalArgumentException()
@@ -105,9 +107,9 @@ class GraphicsQualityStartupCoordinatorTest {
                 .isThrownBy(() -> coordinator.completeBenchmark(validOutcome));
 
         GraphicsQualityStartupCoordinator.StartupPlan plan = coordinator.begin();
-        assertThat(plan.action())
-                .isEqualTo(GraphicsQualityStartupDecision.Action.RUN_BENCHMARK);
-        assertThat(coordinator.completeBenchmark(validOutcome)).isEqualTo(GraphicsQualityPreset.MEDIUM);
+        assertThat(plan.action()).isEqualTo(GraphicsQualityStartupDecision.Action.RUN_BENCHMARK);
+        assertThat(coordinator.completeBenchmark(validOutcome))
+                .isEqualTo(GraphicsQualityPreset.MEDIUM);
         assertThatIllegalStateException()
                 .isThrownBy(() -> coordinator.completeBenchmark(validOutcome));
         assertThatIllegalStateException().isThrownBy(coordinator::begin);
@@ -116,9 +118,7 @@ class GraphicsQualityStartupCoordinatorTest {
     @Test
     void malformedPersistedStateRemainsVisibleToCaller() throws IOException {
         Path stateFile = tempDirectory.resolve(GraphicsQualityStateStore.FILE_NAME);
-        assertThat(
-                        Files.writeString(
-                                stateFile, "not-a-valid-state\n", StandardCharsets.UTF_8))
+        assertThat(Files.writeString(stateFile, "not-a-valid-state\n", StandardCharsets.UTF_8))
                 .isEqualTo(stateFile);
         GraphicsQualityStartupCoordinator coordinator = coordinator();
 
@@ -149,7 +149,6 @@ class GraphicsQualityStartupCoordinatorTest {
     }
 
     private static GraphicsTelemetrySample sample() {
-        return new GraphicsTelemetrySample(
-                10_000_000L, OptionalLong.empty(), 256L, 32, 64);
+        return new GraphicsTelemetrySample(10_000_000L, OptionalLong.empty(), 256L, 32, 64);
     }
 }
