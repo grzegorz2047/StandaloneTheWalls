@@ -32,14 +32,7 @@ class GraphicsBenchmarkManualOptionsTest {
         GraphicsBenchmarkManualOptions options =
                 GraphicsBenchmarkManualOptions.parse(
                         arguments(
-                                "medium",
-                                "1920",
-                                "1080",
-                                "0.75",
-                                "240",
-                                "900",
-                                assetLock,
-                                output));
+                                "medium", "1920", "1080", "0.75", "240", "900", assetLock, output));
 
         assertThat(options.preset()).isEqualTo(GraphicsQualityPreset.MEDIUM);
         assertThat(options.width()).isEqualTo(1920);
@@ -53,34 +46,17 @@ class GraphicsBenchmarkManualOptionsTest {
 
     @Test
     void rejectsMissingDuplicateAndUnknownArguments() {
-        assertThatIllegalArgumentException()
-                .isThrownBy(
-                        () ->
-                                GraphicsBenchmarkManualOptions.parse(
-                                        new String[] {"--preset", "low"}));
-        assertThatIllegalArgumentException()
-                .isThrownBy(
-                        () -> {
-                            String[] valid =
-                                    arguments(
-                                            "low",
-                                            "1280",
-                                            "720",
-                                            "0.75",
-                                            "1",
-                                            "1",
-                                            tempDirectory.resolve("assets.lock.json"),
-                                            tempDirectory.resolve("reports"));
-                            String[] duplicate = java.util.Arrays.copyOf(valid, valid.length + 2);
-                            duplicate[valid.length] = "--render-scale";
-                            duplicate[valid.length + 1] = "1.0";
-                            GraphicsBenchmarkManualOptions.parse(duplicate);
-                        });
-        assertThatIllegalArgumentException()
-                .isThrownBy(
-                        () ->
-                                GraphicsBenchmarkManualOptions.parse(
-                                        new String[] {"--unknown", "x"}));
+        assertInvalid(new String[] {"--preset", "low"});
+
+        Path lock = tempDirectory.resolve("assets.lock.json");
+        Path output = tempDirectory.resolve("reports");
+        String[] valid = arguments("low", "1280", "720", "0.75", "1", "1", lock, output);
+        String[] duplicate = java.util.Arrays.copyOf(valid, valid.length + 2);
+        duplicate[valid.length] = "--render-scale";
+        duplicate[valid.length + 1] = "1.0";
+        assertInvalid(duplicate);
+
+        assertInvalid(new String[] {"--unknown", "x"});
     }
 
     @Test
@@ -103,100 +79,22 @@ class GraphicsBenchmarkManualOptionsTest {
         Path lock = tempDirectory.resolve("assets.lock.json");
         Path output = tempDirectory.resolve("reports");
 
-        assertThatIllegalArgumentException()
-                .isThrownBy(
-                        () ->
-                                GraphicsBenchmarkManualOptions.parse(
-                                        arguments(
-                                                "ultra",
-                                                "1280",
-                                                "720",
-                                                "1.0",
-                                                "1",
-                                                "1",
-                                                lock,
-                                                output)));
-        assertThatIllegalArgumentException()
-                .isThrownBy(
-                        () ->
-                                GraphicsBenchmarkManualOptions.parse(
-                                        arguments(
-                                                "low",
-                                                "319",
-                                                "720",
-                                                "1.0",
-                                                "1",
-                                                "1",
-                                                lock,
-                                                output)));
-        assertThatIllegalArgumentException()
-                .isThrownBy(
-                        () ->
-                                GraphicsBenchmarkManualOptions.parse(
-                                        arguments(
-                                                "low",
-                                                "1280",
-                                                "4321",
-                                                "1.0",
-                                                "1",
-                                                "1",
-                                                lock,
-                                                output)));
-        assertThatIllegalArgumentException()
-                .isThrownBy(
-                        () ->
-                                GraphicsBenchmarkManualOptions.parse(
-                                        arguments(
-                                                "low",
-                                                "1280",
-                                                "720",
-                                                "1.0",
-                                                "-1",
-                                                "1",
-                                                lock,
-                                                output)));
-        assertThatIllegalArgumentException()
-                .isThrownBy(
-                        () ->
-                                GraphicsBenchmarkManualOptions.parse(
-                                        arguments(
-                                                "low",
-                                                "1280",
-                                                "720",
-                                                "1.0",
-                                                "1",
-                                                "0",
-                                                lock,
-                                                output)));
-        assertThatIllegalArgumentException()
-                .isThrownBy(
-                        () ->
-                                GraphicsBenchmarkManualOptions.parse(
-                                        arguments(
-                                                "low",
-                                                "abc",
-                                                "720",
-                                                "1.0",
-                                                "1",
-                                                "1",
-                                                lock,
-                                                output)));
+        assertInvalid(arguments("ultra", "1280", "720", "1.0", "1", "1", lock, output));
+        assertInvalid(arguments("low", "319", "720", "1.0", "1", "1", lock, output));
+        assertInvalid(arguments("low", "1280", "4321", "1.0", "1", "1", lock, output));
+        assertInvalid(arguments("low", "1280", "720", "1.0", "-1", "1", lock, output));
+        assertInvalid(arguments("low", "1280", "720", "1.0", "1", "0", lock, output));
+        assertInvalid(arguments("low", "abc", "720", "1.0", "1", "1", lock, output));
     }
 
-    private void assertRejectedScale(String preset, String scale, Path lock, Path output) {
+    private static void assertInvalid(String[] arguments) {
         assertThatIllegalArgumentException()
-                .isThrownBy(
-                        () ->
-                                GraphicsBenchmarkManualOptions.parse(
-                                        arguments(
-                                                preset,
-                                                "1280",
-                                                "720",
-                                                scale,
-                                                "1",
-                                                "1",
-                                                lock,
-                                                output)));
+                .isThrownBy(() -> GraphicsBenchmarkManualOptions.parse(arguments));
+    }
+
+    private static void assertRejectedScale(
+            String preset, String scale, Path lock, Path output) {
+        assertInvalid(arguments(preset, "1280", "720", scale, "1", "1", lock, output));
     }
 
     private static void assertScale(
