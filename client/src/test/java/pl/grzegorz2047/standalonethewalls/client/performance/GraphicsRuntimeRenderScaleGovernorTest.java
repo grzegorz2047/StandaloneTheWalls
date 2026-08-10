@@ -12,19 +12,24 @@ class GraphicsRuntimeRenderScaleGovernorTest {
 
     @Test
     void productionBudgetsMatchExistingPrimaryAndMinimumTargets() {
-        assertThat(new GraphicsRuntimeRenderScaleGovernor(GraphicsQualityPreset.LOW).p95BudgetNanos())
+        assertThat(
+                        new GraphicsRuntimeRenderScaleGovernor(GraphicsQualityPreset.LOW)
+                                .p95BudgetNanos())
                 .isEqualTo(BenchmarkQualitySelector.MINIMUM_TARGET_P95_NANOS);
         assertThat(
                         new GraphicsRuntimeRenderScaleGovernor(GraphicsQualityPreset.MEDIUM)
                                 .p95BudgetNanos())
                 .isEqualTo(BenchmarkQualitySelector.PRIMARY_TARGET_P95_NANOS);
-        assertThat(new GraphicsRuntimeRenderScaleGovernor(GraphicsQualityPreset.HIGH).p95BudgetNanos())
+        assertThat(
+                        new GraphicsRuntimeRenderScaleGovernor(GraphicsQualityPreset.HIGH)
+                                .p95BudgetNanos())
                 .isEqualTo(BenchmarkQualitySelector.PRIMARY_TARGET_P95_NANOS);
     }
 
     @Test
     void partialAndNMinusOneBadWindowsDoNotReduceScale() {
-        GraphicsRuntimeRenderScaleGovernor governor = governor(GraphicsQualityPreset.MEDIUM, 2, 0.05d, 2);
+        GraphicsRuntimeRenderScaleGovernor governor =
+                governor(GraphicsQualityPreset.MEDIUM, 2, 0.05d, 2);
 
         assertThat(governor.acceptFrameTime(PRIMARY_BAD)).isEmpty();
         assertThat(governor.pendingSampleCount()).isOne();
