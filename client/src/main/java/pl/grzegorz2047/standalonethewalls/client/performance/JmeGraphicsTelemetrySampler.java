@@ -10,13 +10,20 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.function.LongSupplier;
 
+@FunctionalInterface
+interface GpuFrameTimeSource {
+    OptionalLong poll();
+}
+
 /** Samples the previous rendered jME frame into the local telemetry contract. */
 public final class JmeGraphicsTelemetrySampler implements AutoCloseable {
     private static final String OBJECTS_LABEL = "Objects";
     private static final long NANOS_PER_SECOND = 1_000_000_000L;
+    private static final GpuFrameTimeSource NO_GPU_FRAME_TIME = OptionalLong::empty;
 
     private final Statistics statistics;
     private final LongSupplier usedMemoryBytes;
+    private final GpuFrameTimeSource gpuFrameTimeSource;
     private final int objectsIndex;
     private final boolean statisticsInitiallyEnabled;
     private boolean previousRenderAvailable;
@@ -24,13 +31,29 @@ public final class JmeGraphicsTelemetrySampler implements AutoCloseable {
 
     public static JmeGraphicsTelemetrySampler forRenderer(
             Renderer renderer, LongSupplier usedMemoryBytes) {
+        return forRenderer(renderer, usedMemoryBytes, NO_GPU_FRAME_TIME);
+    }
+
+    static JmeGraphicsTelemetrySampler forRenderer(
+            Renderer renderer,
+            LongSupplier usedMemoryBytes,
+            GpuFrameTimeSource gpuFrameTimeSource) {
         Objects.requireNonNull(renderer, "renderer");
-        return new JmeGraphicsTelemetrySampler(renderer.getStatistics(), usedMemoryBytes);
+        return new JmeGraphicsTelemetrySampler(
+                renderer.getStatistics(), usedMemoryBytes, gpuFrameTimeSource);
     }
 
     JmeGraphicsTelemetrySampler(Statistics statistics, LongSupplier usedMemoryBytes) {
+        this(statistics, usedMemoryBytes, NO_GPU_FRAME_TIME);
+    }
+
+    JmeGraphicsTelemetrySampler(
+            Statistics statistics,
+            LongSupplier usedMemoryBytes,
+            GpuFrameTimeSource gpuFrameTimeSource) {
         this.statistics = Objects.requireNonNull(statistics, "statistics");
         this.usedMemoryBytes = Objects.requireNonNull(usedMemoryBytes, "usedMemoryBytes");
+        this.gpuFrameTimeSource = Objects.requireNonNull(gpuFrameTimeSource, "gpuFrameTimeSource");
         this.objectsIndex = findObjectsIndex(statistics.getLabels());
         this.statisticsInitiallyEnabled = statistics.isEnabled();
         statistics.setEnabled(true);
@@ -62,7 +85,7 @@ public final class JmeGraphicsTelemetrySampler implements AutoCloseable {
         return Optional.of(
                 new GraphicsTelemetrySample(
                         cpuFrameTimeNanos,
-                        OptionalLong.empty(),
+                        gpuFrameTimeSource.poll(),
                         usedMemoryBytes.getAsLong(),
                         drawCalls,
                         renderedObjectCount));
