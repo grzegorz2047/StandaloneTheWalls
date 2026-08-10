@@ -4,9 +4,11 @@ import java.util.HexFormat
 import java.util.zip.CRC32
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputFile
@@ -166,6 +168,19 @@ abstract class VerifyUiFontProvenanceTask : DefaultTask() {
     }
 }
 
+abstract class VerifyGraphicsBenchmarkScriptsTask : DefaultTask() {
+    @get:InputDirectory abstract val scriptsDirectory: DirectoryProperty
+
+    @TaskAction
+    fun verify() {
+        val directory = scriptsDirectory.get().asFile
+        val unixScript = directory.resolve("sunderfront-graphics-benchmark")
+        val windowsScript = directory.resolve("sunderfront-graphics-benchmark.bat")
+        check(unixScript.isFile) { "Missing Unix graphics benchmark start script" }
+        check(windowsScript.isFile) { "Missing Windows graphics benchmark start script" }
+    }
+}
+
 dependencies {
     implementation(project(":shared"))
     implementation(project(":game-domain"))
@@ -246,10 +261,6 @@ tasks.named<ProcessResources>("processResources") {
     exclude("Interface/Fonts/*.png.b64*")
 }
 
-tasks.named("check") {
-    dependsOn(verifyUiFontProvenance)
-}
-
 tasks.named<CreateStartScripts>("startScripts") {
     applicationName = "sunderfront-client"
 }
@@ -260,6 +271,25 @@ val directConnectSmokeScripts = tasks.register<CreateStartScripts>("directConnec
         "pl.grzegorz2047.standalonethewalls.client.release.DirectConnectSmokeMain"
     classpath = files(tasks.named<Jar>("jar"), configurations.runtimeClasspath)
     outputDir = layout.buildDirectory.dir("generated-scripts/direct-connect-smoke").get().asFile
+}
+
+val graphicsBenchmarkScriptsDirectory =
+    layout.buildDirectory.dir("generated-scripts/graphics-benchmark")
+val graphicsBenchmarkScripts = tasks.register<CreateStartScripts>("graphicsBenchmarkScripts") {
+    applicationName = "sunderfront-graphics-benchmark"
+    mainClass =
+        "pl.grzegorz2047.standalonethewalls.client.performance.GraphicsBenchmarkManualMain"
+    classpath = files(tasks.named<Jar>("jar"), configurations.runtimeClasspath)
+    outputDir = graphicsBenchmarkScriptsDirectory.get().asFile
+}
+val verifyGraphicsBenchmarkScripts =
+    tasks.register<VerifyGraphicsBenchmarkScriptsTask>("verifyGraphicsBenchmarkScripts") {
+        dependsOn(graphicsBenchmarkScripts)
+        scriptsDirectory.set(graphicsBenchmarkScriptsDirectory)
+    }
+
+tasks.named("check") {
+    dependsOn(verifyUiFontProvenance, verifyGraphicsBenchmarkScripts)
 }
 
 distributions {
@@ -276,6 +306,12 @@ distributions {
                 into("assets")
             }
             from(directConnectSmokeScripts) {
+                into("tools")
+                filePermissions {
+                    unix("rwxr-xr-x")
+                }
+            }
+            from(graphicsBenchmarkScripts) {
                 into("tools")
                 filePermissions {
                     unix("rwxr-xr-x")
