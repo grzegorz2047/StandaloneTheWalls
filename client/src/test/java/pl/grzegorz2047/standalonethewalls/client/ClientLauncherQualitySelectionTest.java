@@ -53,9 +53,8 @@ class ClientLauncherQualitySelectionTest {
 
     private Path writeAssetLock() throws IOException {
         Path lock = tempDirectory.resolve("assets.lock.json");
-        assertThat(
-                        Files.writeString(
-                                lock, "{\"packs\":[],\"schema\":1}", StandardCharsets.UTF_8))
+        assertThat(Files.writeString(
+                        lock, "{\"packs\":[],\"schema\":1}", StandardCharsets.UTF_8))
                 .isEqualTo(lock);
         return lock;
     }
