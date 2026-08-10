@@ -74,12 +74,15 @@ final class GraphicsPresetRendererSmokeApplication extends SimpleApplication {
             cam.lookAt(Vector3f.ZERO, Vector3f.UNIT_Y);
         } catch (RuntimeException exception) {
             completion.completeExceptionally(exception);
-            throw exception;
+            stop(false);
         }
     }
 
     @Override
     public void simpleUpdate(float timePerFrame) {
+        if (completion.isDone()) {
+            return;
+        }
         if (!completionProcessorAttached && runtimeRenderScaleState.isInitialized()) {
             viewPort.addProcessor(new CompletionProcessor(scene));
             completionProcessorAttached = true;
