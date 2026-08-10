@@ -151,9 +151,11 @@ class JmeGpuFrameTimeProfilerTest {
                                                 stopCalls++;
                                                 return null;
                                             case "isTaskResultAvailable":
-                                                return readyTaskIds.contains((Integer) arguments[0]);
+                                                return readyTaskIds.contains(
+                                                        (Integer) arguments[0]);
                                             case "getProfilingTime":
-                                                return durations.getOrDefault((Integer) arguments[0], 0L);
+                                                return durations.getOrDefault(
+                                                        (Integer) arguments[0], 0L);
                                             case "toString":
                                                 return "FakeRenderer";
                                             default:
