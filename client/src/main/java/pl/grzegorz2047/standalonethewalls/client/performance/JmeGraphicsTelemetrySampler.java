@@ -10,11 +10,6 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.function.LongSupplier;
 
-@FunctionalInterface
-interface GpuFrameTimeSource {
-    OptionalLong poll();
-}
-
 /** Samples the previous rendered jME frame into the local telemetry contract. */
 public final class JmeGraphicsTelemetrySampler implements AutoCloseable {
     private static final String OBJECTS_LABEL = "Objects";
