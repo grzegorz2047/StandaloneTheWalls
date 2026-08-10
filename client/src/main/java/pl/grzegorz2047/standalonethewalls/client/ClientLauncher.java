@@ -8,10 +8,12 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pl.grzegorz2047.standalonethewalls.client.i18n.ClientMessages;
+import pl.grzegorz2047.standalonethewalls.client.performance.GraphicsAutomaticQualitySelection;
 import pl.grzegorz2047.standalonethewalls.client.performance.GraphicsQualityPreset;
 import pl.grzegorz2047.standalonethewalls.client.performance.GraphicsRuntimeQualitySelection;
 import pl.grzegorz2047.standalonethewalls.client.performance.GraphicsRuntimeRenderScaleState;
@@ -41,18 +43,22 @@ public final class ClientLauncher {
                 return runPreparationSmoke(application);
             }
             ClientMessages messages = ClientMessages.forLanguage(options.language());
-            SunderfrontClient application =
-                    new SunderfrontClient(messages, options.smokeMode(), options.dataDirectory());
-            configure(application);
             if (options.smokeMode()) {
+                SunderfrontClient application =
+                        new SunderfrontClient(messages, true, options.dataDirectory());
+                configure(application);
                 return runSmoke(application);
             }
-            resolveRuntimePreset(options)
-                    .ifPresent(
-                            preset ->
-                                    application
-                                            .getStateManager()
-                                            .attach(new GraphicsRuntimeRenderScaleState(preset)));
+
+            Optional<GraphicsQualityPreset> runtimePreset = resolveAutomaticRuntimePreset(options);
+            SunderfrontClient application =
+                    new SunderfrontClient(messages, false, options.dataDirectory());
+            configure(application);
+            runtimePreset.ifPresent(
+                    preset ->
+                            application
+                                    .getStateManager()
+                                    .attach(new GraphicsRuntimeRenderScaleState(preset)));
             application.getStateManager().attach(new GraphicsTelemetryCaptureState());
             application.start();
             return EXIT_OK;
@@ -87,14 +93,31 @@ public final class ClientLauncher {
         }
     }
 
-    private static Optional<GraphicsQualityPreset> resolveRuntimePreset(
-            ClientLaunchOptions options) {
+    private static Optional<GraphicsQualityPreset> resolveAutomaticRuntimePreset(
+            ClientLaunchOptions options) throws InterruptedException {
+        Optional<Path> assetLock;
         try {
-            return resolveRuntimePreset(
-                    options, ClientInstallationAssets.resolveAssetLock(ClientLauncher.class));
+            assetLock = ClientInstallationAssets.resolveAssetLock(ClientLauncher.class);
         } catch (RuntimeException exception) {
             LOGGER.warn(
                     "Packaged graphics assets could not be resolved; using native render scale.",
+                    exception);
+            return Optional.empty();
+        }
+        if (assetLock.isEmpty()) {
+            LOGGER.warn("Packaged graphics asset lock is unavailable; using native render scale.");
+            return Optional.empty();
+        }
+
+        try {
+            return Optional.of(
+                    GraphicsAutomaticQualitySelection.resolve(
+                            options.dataDirectory(), assetLock.orElseThrow()));
+        } catch (InterruptedException exception) {
+            throw exception;
+        } catch (IOException | ExecutionException | TimeoutException | RuntimeException exception) {
+            LOGGER.warn(
+                    "Automatic graphics quality selection failed; using native render scale.",
                     exception);
             return Optional.empty();
         }

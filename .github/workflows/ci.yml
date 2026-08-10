@@ -90,6 +90,21 @@ jobs:
             pl.grzegorz2047.standalonethewalls.client.performance.GraphicsPresetRendererSmokeMain \
             LOW --force-shader-fallback
 
+      - name: Run automatic first-run graphics benchmark smoke
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "true"
+        run: |
+          set -euo pipefail
+          LIB_DIR=$(find client/build/install -mindepth 2 -maxdepth 2 -type d -name lib -print -quit)
+          test -n "$LIB_DIR"
+          DATA_DIR=$(mktemp -d)
+          trap 'rm -rf "$DATA_DIR"' EXIT
+          timeout --signal=TERM --kill-after=10s 120s \
+            xvfb-run -a java \
+            -cp "$LIB_DIR/*" \
+            pl.grzegorz2047.standalonethewalls.client.performance.GraphicsStartupBenchmarkSmokeMain \
+            assets/assets.lock.json "$DATA_DIR"
+
       - name: Upload quality reports
         if: always()
         uses: actions/upload-artifact@v4
