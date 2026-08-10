@@ -35,7 +35,8 @@ final class GraphicsStartupBenchmarkRunner {
     private static void configure(GraphicsStartupBenchmarkApplication application) {
         AppSettings settings = new AppSettings(true);
         settings.setTitle(BuildInfo.PRODUCT_NAME + " First-Run Graphics Benchmark");
-        settings.setResolution(GraphicsStartupBenchmarkProfile.WIDTH, GraphicsStartupBenchmarkProfile.HEIGHT);
+        settings.setResolution(
+                GraphicsStartupBenchmarkProfile.WIDTH, GraphicsStartupBenchmarkProfile.HEIGHT);
         settings.setFullscreen(false);
         settings.setVSync(false);
         settings.setResizable(false);
