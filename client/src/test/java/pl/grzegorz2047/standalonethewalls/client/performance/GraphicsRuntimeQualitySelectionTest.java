@@ -66,11 +66,10 @@ class GraphicsRuntimeQualitySelectionTest {
     void malformedStateAndMissingAssetLockRemainExplicitIoFailures() throws IOException {
         Path assetLock = assetLock("current.lock", "{\"packs\":[],\"schema\":1}");
         Path malformedDirectory = tempDirectory.resolve("malformed");
-        Files.createDirectories(malformedDirectory);
-        Files.writeString(
-                malformedDirectory.resolve(GraphicsQualityStateStore.FILE_NAME),
-                "not-a-state\n",
-                StandardCharsets.UTF_8);
+        assertThat(Files.createDirectories(malformedDirectory)).isEqualTo(malformedDirectory);
+        Path stateFile = malformedDirectory.resolve(GraphicsQualityStateStore.FILE_NAME);
+        assertThat(Files.writeString(stateFile, "not-a-state\n", StandardCharsets.UTF_8))
+                .isEqualTo(stateFile);
 
         assertThatIOException()
                 .isThrownBy(
@@ -87,7 +86,7 @@ class GraphicsRuntimeQualitySelectionTest {
 
     private Path assetLock(String name, String content) throws IOException {
         Path lock = tempDirectory.resolve(name);
-        Files.writeString(lock, content, StandardCharsets.UTF_8);
+        assertThat(Files.writeString(lock, content, StandardCharsets.UTF_8)).isEqualTo(lock);
         return lock;
     }
 }
