@@ -33,8 +33,7 @@ class ClientInstallationAssetsTest {
     }
 
     @Test
-    void doesNotGuessFromClassDirectoriesUnknownContainersOrMalformedLocations()
-            throws Exception {
+    void doesNotGuessFromClassDirectoriesUnknownContainersOrMalformedLocations() throws Exception {
         Path classes = Files.createDirectories(tempDirectory.resolve("classes"));
         Path unknown = Files.createDirectories(tempDirectory.resolve("unknown"));
         Path unknownJar = Files.createFile(unknown.resolve("client.jar"));
@@ -48,7 +47,8 @@ class ClientInstallationAssetsTest {
         assertTrue(ClientInstallationAssets.resolveAssetLock(null, httpLocation).isEmpty());
         assertTrue(ClientInstallationAssets.resolveAssetLock(null, null).isEmpty());
         assertTrue(
-                ClientInstallationAssets.resolveAssetLock("missing/Sunderfront.exe", null).isEmpty());
+                ClientInstallationAssets.resolveAssetLock("missing/Sunderfront.exe", null)
+                        .isEmpty());
     }
 
     private void assertJarLayout(String containerName) throws IOException {
