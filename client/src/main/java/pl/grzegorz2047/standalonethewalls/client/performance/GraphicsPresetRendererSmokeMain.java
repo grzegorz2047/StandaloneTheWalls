@@ -24,10 +24,7 @@ public final class GraphicsPresetRendererSmokeMain {
     }
 
     public static void main(String[] arguments) {
-        int exitCode = run();
-        if (exitCode != EXIT_OK) {
-            System.exit(exitCode);
-        }
+        System.exit(run());
     }
 
     static int run() {
@@ -74,6 +71,7 @@ public final class GraphicsPresetRendererSmokeMain {
 
     private static void runPreset(GraphicsQualityPreset preset)
             throws InterruptedException, ExecutionException, TimeoutException {
+        LOGGER.info("Starting graphics renderer smoke for {}.", preset);
         GraphicsPresetRendererSmokeApplication application =
                 new GraphicsPresetRendererSmokeApplication(preset);
         configure(application, preset);
