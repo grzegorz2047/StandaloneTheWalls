@@ -57,7 +57,7 @@ class JmeGraphicsTelemetrySamplerTest {
             GraphicsTelemetrySample sample = sampler.sample(0.016f, new Node()).orElseThrow();
 
             assertThat(gpuPolls).hasValue(1);
-            assertThat(sample.gpuFrameTimeNanos()).contains(8_000_000L);
+            assertThat(sample.gpuFrameTimeNanos()).hasValue(8_000_000L);
         }
     }
 
