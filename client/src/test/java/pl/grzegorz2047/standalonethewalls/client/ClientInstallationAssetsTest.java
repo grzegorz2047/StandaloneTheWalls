@@ -33,7 +33,8 @@ class ClientInstallationAssetsTest {
     }
 
     @Test
-    void doesNotGuessFromClassDirectoriesUnknownContainersOrMalformedLocations() throws IOException {
+    void doesNotGuessFromClassDirectoriesUnknownContainersOrMalformedLocations()
+            throws IOException {
         Path classes = Files.createDirectories(tempDirectory.resolve("classes"));
         Path unknown = Files.createDirectories(tempDirectory.resolve("unknown"));
         Path unknownJar = Files.createFile(unknown.resolve("client.jar"));
