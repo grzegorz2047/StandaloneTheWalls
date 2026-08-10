@@ -129,7 +129,6 @@ class JmeGpuFrameTimeProfilerTest {
         private int generateCalls;
         private int startCalls;
         private int stopCalls;
-        private Integer activeTaskId;
 
         private FakeRenderer(boolean supported) {
             taskIds = supported ? new int[] {11, 12, 13, 14} : new int[0];
@@ -144,13 +143,12 @@ class JmeGpuFrameTimeProfilerTest {
                                                 generateCalls++;
                                                 return taskIds.clone();
                                             case "startProfiling":
-                                                activeTaskId = (Integer) arguments[0];
+                                                int taskId = (Integer) arguments[0];
                                                 startCalls++;
-                                                startedTaskIds.add(activeTaskId);
+                                                startedTaskIds.add(taskId);
                                                 return null;
                                             case "stopProfiling":
                                                 stopCalls++;
-                                                activeTaskId = null;
                                                 return null;
                                             case "isTaskResultAvailable":
                                                 return readyTaskIds.contains((Integer) arguments[0]);
