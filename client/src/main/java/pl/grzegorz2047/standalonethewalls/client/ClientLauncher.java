@@ -3,12 +3,18 @@ package pl.grzegorz2047.standalonethewalls.client;
 import com.jme3.app.SimpleApplication;
 import com.jme3.system.AppSettings;
 import com.jme3.system.JmeContext;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pl.grzegorz2047.standalonethewalls.client.i18n.ClientMessages;
+import pl.grzegorz2047.standalonethewalls.client.performance.GraphicsQualityPreset;
+import pl.grzegorz2047.standalonethewalls.client.performance.GraphicsRuntimeQualitySelection;
+import pl.grzegorz2047.standalonethewalls.client.performance.GraphicsRuntimeRenderScaleState;
 import pl.grzegorz2047.standalonethewalls.client.performance.GraphicsTelemetryCaptureState;
 import pl.grzegorz2047.standalonethewalls.shared.BuildInfo;
 
@@ -41,6 +47,12 @@ public final class ClientLauncher {
             if (options.smokeMode()) {
                 return runSmoke(application);
             }
+            resolveRuntimePreset(options)
+                    .ifPresent(
+                            preset ->
+                                    application
+                                            .getStateManager()
+                                            .attach(new GraphicsRuntimeRenderScaleState(preset)));
             application.getStateManager().attach(new GraphicsTelemetryCaptureState());
             application.start();
             return EXIT_OK;
@@ -54,6 +66,37 @@ public final class ClientLauncher {
         } catch (TimeoutException | RuntimeException exception) {
             LOGGER.error("Client startup failed.", exception);
             return EXIT_STARTUP_FAILURE;
+        }
+    }
+
+    static Optional<GraphicsQualityPreset> resolveRuntimePreset(
+            ClientLaunchOptions options, Optional<Path> assetLock) {
+        Objects.requireNonNull(options, "options");
+        Objects.requireNonNull(assetLock, "assetLock");
+        if (assetLock.isEmpty()) {
+            return Optional.empty();
+        }
+        try {
+            return GraphicsRuntimeQualitySelection.compatiblePersistedPreset(
+                    options.dataDirectory(), assetLock.orElseThrow());
+        } catch (IOException | RuntimeException exception) {
+            LOGGER.warn(
+                    "Persisted graphics quality could not be applied; using native render scale.",
+                    exception);
+            return Optional.empty();
+        }
+    }
+
+    private static Optional<GraphicsQualityPreset> resolveRuntimePreset(
+            ClientLaunchOptions options) {
+        try {
+            return resolveRuntimePreset(
+                    options, ClientInstallationAssets.resolveAssetLock(ClientLauncher.class));
+        } catch (RuntimeException exception) {
+            LOGGER.warn(
+                    "Packaged graphics assets could not be resolved; using native render scale.",
+                    exception);
+            return Optional.empty();
         }
     }
 

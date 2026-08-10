@@ -15,7 +15,7 @@ import com.jme3.texture.Texture2D;
 import com.jme3.ui.Picture;
 import java.util.Objects;
 
-/** Benchmark-only framebuffer scaler that renders the scene low-res and upscales once. */
+/** Main-viewport framebuffer scaler shared by benchmark and runtime quality startup. */
 final class GraphicsBenchmarkRenderScaleProcessor implements SceneProcessor {
     private final AssetManager assetManager;
     private final double renderScale;
@@ -50,7 +50,7 @@ final class GraphicsBenchmarkRenderScaleProcessor implements SceneProcessor {
         this.viewPort = Objects.requireNonNull(viewPort, "viewPort");
         this.sceneCamera = Objects.requireNonNull(viewPort.getCamera(), "scene camera");
         this.originalOutput = viewPort.getOutputFrameBuffer();
-        this.upscaleQuad = new Picture("BenchmarkRenderScaleUpscale", false);
+        this.upscaleQuad = new Picture("GraphicsRenderScaleUpscale", false);
         rebuild(sceneCamera.getWidth(), sceneCamera.getHeight());
     }
 
@@ -79,8 +79,7 @@ final class GraphicsBenchmarkRenderScaleProcessor implements SceneProcessor {
     public void postFrame(FrameBuffer output) {
         requireInitialized();
         if (output != scaledFrameBuffer) {
-            throw new IllegalStateException(
-                    "benchmark scene was not rendered to the scaled framebuffer");
+            throw new IllegalStateException("scene was not rendered to the scaled framebuffer");
         }
 
         upscaleQuad.setWidth(displayWidth);
@@ -92,6 +91,7 @@ final class GraphicsBenchmarkRenderScaleProcessor implements SceneProcessor {
         renderer.clearBuffers(true, true, false);
         renderManager.setCamera(upscaleCamera, true);
         renderManager.renderGeometry(upscaleQuad);
+        sceneCamera.resize(displayWidth, displayHeight, true);
         renderManager.setCamera(sceneCamera, false);
     }
 
@@ -141,7 +141,7 @@ final class GraphicsBenchmarkRenderScaleProcessor implements SceneProcessor {
         upscaleQuad.setHeight(height);
         upscaleQuad.updateGeometricState();
         upscaleCamera.resize(width, height, true);
-        sceneCamera.resize(scaled.width(), scaled.height(), true);
+        sceneCamera.resize(width, height, true);
         viewPort.setOutputFrameBuffer(frameBuffer);
     }
 

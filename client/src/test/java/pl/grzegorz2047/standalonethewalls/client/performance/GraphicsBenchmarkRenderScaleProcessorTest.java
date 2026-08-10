@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 
 class GraphicsBenchmarkRenderScaleProcessorTest {
     @Test
-    void initializeReshapeAndCleanupPreserveDisplayContract() {
+    void initializeFrameReshapeAndCleanupPreserveDisplayContract() {
         NullRenderer renderer = new NullRenderer();
         renderer.initialize();
         RenderManager renderManager = new RenderManager(renderer);
@@ -27,15 +27,22 @@ class GraphicsBenchmarkRenderScaleProcessorTest {
         assertThat(viewPort.getOutputFrameBuffer()).isNotNull();
         assertThat(viewPort.getOutputFrameBuffer().getWidth()).isEqualTo(960);
         assertThat(viewPort.getOutputFrameBuffer().getHeight()).isEqualTo(540);
+        assertThat(camera.getWidth()).isEqualTo(1280);
+        assertThat(camera.getHeight()).isEqualTo(720);
+
+        processor.preFrame(1.0f / 60.0f);
         assertThat(camera.getWidth()).isEqualTo(960);
         assertThat(camera.getHeight()).isEqualTo(540);
+        processor.postFrame(viewPort.getOutputFrameBuffer());
+        assertThat(camera.getWidth()).isEqualTo(1280);
+        assertThat(camera.getHeight()).isEqualTo(720);
 
         processor.reshape(viewPort, 1920, 1080);
 
         assertThat(viewPort.getOutputFrameBuffer().getWidth()).isEqualTo(1440);
         assertThat(viewPort.getOutputFrameBuffer().getHeight()).isEqualTo(810);
-        assertThat(camera.getWidth()).isEqualTo(1440);
-        assertThat(camera.getHeight()).isEqualTo(810);
+        assertThat(camera.getWidth()).isEqualTo(1920);
+        assertThat(camera.getHeight()).isEqualTo(1080);
 
         processor.cleanup();
         processor.cleanup();
