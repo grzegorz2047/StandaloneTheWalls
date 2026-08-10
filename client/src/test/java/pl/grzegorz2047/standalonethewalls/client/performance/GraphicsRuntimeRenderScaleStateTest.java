@@ -18,9 +18,9 @@ class GraphicsRuntimeRenderScaleStateTest {
             throws InterruptedException, ExecutionException, TimeoutException {
         GraphicsRuntimeRenderScaleState state =
                 new GraphicsRuntimeRenderScaleState(GraphicsQualityPreset.LOW);
-        TestApplication application = new TestApplication(state);
+        InitialStateApplication application = new InitialStateApplication(state);
 
-        assertThat(run(application)).isOne();
+        assertThat(run(application, application.processorCount)).isOne();
         assertThat(state.renderScale()).isEqualTo(0.75d);
         assertThat(state.offscreenProcessorAttached()).isFalse();
     }
@@ -32,24 +32,55 @@ class GraphicsRuntimeRenderScaleStateTest {
         assertDirect(GraphicsQualityPreset.HIGH);
     }
 
+    @Test
+    void mediumTransitionsFromDirectRenderToScaledFramebufferOnGovernorReduction()
+            throws InterruptedException, ExecutionException, TimeoutException {
+        GraphicsRuntimeRenderScaleState state = controlledState(GraphicsQualityPreset.MEDIUM);
+        ControlledBadFrameApplication application = new ControlledBadFrameApplication(state);
+
+        DynamicSnapshot snapshot = run(application, application.snapshot);
+
+        assertThat(snapshot.renderScale()).isEqualTo(0.95d);
+        assertThat(snapshot.processorCount()).isOne();
+        assertThat(state.offscreenProcessorAttached()).isFalse();
+    }
+
+    @Test
+    void lowReplacesExistingScalerWithoutLeakingProcessors()
+            throws InterruptedException, ExecutionException, TimeoutException {
+        GraphicsRuntimeRenderScaleState state = controlledState(GraphicsQualityPreset.LOW);
+        ControlledBadFrameApplication application = new ControlledBadFrameApplication(state);
+
+        DynamicSnapshot snapshot = run(application, application.snapshot);
+
+        assertThat(snapshot.renderScale()).isEqualTo(0.70d);
+        assertThat(snapshot.processorCount()).isOne();
+        assertThat(state.offscreenProcessorAttached()).isFalse();
+    }
+
     private static void assertDirect(GraphicsQualityPreset preset)
             throws InterruptedException, ExecutionException, TimeoutException {
         GraphicsRuntimeRenderScaleState state = new GraphicsRuntimeRenderScaleState(preset);
-        TestApplication application = new TestApplication(state);
+        InitialStateApplication application = new InitialStateApplication(state);
 
-        assertThat(run(application)).isZero();
+        assertThat(run(application, application.processorCount)).isZero();
         assertThat(state.renderScale()).isEqualTo(1.0d);
         assertThat(state.offscreenProcessorAttached()).isFalse();
     }
 
-    private static int run(TestApplication application)
+    private static GraphicsRuntimeRenderScaleState controlledState(GraphicsQualityPreset preset) {
+        return new GraphicsRuntimeRenderScaleState(
+                new GraphicsRuntimeRenderScaleGovernor(preset, 1, 0.05d, 1));
+    }
+
+    private static <T> T run(SimpleApplication application, CompletableFuture<T> result)
             throws InterruptedException, ExecutionException, TimeoutException {
         AppSettings settings = new AppSettings(true);
         settings.setResolution(1280, 720);
         application.setSettings(settings);
         try {
             application.start(JmeContext.Type.Headless, true);
-            return application.awaitProcessorCount(Duration.ofSeconds(5));
+            return result.get(Duration.ofSeconds(5).toNanos(), TimeUnit.NANOSECONDS);
         } finally {
             if (application.getContext() != null) {
                 application.stop(true);
@@ -57,11 +88,11 @@ class GraphicsRuntimeRenderScaleStateTest {
         }
     }
 
-    private static final class TestApplication extends SimpleApplication {
+    private static final class InitialStateApplication extends SimpleApplication {
         private final GraphicsRuntimeRenderScaleState state;
         private final CompletableFuture<Integer> processorCount = new CompletableFuture<>();
 
-        private TestApplication(GraphicsRuntimeRenderScaleState state) {
+        private InitialStateApplication(GraphicsRuntimeRenderScaleState state) {
             super(state);
             this.state = state;
         }
@@ -75,10 +106,32 @@ class GraphicsRuntimeRenderScaleStateTest {
                 processorCount.complete(getViewPort().getProcessors().size());
             }
         }
+    }
 
-        private int awaitProcessorCount(Duration timeout)
-                throws InterruptedException, ExecutionException, TimeoutException {
-            return processorCount.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
+    private static final class ControlledBadFrameApplication extends SimpleApplication {
+        private final GraphicsRuntimeRenderScaleState state;
+        private final CompletableFuture<DynamicSnapshot> snapshot = new CompletableFuture<>();
+
+        private ControlledBadFrameApplication(GraphicsRuntimeRenderScaleState state) {
+            super(state);
+            this.state = state;
+        }
+
+        @Override
+        public void simpleInitApp() {
+            state.setEnabled(false);
+        }
+
+        @Override
+        public void simpleUpdate(float timePerFrame) {
+            if (!state.isInitialized() || snapshot.isDone()) {
+                return;
+            }
+            state.update(0.050f);
+            snapshot.complete(
+                    new DynamicSnapshot(state.renderScale(), getViewPort().getProcessors().size()));
         }
     }
+
+    private record DynamicSnapshot(double renderScale, int processorCount) {}
 }
