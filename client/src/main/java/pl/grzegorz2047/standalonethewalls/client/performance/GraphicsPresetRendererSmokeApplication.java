@@ -1,6 +1,7 @@
 package pl.grzegorz2047.standalonethewalls.client.performance;
 
 import com.jme3.app.SimpleApplication;
+import com.jme3.math.Vector3f;
 import com.jme3.post.SceneProcessor;
 import com.jme3.profile.AppProfiler;
 import com.jme3.renderer.RenderManager;
@@ -24,6 +25,8 @@ final class GraphicsPresetRendererSmokeApplication extends SimpleApplication {
     private final GraphicsQualityPreset preset;
     private final GraphicsRuntimeRenderScaleState runtimeRenderScaleState;
     private final CompletableFuture<Snapshot> completion = new CompletableFuture<>();
+    private Node scene;
+    private boolean completionProcessorAttached;
 
     GraphicsPresetRendererSmokeApplication(GraphicsQualityPreset preset) {
         this(preset, new GraphicsRuntimeRenderScaleState(Objects.requireNonNull(preset, "preset")));
@@ -42,13 +45,20 @@ final class GraphicsPresetRendererSmokeApplication extends SimpleApplication {
         setDisplayStatView(false);
         flyCam.setEnabled(false);
 
-        Node scene = GraphicsBenchmarkReferenceScene.build(assetManager, preset);
+        scene = GraphicsBenchmarkReferenceScene.build(assetManager, preset);
         scene.setCullHint(Spatial.CullHint.Never);
         rootNode.attachChild(scene);
 
-        cam.setLocation(new com.jme3.math.Vector3f(0.0f, 18.0f, 42.0f));
-        cam.lookAt(com.jme3.math.Vector3f.ZERO, com.jme3.math.Vector3f.UNIT_Y);
-        viewPort.addProcessor(new CompletionProcessor(scene));
+        cam.setLocation(new Vector3f(0.0f, 18.0f, 42.0f));
+        cam.lookAt(Vector3f.ZERO, Vector3f.UNIT_Y);
+    }
+
+    @Override
+    public void simpleUpdate(float timePerFrame) {
+        if (!completionProcessorAttached && runtimeRenderScaleState.isInitialized()) {
+            viewPort.addProcessor(new CompletionProcessor(scene));
+            completionProcessorAttached = true;
+        }
     }
 
     Snapshot awaitCompletion(Duration timeout)
@@ -61,12 +71,12 @@ final class GraphicsPresetRendererSmokeApplication extends SimpleApplication {
     }
 
     private final class CompletionProcessor implements SceneProcessor {
-        private final Node scene;
+        private final Node renderedScene;
         private boolean initialized;
         private int renderedFrames;
 
-        private CompletionProcessor(Node scene) {
-            this.scene = Objects.requireNonNull(scene, "scene");
+        private CompletionProcessor(Node renderedScene) {
+            this.renderedScene = Objects.requireNonNull(renderedScene, "renderedScene");
         }
 
         @Override
@@ -114,7 +124,7 @@ final class GraphicsPresetRendererSmokeApplication extends SimpleApplication {
                             preset,
                             runtimeRenderScaleState.renderScale(),
                             runtimeRenderScaleState.offscreenProcessorAttached(),
-                            countGeometries(scene),
+                            countGeometries(renderedScene),
                             renderedFrames));
         }
 
