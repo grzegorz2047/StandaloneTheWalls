@@ -24,12 +24,38 @@ class ClientLaunchOptionsTest {
         assertEquals(ClientLanguage.POLISH, defaults.language());
         assertFalse(defaults.smokeMode());
         assertFalse(defaults.preparationSmoke());
+        assertEquals(ClientGraphicsQualityOption.UNCHANGED, defaults.graphicsQualityOption());
         assertEquals(Path.of("data").toAbsolutePath().normalize(), defaults.dataDirectory());
         assertEquals(ClientLanguage.ENGLISH, explicit.language());
         assertTrue(explicit.smokeMode());
         assertFalse(explicit.preparationSmoke());
+        assertEquals(ClientGraphicsQualityOption.UNCHANGED, explicit.graphicsQualityOption());
         assertEquals(
                 Path.of("runtime/client").toAbsolutePath().normalize(), explicit.dataDirectory());
+    }
+
+    @Test
+    void acceptsGraphicsPresetAutoAndExplicitPresetsCaseInsensitively() {
+        assertEquals(
+                ClientGraphicsQualityOption.AUTO,
+                ClientLaunchOptions.parse(
+                                new String[] {"--graphics-preset", "auto"}, Locale.ENGLISH, null)
+                        .graphicsQualityOption());
+        assertEquals(
+                ClientGraphicsQualityOption.LOW,
+                ClientLaunchOptions.parse(
+                                new String[] {"--graphics-preset", "LOW"}, Locale.ENGLISH, null)
+                        .graphicsQualityOption());
+        assertEquals(
+                ClientGraphicsQualityOption.MEDIUM,
+                ClientLaunchOptions.parse(
+                                new String[] {"--graphics-preset", "Medium"}, Locale.ENGLISH, null)
+                        .graphicsQualityOption());
+        assertEquals(
+                ClientGraphicsQualityOption.HIGH,
+                ClientLaunchOptions.parse(
+                                new String[] {"--graphics-preset", "high"}, Locale.ENGLISH, null)
+                        .graphicsQualityOption());
     }
 
     @Test
@@ -40,6 +66,7 @@ class ClientLaunchOptionsTest {
 
         assertTrue(options.smokeMode());
         assertTrue(options.preparationSmoke());
+        assertEquals(ClientGraphicsQualityOption.UNCHANGED, options.graphicsQualityOption());
     }
 
     @Test
@@ -90,7 +117,11 @@ class ClientLaunchOptionsTest {
                 IllegalArgumentException.class,
                 () ->
                         new ClientLaunchOptions(
-                                ClientLanguage.ENGLISH, false, true, Path.of("data")));
+                                ClientLanguage.ENGLISH,
+                                false,
+                                true,
+                                ClientGraphicsQualityOption.UNCHANGED,
+                                Path.of("data")));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> ClientLaunchOptions.parse(new String[] {"--data-dir"}, Locale.ENGLISH, null));
@@ -106,6 +137,41 @@ class ClientLaunchOptionsTest {
                 () ->
                         ClientLaunchOptions.parse(
                                 new String[] {"--data-dir", "--smoke"}, Locale.ENGLISH, null));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        ClientLaunchOptions.parse(
+                                new String[] {"--graphics-preset"}, Locale.ENGLISH, null));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        ClientLaunchOptions.parse(
+                                new String[] {"--graphics-preset", "ultra"},
+                                Locale.ENGLISH,
+                                null));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        ClientLaunchOptions.parse(
+                                new String[] {
+                                    "--graphics-preset", "low", "--graphics-preset", "high"
+                                },
+                                Locale.ENGLISH,
+                                null));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        ClientLaunchOptions.parse(
+                                new String[] {"--smoke", "--graphics-preset", "low"},
+                                Locale.ENGLISH,
+                                null));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        ClientLaunchOptions.parse(
+                                new String[] {"--preparation-smoke", "--graphics-preset", "auto"},
+                                Locale.ENGLISH,
+                                null));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> ClientLaunchOptions.parse(new String[] {"--unknown"}, Locale.ENGLISH, null));
