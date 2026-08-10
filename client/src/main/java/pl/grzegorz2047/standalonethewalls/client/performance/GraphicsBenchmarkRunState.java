@@ -55,13 +55,13 @@ public final class GraphicsBenchmarkRunState extends BaseAppState {
             throw new IllegalStateException("graphics benchmark state is already initialized");
         }
 
-        Renderer renderer = Objects.requireNonNull(application.getRenderer(), "benchmark renderer");
+        Renderer renderer = application.getRenderer();
         JmeGpuFrameTimeProfiler newGpuProfiler = null;
         TelemetrySource newTelemetrySource = null;
         boolean initialized = false;
         try {
             GpuFrameTimeSource gpuFrameTimeSource = OptionalLong::empty;
-            if (application.getAppProfiler() == null) {
+            if (renderer != null && application.getAppProfiler() == null) {
                 JmeGpuFrameTimeProfiler candidate =
                         JmeGpuFrameTimeProfiler.create(renderer, session::phase);
                 if (candidate.enabled()) {
@@ -162,7 +162,7 @@ public final class GraphicsBenchmarkRunState extends BaseAppState {
             Renderer renderer, GpuFrameTimeSource gpuFrameTimeSource) {
         JmeGraphicsTelemetrySampler sampler =
                 JmeGraphicsTelemetrySampler.forRenderer(
-                        renderer,
+                        Objects.requireNonNull(renderer, "benchmark renderer"),
                         GraphicsBenchmarkRunState::usedJvmHeapBytes,
                         gpuFrameTimeSource);
         return new TelemetrySource() {
