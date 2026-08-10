@@ -105,7 +105,7 @@ public final class JmeGraphicsTelemetrySampler implements AutoCloseable {
         throw new IllegalArgumentException("jME renderer statistics do not expose Objects");
     }
 
-    private static long toFrameTimeNanos(float timePerFrame) {
+    static long toFrameTimeNanos(float timePerFrame) {
         if (!Float.isFinite(timePerFrame) || timePerFrame <= 0f) {
             throw new IllegalArgumentException("timePerFrame must be finite and positive");
         }
