@@ -10,6 +10,7 @@ import com.jme3.scene.Spatial;
 import java.lang.management.ManagementFactory;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalLong;
 
 /** Runs one opt-in reference benchmark through the real jME frame loop. */
 public final class GraphicsBenchmarkRunState extends BaseAppState {
@@ -20,6 +21,7 @@ public final class GraphicsBenchmarkRunState extends BaseAppState {
     private Node applicationRoot;
     private Node benchmarkScene;
     private TelemetrySource telemetrySource;
+    private JmeGpuFrameTimeProfiler gpuFrameTimeProfiler;
     private GraphicsBenchmarkSession.Outcome completedOutcome;
 
     public GraphicsBenchmarkRunState(
@@ -49,16 +51,32 @@ public final class GraphicsBenchmarkRunState extends BaseAppState {
         if (!(application instanceof SimpleApplication simpleApplication)) {
             throw new IllegalArgumentException("graphics benchmark requires SimpleApplication");
         }
-        if (benchmarkScene != null || telemetrySource != null) {
+        if (benchmarkScene != null || telemetrySource != null || gpuFrameTimeProfiler != null) {
             throw new IllegalStateException("graphics benchmark state is already initialized");
         }
 
-        TelemetrySource newTelemetrySource =
-                Objects.requireNonNull(
-                        telemetrySourceFactory.create(application.getRenderer()),
-                        "benchmark telemetry source");
+        Renderer renderer = Objects.requireNonNull(application.getRenderer(), "benchmark renderer");
+        JmeGpuFrameTimeProfiler newGpuProfiler = null;
+        TelemetrySource newTelemetrySource = null;
         boolean initialized = false;
         try {
+            GpuFrameTimeSource gpuFrameTimeSource = OptionalLong::empty;
+            if (application.getAppProfiler() == null) {
+                JmeGpuFrameTimeProfiler candidate =
+                        JmeGpuFrameTimeProfiler.create(renderer, session::phase);
+                if (candidate.enabled()) {
+                    application.setAppProfiler(candidate);
+                    newGpuProfiler = candidate;
+                    gpuFrameTimeSource = candidate;
+                } else {
+                    candidate.close();
+                }
+            }
+
+            newTelemetrySource =
+                    Objects.requireNonNull(
+                            telemetrySourceFactory.create(renderer, gpuFrameTimeSource),
+                            "benchmark telemetry source");
             Node newScene = sceneFactory.build(application.getAssetManager(), measuredPreset);
             Objects.requireNonNull(newScene, "benchmark scene");
             if (newScene.getParent() != null) {
@@ -70,10 +88,14 @@ public final class GraphicsBenchmarkRunState extends BaseAppState {
             applicationRoot = simpleApplication.getRootNode();
             benchmarkScene = newScene;
             telemetrySource = newTelemetrySource;
+            gpuFrameTimeProfiler = newGpuProfiler;
             initialized = true;
         } finally {
             if (!initialized) {
-                newTelemetrySource.close();
+                if (newTelemetrySource != null) {
+                    newTelemetrySource.close();
+                }
+                uninstallGpuProfiler(application, newGpuProfiler);
             }
         }
     }
@@ -95,6 +117,8 @@ public final class GraphicsBenchmarkRunState extends BaseAppState {
             telemetrySource.close();
             telemetrySource = null;
         }
+        uninstallGpuProfiler(application, gpuFrameTimeProfiler);
+        gpuFrameTimeProfiler = null;
         if (benchmarkScene != null) {
             benchmarkScene.removeFromParent();
             benchmarkScene = null;
@@ -134,10 +158,13 @@ public final class GraphicsBenchmarkRunState extends BaseAppState {
                 && benchmarkScene.getParent() == applicationRoot;
     }
 
-    private static TelemetrySource createTelemetrySource(Renderer renderer) {
+    private static TelemetrySource createTelemetrySource(
+            Renderer renderer, GpuFrameTimeSource gpuFrameTimeSource) {
         JmeGraphicsTelemetrySampler sampler =
                 JmeGraphicsTelemetrySampler.forRenderer(
-                        renderer, GraphicsBenchmarkRunState::usedJvmHeapBytes);
+                        renderer,
+                        GraphicsBenchmarkRunState::usedJvmHeapBytes,
+                        gpuFrameTimeSource);
         return new TelemetrySource() {
             @Override
             public Optional<GraphicsTelemetrySample> sample(
@@ -152,6 +179,17 @@ public final class GraphicsBenchmarkRunState extends BaseAppState {
         };
     }
 
+    private static void uninstallGpuProfiler(
+            Application application, JmeGpuFrameTimeProfiler gpuProfiler) {
+        if (gpuProfiler == null) {
+            return;
+        }
+        if (application.getAppProfiler() == gpuProfiler) {
+            application.setAppProfiler(null);
+        }
+        gpuProfiler.close();
+    }
+
     private static long usedJvmHeapBytes() {
         return Math.max(0L, ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed());
     }
@@ -163,7 +201,7 @@ public final class GraphicsBenchmarkRunState extends BaseAppState {
 
     @FunctionalInterface
     interface TelemetrySourceFactory {
-        TelemetrySource create(Renderer renderer);
+        TelemetrySource create(Renderer renderer, GpuFrameTimeSource gpuFrameTimeSource);
     }
 
     interface TelemetrySource {
