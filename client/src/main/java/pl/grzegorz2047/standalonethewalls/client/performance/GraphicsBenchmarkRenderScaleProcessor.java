@@ -15,7 +15,7 @@ import com.jme3.texture.Texture2D;
 import com.jme3.ui.Picture;
 import java.util.Objects;
 
-/** Benchmark-only framebuffer scaler that renders the scene low-res and upscales once. */
+/** Main-viewport framebuffer scaler shared by benchmark and runtime quality startup. */
 final class GraphicsBenchmarkRenderScaleProcessor implements SceneProcessor {
     private final AssetManager assetManager;
     private final double renderScale;
