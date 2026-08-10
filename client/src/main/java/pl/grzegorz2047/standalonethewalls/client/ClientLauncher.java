@@ -87,7 +87,8 @@ public final class ClientLauncher {
         }
     }
 
-    private static Optional<GraphicsQualityPreset> resolveRuntimePreset(ClientLaunchOptions options) {
+    private static Optional<GraphicsQualityPreset> resolveRuntimePreset(
+            ClientLaunchOptions options) {
         try {
             return resolveRuntimePreset(
                     options, ClientInstallationAssets.resolveAssetLock(ClientLauncher.class));
