@@ -5,6 +5,7 @@ import com.jme3.math.Vector3f;
 import com.jme3.post.SceneProcessor;
 import com.jme3.profile.AppProfiler;
 import com.jme3.renderer.RenderManager;
+import com.jme3.renderer.RendererException;
 import com.jme3.renderer.ViewPort;
 import com.jme3.renderer.queue.RenderQueue;
 import com.jme3.scene.Geometry;
@@ -24,32 +25,57 @@ final class GraphicsPresetRendererSmokeApplication extends SimpleApplication {
 
     private final GraphicsQualityPreset preset;
     private final GraphicsRuntimeRenderScaleState runtimeRenderScaleState;
+    private final boolean forceShaderFallback;
     private final CompletableFuture<Snapshot> completion = new CompletableFuture<>();
     private Node scene;
     private boolean completionProcessorAttached;
+    private boolean preferredFailureInjected;
+    private boolean fallbackUsed;
 
     GraphicsPresetRendererSmokeApplication(GraphicsQualityPreset preset) {
-        this(preset, new GraphicsRuntimeRenderScaleState(Objects.requireNonNull(preset, "preset")));
+        this(preset, false);
+    }
+
+    GraphicsPresetRendererSmokeApplication(
+            GraphicsQualityPreset preset, boolean forceShaderFallback) {
+        this(
+                preset,
+                new GraphicsRuntimeRenderScaleState(Objects.requireNonNull(preset, "preset")),
+                forceShaderFallback);
     }
 
     private GraphicsPresetRendererSmokeApplication(
-            GraphicsQualityPreset preset, GraphicsRuntimeRenderScaleState runtimeRenderScaleState) {
+            GraphicsQualityPreset preset,
+            GraphicsRuntimeRenderScaleState runtimeRenderScaleState,
+            boolean forceShaderFallback) {
         super(runtimeRenderScaleState);
         this.preset = preset;
         this.runtimeRenderScaleState = runtimeRenderScaleState;
+        this.forceShaderFallback = forceShaderFallback;
     }
 
     @Override
     public void simpleInitApp() {
-        setDisplayFps(false);
-        setDisplayStatView(false);
+        try {
+            setDisplayFps(false);
+            setDisplayStatView(false);
 
-        scene = GraphicsBenchmarkReferenceScene.build(assetManager, preset);
-        scene.setCullHint(Spatial.CullHint.Never);
-        rootNode.attachChild(scene);
+            GraphicsRendererSceneFallback.Result prepared =
+                    GraphicsRendererSceneFallback.prepare(
+                            () -> GraphicsBenchmarkReferenceScene.build(assetManager, preset),
+                            this::buildFallbackScene,
+                            this::prepareRendererScene);
+            scene = prepared.scene();
+            fallbackUsed = prepared.fallbackUsed();
+            scene.setCullHint(Spatial.CullHint.Never);
+            rootNode.attachChild(scene);
 
-        cam.setLocation(new Vector3f(0.0f, 18.0f, 42.0f));
-        cam.lookAt(Vector3f.ZERO, Vector3f.UNIT_Y);
+            cam.setLocation(new Vector3f(0.0f, 18.0f, 42.0f));
+            cam.lookAt(Vector3f.ZERO, Vector3f.UNIT_Y);
+        } catch (RuntimeException exception) {
+            completion.completeExceptionally(exception);
+            throw exception;
+        }
     }
 
     @Override
@@ -67,6 +93,20 @@ final class GraphicsPresetRendererSmokeApplication extends SimpleApplication {
             throw new IllegalArgumentException("renderer smoke timeout must be positive");
         }
         return completion.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
+    }
+
+    private Node buildFallbackScene() {
+        Node fallback = GraphicsBenchmarkReferenceScene.build(assetManager, preset);
+        GraphicsRendererFallbackMaterials.apply(assetManager, fallback);
+        return fallback;
+    }
+
+    private void prepareRendererScene(Node candidate) {
+        if (forceShaderFallback && !preferredFailureInjected) {
+            preferredFailureInjected = true;
+            throw new RendererException("injected preferred shader preparation failure");
+        }
+        renderManager.preloadScene(candidate);
     }
 
     private final class CompletionProcessor implements SceneProcessor {
@@ -123,6 +163,7 @@ final class GraphicsPresetRendererSmokeApplication extends SimpleApplication {
                             preset,
                             runtimeRenderScaleState.renderScale(),
                             runtimeRenderScaleState.offscreenProcessorAttached(),
+                            fallbackUsed,
                             countGeometries(renderedScene),
                             renderedFrames));
         }
@@ -154,6 +195,7 @@ final class GraphicsPresetRendererSmokeApplication extends SimpleApplication {
             GraphicsQualityPreset preset,
             double renderScale,
             boolean offscreenProcessorAttached,
+            boolean fallbackUsed,
             int geometryCount,
             int renderedFrames) {
         Snapshot {
