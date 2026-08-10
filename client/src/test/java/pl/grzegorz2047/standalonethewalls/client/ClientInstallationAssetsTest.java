@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,8 +18,8 @@ class ClientInstallationAssetsTest {
     void resolvesRelocatedJpackageAssetLockWithoutUsingWorkingDirectory() throws IOException {
         Path imageRoot = tempDirectory.resolve("relocated").resolve("Sunderfront");
         Path launcher = imageRoot.resolve("Sunderfront.exe");
-        Files.createDirectories(imageRoot);
-        Files.createFile(launcher);
+        assertEquals(imageRoot, Files.createDirectories(imageRoot));
+        assertEquals(launcher, Files.createFile(launcher));
 
         assertEquals(
                 imageRoot.resolve(ClientInstallationAssets.ASSET_LOCK_RELATIVE_PATH),
@@ -37,7 +38,7 @@ class ClientInstallationAssetsTest {
         Path classes = Files.createDirectories(tempDirectory.resolve("classes"));
         Path unknown = Files.createDirectories(tempDirectory.resolve("unknown"));
         Path unknownJar = Files.createFile(unknown.resolve("client.jar"));
-        URL httpLocation = new URL("https://example.invalid/client.jar");
+        URL httpLocation = URI.create("https://example.invalid/client.jar").toURL();
 
         assertTrue(
                 ClientInstallationAssets.resolveAssetLock(null, classes.toUri().toURL()).isEmpty());
@@ -52,8 +53,10 @@ class ClientInstallationAssetsTest {
 
     private void assertJarLayout(String containerName) throws IOException {
         Path root = tempDirectory.resolve("distribution-" + containerName);
-        Path container = Files.createDirectories(root.resolve(containerName));
-        Path jar = Files.createFile(container.resolve("client.jar"));
+        Path container = root.resolve(containerName);
+        assertEquals(container, Files.createDirectories(container));
+        Path jar = container.resolve("client.jar");
+        assertEquals(jar, Files.createFile(jar));
 
         assertEquals(
                 root.resolve(ClientInstallationAssets.ASSET_LOCK_RELATIVE_PATH),
