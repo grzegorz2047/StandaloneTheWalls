@@ -31,7 +31,8 @@ record GraphicsBenchmarkManualOptions(
         GraphicsBenchmarkRenderScale.requireScale(renderScale);
         if (renderScale < preset.minimumRenderScale()
                 || renderScale > preset.maximumRenderScale()) {
-            throw new IllegalArgumentException("render scale is outside the selected preset bounds");
+            throw new IllegalArgumentException(
+                    "render scale is outside the selected preset bounds");
         }
         if (warmUpFrames < 0 || warmUpFrames > GraphicsBenchmarkSession.MAXIMUM_WARM_UP_FRAMES) {
             throw new IllegalArgumentException("warm-up frame count is outside the bounded range");
