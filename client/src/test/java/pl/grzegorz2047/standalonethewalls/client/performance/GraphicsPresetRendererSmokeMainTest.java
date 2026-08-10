@@ -70,7 +70,8 @@ class GraphicsPresetRendererSmokeMainTest {
     private static GraphicsPresetRendererSmokeApplication.Snapshot snapshot(
             GraphicsQualityPreset preset, boolean fallbackUsed) {
         boolean offscreen =
-                GraphicsBenchmarkRenderScale.requiresOffscreenRendering(preset.defaultRenderScale());
+                GraphicsBenchmarkRenderScale.requiresOffscreenRendering(
+                        preset.defaultRenderScale());
         return new GraphicsPresetRendererSmokeApplication.Snapshot(
                 preset,
                 preset.defaultRenderScale(),
