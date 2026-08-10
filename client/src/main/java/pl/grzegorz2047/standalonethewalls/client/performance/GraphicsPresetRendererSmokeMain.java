@@ -3,16 +3,19 @@ package pl.grzegorz2047.standalonethewalls.client.performance;
 import com.jme3.system.AppSettings;
 import com.jme3.system.JmeContext;
 import java.time.Duration;
+import java.util.Locale;
+import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pl.grzegorz2047.standalonethewalls.shared.BuildInfo;
 
-/** CI entrypoint that renders the reference scene under every graphics preset. */
+/** CI entrypoint that proves one graphics preset reaches completed renderer frames. */
 public final class GraphicsPresetRendererSmokeMain {
     static final int EXIT_OK = 0;
     static final int EXIT_RENDERER_FAILURE = 1;
+    static final int EXIT_USAGE = 2;
     private static final int WIDTH = 640;
     private static final int HEIGHT = 360;
     private static final Duration PRESET_TIMEOUT = Duration.ofSeconds(20);
@@ -24,21 +27,36 @@ public final class GraphicsPresetRendererSmokeMain {
     }
 
     public static void main(String[] arguments) {
-        System.exit(run());
+        System.exit(run(arguments));
     }
 
-    static int run() {
+    static int run(String[] arguments) {
+        Objects.requireNonNull(arguments, "arguments");
+        if (arguments.length != 1) {
+            LOGGER.error("Graphics renderer smoke requires exactly one preset argument.");
+            return EXIT_USAGE;
+        }
+        GraphicsQualityPreset preset;
         try {
-            for (GraphicsQualityPreset preset : GraphicsQualityPreset.values()) {
-                runPreset(preset);
-            }
+            preset = GraphicsQualityPreset.valueOf(arguments[0].toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            LOGGER.error("Unknown graphics renderer smoke preset: {}", arguments[0]);
+            return EXIT_USAGE;
+        }
+        return run(preset);
+    }
+
+    static int run(GraphicsQualityPreset preset) {
+        Objects.requireNonNull(preset, "preset");
+        try {
+            runPreset(preset);
             return EXIT_OK;
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            LOGGER.error("Graphics preset renderer smoke was interrupted.");
+            LOGGER.error("Graphics preset renderer smoke was interrupted for {}.", preset);
             return EXIT_RENDERER_FAILURE;
         } catch (ExecutionException | TimeoutException | RuntimeException exception) {
-            LOGGER.error("Graphics preset renderer smoke failed.", exception);
+            LOGGER.error("Graphics preset renderer smoke failed for {}.", preset, exception);
             return EXIT_RENDERER_FAILURE;
         }
     }
@@ -87,7 +105,7 @@ public final class GraphicsPresetRendererSmokeMain {
                     snapshot.geometryCount());
         } finally {
             if (application.getContext() != null) {
-                application.stop(true);
+                application.stop(false);
             }
         }
     }
