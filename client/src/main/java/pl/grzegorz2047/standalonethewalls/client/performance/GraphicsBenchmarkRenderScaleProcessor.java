@@ -79,7 +79,8 @@ final class GraphicsBenchmarkRenderScaleProcessor implements SceneProcessor {
     public void postFrame(FrameBuffer output) {
         requireInitialized();
         if (output != scaledFrameBuffer) {
-            throw new IllegalStateException("benchmark scene was not rendered to the scaled framebuffer");
+            throw new IllegalStateException(
+                    "benchmark scene was not rendered to the scaled framebuffer");
         }
 
         upscaleQuad.setWidth(displayWidth);
@@ -158,7 +159,8 @@ final class GraphicsBenchmarkRenderScaleProcessor implements SceneProcessor {
     private void requireViewPort(ViewPort candidate) {
         requireInitialized();
         if (candidate != viewPort) {
-            throw new IllegalArgumentException("render-scale processor cannot move between viewports");
+            throw new IllegalArgumentException(
+                    "render-scale processor cannot move between viewports");
         }
     }
 
