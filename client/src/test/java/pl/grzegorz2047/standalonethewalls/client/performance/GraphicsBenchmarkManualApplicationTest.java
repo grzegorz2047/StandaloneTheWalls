@@ -35,7 +35,7 @@ class GraphicsBenchmarkManualApplicationTest {
         Path reportDirectory = tempDirectory.resolve("reports");
         GraphicsBenchmarkReportStore store = new GraphicsBenchmarkReportStore(reportDirectory);
         FakeTelemetrySource source = new FakeTelemetrySource();
-        GraphicsBenchmarkManualApplication application = application(source, store);
+        GraphicsBenchmarkManualApplication application = application(source, store, 1.0d);
         GraphicsBenchmarkSession.Outcome outcome;
 
         try {
@@ -69,6 +69,31 @@ class GraphicsBenchmarkManualApplicationTest {
     }
 
     @Test
+    void headlessScaledFramebufferLifecyclePersistsTheActualRenderScale()
+            throws IOException, InterruptedException, ExecutionException, TimeoutException {
+        Path reportDirectory = tempDirectory.resolve("scaled-reports");
+        GraphicsBenchmarkReportStore store = new GraphicsBenchmarkReportStore(reportDirectory);
+        FakeTelemetrySource source = new FakeTelemetrySource(1);
+        GraphicsBenchmarkManualApplication application = application(source, store, 0.75d);
+        GraphicsBenchmarkSession.Outcome outcome;
+
+        try {
+            application.start(JmeContext.Type.Headless, true);
+            outcome = application.awaitCompletion(Duration.ofSeconds(5));
+        } finally {
+            if (application.getContext() != null) {
+                application.stop(true);
+            }
+        }
+
+        assertThat(source.closed).isTrue();
+        assertThat(outcome.report().result().width()).isEqualTo(1280);
+        assertThat(outcome.report().result().height()).isEqualTo(720);
+        assertThat(outcome.report().result().renderScale()).isEqualTo(0.75d);
+        assertThat(store.load()).contains(GraphicsBenchmarkReportJson.serialize(outcome.report()));
+    }
+
+    @Test
     void persistenceFailureCompletesWithBoundedFailure() throws IOException {
         Path blockedOutputDirectory = tempDirectory.resolve("blocked-output");
         assertThat(
@@ -78,7 +103,7 @@ class GraphicsBenchmarkManualApplicationTest {
         GraphicsBenchmarkReportStore store =
                 new GraphicsBenchmarkReportStore(blockedOutputDirectory);
         FakeTelemetrySource source = new FakeTelemetrySource();
-        GraphicsBenchmarkManualApplication application = application(source, store);
+        GraphicsBenchmarkManualApplication application = application(source, store, 1.0d);
 
         try {
             application.start(JmeContext.Type.Headless, true);
@@ -94,10 +119,10 @@ class GraphicsBenchmarkManualApplicationTest {
     }
 
     private static GraphicsBenchmarkManualApplication application(
-            FakeTelemetrySource source, GraphicsBenchmarkReportStore store) {
+            FakeTelemetrySource source, GraphicsBenchmarkReportStore store, double renderScale) {
         GraphicsBenchmarkSession.Config config =
                 new GraphicsBenchmarkSession.Config(
-                        COMMIT, KEY, GraphicsQualityPreset.LOW, 1280, 720, 1.0d, 0, 1);
+                        COMMIT, KEY, GraphicsQualityPreset.LOW, 1280, 720, renderScale, 0, 1);
         GraphicsBenchmarkRunState state =
                 new GraphicsBenchmarkRunState(
                         config,
@@ -105,16 +130,29 @@ class GraphicsBenchmarkManualApplicationTest {
                         (ignoredAssetManager, ignoredPreset) ->
                                 new Node(GraphicsBenchmarkReferenceScene.ROOT_NAME),
                         (ignoredRenderer, ignoredGpuFrameTimeSource) -> source);
-        return new GraphicsBenchmarkManualApplication(state, store);
+        return new GraphicsBenchmarkManualApplication(state, store, renderScale);
     }
 
     private static final class FakeTelemetrySource
             implements GraphicsBenchmarkRunState.TelemetrySource {
+        private int emptySamplesRemaining;
         private boolean emitted;
         private boolean closed;
 
+        private FakeTelemetrySource() {
+            this(0);
+        }
+
+        private FakeTelemetrySource(int emptySamplesRemaining) {
+            this.emptySamplesRemaining = emptySamplesRemaining;
+        }
+
         @Override
         public Optional<GraphicsTelemetrySample> sample(float timePerFrame, Node benchmarkScene) {
+            if (emptySamplesRemaining > 0) {
+                emptySamplesRemaining--;
+                return Optional.empty();
+            }
             if (emitted) {
                 return Optional.empty();
             }
