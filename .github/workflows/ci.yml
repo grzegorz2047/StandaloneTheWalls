@@ -83,6 +83,12 @@ jobs:
               pl.grzegorz2047.standalonethewalls.client.performance.GraphicsPresetRendererSmokeMain \
               "$PRESET"
           done
+          echo "Running forced shader fallback smoke for LOW"
+          timeout --signal=TERM --kill-after=5s 30s \
+            xvfb-run -a java \
+            -cp "$LIB_DIR/*" \
+            pl.grzegorz2047.standalonethewalls.client.performance.GraphicsPresetRendererSmokeMain \
+            LOW --force-shader-fallback
 
       - name: Upload quality reports
         if: always()
