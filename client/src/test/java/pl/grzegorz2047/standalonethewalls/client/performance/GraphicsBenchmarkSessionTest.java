@@ -163,11 +163,7 @@ class GraphicsBenchmarkSessionTest {
     }
 
     private static GraphicsTelemetrySample sample(
-            long cpuNanos,
-            long gpuNanos,
-            long memoryBytes,
-            int drawCalls,
-            int objectCount) {
+            long cpuNanos, long gpuNanos, long memoryBytes, int drawCalls, int objectCount) {
         return new GraphicsTelemetrySample(
                 cpuNanos, OptionalLong.of(gpuNanos), memoryBytes, drawCalls, objectCount);
     }
