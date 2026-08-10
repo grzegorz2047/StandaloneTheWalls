@@ -50,8 +50,7 @@ public final class ClientLauncher {
                 return runSmoke(application);
             }
 
-            Optional<GraphicsQualityPreset> runtimePreset =
-                    resolveAutomaticRuntimePreset(options);
+            Optional<GraphicsQualityPreset> runtimePreset = resolveAutomaticRuntimePreset(options);
             SunderfrontClient application =
                     new SunderfrontClient(messages, false, options.dataDirectory());
             configure(application);
