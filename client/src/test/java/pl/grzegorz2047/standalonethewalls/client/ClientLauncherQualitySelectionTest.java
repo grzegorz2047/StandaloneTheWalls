@@ -59,6 +59,11 @@ class ClientLauncherQualitySelectionTest {
     }
 
     private static ClientLaunchOptions options(Path dataDirectory) {
-        return new ClientLaunchOptions(ClientLanguage.ENGLISH, false, false, dataDirectory);
+        return new ClientLaunchOptions(
+                ClientLanguage.ENGLISH,
+                false,
+                false,
+                ClientGraphicsQualityOption.UNCHANGED,
+                dataDirectory);
     }
 }
