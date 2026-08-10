@@ -53,7 +53,8 @@ final class ClientInstallationAssets {
     }
 
     private static Optional<Path> resolveJvmDistributionAssetLock(URL codeSourceLocation) {
-        if (codeSourceLocation == null || !"file".equalsIgnoreCase(codeSourceLocation.getProtocol())) {
+        if (codeSourceLocation == null
+                || !"file".equalsIgnoreCase(codeSourceLocation.getProtocol())) {
             return Optional.empty();
         }
         final Path codeLocation;
