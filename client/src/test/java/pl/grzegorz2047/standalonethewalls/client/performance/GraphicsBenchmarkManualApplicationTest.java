@@ -104,7 +104,7 @@ class GraphicsBenchmarkManualApplicationTest {
                         Optional.empty(),
                         (ignoredAssetManager, ignoredPreset) ->
                                 new Node(GraphicsBenchmarkReferenceScene.ROOT_NAME),
-                        ignoredRenderer -> source);
+                        (ignoredRenderer, ignoredGpuFrameTimeSource) -> source);
         return new GraphicsBenchmarkManualApplication(state, store);
     }
 
