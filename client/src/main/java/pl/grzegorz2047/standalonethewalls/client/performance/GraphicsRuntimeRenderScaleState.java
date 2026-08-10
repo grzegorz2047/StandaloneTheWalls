@@ -37,7 +37,8 @@ public final class GraphicsRuntimeRenderScaleState extends BaseAppState {
     @Override
     public void update(float timePerFrame) {
         OptionalDouble changedScale =
-                governor.acceptFrameTime(JmeGraphicsTelemetrySampler.toFrameTimeNanos(timePerFrame));
+                governor.acceptFrameTime(
+                        JmeGraphicsTelemetrySampler.toFrameTimeNanos(timePerFrame));
         changedScale.ifPresent(this::applyRenderScale);
     }
 
