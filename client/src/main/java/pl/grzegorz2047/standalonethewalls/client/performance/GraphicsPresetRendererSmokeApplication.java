@@ -43,7 +43,6 @@ final class GraphicsPresetRendererSmokeApplication extends SimpleApplication {
     public void simpleInitApp() {
         setDisplayFps(false);
         setDisplayStatView(false);
-        flyCam.setEnabled(false);
 
         scene = GraphicsBenchmarkReferenceScene.build(assetManager, preset);
         scene.setCullHint(Spatial.CullHint.Never);
