@@ -18,6 +18,7 @@ import pl.grzegorz2047.standalonethewalls.client.performance.GraphicsManualQuali
 import pl.grzegorz2047.standalonethewalls.client.performance.GraphicsQualityPreset;
 import pl.grzegorz2047.standalonethewalls.client.performance.GraphicsRuntimeQualitySelection;
 import pl.grzegorz2047.standalonethewalls.client.performance.GraphicsRuntimeRenderScaleState;
+import pl.grzegorz2047.standalonethewalls.client.performance.GraphicsRuntimeTextureQualityState;
 import pl.grzegorz2047.standalonethewalls.client.performance.GraphicsTelemetryCaptureState;
 import pl.grzegorz2047.standalonethewalls.shared.BuildInfo;
 
@@ -56,10 +57,14 @@ public final class ClientLauncher {
                     new SunderfrontClient(messages, false, options.dataDirectory());
             configure(application);
             runtimePreset.ifPresent(
-                    preset ->
-                            application
-                                    .getStateManager()
-                                    .attach(new GraphicsRuntimeRenderScaleState(preset)));
+                    preset -> {
+                        application
+                                .getStateManager()
+                                .attach(new GraphicsRuntimeRenderScaleState(preset));
+                        application
+                                .getStateManager()
+                                .attach(new GraphicsRuntimeTextureQualityState(preset));
+                    });
             application.getStateManager().attach(new GraphicsTelemetryCaptureState());
             application.start();
             return EXIT_OK;
