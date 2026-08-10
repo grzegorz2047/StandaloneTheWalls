@@ -16,6 +16,7 @@ public final class GraphicsPresetRendererSmokeMain {
     static final int EXIT_OK = 0;
     static final int EXIT_RENDERER_FAILURE = 1;
     static final int EXIT_USAGE = 2;
+    static final String FORCE_SHADER_FALLBACK = "--force-shader-fallback";
     private static final int WIDTH = 640;
     private static final int HEIGHT = 360;
     private static final Duration PRESET_TIMEOUT = Duration.ofSeconds(20);
@@ -32,10 +33,19 @@ public final class GraphicsPresetRendererSmokeMain {
 
     static int run(String[] arguments) {
         Objects.requireNonNull(arguments, "arguments");
-        if (arguments.length != 1) {
-            LOGGER.error("Graphics renderer smoke requires exactly one preset argument.");
+        if (arguments.length < 1 || arguments.length > 2) {
+            LOGGER.error("Graphics renderer smoke requires a preset and optional fallback flag.");
             return EXIT_USAGE;
         }
+        boolean forceShaderFallback = false;
+        if (arguments.length == 2) {
+            if (!FORCE_SHADER_FALLBACK.equals(arguments[1])) {
+                LOGGER.error("Unknown graphics renderer smoke option: {}", arguments[1]);
+                return EXIT_USAGE;
+            }
+            forceShaderFallback = true;
+        }
+
         GraphicsQualityPreset preset;
         try {
             preset = GraphicsQualityPreset.valueOf(arguments[0].toUpperCase(Locale.ROOT));
@@ -43,13 +53,13 @@ public final class GraphicsPresetRendererSmokeMain {
             LOGGER.error("Unknown graphics renderer smoke preset: {}", arguments[0]);
             return EXIT_USAGE;
         }
-        return run(preset);
+        return run(preset, forceShaderFallback);
     }
 
-    static int run(GraphicsQualityPreset preset) {
+    static int run(GraphicsQualityPreset preset, boolean forceShaderFallback) {
         Objects.requireNonNull(preset, "preset");
         try {
-            runPreset(preset);
+            runPreset(preset, forceShaderFallback);
             return EXIT_OK;
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
@@ -63,6 +73,7 @@ public final class GraphicsPresetRendererSmokeMain {
 
     static void validateSnapshot(
             GraphicsQualityPreset expectedPreset,
+            boolean expectedFallbackUsed,
             GraphicsPresetRendererSmokeApplication.Snapshot snapshot) {
         if (snapshot.preset() != expectedPreset) {
             throw new IllegalStateException("renderer smoke completed for the wrong preset");
@@ -77,6 +88,9 @@ public final class GraphicsPresetRendererSmokeMain {
         if (snapshot.offscreenProcessorAttached() != expectedOffscreen) {
             throw new IllegalStateException("renderer smoke used the wrong framebuffer path");
         }
+        if (snapshot.fallbackUsed() != expectedFallbackUsed) {
+            throw new IllegalStateException("renderer smoke used the wrong material path");
+        }
         if (snapshot.geometryCount()
                 != GraphicsBenchmarkReferenceScene.geometryCount(expectedPreset)) {
             throw new IllegalStateException(
@@ -87,22 +101,26 @@ public final class GraphicsPresetRendererSmokeMain {
         }
     }
 
-    private static void runPreset(GraphicsQualityPreset preset)
+    private static void runPreset(GraphicsQualityPreset preset, boolean forceShaderFallback)
             throws InterruptedException, ExecutionException, TimeoutException {
-        LOGGER.info("Starting graphics renderer smoke for {}.", preset);
+        LOGGER.info(
+                "Starting graphics renderer smoke for {} with forcedFallback={}.",
+                preset,
+                forceShaderFallback);
         GraphicsPresetRendererSmokeApplication application =
-                new GraphicsPresetRendererSmokeApplication(preset);
+                new GraphicsPresetRendererSmokeApplication(preset, forceShaderFallback);
         configure(application, preset);
         try {
             application.start(JmeContext.Type.Display, true);
             GraphicsPresetRendererSmokeApplication.Snapshot snapshot =
                     application.awaitCompletion(PRESET_TIMEOUT);
-            validateSnapshot(preset, snapshot);
+            validateSnapshot(preset, forceShaderFallback, snapshot);
             LOGGER.info(
-                    "Graphics renderer smoke passed for {} at renderScale={} with {} geometries.",
+                    "Graphics renderer smoke passed for {} at renderScale={} with {} geometries; fallbackUsed={}.",
                     preset,
                     snapshot.renderScale(),
-                    snapshot.geometryCount());
+                    snapshot.geometryCount(),
+                    snapshot.fallbackUsed());
         } finally {
             if (application.getContext() != null) {
                 application.stop(false);
