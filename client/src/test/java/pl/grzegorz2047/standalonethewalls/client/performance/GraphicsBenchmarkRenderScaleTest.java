@@ -34,18 +34,18 @@ class GraphicsBenchmarkRenderScaleTest {
 
     @Test
     void rejectsInvalidScaleAndDisplayBounds() {
-        assertThatIllegalArgumentException()
-                .isThrownBy(() -> GraphicsBenchmarkRenderScale.scaledDimensions(0, 720, 0.75d));
-        assertThatIllegalArgumentException()
-                .isThrownBy(() -> GraphicsBenchmarkRenderScale.scaledDimensions(1280, 0, 0.75d));
+        assertInvalidDimensions(0, 720, 0.75d);
+        assertInvalidDimensions(1280, 0, 0.75d);
+        assertInvalidDimensions(1280, 720, Double.NaN);
+        assertInvalidDimensions(1280, 720, 0.0d);
+        assertInvalidDimensions(1280, 720, 1.01d);
+    }
+
+    private static void assertInvalidDimensions(int width, int height, double renderScale) {
         assertThatIllegalArgumentException()
                 .isThrownBy(
                         () ->
                                 GraphicsBenchmarkRenderScale.scaledDimensions(
-                                        1280, 720, Double.NaN));
-        assertThatIllegalArgumentException()
-                .isThrownBy(() -> GraphicsBenchmarkRenderScale.scaledDimensions(1280, 720, 0.0d));
-        assertThatIllegalArgumentException()
-                .isThrownBy(() -> GraphicsBenchmarkRenderScale.scaledDimensions(1280, 720, 1.01d));
+                                        width, height, renderScale));
     }
 }
