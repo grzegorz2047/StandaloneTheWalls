@@ -92,8 +92,7 @@ class GraphicsBenchmarkManualOptionsTest {
                 .isThrownBy(() -> GraphicsBenchmarkManualOptions.parse(arguments));
     }
 
-    private static void assertRejectedScale(
-            String preset, String scale, Path lock, Path output) {
+    private static void assertRejectedScale(String preset, String scale, Path lock, Path output) {
         assertInvalid(arguments(preset, "1280", "720", scale, "1", "1", lock, output));
     }
 
