@@ -10,6 +10,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
@@ -21,7 +23,8 @@ class GraphicsAutomaticQualitySelectionTest {
     @TempDir Path tempDirectory;
 
     @Test
-    void compatiblePersistedStateSkipsBenchmarkAndUsesEffectivePreset() throws Exception {
+    void compatiblePersistedStateSkipsBenchmarkAndUsesEffectivePreset()
+            throws IOException, InterruptedException, ExecutionException, TimeoutException {
         Path assetLock = writeAssetLock("current.lock", "{\"packs\":[],\"schema\":1}");
         GraphicsBenchmarkCompatibilityKey currentKey =
                 GraphicsBenchmarkAssetIdentity.fromLock(assetLock).compatibilityKey();
@@ -49,7 +52,8 @@ class GraphicsAutomaticQualitySelectionTest {
     }
 
     @Test
-    void missingStateRunsOncePersistsOutcomeAndUsesFixedProfile() throws Exception {
+    void missingStateRunsOncePersistsOutcomeAndUsesFixedProfile()
+            throws IOException, InterruptedException, ExecutionException, TimeoutException {
         Path assetLock = writeAssetLock("missing.lock", "{\"packs\":[1],\"schema\":1}");
         GraphicsBenchmarkCompatibilityKey currentKey =
                 GraphicsBenchmarkAssetIdentity.fromLock(assetLock).compatibilityKey();
@@ -80,7 +84,8 @@ class GraphicsAutomaticQualitySelectionTest {
     }
 
     @Test
-    void staleStateRunsOnceAndPreservesManualOverride() throws Exception {
+    void staleStateRunsOnceAndPreservesManualOverride()
+            throws IOException, InterruptedException, ExecutionException, TimeoutException {
         Path currentAssetLock =
                 writeAssetLock("current-stale.lock", "{\"packs\":[2],\"schema\":1}");
         Path staleAssetLock = writeAssetLock("previous-stale.lock", "{\"packs\":[3],\"schema\":1}");
@@ -142,7 +147,7 @@ class GraphicsAutomaticQualitySelectionTest {
     }
 
     @Test
-    void mismatchedOutcomeDoesNotReplaceExistingStaleState() throws Exception {
+    void mismatchedOutcomeDoesNotReplaceExistingStaleState() throws IOException {
         Path currentAssetLock =
                 writeAssetLock("mismatch-current.lock", "{\"packs\":[5],\"schema\":1}");
         Path staleAssetLock = writeAssetLock("mismatch-stale.lock", "{\"packs\":[6],\"schema\":1}");
