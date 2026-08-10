@@ -70,8 +70,7 @@ class GraphicsManualQualityOverrideTest {
     void missingOrIncompatibleStateIsRejectedWithoutFabrication() throws IOException {
         Path currentAssetLock =
                 writeAssetLock("current-missing.lock", "{\"packs\":[3],\"schema\":1}");
-        Path staleAssetLock =
-                writeAssetLock("stale-missing.lock", "{\"packs\":[4],\"schema\":1}");
+        Path staleAssetLock = writeAssetLock("stale-missing.lock", "{\"packs\":[4],\"schema\":1}");
         GraphicsBenchmarkCompatibilityKey staleKey =
                 GraphicsBenchmarkAssetIdentity.fromLock(staleAssetLock).compatibilityKey();
         Path missingData = tempDirectory.resolve("missing-data");
