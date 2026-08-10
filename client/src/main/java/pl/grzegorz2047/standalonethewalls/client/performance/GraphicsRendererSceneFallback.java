@@ -13,9 +13,7 @@ final class GraphicsRendererSceneFallback {
     }
 
     static Result prepare(
-            Supplier<Node> preferredScene,
-            Supplier<Node> fallbackScene,
-            Consumer<Node> preloader) {
+            Supplier<Node> preferredScene, Supplier<Node> fallbackScene, Consumer<Node> preloader) {
         Objects.requireNonNull(preferredScene, "preferredScene");
         Objects.requireNonNull(fallbackScene, "fallbackScene");
         Objects.requireNonNull(preloader, "preloader");
