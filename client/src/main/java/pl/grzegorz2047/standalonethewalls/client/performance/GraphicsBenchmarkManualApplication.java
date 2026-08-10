@@ -13,25 +13,42 @@ import java.util.concurrent.TimeoutException;
 final class GraphicsBenchmarkManualApplication extends SimpleApplication {
     private final GraphicsBenchmarkRunState benchmarkState;
     private final GraphicsBenchmarkReportStore reportStore;
+    private final double renderScale;
     private final CompletableFuture<GraphicsBenchmarkSession.Outcome> completion =
             new CompletableFuture<>();
 
     GraphicsBenchmarkManualApplication(
             GraphicsBenchmarkSession.Config config, GraphicsBenchmarkReportStore reportStore) {
-        this(new GraphicsBenchmarkRunState(config, java.util.Optional.empty()), reportStore);
+        this(
+                new GraphicsBenchmarkRunState(config, java.util.Optional.empty()),
+                reportStore,
+                config.renderScale());
     }
 
     GraphicsBenchmarkManualApplication(
             GraphicsBenchmarkRunState benchmarkState, GraphicsBenchmarkReportStore reportStore) {
+        this(benchmarkState, reportStore, GraphicsBenchmarkRenderScale.DIRECT_RENDER_SCALE);
+    }
+
+    GraphicsBenchmarkManualApplication(
+            GraphicsBenchmarkRunState benchmarkState,
+            GraphicsBenchmarkReportStore reportStore,
+            double renderScale) {
         super();
         this.benchmarkState = Objects.requireNonNull(benchmarkState, "benchmarkState");
         this.reportStore = Objects.requireNonNull(reportStore, "reportStore");
+        GraphicsBenchmarkRenderScale.requireScale(renderScale);
+        this.renderScale = renderScale;
     }
 
     @Override
     public void simpleInitApp() {
         if (!getStateManager().attach(benchmarkState)) {
             throw new IllegalStateException("graphics benchmark state could not be attached");
+        }
+        if (GraphicsBenchmarkRenderScale.requiresOffscreenRendering(renderScale)) {
+            viewPort.addProcessor(
+                    new GraphicsBenchmarkRenderScaleProcessor(assetManager, renderScale));
         }
     }
 
