@@ -48,7 +48,7 @@ class GraphicsBenchmarkRunStateTest {
                             measuredPreset.set(preset);
                             return new Node(GraphicsBenchmarkReferenceScene.ROOT_NAME);
                         },
-                        ignoredRenderer -> source);
+                        (ignoredRenderer, ignoredGpuFrameTimeSource) -> source);
         TestApplication application = new TestApplication();
 
         state.initialize(application);
@@ -123,7 +123,7 @@ class GraphicsBenchmarkRunStateTest {
                         config(0, 1),
                         Optional.empty(),
                         (ignoredAssetManager, ignoredPreset) -> attached,
-                        ignoredRenderer -> source);
+                        (ignoredRenderer, ignoredGpuFrameTimeSource) -> source);
 
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> state.initialize(new TestApplication()));
@@ -138,7 +138,7 @@ class GraphicsBenchmarkRunStateTest {
                 Optional.empty(),
                 (ignoredAssetManager, ignoredPreset) ->
                         new Node(GraphicsBenchmarkReferenceScene.ROOT_NAME),
-                ignoredRenderer -> source);
+                (ignoredRenderer, ignoredGpuFrameTimeSource) -> source);
     }
 
     private static GraphicsBenchmarkSession.Config config(
