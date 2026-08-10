@@ -146,9 +146,7 @@ class ClientLaunchOptionsTest {
                 IllegalArgumentException.class,
                 () ->
                         ClientLaunchOptions.parse(
-                                new String[] {"--graphics-preset", "ultra"},
-                                Locale.ENGLISH,
-                                null));
+                                new String[] {"--graphics-preset", "ultra"}, Locale.ENGLISH, null));
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
