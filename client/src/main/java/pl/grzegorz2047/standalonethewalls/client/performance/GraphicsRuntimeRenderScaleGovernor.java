@@ -17,11 +17,7 @@ final class GraphicsRuntimeRenderScaleGovernor {
     private final List<Long> frameTimeWindow;
 
     GraphicsRuntimeRenderScaleGovernor(GraphicsQualityPreset preset) {
-        this(
-                preset,
-                WINDOW_SAMPLE_COUNT,
-                REDUCTION_STEP,
-                REQUIRED_OVER_BUDGET_WINDOWS);
+        this(preset, WINDOW_SAMPLE_COUNT, REDUCTION_STEP, REQUIRED_OVER_BUDGET_WINDOWS);
     }
 
     GraphicsRuntimeRenderScaleGovernor(
@@ -31,7 +27,8 @@ final class GraphicsRuntimeRenderScaleGovernor {
             int requiredOverBudgetWindows) {
         GraphicsQualityPreset checkedPreset = Objects.requireNonNull(preset, "preset");
         if (windowSampleCount < 1 || windowSampleCount > FrameTimeStatistics.MAXIMUM_SAMPLES) {
-            throw new IllegalArgumentException("runtime frame-time window is outside the bounded range");
+            throw new IllegalArgumentException(
+                    "runtime frame-time window is outside the bounded range");
         }
         this.p95BudgetNanos =
                 checkedPreset == GraphicsQualityPreset.LOW
