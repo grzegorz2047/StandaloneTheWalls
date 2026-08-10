@@ -67,10 +67,14 @@ final class ClientInstallationAssets {
             return Optional.empty();
         }
         Path container = codeLocation.getParent();
-        if (container == null || container.getFileName() == null) {
+        if (container == null) {
             return Optional.empty();
         }
-        String containerName = container.getFileName().toString();
+        Path containerFileName = container.getFileName();
+        if (containerFileName == null) {
+            return Optional.empty();
+        }
+        String containerName = containerFileName.toString();
         if (!"lib".equals(containerName) && !"app".equals(containerName)) {
             return Optional.empty();
         }
