@@ -8,6 +8,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -98,7 +100,8 @@ class GraphicsManualQualityOverrideTest {
     }
 
     @Test
-    void compatibleStateSkipsAutomaticBenchmarkBeforeApplyingOverride() throws Exception {
+    void compatibleStateSkipsAutomaticBenchmarkBeforeApplyingOverride()
+            throws IOException, InterruptedException, ExecutionException, TimeoutException {
         Path assetLock = writeAssetLock("skip.lock", "{\"packs\":[5],\"schema\":1}");
         GraphicsBenchmarkCompatibilityKey currentKey =
                 GraphicsBenchmarkAssetIdentity.fromLock(assetLock).compatibilityKey();
