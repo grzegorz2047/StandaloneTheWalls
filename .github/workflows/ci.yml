@@ -67,6 +67,15 @@ jobs:
       - name: Run full quality gate
         run: ./gradlew --no-daemon check
 
+      - name: Run real graphics preset renderer smoke
+        env:
+          SUNDERFRONT_REAL_RENDERER_SMOKE: "1"
+          LIBGL_ALWAYS_SOFTWARE: "true"
+        run: >-
+          xvfb-run -a ./gradlew --no-daemon --rerun-tasks
+          :client:test
+          --tests pl.grzegorz2047.standalonethewalls.client.performance.GraphicsPresetRendererSmokeDisplayTest
+
       - name: Upload quality reports
         if: always()
         uses: actions/upload-artifact@v4
