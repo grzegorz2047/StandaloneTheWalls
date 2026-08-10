@@ -83,8 +83,7 @@ class GraphicsAutomaticQualitySelectionTest {
     void staleStateRunsOnceAndPreservesManualOverride() throws Exception {
         Path currentAssetLock =
                 writeAssetLock("current-stale.lock", "{\"packs\":[2],\"schema\":1}");
-        Path staleAssetLock =
-                writeAssetLock("previous-stale.lock", "{\"packs\":[3],\"schema\":1}");
+        Path staleAssetLock = writeAssetLock("previous-stale.lock", "{\"packs\":[3],\"schema\":1}");
         GraphicsBenchmarkCompatibilityKey currentKey =
                 GraphicsBenchmarkAssetIdentity.fromLock(currentAssetLock).compatibilityKey();
         GraphicsBenchmarkCompatibilityKey staleKey =
@@ -146,8 +145,7 @@ class GraphicsAutomaticQualitySelectionTest {
     void mismatchedOutcomeDoesNotReplaceExistingStaleState() throws Exception {
         Path currentAssetLock =
                 writeAssetLock("mismatch-current.lock", "{\"packs\":[5],\"schema\":1}");
-        Path staleAssetLock =
-                writeAssetLock("mismatch-stale.lock", "{\"packs\":[6],\"schema\":1}");
+        Path staleAssetLock = writeAssetLock("mismatch-stale.lock", "{\"packs\":[6],\"schema\":1}");
         GraphicsBenchmarkCompatibilityKey staleKey =
                 GraphicsBenchmarkAssetIdentity.fromLock(staleAssetLock).compatibilityKey();
         Path dataDirectory = tempDirectory.resolve("mismatch-data");
@@ -167,9 +165,7 @@ class GraphicsAutomaticQualitySelectionTest {
                                                     GraphicsStartupBenchmarkProfile.config(
                                                             REPOSITORY_COMMIT, staleKey);
                                             return completeOutcome(
-                                                    mismatched,
-                                                    previousState,
-                                                    10_000_000L);
+                                                    mismatched, previousState, 10_000_000L);
                                         }));
 
         assertThat(new GraphicsQualityStateStore(dataDirectory).load()).contains(staleState);
@@ -189,8 +185,7 @@ class GraphicsAutomaticQualitySelectionTest {
             long frameTimeNanos) {
         GraphicsBenchmarkSession session = new GraphicsBenchmarkSession(config, previousState);
         GraphicsTelemetrySample sample =
-                new GraphicsTelemetrySample(
-                        frameTimeNanos, OptionalLong.empty(), 1L, 1, 1);
+                new GraphicsTelemetrySample(frameTimeNanos, OptionalLong.empty(), 1L, 1, 1);
         int totalFrames = config.warmUpFrameCount() + config.measurementFrameCount();
         for (int index = 0; index < totalFrames; index++) {
             session.accept(sample);
