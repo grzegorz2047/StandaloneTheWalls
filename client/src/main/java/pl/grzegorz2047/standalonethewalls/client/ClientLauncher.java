@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pl.grzegorz2047.standalonethewalls.client.i18n.ClientMessages;
 import pl.grzegorz2047.standalonethewalls.client.performance.GraphicsAutomaticQualitySelection;
+import pl.grzegorz2047.standalonethewalls.client.performance.GraphicsManualQualityOverride;
 import pl.grzegorz2047.standalonethewalls.client.performance.GraphicsQualityPreset;
 import pl.grzegorz2047.standalonethewalls.client.performance.GraphicsRuntimeQualitySelection;
 import pl.grzegorz2047.standalonethewalls.client.performance.GraphicsRuntimeRenderScaleState;
@@ -109,10 +110,19 @@ public final class ClientLauncher {
             return Optional.empty();
         }
 
+        Path currentAssetLock = assetLock.orElseThrow();
         try {
-            return Optional.of(
+            GraphicsQualityPreset selected =
                     GraphicsAutomaticQualitySelection.resolve(
-                            options.dataDirectory(), assetLock.orElseThrow()));
+                            options.dataDirectory(), currentAssetLock);
+            if (!options.graphicsQualityOption().changesPersistedState()) {
+                return Optional.of(selected);
+            }
+            return Optional.of(
+                    GraphicsManualQualityOverride.apply(
+                            options.dataDirectory(),
+                            currentAssetLock,
+                            options.graphicsQualityOption().manualOverride()));
         } catch (InterruptedException exception) {
             throw exception;
         } catch (IOException | ExecutionException | TimeoutException | RuntimeException exception) {
