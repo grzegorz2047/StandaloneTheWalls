@@ -16,7 +16,8 @@ public final class GraphicsPresetRendererSmokeMain {
     private static final int WIDTH = 640;
     private static final int HEIGHT = 360;
     private static final Duration PRESET_TIMEOUT = Duration.ofSeconds(20);
-    private static final Logger LOGGER = LoggerFactory.getLogger(GraphicsPresetRendererSmokeMain.class);
+    private static final Logger LOGGER =
+            LoggerFactory.getLogger(GraphicsPresetRendererSmokeMain.class);
 
     private GraphicsPresetRendererSmokeMain() {
         throw new AssertionError("No instances");
@@ -52,7 +53,8 @@ public final class GraphicsPresetRendererSmokeMain {
             throw new IllegalStateException("renderer smoke completed for the wrong preset");
         }
         if (Double.compare(snapshot.renderScale(), expectedPreset.defaultRenderScale()) != 0) {
-            throw new IllegalStateException("renderer smoke used an unexpected initial render scale");
+            throw new IllegalStateException(
+                    "renderer smoke used an unexpected initial render scale");
         }
         boolean expectedOffscreen =
                 GraphicsBenchmarkRenderScale.requiresOffscreenRendering(
@@ -60,8 +62,10 @@ public final class GraphicsPresetRendererSmokeMain {
         if (snapshot.offscreenProcessorAttached() != expectedOffscreen) {
             throw new IllegalStateException("renderer smoke used the wrong framebuffer path");
         }
-        if (snapshot.geometryCount() != GraphicsBenchmarkReferenceScene.geometryCount(expectedPreset)) {
-            throw new IllegalStateException("renderer smoke scene topology does not match the preset");
+        if (snapshot.geometryCount()
+                != GraphicsBenchmarkReferenceScene.geometryCount(expectedPreset)) {
+            throw new IllegalStateException(
+                    "renderer smoke scene topology does not match the preset");
         }
         if (snapshot.renderedFrames() < 1) {
             throw new IllegalStateException("renderer smoke did not complete a rendered frame");
