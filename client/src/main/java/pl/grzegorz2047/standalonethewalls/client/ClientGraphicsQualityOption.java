@@ -27,8 +27,9 @@ public enum ClientGraphicsQualityOption {
 
     public Optional<GraphicsQualityPreset> manualOverride() {
         return switch (this) {
-            case UNCHANGED -> throw new IllegalStateException(
-                    "unchanged graphics option has no override mutation");
+            case UNCHANGED ->
+                    throw new IllegalStateException(
+                            "unchanged graphics option has no override mutation");
             case AUTO -> Optional.empty();
             case LOW -> Optional.of(GraphicsQualityPreset.LOW);
             case MEDIUM -> Optional.of(GraphicsQualityPreset.MEDIUM);
