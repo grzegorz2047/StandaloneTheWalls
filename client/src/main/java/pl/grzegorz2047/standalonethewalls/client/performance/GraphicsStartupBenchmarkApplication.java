@@ -29,7 +29,8 @@ final class GraphicsStartupBenchmarkApplication extends SimpleApplication {
     public void simpleInitApp() {
         try {
             if (!getStateManager().attach(benchmarkState)) {
-                throw new IllegalStateException("startup graphics benchmark state could not be attached");
+                throw new IllegalStateException(
+                        "startup graphics benchmark state could not be attached");
             }
         } catch (RuntimeException exception) {
             completion.completeExceptionally(exception);
