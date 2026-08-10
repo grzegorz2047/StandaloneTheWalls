@@ -20,7 +20,6 @@ public final class GraphicsBenchmarkManualMain {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GraphicsBenchmarkManualMain.class);
     private static final Duration COMPLETION_TIMEOUT = Duration.ofMinutes(5);
-    private static final double ACTUAL_RENDER_SCALE = 1.0d;
 
     private GraphicsBenchmarkManualMain() {
         throw new AssertionError("No instances");
@@ -52,7 +51,7 @@ public final class GraphicsBenchmarkManualMain {
             return EXIT_OK;
         } catch (IllegalArgumentException exception) {
             LOGGER.error(
-                    "Usage: sunderfront-graphics-benchmark --preset <low|medium|high> --width <pixels> --height <pixels> --warm-up-frames <count> --measurement-frames <count> --asset-lock <path> --output-dir <directory>");
+                    "Usage: sunderfront-graphics-benchmark --preset <low|medium|high> --width <pixels> --height <pixels> --render-scale <decimal> --warm-up-frames <count> --measurement-frames <count> --asset-lock <path> --output-dir <directory>");
             return EXIT_USAGE;
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
@@ -86,7 +85,7 @@ public final class GraphicsBenchmarkManualMain {
                         options.preset(),
                         options.width(),
                         options.height(),
-                        ACTUAL_RENDER_SCALE,
+                        options.renderScale(),
                         options.warmUpFrames(),
                         options.measurementFrames());
         return new PreparedRun(options, config);
