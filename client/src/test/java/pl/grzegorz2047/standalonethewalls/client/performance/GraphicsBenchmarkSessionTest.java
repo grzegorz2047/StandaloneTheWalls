@@ -64,6 +64,24 @@ class GraphicsBenchmarkSessionTest {
     }
 
     @Test
+    void preservesPartialGpuCoverageWithoutCountingWarmUpTiming() {
+        GraphicsBenchmarkSession session =
+                new GraphicsBenchmarkSession(config(1, 3), Optional.empty());
+
+        assertThat(session.accept(sample(40_000_000L, 99_000_000L, 1L, 1, 1))).isEmpty();
+        assertThat(session.accept(sample(10_000_000L, 100L, 10, 100))).isEmpty();
+        assertThat(session.accept(sample(11_000_000L, 7_000_000L, 200L, 20, 200))).isEmpty();
+        GraphicsBenchmarkSession.Outcome outcome =
+                session.accept(sample(12_000_000L, 9_000_000L, 300L, 30, 300)).orElseThrow();
+
+        assertThat(outcome.telemetrySummary().sampleCount()).isEqualTo(3);
+        assertThat(outcome.telemetrySummary().gpuSampleCount()).isEqualTo(2);
+        assertThat(outcome.telemetrySummary().gpuFrameTime())
+                .contains(new FrameTimeStatistics(2, 8_000_000L, 9_000_000L, 9_000_000L));
+        assertThat(outcome.report().telemetrySummary()).isEqualTo(outcome.telemetrySummary());
+    }
+
+    @Test
     void newSessionWithoutPreviousStateHasNoManualOverride() {
         GraphicsBenchmarkSession session =
                 new GraphicsBenchmarkSession(config(0, 1), Optional.empty());
@@ -142,5 +160,11 @@ class GraphicsBenchmarkSessionTest {
             long cpuNanos, long memoryBytes, int drawCalls, int objectCount) {
         return new GraphicsTelemetrySample(
                 cpuNanos, OptionalLong.empty(), memoryBytes, drawCalls, objectCount);
+    }
+
+    private static GraphicsTelemetrySample sample(
+            long cpuNanos, long gpuNanos, long memoryBytes, int drawCalls, int objectCount) {
+        return new GraphicsTelemetrySample(
+                cpuNanos, OptionalLong.of(gpuNanos), memoryBytes, drawCalls, objectCount);
     }
 }
