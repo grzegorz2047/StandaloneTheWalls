@@ -17,7 +17,7 @@ class GraphicsBenchmarkManualMainTest {
     @TempDir Path tempDirectory;
 
     @Test
-    void preparesExactSessionConfigFromBuildAndAssetIdentity() throws IOException {
+    void preparesExactSessionConfigFromBuildAssetIdentityAndRenderScale() throws IOException {
         Path assetLock = tempDirectory.resolve("assets.lock.json");
         assertThat(
                         Files.writeString(
@@ -37,7 +37,7 @@ class GraphicsBenchmarkManualMainTest {
         assertThat(prepared.config().measuredPreset()).isEqualTo(GraphicsQualityPreset.MEDIUM);
         assertThat(prepared.config().width()).isEqualTo(1920);
         assertThat(prepared.config().height()).isEqualTo(1080);
-        assertThat(prepared.config().renderScale()).isEqualTo(1.0d);
+        assertThat(prepared.config().renderScale()).isEqualTo(0.75d);
         assertThat(prepared.config().warmUpFrameCount()).isEqualTo(120);
         assertThat(prepared.config().measurementFrameCount()).isEqualTo(600);
         assertThat(prepared.options().outputDirectory())
@@ -61,6 +61,8 @@ class GraphicsBenchmarkManualMainTest {
             "1920",
             "--height",
             "1080",
+            "--render-scale",
+            "0.75",
             "--warm-up-frames",
             "120",
             "--measurement-frames",
