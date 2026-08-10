@@ -8,6 +8,8 @@ import com.jme3.renderer.Statistics;
 import com.jme3.scene.Geometry;
 import com.jme3.scene.Mesh;
 import com.jme3.scene.Node;
+import java.util.OptionalLong;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 class JmeGraphicsTelemetrySamplerTest {
@@ -35,6 +37,28 @@ class JmeGraphicsTelemetrySamplerTest {
         }
 
         assertThat(statistics.isEnabled()).isFalse();
+    }
+
+    @Test
+    void pollsGpuTimingOnlyForFramesThatHaveAPreviousRender() {
+        FixedStatistics statistics = new FixedStatistics(3);
+        AtomicInteger gpuPolls = new AtomicInteger();
+        GpuFrameTimeSource gpuFrameTimeSource =
+                () -> {
+                    gpuPolls.incrementAndGet();
+                    return OptionalLong.of(8_000_000L);
+                };
+
+        try (JmeGraphicsTelemetrySampler sampler =
+                new JmeGraphicsTelemetrySampler(statistics, () -> 1_024L, gpuFrameTimeSource)) {
+            assertThat(sampler.sample(0.016f, new Node())).isEmpty();
+            assertThat(gpuPolls).hasValue(0);
+
+            GraphicsTelemetrySample sample = sampler.sample(0.016f, new Node()).orElseThrow();
+
+            assertThat(gpuPolls).hasValue(1);
+            assertThat(sample.gpuFrameTimeNanos()).contains(8_000_000L);
+        }
     }
 
     @Test
