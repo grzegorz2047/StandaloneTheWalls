@@ -1,5 +1,6 @@
 package pl.grzegorz2047.standalonethewalls.client.performance;
 
+import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Objects;
@@ -9,6 +10,7 @@ record GraphicsBenchmarkManualOptions(
         GraphicsQualityPreset preset,
         int width,
         int height,
+        double renderScale,
         int warmUpFrames,
         int measurementFrames,
         Path assetLock,
@@ -19,12 +21,17 @@ record GraphicsBenchmarkManualOptions(
     static final int MAXIMUM_HEIGHT = 4_320;
 
     GraphicsBenchmarkManualOptions {
-        Objects.requireNonNull(preset, "preset");
+        preset = Objects.requireNonNull(preset, "preset");
         if (width < MINIMUM_WIDTH || width > MAXIMUM_WIDTH) {
             throw new IllegalArgumentException("width is outside the bounded range");
         }
         if (height < MINIMUM_HEIGHT || height > MAXIMUM_HEIGHT) {
             throw new IllegalArgumentException("height is outside the bounded range");
+        }
+        GraphicsBenchmarkRenderScale.requireScale(renderScale);
+        if (renderScale < preset.minimumRenderScale()
+                || renderScale > preset.maximumRenderScale()) {
+            throw new IllegalArgumentException("render scale is outside the selected preset bounds");
         }
         if (warmUpFrames < 0 || warmUpFrames > GraphicsBenchmarkSession.MAXIMUM_WARM_UP_FRAMES) {
             throw new IllegalArgumentException("warm-up frame count is outside the bounded range");
@@ -42,6 +49,7 @@ record GraphicsBenchmarkManualOptions(
         String preset = null;
         String width = null;
         String height = null;
+        String renderScale = null;
         String warmUpFrames = null;
         String measurementFrames = null;
         String assetLock = null;
@@ -53,6 +61,8 @@ record GraphicsBenchmarkManualOptions(
                 case "--preset" -> preset = requireValue(arguments, ++index, argument, preset);
                 case "--width" -> width = requireValue(arguments, ++index, argument, width);
                 case "--height" -> height = requireValue(arguments, ++index, argument, height);
+                case "--render-scale" ->
+                        renderScale = requireValue(arguments, ++index, argument, renderScale);
                 case "--warm-up-frames" ->
                         warmUpFrames = requireValue(arguments, ++index, argument, warmUpFrames);
                 case "--measurement-frames" ->
@@ -69,6 +79,7 @@ record GraphicsBenchmarkManualOptions(
         if (preset == null
                 || width == null
                 || height == null
+                || renderScale == null
                 || warmUpFrames == null
                 || measurementFrames == null
                 || assetLock == null
@@ -80,6 +91,7 @@ record GraphicsBenchmarkManualOptions(
                 parsePreset(preset),
                 parseInteger(width, "width"),
                 parseInteger(height, "height"),
+                parseRenderScale(renderScale),
                 parseInteger(warmUpFrames, "warm-up frame count"),
                 parseInteger(measurementFrames, "measurement frame count"),
                 Path.of(assetLock),
@@ -99,6 +111,14 @@ record GraphicsBenchmarkManualOptions(
             return Integer.parseInt(value);
         } catch (NumberFormatException exception) {
             throw new IllegalArgumentException("invalid " + field, exception);
+        }
+    }
+
+    private static double parseRenderScale(String value) {
+        try {
+            return new BigDecimal(value).doubleValue();
+        } catch (NumberFormatException exception) {
+            throw new IllegalArgumentException("invalid render scale", exception);
         }
     }
 
