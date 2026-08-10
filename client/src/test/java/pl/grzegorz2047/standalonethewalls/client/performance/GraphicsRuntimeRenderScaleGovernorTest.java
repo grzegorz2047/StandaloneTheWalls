@@ -46,7 +46,8 @@ class GraphicsRuntimeRenderScaleGovernorTest {
 
     @Test
     void healthyCompleteWindowResetsBadWindowStreakWithoutUpgrading() {
-        GraphicsRuntimeRenderScaleGovernor governor = governor(GraphicsQualityPreset.MEDIUM, 1, 0.05d, 2);
+        GraphicsRuntimeRenderScaleGovernor governor =
+                governor(GraphicsQualityPreset.MEDIUM, 1, 0.05d, 2);
 
         assertThat(governor.acceptFrameTime(PRIMARY_BAD)).isEmpty();
         assertThat(governor.consecutiveOverBudgetWindows()).isOne();
@@ -68,13 +69,7 @@ class GraphicsRuntimeRenderScaleGovernorTest {
     @Test
     void rejectsInvalidWindowsAndFrameTimes() {
         assertThatIllegalArgumentException()
-                .isThrownBy(
-                        () ->
-                                governor(
-                                        GraphicsQualityPreset.MEDIUM,
-                                        0,
-                                        0.05d,
-                                        2));
+                .isThrownBy(() -> governor(GraphicsQualityPreset.MEDIUM, 0, 0.05d, 2));
         GraphicsRuntimeRenderScaleGovernor governor =
                 governor(GraphicsQualityPreset.MEDIUM, 1, 0.05d, 2);
         assertThatIllegalArgumentException().isThrownBy(() -> governor.acceptFrameTime(0L));
