@@ -69,12 +69,16 @@ jobs:
 
       - name: Run real graphics preset renderer smoke
         env:
-          SUNDERFRONT_REAL_RENDERER_SMOKE: "1"
           LIBGL_ALWAYS_SOFTWARE: "true"
-        run: >-
-          xvfb-run -a ./gradlew --no-daemon --rerun-tasks
-          :client:test
-          --tests pl.grzegorz2047.standalonethewalls.client.performance.GraphicsPresetRendererSmokeDisplayTest
+        run: |
+          set -euo pipefail
+          ./gradlew --no-daemon :client:installDist
+          LIB_DIR=$(find client/build/install -mindepth 2 -maxdepth 2 -type d -name lib -print -quit)
+          test -n "$LIB_DIR"
+          timeout --signal=TERM --kill-after=10s 90s \
+            xvfb-run -a java \
+            -cp "$LIB_DIR/*" \
+            pl.grzegorz2047.standalonethewalls.client.performance.GraphicsPresetRendererSmokeMain
 
       - name: Upload quality reports
         if: always()
