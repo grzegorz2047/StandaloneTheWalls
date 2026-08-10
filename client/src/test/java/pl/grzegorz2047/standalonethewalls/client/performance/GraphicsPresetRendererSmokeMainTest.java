@@ -1,11 +1,20 @@
 package pl.grzegorz2047.standalonethewalls.client.performance;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 import org.junit.jupiter.api.Test;
 
 class GraphicsPresetRendererSmokeMainTest {
+    @Test
+    void rejectsMissingAndUnknownPresetArgumentsWithoutStartingRenderer() {
+        assertThat(GraphicsPresetRendererSmokeMain.run(new String[0]))
+                .isEqualTo(GraphicsPresetRendererSmokeMain.EXIT_USAGE);
+        assertThat(GraphicsPresetRendererSmokeMain.run(new String[] {"unsupported"}))
+                .isEqualTo(GraphicsPresetRendererSmokeMain.EXIT_USAGE);
+    }
+
     @Test
     void acceptsExpectedSnapshotsForAllPresets() {
         for (GraphicsQualityPreset preset : GraphicsQualityPreset.values()) {
